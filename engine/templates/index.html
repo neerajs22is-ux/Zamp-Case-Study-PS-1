@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zamp Pace — AP Digital Employee (PS-1 Live Demo)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+            },
+            slate: {
+              850: '#0f172a',
+              900: '#0a0f1d',
+              950: '#030712',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-slow {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-pulse-slow {
+      animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-slate-800/80 bg-slate-900/60 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/20">
+          Z
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-bold tracking-tight text-white text-base">Zamp <span class="text-blue-400">Pace</span></span>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">Digital Employee</span>
+          </div>
+          <p class="text-xs text-slate-400">PS-1: Autonomous Invoice Processing & AOP Tolerance Engine</p>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex items-center space-x-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
+        <button id="tab-live-btn" onclick="switchTab('live')" class="px-3.5 py-1.5 rounded-md text-xs font-medium bg-blue-600 text-white shadow-sm flex items-center space-x-1.5 transition">
+          <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
+          <span>Live Run View</span>
+        </button>
+        <button id="tab-history-btn" onclick="switchTab('history')" class="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 flex items-center space-x-1.5 transition">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+          <span>Runs History</span>
+        </button>
+        <button id="tab-erp-btn" onclick="switchTab('erp')" class="px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 flex items-center space-x-1.5 transition">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i>
+          <span>Mock ERP Master</span>
+        </button>
+      </nav>
+
+      <!-- System Health Badge -->
+      <div class="hidden sm:flex items-center space-x-3 text-xs">
+        <div class="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Core Engine Active</span>
+        </div>
+        <a href="/docs" target="_blank" class="text-slate-400 hover:text-white flex items-center space-x-1 text-xs transition">
+          <i data-lucide="file-code" class="w-3.5 h-3.5"></i>
+          <span>Swagger API</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ============================================================= -->
+    <!-- TAB 1: LIVE RUN VIEW (EXECUTION INSPECTOR)                     -->
+    <!-- ============================================================= -->
+    <div id="tab-live" class="space-y-6">
+      
+      <!-- Top Scenario Selector Bar -->
+      <div class="glass-panel rounded-xl p-5 border border-slate-800">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center space-x-2">
+              <i data-lucide="sliders" class="w-4 h-4 text-blue-400"></i>
+              <span>Select Operational Scenario to Execute</span>
+            </h2>
+            <p class="text-xs text-slate-400 mt-1">Run pre-configured enterprise test fixtures or upload an arbitrary invoice PDF.</p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <select id="scenario-select" onchange="onScenarioChange()" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-72">
+              <!-- Dynamically populated -->
+            </select>
+            
+            <button id="run-btn" onclick="executeCurrentScenario()" class="px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs shadow-lg shadow-blue-500/20 flex items-center space-x-2 transition disabled:opacity-50">
+              <i data-lucide="play" class="w-4 h-4 fill-white"></i>
+              <span>Execute Digital Employee</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Scenario Quick Summary Banner -->
+        <div id="scenario-summary-box" class="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-xs text-slate-300 gap-2">
+          <div class="flex items-center space-x-4">
+            <div><span class="text-slate-500">Vendor:</span> <strong id="sc-vendor" class="text-slate-200">-</strong></div>
+            <div><span class="text-slate-500">Invoice #:</span> <code id="sc-invoice-num" class="bg-slate-800 px-1.5 py-0.5 rounded text-blue-300 font-mono">-</code></div>
+            <div><span class="text-slate-500">Amount:</span> <strong id="sc-amount" class="text-emerald-400">-</strong></div>
+            <div><span class="text-slate-500">PO Ref:</span> <code id="sc-po-ref" class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300 font-mono">-</code></div>
+          </div>
+          <div id="sc-expected-badge" class="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-800 text-slate-300 border border-slate-700">
+            Expected: Loading...
+          </div>
+        </div>
+      </div>
+
+      <!-- Split Layout: Left Pipeline Stepper + Right Live Decision Card -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT: 5-Stage Live Stepper (7 Cols) -->
+        <div class="lg:col-span-7 space-y-4">
+          <div class="glass-panel rounded-xl p-5 border border-slate-800">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-800/80">
+              <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+                <i data-lucide="git-commit" class="w-4 h-4 text-blue-400"></i>
+                <span>Plan-Execute-Validate (PEV) Pipeline</span>
+              </h3>
+              <div id="pipeline-status-indicator" class="text-xs text-slate-400 font-mono flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                <span>IDLE</span>
+              </div>
+            </div>
+
+            <!-- Pipeline Stages Container -->
+            <div class="mt-4 space-y-3" id="stages-container">
+              
+              <!-- Stage 1 -->
+              <div id="stage-card-1" class="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-start justify-between transition-all duration-300">
+                <div class="flex items-start space-x-3">
+                  <div id="stage-icon-1" class="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold mt-0.5">
+                    1
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">Document Ingestion & Classification</h4>
+                    <p id="stage-desc-1" class="text-[11px] text-slate-400 mt-0.5">Classifying digital text stream vs scanned image capture</p>
+                  </div>
+                </div>
+                <div id="stage-timer-1" class="text-[11px] font-mono text-slate-500">-- ms</div>
+              </div>
+
+              <!-- Stage 2 -->
+              <div id="stage-card-2" class="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-start justify-between transition-all duration-300">
+                <div class="flex items-start space-x-3">
+                  <div id="stage-icon-2" class="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold mt-0.5">
+                    2
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">Structured Extraction & Arithmetic Sanity</h4>
+                    <p id="stage-desc-2" class="text-[11px] text-slate-400 mt-0.5">Validating line items and mathematical invariants (sum == subtotal)</p>
+                  </div>
+                </div>
+                <div id="stage-timer-2" class="text-[11px] font-mono text-slate-500">-- ms</div>
+              </div>
+
+              <!-- Stage 3 -->
+              <div id="stage-card-3" class="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-start justify-between transition-all duration-300">
+                <div class="flex items-start space-x-3">
+                  <div id="stage-icon-3" class="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold mt-0.5">
+                    3
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">ERP System-of-Record Cross-Reference</h4>
+                    <p id="stage-desc-3" class="text-[11px] text-slate-400 mt-0.5">Verifying active vendor master record, duplicate hashes, and open PO balance</p>
+                  </div>
+                </div>
+                <div id="stage-timer-3" class="text-[11px] font-mono text-slate-500">-- ms</div>
+              </div>
+
+              <!-- Stage 4 -->
+              <div id="stage-card-4" class="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-start justify-between transition-all duration-300">
+                <div class="flex items-start space-x-3">
+                  <div id="stage-icon-4" class="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold mt-0.5">
+                    4
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">AOP Policy Matching & Tolerance Math</h4>
+                    <p id="stage-desc-4" class="text-[11px] text-slate-400 mt-0.5">Evaluating 2-way line price variances (≤1.5% tolerance) and budget caps</p>
+                  </div>
+                </div>
+                <div id="stage-timer-4" class="text-[11px] font-mono text-slate-500">-- ms</div>
+              </div>
+
+              <!-- Stage 5 -->
+              <div id="stage-card-5" class="p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-start justify-between transition-all duration-300">
+                <div class="flex items-start space-x-3">
+                  <div id="stage-icon-5" class="w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold mt-0.5">
+                    5
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-semibold text-white">Decision State & Audit Packaging</h4>
+                    <p id="stage-desc-5" class="text-[11px] text-slate-400 mt-0.5">Assigning state machine terminal node, CFO reasoning, and email drafts</p>
+                  </div>
+                </div>
+                <div id="stage-timer-5" class="text-[11px] font-mono text-slate-500">-- ms</div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Document Raw Schema Preview -->
+          <div class="glass-panel rounded-xl p-5 border border-slate-800">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
+                <i data-lucide="code" class="w-3.5 h-3.5 text-blue-400"></i>
+                <span>Extracted Schema & Line-Item Table</span>
+              </h4>
+              <span id="extraction-confidence-pill" class="text-[11px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Confidence: --</span>
+            </div>
+            <div id="line-items-view" class="overflow-x-auto">
+              <p class="text-xs text-slate-500 italic py-4 text-center">Click "Execute Digital Employee" to inspect live parsed line items and ERP matching.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Live Decision Card & Human-in-the-Loop Gateway (5 Cols) -->
+        <div class="lg:col-span-5 space-y-4">
+          
+          <div class="glass-panel rounded-xl p-6 border border-slate-800 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+                <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Autonomous Decision</span>
+                <span id="run-id-badge" class="text-[11px] font-mono text-slate-500">--</span>
+              </div>
+
+              <!-- Main Status Badge -->
+              <div class="py-6 text-center">
+                <div id="decision-badge" class="inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-base font-bold bg-slate-800 text-slate-400 border border-slate-700 shadow-lg">
+                  <i data-lucide="clock" class="w-5 h-5"></i>
+                  <span>AWAITING EXECUTION</span>
+                </div>
+                <p id="decision-subtext" class="text-xs text-slate-400 mt-2">Process an invoice to view the explainable audit trail</p>
+              </div>
+
+              <!-- CFO Audit Narrative -->
+              <div class="bg-slate-900/80 rounded-lg p-4 border border-slate-800 space-y-2">
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-semibold text-slate-300 flex items-center space-x-1">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5 text-blue-400"></i>
+                    <span>CFO Audit Trail & Reasoning</span>
+                  </span>
+                  <span id="voucher-badge" class="text-[11px] font-mono text-emerald-400"></span>
+                </div>
+                <ul id="reasons-list" class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
+                  <li class="text-slate-500 italic">No run executed yet.</li>
+                </ul>
+              </div>
+
+              <!-- Discrepancy Breakdown Box (Conditional) -->
+              <div id="discrepancy-card" class="mt-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 hidden space-y-2">
+                <div class="font-semibold flex items-center space-x-1.5">
+                  <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>
+                  <span>Exception Analysis</span>
+                </div>
+                <div id="discrepancy-content" class="text-[11px] font-mono text-amber-300/90 whitespace-pre-wrap"></div>
+              </div>
+            </div>
+
+            <!-- 1-Click Action Toolbar -->
+            <div id="action-toolbar" class="mt-6 pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-[11px] text-slate-500">Human-in-the-Loop Gateway</span>
+              <button id="view-email-btn" onclick="openEmailModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 flex items-center space-x-1.5 transition hidden">
+                <i data-lucide="mail" class="w-3.5 h-3.5 text-blue-400"></i>
+                <span>View Auto-Draft Email</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Enterprise Guardrails Card -->
+          <div class="glass-panel rounded-xl p-4 border border-slate-800 text-xs space-y-2">
+            <span class="font-semibold text-slate-300 flex items-center space-x-1.5">
+              <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Active AOP Policy Guardrails</span>
+            </span>
+            <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-400 pt-1">
+              <div class="p-2 rounded bg-slate-900 border border-slate-800">
+                <span class="text-slate-500">Price Tolerance:</span>
+                <p class="text-slate-200 font-mono mt-0.5">±1.5% or ≤$20.00</p>
+              </div>
+              <div class="p-2 rounded bg-slate-900 border border-slate-800">
+                <span class="text-slate-500">Duplicate Check:</span>
+                <p class="text-slate-200 font-mono mt-0.5">0 tolerance (30-day)</p>
+              </div>
+              <div class="p-2 rounded bg-slate-900 border border-slate-800">
+                <span class="text-slate-500">Tax Rounding:</span>
+                <p class="text-slate-200 font-mono mt-0.5">≤$5.00 absorbed</p>
+              </div>
+              <div class="p-2 rounded bg-slate-900 border border-slate-800">
+                <span class="text-slate-500">Confidence Floor:</span>
+                <p class="text-slate-200 font-mono mt-0.5">≥75.0% for Auto-Approve</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- TAB 2: RUNS HISTORY DASHBOARD                                 -->
+    <!-- ============================================================= -->
+    <div id="tab-history" class="space-y-6 hidden">
+      
+      <!-- Metrics KPI Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div class="glass-panel p-4 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400">Total Invoices Processed</p>
+          <p id="kpi-total" class="text-2xl font-bold text-white mt-1">0</p>
+        </div>
+        <div class="glass-panel p-4 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400">Auto-Approval Rate</p>
+          <p id="kpi-approval-rate" class="text-2xl font-bold text-emerald-400 mt-1">0.0%</p>
+        </div>
+        <div class="glass-panel p-4 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400">Exception Rate (HITL)</p>
+          <p id="kpi-exception-rate" class="text-2xl font-bold text-amber-400 mt-1">0.0%</p>
+        </div>
+        <div class="glass-panel p-4 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400">Rejected (Compliance/Fraud)</p>
+          <p id="kpi-rejected" class="text-2xl font-bold text-rose-400 mt-1">0</p>
+        </div>
+      </div>
+
+      <!-- History Table -->
+      <div class="glass-panel rounded-xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+            <i data-lucide="history" class="w-4 h-4 text-blue-400"></i>
+            <span>Audit Ledger & Execution History</span>
+          </h3>
+          <button onclick="refreshHistory()" class="px-2.5 py-1 text-xs text-slate-400 hover:text-white bg-slate-800 rounded border border-slate-700 flex items-center space-x-1">
+            <i data-lucide="rotate-cw" class="w-3 h-3"></i>
+            <span>Refresh</span>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-300">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
+              <tr>
+                <th class="py-3 px-3">Run ID</th>
+                <th class="py-3 px-3">Invoice #</th>
+                <th class="py-3 px-3">Vendor</th>
+                <th class="py-3 px-3">PO Reference</th>
+                <th class="py-3 px-3 text-right">Amount</th>
+                <th class="py-3 px-3 text-center">Confidence</th>
+                <th class="py-3 px-3">Decision</th>
+                <th class="py-3 px-3 text-right">Latency</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-800/60 font-mono">
+              <tr>
+                <td colspan="8" class="text-center py-6 text-slate-500 italic">No execution history recorded.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- TAB 3: MOCK ERP MASTER INSPECTOR                              -->
+    <!-- ============================================================= -->
+    <div id="tab-erp" class="space-y-6 hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Active Purchase Orders Table -->
+        <div class="glass-panel rounded-xl p-5 border border-slate-800">
+          <h3 class="text-sm font-semibold text-white flex items-center space-x-2 mb-3">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4 text-amber-400"></i>
+            <span>Authoritative Purchase Orders (ERP Master)</span>
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">PO #</th>
+                  <th class="py-2.5 px-3">Authorized</th>
+                  <th class="py-2.5 px-3">Invoiced</th>
+                  <th class="py-2.5 px-3">Remaining</th>
+                  <th class="py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="erp-pos-body" class="divide-y divide-slate-800 font-mono text-[11px]">
+                <!-- Populated via API -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Vendor Directory Table -->
+        <div class="glass-panel rounded-xl p-5 border border-slate-800">
+          <h3 class="text-sm font-semibold text-white flex items-center space-x-2 mb-3">
+            <i data-lucide="building" class="w-4 h-4 text-emerald-400"></i>
+            <span>Approved Vendor Master Directory</span>
+          </h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs text-slate-300">
+              <thead class="bg-slate-900 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+                <tr>
+                  <th class="py-2.5 px-3">ID</th>
+                  <th class="py-2.5 px-3">Vendor Name</th>
+                  <th class="py-2.5 px-3">Tax ID</th>
+                  <th class="py-2.5 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody id="erp-vendors-body" class="divide-y divide-slate-800 text-[11px]">
+                <!-- Populated via API -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Email Modal for Human-in-the-Loop Exceptions -->
+  <div id="email-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-sm font-semibold text-white flex items-center space-x-2">
+          <i data-lucide="mail-check" class="w-4 h-4 text-blue-400"></i>
+          <span>Auto-Generated Vendor Communication Draft</span>
+        </h3>
+        <button onclick="closeEmailModal()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-xs text-slate-400">This email was automatically drafted by the Digital Employee based on the exact discrepancy delta:</p>
+        <textarea id="email-body-text" readonly class="w-full h-64 bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-slate-200 focus:outline-none"></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-2">
+        <button onclick="copyEmailText()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium border border-slate-700 flex items-center space-x-1.5 transition">
+          <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+          <span id="copy-btn-label">Copy Draft</span>
+        </button>
+        <button onclick="closeEmailModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Client Logic -->
+  <script>
+    let scenarios = [];
+    let currentAudit = null;
+
+    async function init() {
+      lucide.createIcons();
+      await loadScenarios();
+      await refreshHistory();
+      await loadERPData();
+    }
+
+    async function loadScenarios() {
+      const res = await fetch('/api/scenarios');
+      scenarios = await res.json();
+      const select = document.getElementById('scenario-select');
+      select.innerHTML = '';
+      scenarios.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.id}: ${s.title}`;
+        select.appendChild(opt);
+      });
+      onScenarioChange();
+    }
+
+    function onScenarioChange() {
+      const id = document.getElementById('scenario-select').value;
+      const sc = scenarios.find(s => s.id === id);
+      if (!sc) return;
+
+      document.getElementById('sc-vendor').textContent = sc.vendor;
+      document.getElementById('sc-invoice-num').textContent = sc.invoice_number;
+      document.getElementById('sc-amount').textContent = `$${sc.amount.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+      document.getElementById('sc-po-ref').textContent = sc.po_reference || 'N/A (Missing)';
+
+      const badge = document.getElementById('sc-expected-badge');
+      badge.textContent = `Expected: ${sc.expected_decision}`;
+      if (sc.expected_decision === 'AUTO_APPROVED') {
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      } else if (sc.expected_decision === 'FLAGGED_HITL_REVIEW') {
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      } else {
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-medium bg-rose-500/10 text-rose-400 border border-rose-500/20';
+      }
+    }
+
+    function switchTab(tab) {
+      ['live', 'history', 'erp'].forEach(t => {
+        document.getElementById(`tab-${t}`).classList.add('hidden');
+        const btn = document.getElementById(`tab-${t}-btn`);
+        btn.className = 'px-3.5 py-1.5 rounded-md text-xs font-medium text-slate-400 hover:text-white hover:bg-slate-700/50 flex items-center space-x-1.5 transition';
+      });
+
+      document.getElementById(`tab-${tab}`).classList.remove('hidden');
+      const activeBtn = document.getElementById(`tab-${tab}-btn`);
+      activeBtn.className = 'px-3.5 py-1.5 rounded-md text-xs font-medium bg-blue-600 text-white shadow-sm flex items-center space-x-1.5 transition';
+      
+      if (tab === 'history') refreshHistory();
+      if (tab === 'erp') loadERPData();
+      lucide.createIcons();
+    }
+
+    async function executeCurrentScenario() {
+      const scenarioId = document.getElementById('scenario-select').value;
+      const runBtn = document.getElementById('run-btn');
+      runBtn.disabled = true;
+
+      // Reset UI Stepper
+      resetStepper();
+      document.getElementById('pipeline-status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span><span class="text-blue-400">STREAMING...</span>';
+
+      // Connect to Server-Sent Events (SSE)
+      const eventSource = new EventSource(`/api/stream-scenario/${scenarioId}`);
+
+      eventSource.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+
+        if (data.event === 'STAGE_START') {
+          highlightStage(data.stage, 'RUNNING', data.details);
+        } else if (data.event === 'STAGE_COMPLETE') {
+          highlightStage(data.stage, 'COMPLETE');
+        } else if (data.event === 'DECISION_FINAL') {
+          eventSource.close();
+          runBtn.disabled = false;
+          document.getElementById('pipeline-status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span class="text-emerald-400">COMPLETE</span>';
+          renderFinalDecision(data.audit);
+          refreshHistory();
+          loadERPData();
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        runBtn.disabled = false;
+        document.getElementById('pipeline-status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-400"></span><span class="text-rose-400">STREAM ERROR</span>';
+      };
+    }
+
+    function resetStepper() {
+      for (let i = 1; i <= 5; i++) {
+        const card = document.getElementById(`stage-card-${i}`);
+        card.className = 'p-3.5 rounded-lg border border-slate-800 bg-slate-900/50 flex items-start justify-between transition-all duration-300';
+        const icon = document.getElementById(`stage-icon-${i}`);
+        icon.className = 'w-7 h-7 rounded-md bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold mt-0.5';
+        icon.textContent = i;
+        document.getElementById(`stage-timer-${i}`).textContent = '-- ms';
+      }
+      document.getElementById('decision-badge').className = 'inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-base font-bold bg-slate-800 text-slate-400 border border-slate-700 shadow-lg';
+      document.getElementById('decision-badge').innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i><span>PROCESSING...</span>';
+      document.getElementById('view-email-btn').classList.add('hidden');
+      document.getElementById('discrepancy-card').classList.add('hidden');
+      lucide.createIcons();
+    }
+
+    function highlightStage(stageNum, state, details) {
+      const card = document.getElementById(`stage-card-${stageNum}`);
+      const icon = document.getElementById(`stage-icon-${stageNum}`);
+
+      if (state === 'RUNNING') {
+        card.className = 'p-3.5 rounded-lg border border-blue-500/50 bg-blue-950/20 flex items-start justify-between transition-all duration-300';
+        icon.className = 'w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white text-xs font-bold mt-0.5 animate-pulse';
+        icon.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>';
+      } else if (state === 'COMPLETE') {
+        card.className = 'p-3.5 rounded-lg border border-emerald-500/40 bg-emerald-950/10 flex items-start justify-between transition-all duration-300';
+        icon.className = 'w-7 h-7 rounded-md bg-emerald-600 flex items-center justify-center text-white text-xs font-bold mt-0.5';
+        icon.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+      }
+      lucide.createIcons();
+    }
+
+    function renderFinalDecision(audit) {
+      currentAudit = audit;
+      document.getElementById('run-id-badge').textContent = audit.run_id;
+
+      // Fill Stage Timers
+      audit.stage_timings.forEach((st, idx) => {
+        const timer = document.getElementById(`stage-timer-${idx + 1}`);
+        if (timer) timer.textContent = `${st.latency_ms} ms`;
+      });
+      document.getElementById('stage-timer-5').textContent = `${audit.total_latency_ms} ms (Total)`;
+      highlightStage(5, 'COMPLETE');
+
+      // Decision Badge
+      const badge = document.getElementById('decision-badge');
+      const subtext = document.getElementById('decision-subtext');
+      const voucherBadge = document.getElementById('voucher-badge');
+
+      if (audit.decision === 'AUTO_APPROVED') {
+        badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10';
+        badge.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5"></i><span>AUTO APPROVED</span>';
+        subtext.textContent = 'Zero financial variance. Posted directly to ERP general ledger.';
+        voucherBadge.textContent = audit.erp_voucher_id || '';
+      } else if (audit.decision === 'FLAGGED_HITL_REVIEW') {
+        badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10';
+        badge.innerHTML = '<i data-lucide="alert-triangle" class="w-5 h-5"></i><span>FLAGGED FOR HITL REVIEW</span>';
+        subtext.textContent = 'Policy tolerance exceeded. Routed to AP Lead with audit breakdown.';
+        voucherBadge.textContent = 'HOLD FOR SIGN-OFF';
+        voucherBadge.className = 'text-[11px] font-mono text-amber-400';
+      } else {
+        badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 shadow-lg shadow-rose-500/10';
+        badge.innerHTML = '<i data-lucide="x-circle" class="w-5 h-5"></i><span>REJECTED</span>';
+        subtext.textContent = 'Fatal policy violation or duplicate invoice detected.';
+        voucherBadge.textContent = 'REJECTED';
+        voucherBadge.className = 'text-[11px] font-mono text-rose-400';
+      }
+
+      // Render Reasons
+      const reasonsList = document.getElementById('reasons-list');
+      reasonsList.innerHTML = '';
+      audit.reasons.forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = r;
+        reasonsList.appendChild(li);
+      });
+
+      // Render Discrepancies
+      const discCard = document.getElementById('discrepancy-card');
+      if (Object.keys(audit.discrepancy_details).length > 0) {
+        discCard.classList.remove('hidden');
+        document.getElementById('discrepancy-content').textContent = JSON.stringify(audit.discrepancy_details, null, 2);
+      } else {
+        discCard.classList.add('hidden');
+      }
+
+      // Email Draft Button
+      const emailBtn = document.getElementById('view-email-btn');
+      if (audit.vendor_email_draft) {
+        emailBtn.classList.remove('hidden');
+        document.getElementById('email-body-text').value = audit.vendor_email_draft;
+      } else {
+        emailBtn.classList.add('hidden');
+      }
+
+      // Render Extracted Line Items Table
+      renderLineItemsTable(audit);
+      lucide.createIcons();
+    }
+
+    function renderLineItemsTable(audit) {
+      const confPill = document.getElementById('extraction-confidence-pill');
+      confPill.textContent = `Confidence: ${(audit.overall_confidence * 100).toFixed(1)}%`;
+      if (audit.overall_confidence >= 0.75) {
+        confPill.className = 'text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      } else {
+        confPill.className = 'text-[11px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      }
+
+      const container = document.getElementById('line-items-view');
+      if (!audit.line_results || audit.line_results.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-400 py-3 text-center italic">Invoice matched at document level without line-level itemization.</p>';
+        return;
+      }
+
+      let html = `
+        <table class="w-full text-left text-xs text-slate-300">
+          <thead class="bg-slate-900 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+            <tr>
+              <th class="py-2 px-2">Line</th>
+              <th class="py-2 px-2">Description</th>
+              <th class="py-2 px-2 text-right">Billed Qty</th>
+              <th class="py-2 px-2 text-right">Billed Rate</th>
+              <th class="py-2 px-2 text-right">PO Rate</th>
+              <th class="py-2 px-2 text-center">Variance %</th>
+              <th class="py-2 px-2">Status</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800 font-mono text-[11px]">
+      `;
+
+      audit.line_results.forEach(l => {
+        const isVariance = l.status === 'PRICE_VARIANCE';
+        html += `
+          <tr class="${isVariance ? 'bg-amber-500/5' : ''}">
+            <td class="py-2 px-2">#${l.line_number}</td>
+            <td class="py-2 px-2 font-sans text-slate-200">${l.description}</td>
+            <td class="py-2 px-2 text-right">${l.billed_quantity}</td>
+            <td class="py-2 px-2 text-right">$${l.billed_unit_price.toFixed(2)}</td>
+            <td class="py-2 px-2 text-right text-slate-400">${l.contracted_unit_price ? '$' + l.contracted_unit_price.toFixed(2) : 'N/A'}</td>
+            <td class="py-2 px-2 text-center ${isVariance ? 'text-amber-400 font-bold' : 'text-slate-400'}">${l.price_variance_pct > 0 ? '+' + l.price_variance_pct + '%' : '0.0%'}</td>
+            <td class="py-2 px-2">
+              <span class="px-2 py-0.5 rounded text-[10px] ${
+                l.status === 'MATCHED' ? 'bg-emerald-500/10 text-emerald-400' :
+                l.status === 'PRICE_VARIANCE' ? 'bg-amber-500/10 text-amber-400 font-bold' :
+                'bg-rose-500/10 text-rose-400'
+              }">${l.status}</span>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+
+    async function refreshHistory() {
+      const res = await fetch('/api/runs');
+      const data = await res.json();
+
+      document.getElementById('kpi-total').textContent = data.metrics.total_runs;
+      document.getElementById('kpi-approval-rate').textContent = `${data.metrics.auto_approval_rate_pct}%`;
+      document.getElementById('kpi-exception-rate').textContent = `${data.metrics.exception_rate_pct}%`;
+      document.getElementById('kpi-rejected').textContent = data.metrics.rejected;
+
+      const tbody = document.getElementById('history-table-body');
+      if (data.runs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center py-6 text-slate-500 italic">No execution history recorded.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      data.runs.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-900/40 transition cursor-pointer';
+        tr.innerHTML = `
+          <td class="py-2.5 px-3 text-blue-400 font-bold">${r.run_id}</td>
+          <td class="py-2.5 px-3 text-slate-200">${r.invoice_number}</td>
+          <td class="py-2.5 px-3 font-sans text-slate-300">${r.vendor_name}</td>
+          <td class="py-2.5 px-3 text-amber-300/90">${r.po_number || 'N/A'}</td>
+          <td class="py-2.5 px-3 text-right text-emerald-400 font-bold">${r.reasons[0]?.includes('$') ? (r.reasons[0].match(/\\$[0-9,]+\\.[0-9]{2}/) || ['-'])[0] : '-'}</td>
+          <td class="py-2.5 px-3 text-center">${(r.overall_confidence * 100).toFixed(0)}%</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-medium ${
+              r.decision === 'AUTO_APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+              r.decision === 'FLAGGED_HITL_REVIEW' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+              'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+            }">${r.decision}</span>
+          </td>
+          <td class="py-2.5 px-3 text-right text-slate-400">${r.total_latency_ms} ms</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function loadERPData() {
+      const [posRes, vendorsRes] = await Promise.all([
+        fetch('/api/erp/purchase-orders'),
+        fetch('/api/erp/vendors')
+      ]);
+      const pos = await posRes.json();
+      const vendors = await vendorsRes.json();
+
+      const posBody = document.getElementById('erp-pos-body');
+      posBody.innerHTML = '';
+      pos.forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-bold text-amber-300">${p.po_number}</td>
+          <td class="py-2 px-3">$${p.authorized_amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3 text-slate-400">$${p.invoiced_amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3 text-emerald-400 font-bold">$${p.remaining_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">${p.status}</span></td>
+        `;
+        posBody.appendChild(tr);
+      });
+
+      const vendorsBody = document.getElementById('erp-vendors-body');
+      vendorsBody.innerHTML = '';
+      vendors.forEach(v => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-mono text-slate-400">${v.vendor_id}</td>
+          <td class="py-2 px-3 font-medium text-slate-200">${v.name}</td>
+          <td class="py-2 px-3 font-mono text-slate-400">${v.tax_id}</td>
+          <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] ${v.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${v.status}</span></td>
+        `;
+        vendorsBody.appendChild(tr);
+      });
+    }
+
+    function openEmailModal() {
+      document.getElementById('email-modal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeEmailModal() {
+      document.getElementById('email-modal').classList.add('hidden');
+    }
+
+    function copyEmailText() {
+      const text = document.getElementById('email-body-text').value;
+      navigator.clipboard.writeText(text);
+      const label = document.getElementById('copy-btn-label');
+      label.textContent = 'Copied!';
+      setTimeout(() => label.textContent = 'Copy Draft', 2000);
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>
