@@ -106,11 +106,14 @@ Rather than an ungrounded chat interface, we deploy an **autonomous AP Digital E
   3. **Duplicate Submission Check:** Search submitted invoices ledger for any match where:
      $$\text{vendor\_id} == \text{current} \quad \text{AND} \quad \text{invoice\_number} == \text{current}$$
      OR
-     $$\text{vendor\_id} == \text{current} \quad \text{AND} \quad \text{total\_amount} == \text{current} \quad \text{AND} \quad |\Delta \text{date}| \le 30 \text{ days}$$
+     $$\text{sha256\_hash} == \text{current}$$
+     OR
+     $$\text{vendor\_id} == \text{current} \quad \text{AND} \quad \text{total\_amount} == \text{current} \quad \text{AND} \quad |\Delta \text{date}| \le \text{duplicate\_window\_days}$$
+     *(Note: `duplicate_window_days` defaults to 0 / same-day window in `AOPPolicyConfig` to protect valid recurring monthly SaaS subscriptions with identical totals from false-positive rejections).*
 
 ### Stage 4: Agent Operating Procedure (AOP) Matching & Policy Rules
 * **AOP Policy Rules Defined:**
-  1. **Duplicate Policy:** Absolute $0$ tolerance. Duplicate invoice number or identical hash $\rightarrow$ Immediate Rejection.
+  1. **Duplicate Policy:** Absolute $0$ tolerance on duplicate invoice number or identical content hash. Amount-only collisions require same-day submission (0-day window) so recurring monthly subscription billings with identical dollar amounts are not falsely rejected.
   2. **Vendor Policy:** Unapproved vendor or tax ID mismatch $\rightarrow$ Immediate Rejection.
   3. **Split PO Balance Policy:** Current invoice total must be $\le$ Remaining PO Balance. If $\text{Total} > \text{Remaining Balance}$, flag for PO Line Increase.
   4. **Line-Item 2-Way Match Policy:**
