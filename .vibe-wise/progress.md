@@ -5,12 +5,14 @@
 - **The FDE Mental Model:** How an FDE bridges the gap between raw engineering and executive buyers (Controllers/CFOs). An FDE frames workflows through **Risk, Latency, Tolerance, and Auditability**.
 - **The Pace Paradigm:** Structuring invoice processing as an autonomous **Digital Employee** running an **Agent Operating Procedure (AOP)** with a **Plan-Execute-Validate (PEV)** loop.
 
-### Demonstrated Understanding
-- Selected structured schema extraction with deterministic mathematical validation over unstructured RAG chunking to prevent tabular hallucinations.
-- Selected 4 high-impact enterprise edge cases (Split PO Over-Billing, Duplicate Submission, Price Variance outside policy, Low-confidence scan with missing PO).
-- Prioritized **Backend Hardening First**: Built a battle-tested, deterministic, fully tested core processing engine and rule validator before introducing UI complexity.
-- Implemented and verified the 5-stage pipeline, FastAPI server, and live interactive UI with 12 automated unit & integration tests passing in 0.27s.
-- Created complete documentation and 5-minute Loom video storyboard in `README.md`.
+### Demonstrated Understanding & Hardening Milestones
+- **Deterministic PDF Ingestion:** Labeled totals and tabular line-item parsing preventing subtotal/total collisions.
+- **Fail-Soft Exception Handling:** Graceful degradation on unparseable bytes to `FLAGGED_HITL_REVIEW` with `extraction_failed` metadata (zero 500 crashes).
+- **AOP Tolerance Discipline:** Implemented "whichever is lower" evaluation between percentage ($\le 1.5\%$) and dollar amount ($\le \$20.00$) limits.
+- **Reconciled Duplicate Ledger Policy:** Reconciled spec §3 and `AOPPolicyConfig` so amount-only duplicate detection defaults to same-day (`duplicate_window_days=0`), preserving legitimate recurring monthly SaaS subscriptions while keeping invoice-number and content-hash collisions absolute.
+- **Idempotent Scenario Runs:** Seeded ERP resets per scenario run for clean, repeatable live demo presentations.
+- **Streaming Reliability:** Pydantic JSON mode serialization for SSE events ensuring zero serialization crashes.
+- **Full Test Suite:** 31/31 unit, integration, and regression tests passing in 3.0s.
 
 ## Status
-All phases complete. The solution is 100% locally runnable via `python run.py`, fully tested, and ready for demo recording and interview defense.
+Engine, API, UI, Spec, and Tests are fully hardened and reconciled. Ready for demo recording and interview walkthrough.
