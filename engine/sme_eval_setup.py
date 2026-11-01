@@ -40,7 +40,8 @@ from backend.models.domain import (
     ApprovalRequest, AuditEvent, Document, ExceptionRecord,
     ExtractedField, ExtractionRun, IngestionJob, Invoice,
     InvoiceLine, MatchGateCheck, MatchRun, Organisation,
-    QuarantinedDocument, RoleAssignment, User, Vendor, VendorGSTIN
+    QuarantinedDocument, RoleAssignment, User, Vendor, VendorGSTIN,
+    WorkOrderSnapshot, WorkOrderLineSnapshot
 )
 from engine.duplicate_detector import DuplicateDetector
 from engine.hybrid_extractor import HybridAPExtractor, HybridProcessingResult
@@ -511,8 +512,65 @@ def process_scenario_document(
     }
 
 
+def provision_synthetic_purchase_orders(db) -> None:
+    """Seeds synthetic purchase orders and PO lines into org_sme_eval.
+
+    STRICT SAFETY RULE: Never executes in production.
+    """
+    if getattr(settings, "ENVIRONMENT", "development") == "production":
+        raise RuntimeError("CRITICAL SAFETY VIOLATION: Synthetic reference data seeding is prohibited in production!")
+
+    csv_path = "tests/evaluation_corpus_v2/reference_data/purchase_orders.csv"
+    if not os.path.exists(csv_path):
+        logger.warning(f"Reference data {csv_path} not found.")
+        return
+
+    import csv
+    with open(csv_path, mode="r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        now = datetime.datetime.utcnow()
+        for idx, row in enumerate(reader, start=1):
+            po_num = row["po_number"]
+            po_id = f"po_{po_num}_{ORG_ID}"
+            existing_po = db.scalar(select(WorkOrderSnapshot).where(WorkOrderSnapshot.id == po_id, WorkOrderSnapshot.org_id == ORG_ID))
+            if not existing_po:
+                po_rec = WorkOrderSnapshot(
+                    id=po_id,
+                    org_id=ORG_ID,
+                    po_number=po_num,
+                    vendor_code=row["supplier_id"],
+                    total_authorized_amount=float(row["ordered_taxable_value"]),
+                    remaining_balance=float(row["ordered_taxable_value"]),
+                    currency=row.get("currency", "INR"),
+                    status=row.get("status", "APPROVED"),
+                    retrieved_at=now,
+                )
+                db.add(po_rec)
+                db.flush()
+
+            line_id = f"pol_{po_num}_{idx}_{ORG_ID}"
+            existing_line = db.scalar(select(WorkOrderLineSnapshot).where(WorkOrderLineSnapshot.id == line_id, WorkOrderLineSnapshot.org_id == ORG_ID))
+            if not existing_line:
+                line_rec = WorkOrderLineSnapshot(
+                    id=line_id,
+                    org_id=ORG_ID,
+                    po_id=po_id,
+                    line_number=idx,
+                    item_code=f"ITEM-{idx:03d}",
+                    description=row["line_description"],
+                    authorized_quantity=float(row["ordered_quantity"]),
+                    contracted_unit_rate=float(row["agreed_unit_price"]),
+                    authorized_line_total=float(row["ordered_taxable_value"]),
+                )
+                db.add(line_rec)
+
+        db.commit()
+        logger.info(f"Provisioned synthetic purchase orders and PO lines into {ORG_ID}.")
+
 def run_sme_eval_setup() -> Dict[str, Any]:
     """Sets up the complete Phase E SME acceptance environment."""
+    if getattr(settings, "ENVIRONMENT", "development") == "production":
+        raise RuntimeError("CRITICAL SAFETY VIOLATION: Seeding synthetic evaluation fixtures is strictly prohibited in production!")
     jwt_secret = ensure_jwt_secret()
 
     # Generate enterprise JWT tokens
@@ -529,6 +587,7 @@ def run_sme_eval_setup() -> Dict[str, Any]:
     with SessionLocal() as db:
         provision_tenant_and_users(db)
         provision_synthetic_vendors(db)
+        provision_synthetic_purchase_orders(db)
 
         duplicate_detector = DuplicateDetector()
         rule_engine = IndianAPRuleEngine()

@@ -13,7 +13,7 @@ import datetime
 import hashlib
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -105,8 +105,9 @@ def get_connections_status(
 @router.post("/upload")
 async def upload_invoice(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: AuthenticatedUser = Depends(require_active_membership),
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
     """Authenticated manual invoice upload (delegates to core document ingestion pipeline)."""
-    return await upload_document(file=file, current_user=current_user, db=db)
+    return await upload_document(file=file, background_tasks=background_tasks, current_user=current_user, db=db)

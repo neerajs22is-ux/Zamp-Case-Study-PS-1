@@ -126,7 +126,9 @@ export interface ExceptionsResponse {
 }
 
 export interface SourceRecordsData {
-  origin_system: string;
+  origin_system: string;
+  is_live_sync?: boolean;
+  provenance?: string;
   vendors: Array<{
     id: string;
     vendor_code: string;

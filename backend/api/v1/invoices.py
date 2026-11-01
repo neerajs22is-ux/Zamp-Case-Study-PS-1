@@ -22,7 +22,7 @@ from backend.core.config import settings
 from backend.core.database import get_db
 from backend.core.storage import storage_adapter
 from backend.models.domain import (
-    ApprovalRequest, AuditEvent, Document, ExtractedField, ExtractionRun,
+    ApprovalRequest, AuditEvent, Document, ExceptionRecord, ExtractedField, ExtractionRun,
     Invoice, InvoiceLine, MatchGateCheck, MatchRun
 )
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/invoices", tags=["Invoice Detail & Actions"])
 
 
 class ActionPayload(BaseModel):
-    action: str = Field(..., description="Action name: APPROVE_AP_REVIEW, APPROVE_UNDISPUTED, HOLD_PENDING_EVIDENCE, REQUEST_SUPPLIER_CORRECTION, RAISE_DEBIT_NOTE, ESCALATE, QUARANTINE")
+    action: str = Field(..., description="Action name: APPROVE_AP_REVIEW, APPROVE_UNDISPUTED, REJECT_INVOICE, HOLD_PENDING_EVIDENCE, REQUEST_SUPPLIER_CORRECTION, RAISE_DEBIT_NOTE, ESCALATE, QUARANTINE")
     reason: str = Field(..., min_length=3, description="Operational justification for the action")
     undisputed_amount: Optional[float] = Field(None, description="Required for APPROVE_UNDISPUTED")
     evidence_reference: Optional[str] = None
@@ -57,7 +57,7 @@ def get_invoice_detail(
 
     if doc:
         try:
-            signed_url = storage_adapter.generate_signed_url(doc.storage_key, expires_in=900)
+            signed_url = storage_adapter.generate_signed_url(doc.storage_key, expires_in=300)
         except Exception:
             signed_url = None
 
@@ -153,6 +153,7 @@ def get_invoice_detail(
             "stage": inv.stage,
             "decision": inv.decision,
             "decision_reason": inv.decision_reason,
+            "workflow_substatus": getattr(inv, "workflow_substatus", None),
             "msme_statutory_deadline": inv.msme_statutory_deadline.isoformat() + "Z" if inv.msme_statutory_deadline else None,
             "msme_deadline_status": inv.msme_deadline_status,
             "created_at": inv.created_at.isoformat() + "Z",
@@ -197,6 +198,17 @@ def execute_invoice_action(
     now_utc = datetime.datetime.utcnow()
     before_state = {"stage": inv.stage, "decision": inv.decision, "net_payable": float(inv.net_payable_amount) if inv.net_payable_amount else None}
 
+    VALID_ACTIONS = {
+        "APPROVE_AP_REVIEW", "APPROVE_UNDISPUTED", "REJECT_INVOICE",
+        "HOLD_PENDING_EVIDENCE", "REQUEST_SUPPLIER_CORRECTION",
+        "RAISE_DEBIT_NOTE", "ESCALATE", "QUARANTINE"
+    }
+    if payload.action not in VALID_ACTIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Unknown or invalid action '{payload.action}'. Allowed actions: {sorted(list(VALID_ACTIONS))}",
+        )
+
     # Idempotent duplicate action handling: if already approved, return current state without duplicate audit events
     if inv.stage == "INTERNAL_APPROVAL_COMPLETE" and payload.action in ("APPROVE_AP_REVIEW", "APPROVE_UNDISPUTED"):
         return {
@@ -208,8 +220,43 @@ def execute_invoice_action(
             "updated_at": (inv.updated_at or now_utc).isoformat() + "Z",
         }
 
-    # Dual control validation for approval
+    # Fetch active exceptions to synchronize lifecycle
+    active_exceptions = db.scalars(
+        select(ExceptionRecord).where(
+            ExceptionRecord.invoice_id == inv.id,
+            ExceptionRecord.org_id == current_user.org_id,
+            ExceptionRecord.status.in_(["OPEN", "IN_REVIEW"])
+        )
+    ).all()
+
+    # Action 1 & 2: Approvals (Strict Validation Gate Enforcement - D-04 overrides deferred)
     if payload.action in ("APPROVE_AP_REVIEW", "APPROVE_UNDISPUTED"):
+        # Strictly prevent approval if any deterministic match gate check failed (D-04 override deferred)
+        match_run = db.scalar(
+            select(MatchRun)
+            .where(MatchRun.invoice_id == inv.id, MatchRun.org_id == current_user.org_id)
+            .order_by(MatchRun.evaluated_at.desc())
+        )
+        if match_run:
+            failed_gates = db.scalars(
+                select(MatchGateCheck).where(
+                    MatchGateCheck.match_run_id == match_run.id,
+                    MatchGateCheck.org_id == current_user.org_id,
+                    MatchGateCheck.status == "FAIL",
+                )
+            ).all()
+            if failed_gates:
+                failed_names = [g.gate_name for g in failed_gates]
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=(
+                        f"Cannot approve invoice '{invoice_id}': {len(failed_gates)} deterministic validation gate(s) failed "
+                        f"({', '.join(failed_names)}). Failed-gate policy overrides (D-04) are deferred and disabled. "
+                        f"Authorized triage actions: HOLD_PENDING_EVIDENCE, REQUEST_SUPPLIER_CORRECTION, "
+                        f"RAISE_DEBIT_NOTE, ESCALATE, REJECT_INVOICE, or QUARANTINE."
+                    ),
+                )
+
         invoice_total = float(inv.total_amount or 0.0)
         is_high_value = invoice_total >= settings.DUAL_APPROVAL_THRESHOLD_INR
 
@@ -221,6 +268,7 @@ def execute_invoice_action(
                 )
             )
             if not approval_req:
+                # Step 1 of Dual Approval
                 approval_req = ApprovalRequest(
                     id=f"app_{uuid.uuid4().hex[:12]}",
                     org_id=inv.org_id,
@@ -232,37 +280,106 @@ def execute_invoice_action(
                 )
                 db.add(approval_req)
                 inv.stage = "ACTION_REQUIRED"
+                inv.workflow_substatus = "PENDING_SECOND_APPROVAL"
                 inv.decision_reason = f"High-value invoice ({invoice_total:.2f} INR >= threshold). First approval granted by {current_user.name}. Awaiting secondary Controller review."
+                for exc in active_exceptions:
+                    exc.status = "IN_REVIEW"
+                    exc.resolution_notes = f"First approval granted by {current_user.name}. Awaiting Controller sign-off."
             else:
-                # Second step check
+                # Step 2 of Dual Approval: Enforce CONTROLLER / SYSTEM_ADMIN role
                 if approval_req.first_approver_id == current_user.id:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Dual control violation: Second approver must be a distinct authenticated user.",
+                    )
+                if current_user.role not in (UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN):
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail="Dual control violation: Second approval requires CONTROLLER or SYSTEM_ADMIN role.",
                     )
                 approval_req.second_approver_id = current_user.id
                 approval_req.second_approved_at = now_utc
                 approval_req.status = "APPROVED"
                 inv.stage = "INTERNAL_APPROVAL_COMPLETE"
                 inv.decision = "MANUALLY_APPROVED"
+                inv.workflow_substatus = None
                 inv.decision_reason = f"Dual approval complete. Authorized by {approval_req.first_approver_id} and {current_user.id}."
+                for exc in active_exceptions:
+                    exc.status = "RESOLVED"
+                    exc.resolution_notes = f"Dual approval completed by {current_user.name}: {payload.reason}"
+                    exc.resolved_at = now_utc
         else:
+            # Single Approval
             inv.stage = "INTERNAL_APPROVAL_COMPLETE"
             inv.decision = "MANUALLY_APPROVED"
-            inv.decision_reason = f"Internal AP review approved by {current_user.name}."
+            inv.workflow_substatus = None
+            inv.decision_reason = f"Internal AP review approved by {current_user.name}: {payload.reason}"
+            for exc in active_exceptions:
+                exc.status = "RESOLVED"
+                exc.resolution_notes = f"Approved by {current_user.name}: {payload.reason}"
+                exc.resolved_at = now_utc
 
-    elif payload.action == "HOLD_PENDING_EVIDENCE":
+    # Action 3: Rejection (D-03)
+    elif payload.action == "REJECT_INVOICE":
+        if current_user.role not in (UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only AP Lead, Financial Controller, or System Admin can reject an invoice.",
+            )
         inv.stage = "ACTION_REQUIRED"
-        inv.decision_reason = f"Hold placed: {payload.reason}"
+        inv.decision = "REJECTED"
+        inv.workflow_substatus = None
+        inv.decision_reason = f"Rejected: {payload.reason}"
+        for exc in active_exceptions:
+            exc.status = "RESOLVED"
+            exc.resolution_notes = f"Closed via rejection by {current_user.name}: {payload.reason}"
+            exc.resolved_at = now_utc
 
+    # Action 4: Quarantine (DO NOT mark exceptions as RESOLVED - keep in IN_REVIEW)
     elif payload.action == "QUARANTINE":
         inv.stage = "QUARANTINED"
         inv.decision = "QUARANTINED"
+        inv.workflow_substatus = None
         inv.decision_reason = payload.reason
+        for exc in active_exceptions:
+            exc.status = "IN_REVIEW"
+            exc.resolution_notes = f"Quarantined by {current_user.name}: {payload.reason}. Moved to Quarantine queue."
 
-    else:
+    # Action 5: Hold for Evidence
+    elif payload.action == "HOLD_PENDING_EVIDENCE":
         inv.stage = "ACTION_REQUIRED"
-        inv.decision_reason = f"{payload.action}: {payload.reason}"
+        inv.workflow_substatus = "ON_HOLD"
+        inv.decision_reason = f"Hold placed: {payload.reason}"
+        for exc in active_exceptions:
+            exc.status = "IN_REVIEW"
+            exc.resolution_notes = f"Hold placed by {current_user.name}: {payload.reason}"
+
+    # Action 6: Request Supplier Correction
+    elif payload.action == "REQUEST_SUPPLIER_CORRECTION":
+        inv.stage = "ACTION_REQUIRED"
+        inv.workflow_substatus = "SUPPLIER_CORRECTION_REQUESTED"
+        inv.decision_reason = f"Supplier correction requested: {payload.reason}"
+        for exc in active_exceptions:
+            exc.status = "IN_REVIEW"
+            exc.resolution_notes = f"Supplier correction requested by {current_user.name}: {payload.reason}"
+
+    # Action 7: Raise Debit Note
+    elif payload.action == "RAISE_DEBIT_NOTE":
+        inv.stage = "ACTION_REQUIRED"
+        inv.workflow_substatus = "DEBIT_NOTE_PENDING"
+        inv.decision_reason = f"Debit note initiated: {payload.reason}"
+        for exc in active_exceptions:
+            exc.status = "IN_REVIEW"
+            exc.resolution_notes = f"Debit note initiated by {current_user.name}: {payload.reason}"
+
+    # Action 8: Escalate
+    elif payload.action == "ESCALATE":
+        inv.stage = "ACTION_REQUIRED"
+        inv.workflow_substatus = "ESCALATED"
+        inv.decision_reason = f"Escalated: {payload.reason}"
+        for exc in active_exceptions:
+            exc.status = "IN_REVIEW"
+            exc.resolution_notes = f"Escalated by {current_user.name}: {payload.reason}"
 
     inv.updated_at = now_utc
 
@@ -288,6 +405,7 @@ def execute_invoice_action(
         "invoice_id": inv.id,
         "new_stage": inv.stage,
         "new_decision": inv.decision,
+        "workflow_substatus": inv.workflow_substatus,
         "decision_reason": inv.decision_reason,
         "audit_event_id": audit.id,
     }

@@ -52,3 +52,34 @@ This document catalogues known functional constraints, system boundaries, and cu
 ### C. Currency Scope: Indian Rupee (INR) Optimization
 - **Current Scope:** The deterministic math engine is tailored for Indian GST statutory rules (18% / 12% / 5% / 28% CGST, SGST, IGST) and INR currency.
 - **Foreign Currency Handling:** Foreign currency invoices (USD, EUR, GBP) involving customs duty or import IGST are routed to manual HITL review rather than auto-matched.
+
+
+---
+
+## 3. Explicitly Deferred Operational & Security Risks
+
+The following four items represent deliberate deferred architectural and security risk items formally tracked across development phases:
+
+### R-01: MSMED Statutory Deadline Edge-Case Verification
+- **Risk Scope:** Verification of statutory interest calculations and 45-day payment deadlines under Section 15 & 16 of the Micro, Small and Medium Enterprises Development (MSMED) Act, 2006.
+- **Current Behavior:** Invoices calculate statutory payment due dates based on vendor MSME classification (`msme_statutory_deadline`), surfacing countdowns and warning badges on the dashboard and detail workspace.
+- **Deferred Complexity:** Edge-case statutory scenarios including leap years, fiscal year transitions, compounding monthly interest calculations at 3x bank rate for disputed invoices, and retroactive credit adjustments under Section 16 remain deferred for specialized legal/treasury verification.
+- **Mitigation:** The system flags all MSME invoices with urgent priority banners and highlights statutory due dates for manual AP controller sign-off.
+
+### R-02: Concurrent Invitation Acceptance Race Condition Testing
+- **Risk Scope:** High-concurrency automated stress-testing for simultaneous acceptance of identical single-use invitation tokens across distributed threads.
+- **Current Behavior:** Single-use invitation tokens are hashed (SHA-256), stored with expiry timestamps, bound to specific invited email addresses, and marked `is_accepted = True` within transactional database operations.
+- **Deferred Complexity:** High-load distributed race-condition testing (simultaneous HTTP requests attempting to consume the same cryptographic token within sub-millisecond windows across multiple server instances) remains deferred.
+- **Mitigation:** Database transactions and atomic row-level status checks reject replay attempts sequentially with HTTP 400.
+
+### R-03: Upstream Database Credential Rotation Confirmation
+- **Risk Scope:** Confirmation of upstream hosted Supabase database credential rotation following initial repository setup exposure.
+- **Current Status:** All application code and configuration strictly consume `DATABASE_URL` and `MIGRATION_DATABASE_URL` via local environment variables. Zero credentials are committed to version control, tracked in git history, or displayed in application logs/reports.
+- **Deferred Action:** Formal confirmation that the underlying Supabase database password was rotated on the hosted Supabase management console is pending infrastructure administrator action.
+- **Mitigation:** The application strictly enforces separate pooler (port 6543) and migration (port 5432) connection strings, role-based database privileges, and zero-trust connection isolation.
+
+### R-04: Durable Backup Encryption Key Escrow & Cross-Region Recovery Validation
+- **Risk Scope:** Enterprise Key Management Service (KMS) integration for automated escrow of the Fernet 32-byte encryption key (`BACKUP_ENCRYPTION_KEY`) and automated disaster recovery failover drill on an alternate cloud infrastructure host.
+- **Current Behavior:** Cryptographically signed, AES-CBC/Fernet-encrypted, gzip-compressed database backups with SHA-256 checksum validation and PostgreSQL sandbox restoration are fully implemented and verified via automated tests.
+- **Deferred Complexity:** Cloud KMS (AWS KMS or GCP Cloud KMS) envelope encryption, external key escrow, automated key rotation policies, and continuous cross-region multi-cloud standby failover drills remain deferred.
+- **Mitigation:** Backups fail closed if the encryption key is missing or corrupted. Cryptographic keys are managed via isolated environment configuration outside application code.

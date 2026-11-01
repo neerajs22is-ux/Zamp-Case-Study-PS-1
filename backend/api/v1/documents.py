@@ -21,7 +21,7 @@ import uuid
 from typing import Any, Dict, List, Optional
 
 from fastapi import (
-    APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
+    APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
 )
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -38,6 +38,9 @@ from backend.core.storage import (
 )
 from backend.models.domain import (
     ApprovalRequest, AuditEvent, Document, IngestionJob, Invoice
+)
+from backend.core.pipeline import (
+    claim_ingestion_job, recover_expired_jobs, process_document_pipeline_background
 )
 
 logger = logging.getLogger("ap_command_center.documents")
@@ -64,6 +67,7 @@ class DocumentMetadataResponse(BaseModel):
 @router.post("/upload")
 async def upload_document(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
     current_user: AuthenticatedUser = Depends(require_active_membership),
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
@@ -175,6 +179,7 @@ async def upload_document(
             job = IngestionJob(
                 id=job_id,
                 org_id=current_user.org_id,
+                document_id=doc_id,
                 idempotency_key=f"upload_{sha256_hash}_{uuid.uuid4().hex[:6]}",
                 source_channel="MANUAL_UPLOAD",
                 status="QUEUED",
@@ -193,6 +198,13 @@ async def upload_document(
             )
             db.add(audit)
             db.commit()
+
+            # Trigger background pipeline execution if enabled
+            if background_tasks is not None and os.getenv("ENABLE_BACKGROUND_PIPELINE", "true").lower() == "true":
+                claimed = claim_ingestion_job(db, org_id=current_user.org_id)
+                if claimed:
+                    c_job_id, c_org_id, c_doc_id, c_token = claimed
+                    background_tasks.add_task(process_document_pipeline_background, c_job_id, c_token)
         except Exception as exc:
             db.rollback()
             # COMPENSATING ROLLBACK: delete orphaned object from storage

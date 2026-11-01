@@ -84,15 +84,11 @@ def get_encryption_key(key_override: Optional[str] = None, prompt_if_missing: bo
     """Resolves encryption key from environment, secure prompt, or arguments.
 
     Enforces:
-    1. Precedence to BACKUP_ENCRYPTION_KEY environment variable.
-    2. Interactive hidden prompt via getpass when requested and in interactive TTY.
-    3. Security warning emitted if passed via command line flags to prevent process table exposure.
+    1. If key_override is provided, uses it and emits a security notice.
+    2. Otherwise prefers os.getenv("BACKUP_ENCRYPTION_KEY") or settings.BACKUP_ENCRYPTION_KEY.
+    3. Interactive hidden prompt via getpass when requested and in interactive TTY.
     4. Never logs or outputs plaintext key bytes.
     """
-    env_key = settings.BACKUP_ENCRYPTION_KEY or os.getenv("BACKUP_ENCRYPTION_KEY")
-    if env_key and env_key.strip():
-        return env_key.strip()
-
     if key_override and key_override.strip():
         logger.warning(
             "SECURITY NOTICE: Encryption key supplied via CLI argument. "
@@ -100,6 +96,10 @@ def get_encryption_key(key_override: Optional[str] = None, prompt_if_missing: bo
             "prefer setting the BACKUP_ENCRYPTION_KEY environment variable or using interactive input."
         )
         return key_override.strip()
+
+    env_key = os.getenv("BACKUP_ENCRYPTION_KEY") or settings.BACKUP_ENCRYPTION_KEY
+    if env_key and env_key.strip():
+        return env_key.strip()
 
     if prompt_if_missing:
         try:

@@ -95,16 +95,19 @@ export const api = {
     return request<InboxResponse>(`/api/v1/inbox?${q.toString()}`);
   },
   getInvoiceDetail: (id: string) => request<any>(`/api/v1/invoices/${id}`),
-  executeAction: (id: string, action: string, reason: string) => request<any>(`/api/v1/invoices/${id}/actions`, {
+  executeAction: (id: string, action: string, reason: string, extra?: { undisputed_amount?: number; evidence_reference?: string }) => request<any>(`/api/v1/invoices/${id}/actions`, {
     method: 'POST',
-    body: JSON.stringify({ action, reason }),
+    body: JSON.stringify({ action, reason, ...extra }),
   }),
   getExceptions: () => request<ExceptionsResponse>('/api/v1/exceptions'),
   getSourceRecords: () => request<SourceRecordsData>('/api/v1/source-records'),
-  getAudit: (params: { invoice_id?: string; actor_id?: string } = {}) => {
+  getAudit: (params: { invoice_id?: string; actor_id?: string; action?: string; correlation_id?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();
     if (params.invoice_id) q.set('invoice_id', params.invoice_id);
     if (params.actor_id) q.set('actor_id', params.actor_id);
+    if (params.action) q.set('action', params.action);
+    if (params.correlation_id) q.set('correlation_id', params.correlation_id);
+    if (params.limit) q.set('limit', String(params.limit));
     return request<AuditResponse>(`/api/v1/audit?${q.toString()}`);
   },
   getDocuments: (includeDeleted: boolean = false) => request<DocumentMetadata[]>(`/api/v1/documents?include_deleted=${includeDeleted}`),
@@ -122,6 +125,13 @@ export const api = {
     const q = reason ? `?reason=${encodeURIComponent(reason)}` : '';
     return request<any>(`/api/v1/documents/${id}/purge${q}`, { method: 'POST' });
   },
+  getApprovals: (params: { status?: string; mine?: boolean } = {}) => {
+    const q = new URLSearchParams();
+    if (params.status) q.set('status', params.status);
+    if (params.mine !== undefined) q.set('mine', params.mine.toString());
+    return request<{ total_count: number; threshold_inr: number; items: any[] }>(`/api/v1/approvals?${q.toString()}`);
+  },
+  getMembers: () => request<{ total_count: number; items: any[] }>('/api/v1/auth/members'),
   getGmailStatus: () => request<any>('/api/v1/integrations/gmail/status'),
   getGmailAuthorizeUrl: () => request<{ authorization_url: string; scope: string }>('/api/v1/integrations/gmail/authorize'),
   syncGmailMailbox: (maxMessages: number = 10, forceFull: boolean = false) => request<any>(`/api/v1/integrations/gmail/sync?max_messages=${maxMessages}&force_full=${forceFull}`, {

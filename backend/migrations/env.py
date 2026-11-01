@@ -21,10 +21,11 @@ target_metadata = Base.metadata
 def get_url():
     alembic_cfg_url = config.get_main_option("sqlalchemy.url") if config is not None else None
     url = (
-        os.getenv("MIGRATION_DATABASE_URL")
-        or settings.MIGRATION_DATABASE_URL
+        settings.MIGRATION_DATABASE_URL
+        or os.getenv("MIGRATION_DATABASE_URL")
         or alembic_cfg_url
         or settings.DATABASE_URL
+        or os.getenv("DATABASE_URL")
     )
     if not url:
         return "sqlite:///:memory:"

@@ -450,6 +450,7 @@ class Invoice(Base):
     stage = Column(String(32), default="RECEIVED", nullable=False)
     decision = Column(String(32), default="NEEDS_REVIEW", nullable=False)
     decision_reason = Column(Text, nullable=True)
+    workflow_substatus = Column(String(32), nullable=True)
     owner_user_id = Column(String(64), ForeignKey("users.id"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
@@ -652,6 +653,9 @@ class IngestionJob(Base):
     status = Column(String(32), nullable=False)  # QUEUED, PROCESSING, COMPLETED, FAILED
     retry_count = Column(Integer, default=0, nullable=False)
     error_message = Column(Text, nullable=True)
+    document_id = Column(String(64), ForeignKey("documents.id"), nullable=True, index=True)
+    lock_token = Column(String(64), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     completed_at = Column(DateTime, nullable=True)
 
@@ -676,6 +680,8 @@ class ExceptionRecord(Base):
     msme_statutory_deadline = Column(DateTime, nullable=True)
     assigned_user_id = Column(String(64), ForeignKey("users.id"), nullable=True)
     status = Column(String(32), default="OPEN", nullable=False)  # OPEN, IN_REVIEW, RESOLVED
+    resolution_notes = Column(Text, nullable=True)
+    resolved_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
     __table_args__ = (

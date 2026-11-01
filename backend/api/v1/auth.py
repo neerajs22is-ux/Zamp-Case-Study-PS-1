@@ -207,7 +207,10 @@ def create_dev_session(
 @router.get("/status")
 def auth_status() -> Dict[str, Any]:
     """Returns the current Identity Provider configuration status."""
-    return check_idp_health()
+    res = check_idp_health()
+    res["supabase_url"] = settings.SUPABASE_URL
+    res["dev_session_enabled"] = settings.ENABLE_DEV_SESSION and settings.APP_ENV in (AppEnv.DEVELOPMENT, AppEnv.TEST)
+    return res
 
 
 @router.get("/me")
@@ -313,6 +316,63 @@ def create_invitation(
         "role": payload.role.value,
         "expires_at": expires_at.isoformat() + "Z",
         "invitation_token": raw_token,
+    }
+
+
+@router.post("/invitations/{invitation_id}/revoke")
+def revoke_invitation(
+    invitation_id: str,
+    current_user: AuthenticatedUser = Depends(require_role([UserRole.SYSTEM_ADMIN, UserRole.CONTROLLER, UserRole.AP_LEAD])),
+    db: Optional[Session] = Depends(get_db),
+) -> Dict[str, Any]:
+    """Revokes a pending invitation before acceptance.
+
+    Enforces:
+    - Lead, Controller, or Admin authority required.
+    - Scoped strictly to current_user.org_id.
+    - Transitions status from PENDING to REVOKED.
+    - Records immutable INVITATION_REVOKED audit event.
+    """
+    if db is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
+
+    invitation = db.scalar(
+        select(UserInvitation).where(
+            UserInvitation.id == invitation_id,
+            UserInvitation.org_id == current_user.org_id,
+        )
+    )
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Invitation not found.")
+
+    if invitation.status != "PENDING":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Cannot revoke invitation with status '{invitation.status}'.",
+        )
+
+    now_utc = datetime.datetime.utcnow()
+    invitation.status = "REVOKED"
+
+    audit = AuditEvent(
+        id=f"evt_{uuid.uuid4().hex[:12]}",
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        action="INVITATION_REVOKED",
+        reason=f"Invitation for {invitation.email} revoked by {current_user.email}",
+        before_state={"status": "PENDING"},
+        after_state={"status": "REVOKED"},
+        timestamp=now_utc,
+    )
+    db.add(audit)
+    db.commit()
+
+    return {
+        "status": "REVOKED",
+        "invitation_id": invitation.id,
+        "email": invitation.email,
+        "message": f"Invitation for {invitation.email} has been revoked.",
     }
 
 
@@ -822,4 +882,44 @@ def deactivate_user_membership(
         "user_id": user_id,
         "is_active": False,
         "deactivated_at": now_utc.isoformat() + "Z",
+    }
+
+
+@router.get("/members")
+def list_organisation_members(
+    current_user: AuthenticatedUser = Depends(require_active_membership),
+    db: Optional[Session] = Depends(get_db),
+) -> Dict[str, Any]:
+    """Lists actual registered members of the current organisation with assigned roles.
+
+    Enforces strict tenant isolation (scoped to current_user.org_id).
+    """
+    if db is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
+
+    users = db.scalars(
+        select(User)
+        .where(User.org_id == current_user.org_id)
+        .order_by(User.created_at.asc())
+    ).all()
+
+    items = []
+    for u in users:
+        role_record = db.scalar(
+            select(RoleAssignment)
+            .where(RoleAssignment.user_id == u.id, RoleAssignment.org_id == current_user.org_id)
+        )
+        primary_role = role_record.role_name if role_record else "AP_ASSOCIATE"
+        items.append({
+            "id": u.id,
+            "full_name": u.full_name or u.email,
+            "email": u.email,
+            "role": primary_role,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() + "Z",
+        })
+
+    return {
+        "total_count": len(items),
+        "items": items,
     }

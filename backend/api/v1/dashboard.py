@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from backend.core.auth import AuthenticatedUser, require_active_membership
 from backend.core.config import settings
 from backend.core.database import get_db
-from backend.models.domain import ExceptionRecord, IngestionJob, Invoice
+from backend.models.domain import ApprovalRequest, ExceptionRecord, IngestionJob, Invoice
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard Operations"])
 
@@ -44,35 +44,48 @@ def get_dashboard_metrics(
         }
 
     try:
-        # 1. Total Invoices Received
-        total_invoices = db.scalar(select(func.count(Invoice.id))) or 0
+        org_id = current_user.org_id
+
+        # 1. Total Invoices Received for Tenant
+        total_invoices = db.scalar(select(func.count(Invoice.id)).where(Invoice.org_id == org_id)) or 0
 
         # 2. Stage Breakdown
         stage_counts = dict(
             db.execute(
-                select(Invoice.stage, func.count(Invoice.id)).group_by(Invoice.stage)
+                select(Invoice.stage, func.count(Invoice.id))
+                .where(Invoice.org_id == org_id)
+                .group_by(Invoice.stage)
             ).all()
         )
 
         # 3. Decision Breakdown
         decision_counts = dict(
             db.execute(
-                select(Invoice.decision, func.count(Invoice.id)).group_by(Invoice.decision)
+                select(Invoice.decision, func.count(Invoice.id))
+                .where(Invoice.org_id == org_id)
+                .group_by(Invoice.decision)
             ).all()
         )
 
         # 4. Open Exceptions Count & Blocked Value
         open_exceptions_count = db.scalar(
-            select(func.count(ExceptionRecord.id)).where(ExceptionRecord.status == "OPEN")
+            select(func.count(ExceptionRecord.id)).where(
+                ExceptionRecord.status == "OPEN",
+                ExceptionRecord.org_id == org_id,
+            )
         ) or 0
 
         blocked_value = db.scalar(
-            select(func.sum(ExceptionRecord.exposure_amount_inr)).where(ExceptionRecord.status == "OPEN")
+            select(func.sum(ExceptionRecord.exposure_amount_inr)).where(
+                ExceptionRecord.status == "OPEN",
+                ExceptionRecord.org_id == org_id,
+            )
         ) or 0.0
 
         # 5. MSME Critical Exposure (Eligible payables within statutory horizon)
         msme_exposure_count = db.scalar(
             select(func.count(Invoice.id)).where(
+                Invoice.org_id == org_id,
                 Invoice.msme_statutory_deadline.isnot(None),
                 Invoice.decision == "NEEDS_REVIEW",
             )
@@ -87,9 +100,28 @@ def get_dashboard_metrics(
             else None
         )
 
-        # 7. Active Ingestion Jobs
+        # 7. Active Ingestion Jobs for Tenant
         active_jobs_count = db.scalar(
-            select(func.count(IngestionJob.id)).where(IngestionJob.status.in_(["QUEUED", "PROCESSING"]))
+            select(func.count(IngestionJob.id)).where(
+                IngestionJob.org_id == org_id,
+                IngestionJob.status.in_(["QUEUED", "PROCESSING"])
+            )
+        ) or 0
+
+        # 8. Dedicated Dual-Approval & Ready Counts (B-10)
+        pending_second_approval = db.scalar(
+            select(func.count(ApprovalRequest.id)).where(
+                ApprovalRequest.org_id == org_id,
+                ApprovalRequest.status == "PENDING_SECOND_APPROVAL"
+            )
+        ) or 0
+
+        ready_to_approve = db.scalar(
+            select(func.count(Invoice.id)).where(
+                Invoice.org_id == org_id,
+                Invoice.decision == "MATCH_CANDIDATE",
+                Invoice.stage.in_(["PENDING_APPROVAL", "ACTION_REQUIRED"])
+            )
         ) or 0
 
         return {
@@ -103,6 +135,15 @@ def get_dashboard_metrics(
                 "msme_exposure_count": msme_exposure_count,
                 "touchless_rate_pct": touchless_rate,
                 "active_ingestion_jobs": active_jobs_count,
+                "pending_second_approval": pending_second_approval,
+                "ready_to_approve": ready_to_approve,
+                "pipeline": {
+                    "received": stage_counts.get("RECEIVED", 0),
+                    "needs_attention": open_exceptions_count,
+                    "ready_to_approve": ready_to_approve,
+                    "waiting_second_approval": pending_second_approval,
+                    "approved": stage_counts.get("INTERNAL_APPROVAL_COMPLETE", 0),
+                }
             },
             "stages": stage_counts,
             "decisions": decision_counts,

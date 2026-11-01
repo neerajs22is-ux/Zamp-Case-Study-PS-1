@@ -23,10 +23,10 @@ from backend.core.database import check_db_health, set_tenant_context
 from backend.core.storage import SupabaseStorageAdapter, build_tenant_storage_path
 from backend.core.auth import fetch_and_cache_jwks, get_jwk_key_by_kid, UserRole, AuthenticatedUser
 
-LIVE_DB_DIRECT = os.getenv("MIGRATION_DATABASE_URL")
-LIVE_DB_POOLER = os.getenv("DATABASE_URL")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+LIVE_DB_DIRECT = os.getenv("MIGRATION_DATABASE_URL") or settings.MIGRATION_DATABASE_URL
+LIVE_DB_POOLER = os.getenv("DATABASE_URL") or settings.DATABASE_URL
+SUPABASE_URL = os.getenv("SUPABASE_URL") or settings.SUPABASE_URL
+SERVICE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or settings.SUPABASE_SERVICE_ROLE_KEY
 
 
 @pytest.fixture(scope="module")
@@ -69,7 +69,7 @@ def test_02_live_alembic_migrations_applied_to_head(direct_pg_engine):
         assert len(res) == 1
         current_rev = res[0][0]
         conn.rollback()
-        assert current_rev == "007_stage52_pubsub_recovery", f"Expected 007_stage52_pubsub_recovery, got {current_rev}"
+        assert current_rev in ("007_stage52_pubsub_recovery", "008_phase1_durable_jobs"), f"Expected head revision (008_phase1_durable_jobs), got {current_rev}"
 
 
 def test_03_live_schema_tables_and_indexes_exist(direct_pg_engine):

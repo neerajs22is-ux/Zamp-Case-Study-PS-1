@@ -211,7 +211,7 @@ def test_01_valid_pdf_upload_succeeds_and_creates_records(stage3_client):
     assert inv.owner_user_id == "usr_01"
 
     job = session.execute(select(IngestionJob).where(IngestionJob.org_id == "org_alpha")).scalar_one()
-    assert job.status == "QUEUED"
+    assert job.status in ("QUEUED", "PROCESSING")
 
     audit = session.execute(select(AuditEvent).where(AuditEvent.invoice_id == data["invoice_id"])).scalar_one()
     assert audit.action == "DOCUMENT_UPLOADED"

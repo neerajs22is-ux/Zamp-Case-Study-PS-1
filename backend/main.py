@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.api.v1.approvals import router as approvals_router
 from backend.api.v1.audit import router as audit_router
 from backend.api.v1.auth import router as auth_router
 from backend.api.v1.backup import router as backup_router
@@ -70,6 +71,7 @@ app.include_router(documents_router, prefix="/api/v1")
 app.include_router(connections_router, prefix="/api/v1")
 app.include_router(gmail_router, prefix="/api/v1")
 app.include_router(inbox_router, prefix="/api/v1")
+app.include_router(approvals_router, prefix="/api/v1")
 app.include_router(invoices_router, prefix="/api/v1")
 app.include_router(exceptions_router, prefix="/api/v1")
 app.include_router(source_records_router, prefix="/api/v1")

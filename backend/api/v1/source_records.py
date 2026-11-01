@@ -4,6 +4,7 @@ Enforces:
 1. Purely read-only access to ERP snapshots (vendors, purchase orders, GRNs, QC).
 2. Zero local edits or mutation endpoints.
 3. Every record displays source system origin, source ID, and retrieval timestamp.
+4. Truth in advertising: honestly discloses whether live SAP S/4HANA OData is active or if records are synthetic evaluation fixtures.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from backend.core.config import settings
 from backend.core.auth import AuthenticatedUser, require_active_membership
 from backend.core.database import get_db
 from backend.models.domain import (
@@ -28,10 +30,15 @@ def get_source_records(
     current_user: AuthenticatedUser = Depends(require_active_membership),
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Returns read-only authoritative ERP snapshots."""
+    """Returns read-only authoritative ERP snapshots with truthful provenance."""
+    is_live_erp = settings.is_erp_configured()
+    origin_system = "SAP S/4HANA (Read-Only)" if is_live_erp else "Evaluation Dataset (fictional_supplier_master.csv / purchase_orders.csv)"
+
     if db is None:
         return {
-            "origin_system": "SAP S/4HANA (Read-Only)",
+            "origin_system": origin_system,
+            "is_live_sync": is_live_erp,
+            "provenance": "LIVE_ERP_OData" if is_live_erp else "SYNTHETIC_EVALUATION_CORPUS",
             "vendors": [],
             "purchase_orders": [],
             "goods_receipts": [],
@@ -39,13 +46,16 @@ def get_source_records(
             "message": "Database not connected. No source records available.",
         }
 
-    vendors = db.scalars(select(Vendor).limit(50)).all()
-    pos = db.scalars(select(WorkOrderSnapshot).limit(50)).all()
-    grns = db.scalars(select(GoodsReceiptSnapshot).limit(50)).all()
-    qc_records = db.scalars(select(QualityControlSnapshot).limit(50)).all()
+    org_id = current_user.org_id
+    vendors = db.scalars(select(Vendor).where(Vendor.org_id == org_id).limit(100)).all()
+    pos = db.scalars(select(WorkOrderSnapshot).where(WorkOrderSnapshot.org_id == org_id).limit(100)).all()
+    grns = db.scalars(select(GoodsReceiptSnapshot).where(GoodsReceiptSnapshot.org_id == org_id).limit(100)).all()
+    qc_records = db.scalars(select(QualityControlSnapshot).where(QualityControlSnapshot.org_id == org_id).limit(100)).all()
 
     return {
-        "origin_system": "SAP S/4HANA (Read-Only)",
+        "origin_system": origin_system,
+        "is_live_sync": is_live_erp,
+        "provenance": "LIVE_ERP_OData" if is_live_erp else "SYNTHETIC_EVALUATION_CORPUS",
         "vendors": [
             {
                 "id": v.id,

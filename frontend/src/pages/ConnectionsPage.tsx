@@ -1,192 +1,102 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { 
-  Link2, 
-  Upload, 
-  ShieldCheck, 
   Mail, 
   Database, 
   HardDrive, 
-  AlertOctagon, 
   CheckCircle2, 
   XCircle, 
-  RefreshCw, 
-  FileText,
-  ExternalLink,
-  Download,
-  Trash2,
   AlertTriangle,
-  FileCheck
+  RefreshCw, 
+  ExternalLink,
+  ChevronDown,
+  ChevronRight,
+  ShieldAlert,
+  Server,
+  Key,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
-import { api, getAuthToken } from '../api/client';
-import type { DocumentMetadata, UploadLifecycleStatus } from '../types';
+import { api } from '../api/client';
+import type { AuthenticatedUser, HealthResponse } from '../types';
 
-export const ConnectionsPage: React.FC = () => {
+interface ConnectionsPageProps {
+  currentUser?: AuthenticatedUser | null;
+}
+
+export const ConnectionsPage: React.FC<ConnectionsPageProps> = ({ currentUser }) => {
+  const [searchParams] = useSearchParams();
+  const [oauthNotice, setOauthNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  
   const [connections, setConnections] = useState<any>(null);
-  const [documents, setDocuments] = useState<DocumentMetadata[]>([]);
+  const [gmailStatus, setGmailStatus] = useState<any>(null);
+  const [health, setHealth] = useState<HealthResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [loadingDocs, setLoadingDocs] = useState(false);
-  const [uploadLifecycle, setUploadLifecycle] = useState<UploadLifecycleStatus>('Idle');
-  const [uploadResult, setUploadResult] = useState<any>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [syncingGmail, setSyncingGmail] = useState(false);
-  const [gmailSyncResult, setGmailSyncResult] = useState<string | null>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  // Syncing state
+  const [syncingGmail, setSyncingGmail] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  // Collapsible detail panels
+  const [showGmailDetails, setShowGmailDetails] = useState(false);
+  const [showErpAdmin, setShowErpAdmin] = useState(false);
+  const [showSystemHealth, setShowSystemHealth] = useState(true);
+
+  const canManageIntegrations = currentUser?.role && ['SYSTEM_ADMIN', 'CONTROLLER', 'AP_LEAD'].includes(currentUser.role);
+
+  const loadData = async (isManualRefresh: boolean = false) => {
+    if (isManualRefresh) setRefreshing(true);
+    else setLoading(true);
     setError(null);
+
     try {
-      const connData = await api.getConnections();
-      setConnections(connData);
+      const [connData, gmailData, healthData] = await Promise.allSettled([
+        api.getConnections(),
+        api.getGmailStatus(),
+        api.getHealth()
+      ]);
+
+      if (connData.status === 'fulfilled') setConnections(connData.value);
+      if (gmailData.status === 'fulfilled') setGmailStatus(gmailData.value);
+      if (healthData.status === 'fulfilled') setHealth(healthData.value);
+
+      if (connData.status === 'rejected' && gmailData.status === 'rejected') {
+        setError('Failed to query subsystem and integration states.');
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to query connection states.');
     } finally {
       setLoading(false);
-    }
-
-    await loadDocuments();
-  };
-
-  const loadDocuments = async () => {
-    setLoadingDocs(true);
-    try {
-      const docs = await api.getDocuments();
-      setDocuments(docs);
-    } catch {
-      // If unauthenticated or no docs
-      setDocuments([]);
-    } finally {
-      setLoadingDocs(false);
+      setRefreshing(false);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, []);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    // Check OAuth return params
+    const gmail = searchParams.get('gmail');
+    const mailbox = searchParams.get('mailbox');
+    const gmailError = searchParams.get('gmail_error') || searchParams.get('detail');
 
-    // Reset state
-    setUploadResult(null);
-    setUploadError(null);
-
-    // 1. Client-Side Validation
-    setUploadLifecycle('Validating');
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      setUploadLifecycle('Failed');
-      setUploadError('Unsupported format: Only authentic PDF documents are accepted.');
-      return;
-    }
-
-    if (file.size > 50 * 1024 * 1024) {
-      setUploadLifecycle('Failed');
-      setUploadError(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds 50 MB Supabase Free limit.`);
-      return;
-    }
-
-    // 2. Uploading
-    setUploadLifecycle('Uploading');
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // 3. Processing
-      setUploadLifecycle('Processing');
-      const token = getAuthToken();
-      const response = await fetch('/api/v1/documents/upload', {
-        method: 'POST',
-        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-        body: formData,
+    if (gmail === 'connected' || gmail === 'authorized') {
+      setOauthNotice({
+        type: 'success',
+        message: `Gmail ingestion connected successfully for ${mailbox || 'authorized mailbox'}.`
       });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (response.status === 409 || data.status === 'DUPLICATE_DETECTED') {
-        setUploadLifecycle('Duplicate detected');
-        setUploadError(data.detail || 'A document with identical SHA-256 hash already exists in this organisation.');
-        setUploadResult(data);
-        return;
-      }
-
-      if (response.status === 403) {
-        setUploadLifecycle('Access denied');
-        setUploadError(data.detail || 'Access denied: Active tenant membership required.');
-        return;
-      }
-
-      if (!response.ok) {
-        setUploadLifecycle('Failed');
-        setUploadError(data.detail || `Upload failed with HTTP ${response.status}`);
-        return;
-      }
-
-      // 4. Ready
-      setUploadLifecycle('Ready');
-      setUploadResult(data);
-      await loadData();
-    } catch (err: any) {
-      setUploadLifecycle('Failed');
-      setUploadError(err.message || 'Network failure during document upload.');
-    } finally {
-      // Clear input so same file can be selected again if needed
-      e.target.value = '';
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (gmailError || gmail === 'error') {
+      setOauthNotice({
+        type: 'error',
+        message: `Gmail connection failed: ${gmailError || 'Authorization was rejected or expired.'}`
+      });
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  };
-
-  const handleOpenSignedUrl = async (docId: string) => {
-    try {
-      const res = await api.getDocumentSignedUrl(docId, 300);
-      window.open(res.signed_url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      alert(`Presigned URL generation failed: ${err.message}`);
-    }
-  };
-
-  const handleDownload = (docId: string) => {
-    const token = getAuthToken();
-    const downloadUrl = `/api/v1/documents/${docId}/download`;
-    // Trigger download with auth header
-    fetch(downloadUrl, {
-      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
-    })
-      .then(res => {
-        if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
-        const header = res.headers.get('Content-Disposition');
-        const filenameMatch = header && header.match(/filename="?([^"]+)"?/);
-        const filename = filenameMatch ? filenameMatch[1] : `document_${docId}.pdf`;
-        return res.blob().then(blob => ({ blob, filename }));
-      })
-      .then(({ blob, filename }) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-      })
-      .catch(err => alert(err.message));
-  };
-
-  const handleSoftDelete = async (docId: string, filename: string) => {
-    if (!window.confirm(`Are you sure you want to soft delete '${filename}'? The physical file will be preserved in storage according to retention policy.`)) {
-      return;
-    }
-
-    setDeletingId(docId);
-    try {
-      await api.softDeleteDocument(docId, 'Operator soft deletion from Ingestion Hub');
-      await loadDocuments();
-    } catch (err: any) {
-      alert(`Soft delete failed: ${err.message}`);
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  }, [searchParams]);
 
   const handleConnectGmail = async () => {
     try {
@@ -201,430 +111,406 @@ export const ConnectionsPage: React.FC = () => {
 
   const handleSyncGmail = async () => {
     setSyncingGmail(true);
-    setGmailSyncResult(null);
+    setSyncResult(null);
+    setSyncError(null);
     try {
       const res = await api.syncGmailMailbox(15);
-      setGmailSyncResult(`Sync complete: ${res.ingested_count} invoice(s) ingested, ${res.duplicates_skipped} duplicate(s) skipped, ${res.quarantined_count} quarantined.`);
-      await loadData();
+      setSyncResult(`Import completed: ${res.ingested_count} invoice(s) registered into queue, ${res.duplicates_skipped} duplicate(s) skipped, ${res.quarantined_count} quarantined.`);
+      await loadData(true);
     } catch (err: any) {
-      alert(`Gmail sync failed: ${err.message}`);
+      setSyncError(err.message || 'Gmail synchronization encountered an error.');
     } finally {
       setSyncingGmail(false);
     }
   };
 
   const handleDisconnectGmail = async () => {
-    if (!window.confirm("Disconnect authorized Gmail ingestion mailbox?")) return;
+    if (!window.confirm('Are you sure you want to disconnect this Gmail mailbox? Automated or on-demand invoice ingestion from this inbox will stop.')) {
+      return;
+    }
+    setDisconnecting(true);
     try {
       await api.disconnectGmailMailbox();
-      await loadData();
+      setSyncResult('Mailbox disconnected successfully.');
+      await loadData(true);
     } catch (err: any) {
       alert(`Disconnect failed: ${err.message}`);
+    } finally {
+      setDisconnecting(false);
     }
   };
 
-  const getPillarBadge = (status: string) => {
+  const getStatusBadge = (status?: string) => {
     switch (status) {
       case 'CONNECTED':
-        return <span className="flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 className="w-3 h-3" /> CONNECTED</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            Connected
+          </span>
+        );
+      case 'DEGRADED':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+            Degraded / Re-auth Required
+          </span>
+        );
       case 'NOT_CONFIGURED':
-        return <span className="flex items-center gap-1 text-[11px] font-mono text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20"><AlertOctagon className="w-3 h-3" /> NOT CONFIGURED</span>;
-      case 'BLOCKED':
-        return <span className="flex items-center gap-1 text-[11px] font-mono text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20"><XCircle className="w-3 h-3" /> BLOCKED</span>;
       default:
-        return <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">{status}</span>;
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+            <span className="w-2 h-2 rounded-full bg-slate-400" />
+            Not Configured
+          </span>
+        );
     }
   };
 
-  const pillars = connections?.pillars || {};
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <Link2 className="w-5 h-5 text-indigo-400" />
-            Integrations & Ingestion Hub
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
+            <Layers className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            Integration Connections & System Health
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Verified status of Identity, Gmail, SAP S/4HANA ERP, Supabase Storage & Tenant Documents.
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Live status of invoice ingestion pipelines, ERP data boundaries, and backend operational subsystems.
           </p>
         </div>
+
         <button
-          onClick={loadData}
-          disabled={loading || loadingDocs}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+          onClick={() => loadData(true)}
+          disabled={loading || refreshing}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors shadow-sm disabled:opacity-50"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading || loadingDocs ? 'animate-spin' : ''}`} />
-          Run Health Checks
+          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          Run Health Check
         </button>
       </div>
 
-      {error && (
-        <div className="bg-rose-950/40 border border-rose-800/60 rounded-lg p-3 text-xs text-rose-300">
-          Connection inspection error: {error}
+      {/* OAuth Banner Alerts */}
+      {oauthNotice && (
+        <div className={`p-4 rounded-xl border text-xs flex items-start gap-3 shadow-sm ${
+          oauthNotice.type === 'success'
+            ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800/40 dark:text-emerald-200'
+            : 'bg-rose-50/80 border-rose-200 text-rose-900 dark:bg-rose-950/30 dark:border-rose-800/40 dark:text-rose-200'
+        }`}>
+          {oauthNotice.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          ) : (
+            <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1 font-medium">{oauthNotice.message}</div>
+          <button
+            onClick={() => setOauthNotice(null)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+          >
+            ×
+          </button>
         </div>
       )}
 
-      {/* Manual Upload Card with Honest Lifecycle States */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xs font-semibold text-slate-200 tracking-wide uppercase flex items-center gap-2">
-            <Upload className="w-4 h-4 text-indigo-400" />
-            Tenant Invoice Ingestion (Direct Supabase Storage Intake)
-          </h2>
-          <span className="text-[11px] font-mono text-slate-400">
-            Path: org_{'{org_id}'}/invoices/{'{doc_id}'}/{'{filename}'}
-          </span>
+      {/* General error alert */}
+      {error && (
+        <div className="p-3.5 rounded-xl border bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/30 dark:border-rose-800/40 dark:text-rose-200 text-xs flex items-start gap-2.5">
+          <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <div className="flex-1">{error}</div>
+          <button onClick={() => setError(null)} className="text-slate-400 hover:text-slate-600">×</button>
         </div>
-        <p className="text-xs text-slate-400 mb-4">
-          Upload authentic vendor invoice PDFs. Ingested files are strictly validated (%PDF- header, &le; 50 MB limit), hashed with SHA-256, persisted to private Supabase Storage, and registered in the append-only audit log.
-        </p>
+      )}
 
-        {/* Upload Status Banner */}
-        {uploadLifecycle === 'Validating' && (
-          <div className="mb-4 bg-sky-950/40 border border-sky-800/60 rounded-lg p-3 text-xs text-sky-300 flex items-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-sky-400" />
-            <span>Validating: Checking PDF signature header (%PDF-) and file size (&le; 50 MB)...</span>
-          </div>
-        )}
+      {/* Sync Alerts */}
+      {syncResult && (
+        <div className="p-3.5 rounded-xl border bg-emerald-50/80 border-emerald-200 text-emerald-900 dark:bg-emerald-950/30 dark:border-emerald-800/40 dark:text-emerald-200 text-xs flex items-start gap-2.5">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+          <div className="flex-1">{syncResult}</div>
+          <button onClick={() => setSyncResult(null)} className="text-slate-400 hover:text-slate-600">×</button>
+        </div>
+      )}
 
-        {uploadLifecycle === 'Uploading' && (
-          <div className="mb-4 bg-indigo-950/40 border border-indigo-800/60 rounded-lg p-3 text-xs text-indigo-300 flex items-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
-            <span>Uploading: Streaming encrypted bytes to Supabase Storage...</span>
-          </div>
-        )}
+      {syncError && (
+        <div className="p-3.5 rounded-xl border bg-rose-50/80 border-rose-200 text-rose-900 dark:bg-rose-950/30 dark:border-rose-800/40 dark:text-rose-200 text-xs flex items-start gap-2.5">
+          <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+          <div className="flex-1">{syncError}</div>
+          <button onClick={() => setSyncError(null)} className="text-slate-400 hover:text-slate-600">×</button>
+        </div>
+      )}
 
-        {uploadLifecycle === 'Processing' && (
-          <div className="mb-4 bg-amber-950/40 border border-amber-800/60 rounded-lg p-3 text-xs text-amber-300 flex items-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-            <span>Processing: Writing tenant-scoped document metadata and queuing ingestion job...</span>
-          </div>
-        )}
-
-        {uploadLifecycle === 'Ready' && uploadResult && (
-          <div className="mb-4 bg-emerald-950/40 border border-emerald-800/60 rounded-lg p-3.5 text-xs text-emerald-300">
-            <div className="flex items-center gap-2 font-medium mb-1.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-              <span>Document Upload Succeeded & Verified</span>
-            </div>
-            <div className="font-mono text-[11px] text-emerald-400/90 space-y-0.5">
-              <div><span className="text-slate-400">Filename:</span> {uploadResult.filename}</div>
-              <div><span className="text-slate-400">Document ID:</span> {uploadResult.document_id}</div>
-              <div><span className="text-slate-400">Invoice ID:</span> {uploadResult.invoice_id}</div>
-              <div><span className="text-slate-400">SHA-256:</span> {uploadResult.sha256}</div>
-              <div><span className="text-slate-400">Storage Key:</span> {uploadResult.storage_key}</div>
-            </div>
-          </div>
-        )}
-
-        {uploadLifecycle === 'Duplicate detected' && (
-          <div className="mb-4 bg-amber-950/40 border border-amber-800/60 rounded-lg p-3.5 text-xs text-amber-300">
-            <div className="flex items-center gap-2 font-medium mb-1">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
-              <span>Duplicate Detected</span>
-            </div>
-            <p className="text-amber-200/80 mb-1">{uploadError}</p>
-            {uploadResult?.document_id && (
-              <div className="font-mono text-[11px] text-amber-400/80">
-                Existing Document ID: {uploadResult.document_id} | Invoice ID: {uploadResult.invoice_id}
-              </div>
-            )}
-          </div>
-        )}
-
-        {uploadLifecycle === 'Access denied' && (
-          <div className="mb-4 bg-rose-950/40 border border-rose-800/60 rounded-lg p-3 text-xs text-rose-300 flex items-center gap-2">
-            <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <div>
-              <span className="font-medium">Access Denied:</span> {uploadError}
-            </div>
-          </div>
-        )}
-
-        {uploadLifecycle === 'Failed' && (
-          <div className="mb-4 bg-rose-950/40 border border-rose-800/60 rounded-lg p-3 text-xs text-rose-300 flex items-center gap-2">
-            <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <div>
-              <span className="font-medium">Upload Failed:</span> {uploadError}
-            </div>
-          </div>
-        )}
-
-        <div className="border border-dashed border-slate-700/80 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors bg-slate-950/40">
-          <FileText className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-          <div className="text-xs text-slate-300 mb-2">
-            Select genuine vendor invoice PDF (Max 50 MB, Supabase Free plan compliant)
-          </div>
-          <label className="inline-flex items-center gap-2 px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white cursor-pointer shadow-sm transition-colors">
-            <span>{['Validating', 'Uploading', 'Processing'].includes(uploadLifecycle) ? `${uploadLifecycle}...` : 'Browse & Ingest Invoice PDF'}</span>
-            <input 
-              type="file" 
-              accept=".pdf" 
-              className="hidden" 
-              onChange={handleFileUpload} 
-              disabled={['Validating', 'Uploading', 'Processing'].includes(uploadLifecycle)} 
-            />
-          </label>
+      {/* Compliance Note */}
+      <div className="bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30 rounded-xl p-3.5 text-xs flex items-start gap-3">
+        <ShieldAlert className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        <div className="text-amber-900 dark:text-amber-300 space-y-0.5">
+          <span className="font-semibold">Google Ingestion Verification & CASA Compliance:</span> Dedicated Google test mailbox is active for development and pilot verification. Full production tenant deployment requires CASA Tier 2 assessment per enterprise security policy.
         </div>
       </div>
 
-      {/* Tenant Ingested Documents Table */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-          <h2 className="text-xs font-semibold text-slate-200 tracking-wide uppercase flex items-center gap-2">
-            <FileCheck className="w-4 h-4 text-emerald-400" />
-            Tenant Ingested Documents ({documents.length})
-          </h2>
-          <span className="text-[11px] font-mono text-slate-500">Private Bucket: invoices | TTL &le; 300s</span>
-        </div>
-
-        {loadingDocs ? (
-          <div className="py-8 text-center text-xs text-slate-500">
-            <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-2 text-indigo-400" />
-            Loading tenant document catalog...
-          </div>
-        ) : documents.length === 0 ? (
-          <div className="text-xs text-slate-500 py-6 text-center">
-            No documents ingested for this organisation yet. Upload a vendor invoice above to begin.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px]">
-                <tr>
-                  <th className="py-2.5 px-3">Filename</th>
-                  <th className="py-2.5 px-3">Size</th>
-                  <th className="py-2.5 px-3">SHA-256</th>
-                  <th className="py-2.5 px-3">Storage Path</th>
-                  <th className="py-2.5 px-3">Uploaded</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-mono text-[11px]">
-                {documents.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-slate-800/30">
-                    <td className="py-2.5 px-3 text-slate-200 font-sans font-medium flex items-center gap-2">
-                      <FileText className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-                      <span className="truncate max-w-[200px]" title={doc.filename}>{doc.filename}</span>
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-400">
-                      {(doc.file_size_bytes / 1024).toFixed(1)} KB
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-400" title={doc.sha256_hash}>
-                      {doc.sha256_hash.substring(0, 12)}...
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-400 truncate max-w-[240px]" title={doc.storage_key}>
-                      {doc.storage_key}
-                    </td>
-                    <td className="py-2.5 px-3 text-slate-500">
-                      {doc.uploaded_at.replace('T', ' ').substring(0, 19)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right">
-                      <div className="flex items-center justify-end gap-2 font-sans">
-                        <button
-                          onClick={() => handleOpenSignedUrl(doc.id)}
-                          title="Generate Presigned URL (TTL 300s) & Open"
-                          className="p-1 rounded text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950/60 transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDownload(doc.id)}
-                          title="Download Document (Verified SHA-256)"
-                          className="p-1 rounded text-emerald-400 hover:text-emerald-300 hover:bg-emerald-950/60 transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleSoftDelete(doc.id, doc.filename)}
-                          disabled={deletingId === doc.id}
-                          title="Soft Delete Document (Storage Preserved)"
-                          className="p-1 rounded text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 transition-colors disabled:opacity-50"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* 4 Integration Pillars Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* 1. Identity Provider */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                Enterprise SSO / OIDC Identity
+      {/* Stacked Connection Cards */}
+      <div className="space-y-5">
+        
+        {/* Card 1: Gmail Ingestion */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800/30">
+                <Mail className="w-5 h-5" />
               </div>
-              {getPillarBadge(pillars.identity?.status || 'NOT_CONFIGURED')}
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  Gmail Mailbox Ingestion
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Primary email ingestion channel for supplier invoices and delivery notes.
+                </p>
+              </div>
             </div>
-            <p className="text-xs text-slate-400 mb-3">
-              {pillars.identity?.message || 'Supabase Auth OIDC Provider (Google Workspace / Enterprise SAML)'}
-            </p>
-            <div className="space-y-1.5 text-[11px] font-mono text-slate-400 bg-slate-950/60 p-3 rounded border border-slate-800/80">
-              <div><span className="text-slate-500">Provider:</span> {pillars.identity?.provider || 'supabase_auth'}</div>
-              <div><span className="text-slate-500">Issuer:</span> {pillars.identity?.issuer || 'https://<project>.supabase.co/auth/v1'}</div>
-              <div><span className="text-slate-500">Redirect URI:</span> {pillars.identity?.redirect_uri}</div>
+            <div>
+              {getStatusBadge(gmailStatus?.status || connections?.pillars?.gmail?.status)}
             </div>
           </div>
-        </div>
 
-        {/* 2. Gmail Ingestion */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                <Mail className="w-4 h-4 text-indigo-400" />
-                Gmail Ingestion (Direct OAuth 2.0 & History API Sync)
-              </div>
-              {getPillarBadge(pillars.gmail_ingestion?.status || 'NOT_CONFIGURED')}
-            </div>
-            <p className="text-xs text-slate-400 mb-3">
-              {pillars.gmail_ingestion?.message || 'Server-side OAuth 2.0 with minimum gmail.readonly scope & incremental History API sync.'}
-            </p>
-            <div className="space-y-1.5 text-[11px] font-mono text-slate-400 bg-slate-950/60 p-3 rounded border border-slate-800/80 mb-3">
-              <div><span className="text-slate-500">Mailbox:</span> {pillars.gmail_ingestion?.mailbox || 'Not configured'}</div>
-              <div><span className="text-slate-500">Scope:</span> https://www.googleapis.com/auth/gmail.readonly</div>
-              <div><span className="text-slate-500">Tokens:</span> Fernet Encrypted (AES-128-CBC + HMAC-SHA256)</div>
-              <div><span className="text-slate-500">Sync Engine:</span> On-Demand / Incremental History API (users.history.list)</div>
-              <div><span className="text-slate-500">Last Synced:</span> {pillars.gmail_ingestion?.last_synced_at ? pillars.gmail_ingestion.last_synced_at.replace('T', ' ').substring(0, 19) : 'Pending initial sync'}</div>
-              <div><span className="text-slate-500">History Watermark:</span> {pillars.gmail_ingestion?.last_history_id || 'None (initial reconciliation pending)'}</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            <div className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/60">
+              <span className="text-slate-500 dark:text-slate-400 block mb-1 font-medium">Mailbox Address</span>
+              <span className="font-mono font-semibold text-slate-800 dark:text-slate-200 truncate block">
+                {gmailStatus?.mailbox || connections?.pillars?.gmail?.mailbox || 'No mailbox provisioned'}
+              </span>
             </div>
 
-            {pillars.gmail_ingestion?.initial_sync_pending && (
-              <div className="mb-3 bg-amber-950/40 border border-amber-800/60 rounded p-2 text-[11px] text-amber-300">
-                Initial full synchronization pending. Click 'Sync Mailbox Now' to import pre-existing vendor invoice emails.
-              </div>
-            )}
+            <div className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/60">
+              <span className="text-slate-500 dark:text-slate-400 block mb-1 font-medium">Last Synchronization</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium block">
+                {gmailStatus?.last_synced_at ? (
+                  new Date(gmailStatus.last_synced_at).toLocaleString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                ) : gmailStatus?.status === 'CONNECTED' ? (
+                  <span className="text-amber-600 dark:text-amber-400">Initial sync pending</span>
+                ) : (
+                  'Never'
+                )}
+              </span>
+            </div>
 
-            {gmailSyncResult && (
-              <div className="mb-3 bg-emerald-950/40 border border-emerald-800/60 rounded p-2 text-[11px] text-emerald-300">
-                {gmailSyncResult}
-              </div>
-            )}
+            <div className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/60">
+              <span className="text-slate-500 dark:text-slate-400 block mb-1 font-medium">Import Mode</span>
+              <span className="text-slate-800 dark:text-slate-200 font-medium block">
+                Automatic import: Not enabled — imports run on-demand
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-            {pillars.gmail_ingestion?.status === 'CONNECTED' ? (
-              <>
-                <button
-                  onClick={handleSyncGmail}
-                  disabled={syncingGmail}
-                  className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white transition-colors flex items-center gap-1.5"
-                >
-                  <RefreshCw className={`w-3 h-3 ${syncingGmail ? 'animate-spin' : ''}`} />
-                  <span>{syncingGmail ? 'Syncing...' : 'Sync Mailbox Now'}</span>
-                </button>
-                <button
-                  onClick={handleDisconnectGmail}
-                  className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-rose-300 transition-colors"
-                >
-                  Disconnect
-                </button>
-              </>
-            ) : (
+          {/* Action Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <div className="flex items-center gap-2">
               <button
-                onClick={handleConnectGmail}
-                className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white transition-colors flex items-center gap-1.5"
+                onClick={handleSyncGmail}
+                disabled={syncingGmail || gmailStatus?.status === 'NOT_CONFIGURED'}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium shadow-sm transition-colors disabled:opacity-50"
               >
-                <Mail className="w-3.5 h-3.5" />
-                <span>Connect Dedicated Mailbox</span>
+                <RefreshCw className={`w-3.5 h-3.5 ${syncingGmail ? 'animate-spin' : ''}`} />
+                {syncingGmail ? 'Importing from Gmail...' : 'Import now'}
               </button>
+
+              {canManageIntegrations ? (
+                <>
+                  <button
+                    onClick={handleConnectGmail}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-750 transition-colors shadow-sm"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                    {gmailStatus?.status === 'CONNECTED' ? 'Reconnect' : 'Authorize Mailbox'}
+                  </button>
+
+                  {gmailStatus?.status === 'CONNECTED' && (
+                    <button
+                      onClick={handleDisconnectGmail}
+                      disabled={disconnecting}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-800 border border-rose-200 dark:border-rose-900/40 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors shadow-sm disabled:opacity-50"
+                    >
+                      {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <span className="text-[11px] text-slate-400 dark:text-slate-500 italic">
+                  OAuth management requires AP Lead or Admin authority.
+                </span>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowGmailDetails(!showGmailDetails)}
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+            >
+              {showGmailDetails ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              Technical details
+            </button>
+          </div>
+
+          {/* Technical Details Collapsible */}
+          {showGmailDetails && (
+            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3.5 rounded-lg text-xs space-y-2 font-mono">
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 dark:text-slate-400 font-sans">Authorized Scope:</span>
+                <span className="text-slate-700 dark:text-slate-300">https://www.googleapis.com/auth/gmail.readonly</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 dark:text-slate-400 font-sans">Watch Status:</span>
+                <span className="text-slate-700 dark:text-slate-300">{gmailStatus?.watch_status || 'NOT_CONFIGURED'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 dark:text-slate-400 font-sans">Pub/Sub Topic:</span>
+                <span className="text-slate-700 dark:text-slate-300">{gmailStatus?.pubsub_topic || 'Not provisioned'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500 dark:text-slate-400 font-sans">Credential Storage:</span>
+                <span className="text-slate-700 dark:text-slate-300 font-sans">PostgreSQL Encrypted Vault (Fernet token encryption)</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Card 2: ERP Source Records Boundary (SAP S/4HANA) */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-800/30">
+                <Server className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  Enterprise ERP Integration (SAP S/4HANA)
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Read-only boundary for procurement purchase orders, goods receipts, and vendor masters.
+                </p>
+              </div>
+            </div>
+            <div>
+              {getStatusBadge(connections?.pillars?.sap_erp?.status)}
+            </div>
+          </div>
+
+          <div className="text-xs text-slate-600 dark:text-slate-300 space-y-2">
+            <p>
+              Direct SAP S/4HANA OData/RFC synchronization is not provisioned in this environment. The AP Command Center operates against verified, immutable procurement reference snapshots.
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              <Link
+                to="/settings/reference-data"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-200 font-medium transition-colors"
+              >
+                <span>Inspect Reference Data (PO, GRN, QC)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Admin Configuration Guide */}
+          <div className="pt-2">
+            <button
+              onClick={() => setShowErpAdmin(!showErpAdmin)}
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium"
+            >
+              {showErpAdmin ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+              For administrators: Environment requirements
+            </button>
+
+            {showErpAdmin && (
+              <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/40 p-3.5 rounded-lg text-xs space-y-2 font-mono">
+                <p className="text-slate-600 dark:text-slate-400 font-sans text-xs">
+                  To establish a live SAP OData connector, configure the following container environment parameters:
+                </p>
+                <div className="text-slate-700 dark:text-slate-300">
+                  <div><span className="text-indigo-600 dark:text-indigo-400 font-bold">SAP_API_BASE_URL</span>: https://your-sap-gateway.company.internal/sap/opu/odata/sap/</div>
+                  <div><span className="text-indigo-600 dark:text-indigo-400 font-bold">SAP_COMPANY_CODE</span>: 1000</div>
+                  <div><span className="text-indigo-600 dark:text-indigo-400 font-bold">SAP_CLIENT_ID</span>: (Assigned RFC client)</div>
+                  <div><span className="text-indigo-600 dark:text-indigo-400 font-bold">SAP_CLIENT_SECRET</span>: (Vault encrypted secret)</div>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        {/* 3. SAP ERP Read-Only */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                <Database className="w-4 h-4 text-indigo-400" />
-                SAP S/4HANA ERP (Read-Only)
+        {/* Card 3: Foundational Subsystem Health */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800/30">
+                <Server className="w-5 h-5" />
               </div>
-              {getPillarBadge(pillars.sap_erp?.status || 'NOT_CONFIGURED')}
-            </div>
-            <p className="text-xs text-slate-400 mb-3">
-              {pillars.sap_erp?.message || 'Read-only adapter for POs, GRNs, Rate Contracts and QC records.'}
-            </p>
-            <div className="space-y-1.5 text-[11px] font-mono text-slate-400 bg-slate-950/60 p-3 rounded border border-slate-800/80">
-              <div><span className="text-slate-500">System:</span> {pillars.sap_erp?.system || 'SAP S/4HANA'}</div>
-              <div><span className="text-slate-500">Company Code:</span> {pillars.sap_erp?.company_code || 'Not provisioned'}</div>
-              <div><span className="text-slate-500">Required:</span> SAP_API_BASE_URL, SAP_CLIENT_ID, SAP_COMPANY_CODE</div>
-            </div>
-          </div>
-        </div>
-
-        {/* 4. Encrypted Object Storage */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-200">
-                <HardDrive className="w-4 h-4 text-indigo-400" />
-                Supabase Storage (Private Bucket)
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Foundational Subsystem Health
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Real-time connectivity to persistent storage, database, and identity provider.
+                </p>
               </div>
-              {getPillarBadge(pillars.object_storage?.status || 'NOT_CONFIGURED')}
             </div>
-            <p className="text-xs text-slate-400 mb-3">
-              {pillars.object_storage?.message || 'Private encrypted Supabase Storage bucket for authentic invoice originals.'}
-            </p>
-            <div className="space-y-1.5 text-[11px] font-mono text-slate-400 bg-slate-950/60 p-3 rounded border border-slate-800/80">
-              <div><span className="text-slate-500">Provider:</span> {pillars.object_storage?.provider || 'supabase'}</div>
-              <div><span className="text-slate-500">Bucket:</span> {pillars.object_storage?.bucket || 'invoices'}</div>
-              <div><span className="text-slate-500">Max File Size:</span> 50 MB</div>
+
+            <button
+              onClick={() => setShowSystemHealth(!showSystemHealth)}
+              className="text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium inline-flex items-center gap-1"
+            >
+              {showSystemHealth ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+
+          {showSystemHealth && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              {/* Database */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    PostgreSQL Database
+                  </span>
+                  {getStatusBadge(health?.subsystems?.database?.status || connections?.pillars?.database?.status)}
+                </div>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                  {health?.subsystems?.database?.message || 'Primary transactional ledger and durable job queue.'}
+                </p>
+              </div>
+
+              {/* Object Storage */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <HardDrive className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    Object Storage
+                  </span>
+                  {getStatusBadge(health?.subsystems?.object_storage?.status || connections?.pillars?.object_storage?.status)}
+                </div>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                  {health?.subsystems?.object_storage?.message || 'Encrypted PDF invoice vault with time-limited signed URLs.'}
+                </p>
+              </div>
+
+              {/* Identity Provider */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950/50 rounded-lg border border-slate-100 dark:border-slate-800/60 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Key className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    Identity Provider
+                  </span>
+                  {getStatusBadge(health?.subsystems?.identity_provider?.status || connections?.pillars?.identity_provider?.status)}
+                </div>
+                <p className="text-slate-500 dark:text-slate-400 text-[11px]">
+                  {health?.subsystems?.identity_provider?.message || 'Role-based access control and tenant isolation token authority.'}
+                </p>
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quarantined Documents Table */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-5">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
-          <h2 className="text-xs font-semibold text-slate-200 tracking-wide uppercase flex items-center gap-2">
-            <AlertOctagon className="w-4 h-4 text-purple-400" />
-            Quarantined Documents ({connections?.quarantined_count || 0})
-          </h2>
-          <span className="text-[11px] text-slate-500">Unreadable, Corrupt or Security-Failed Files</span>
+          )}
         </div>
 
-        {(!connections?.quarantined_documents || connections.quarantined_documents.length === 0) ? (
-          <div className="text-xs text-slate-500 py-6 text-center">
-            Zero quarantined documents. No ingestion or parsing failures recorded.
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950/80 text-slate-400 border-b border-slate-800 text-[11px]">
-                <tr>
-                  <th className="py-2 px-3">Filename</th>
-                  <th className="py-2 px-3">SHA-256</th>
-                  <th className="py-2 px-3">Quarantine Reason</th>
-                  <th className="py-2 px-3">Quarantined At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60 font-mono text-[11px]">
-                {connections.quarantined_documents.map((q: any) => (
-                  <tr key={q.id} className="hover:bg-slate-800/30">
-                    <td className="py-2.5 px-3 text-slate-200">{q.filename}</td>
-                    <td className="py-2.5 px-3 text-slate-400">{q.sha256?.substring(0, 16)}...</td>
-                    <td className="py-2.5 px-3 text-purple-400">{q.quarantine_reason}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{q.quarantined_at}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

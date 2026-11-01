@@ -5,21 +5,101 @@ import {
   ShieldCheck, 
   ExternalLink,
   Layers,
-  RefreshCw
+  RefreshCw,
+  Download,
+  Copy,
+  Check,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Info,
+  ShieldAlert,
+  Lock,
+  Compass
 } from 'lucide-react';
 import { api } from '../api/client';
+import { StatusBadge } from '../components/StatusBadge';
+import type { AuthenticatedUser } from '../types';
 
 interface InvoiceDetailPageProps {
   invoiceId: string;
   onBack: () => void;
+  currentUser?: AuthenticatedUser | null;
 }
 
-export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ invoiceId, onBack }) => {
+type TabType = 'matching' | 'checks' | 'details' | 'history';
+
+export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ 
+  invoiceId, 
+  onBack,
+  currentUser 
+}) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Navigation & Tabs
+  const [activeTab, setActiveTab] = useState<TabType>('matching');
+  
+  // Document Viewer State
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [zoomLevel, setZoomLevel] = useState<number>(100);
+  const [copiedSha, setCopiedSha] = useState(false);
+  const [refreshingDocUrl, setRefreshingDocUrl] = useState(false);
+
+  // Decision & Action State
+  const [selectedAction, setSelectedAction] = useState<string | null>(null);
   const [actionReason, setActionReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+
+  // Guided Review Tour State (6 coachmarks)
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(1);
+
+  const tourSteps = [
+    {
+      step: 1,
+      title: 'Original Document Pane',
+      description: 'Inspect the uploaded invoice PDF with pan/zoom controls, page navigation, and on-demand 300s presigned URL refreshing for zero-trust document security.',
+      onEnter: () => setZoomLevel(100),
+    },
+    {
+      step: 2,
+      title: 'Extracted Invoice Metadata',
+      description: 'Review structured invoice attributes extracted via AWS Bedrock Mantle: Vendor Name, GSTIN, HSN codes, Taxable Amount, and CGST/SGST/IGST tax splits.',
+      onEnter: () => setActiveTab('details'),
+    },
+    {
+      step: 3,
+      title: 'Authoritative PO & GRN Match',
+      description: 'Cross-reference invoice line items against authoritative purchase orders and goods receipt notes from SAP S/4HANA with strict 0.00% quantity and 2.50% price variance thresholds.',
+      onEnter: () => setActiveTab('matching'),
+    },
+    {
+      step: 4,
+      title: 'Policy Validation Gates',
+      description: 'Audit the 7 deterministic validation checks. When gates fail, D-04 failed-gate overrides are strictly deferred and blocked, requiring explicit exception triage.',
+      onEnter: () => setActiveTab('checks'),
+    },
+    {
+      step: 5,
+      title: 'Dual Approval & Audit Trail',
+      description: 'Track the complete cryptographic audit trail. Invoices exceeding ₹1,00,000 enforce dual approval where two distinct approvers sign off before completion.',
+      onEnter: () => setActiveTab('history'),
+    },
+    {
+      step: 6,
+      title: 'Authorized AP Triage Actions',
+      description: 'Execute authorized AP actions: Hold Pending Evidence, Request Supplier Correction, Raise Debit Note, Escalate, or Reject with mandatory audit justification.',
+      onEnter: () => {},
+    },
+  ];
 
   const loadDetail = async () => {
     setLoading(true);
@@ -27,6 +107,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ invoiceId,
     try {
       const res = await api.getInvoiceDetail(invoiceId);
       setData(res);
+      setPreviewUrl(res.document?.preview_url || null);
     } catch (err: any) {
       setError(err.message || 'Failed to retrieve invoice detail.');
     } finally {
@@ -36,27 +117,123 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ invoiceId,
 
   useEffect(() => {
     loadDetail();
+    if (window.location.search.includes('tour=true')) {
+      setShowTour(true);
+    }
   }, [invoiceId]);
 
-  const handleAction = async (action: string) => {
-    if (!actionReason.trim()) {
-      alert('Please enter an operational justification reason before executing this action.');
+  // Review Workspace Ergonomic Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          handleExecuteAction();
+        }
+        if (e.key === 'Escape') {
+          setSelectedAction(null);
+          setActionError(null);
+        }
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+          e.preventDefault();
+          handleExecuteAction();
+        }
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        setSelectedAction(null);
+        setActionError(null);
+        setShowTour(false);
+      } else if (e.key === '1') {
+        setActiveTab('matching');
+      } else if (e.key === '2') {
+        setActiveTab('checks');
+      } else if (e.key === '3') {
+        setActiveTab('details');
+      } else if (e.key === '4') {
+        setActiveTab('history');
+      } else if (e.key.toLowerCase() === 'd') {
+        setZoomLevel((prev) => (prev === 100 ? 130 : 100));
+      } else if (e.key.toLowerCase() === 'a' && currentUser?.role !== 'AUDITOR' && (!data?.match_gates?.some((g: any) => g.status === 'FAIL'))) {
+        setSelectedAction('APPROVE_AP_REVIEW');
+        setActionReason('');
+      } else if (e.key.toLowerCase() === 'h' && currentUser?.role !== 'AUDITOR') {
+        setSelectedAction('HOLD_PENDING_EVIDENCE');
+        setActionReason('');
+      } else if (e.key.toLowerCase() === 'c' && currentUser?.role !== 'AUDITOR') {
+        setSelectedAction('REQUEST_SUPPLIER_CORRECTION');
+        setActionReason('');
+      } else if (e.key.toLowerCase() === 's' && currentUser?.role !== 'AUDITOR') {
+        setSelectedAction('QUARANTINE');
+        setActionReason('');
+      } else if (e.key.toLowerCase() === 'r' && currentUser?.role !== 'AUDITOR') {
+        setSelectedAction('REJECT_INVOICE');
+        setActionReason('');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentUser, data, selectedAction, actionReason]);
+
+  const handleRefreshSignedUrl = async () => {
+    if (!data?.document?.document_id) return;
+    setRefreshingDocUrl(true);
+    try {
+      // Refresh pre-signed URL with 300s TTL (statutory max)
+      const res = await api.getDocumentSignedUrl(data.document.document_id, 300);
+      setPreviewUrl(res.signed_url);
+    } catch (err: any) {
+      console.error('Failed to refresh document signed URL:', err);
+    } finally {
+      setRefreshingDocUrl(false);
+    }
+  };
+
+  const handleCopySha = (sha: string) => {
+    navigator.clipboard.writeText(sha);
+    setCopiedSha(true);
+    setTimeout(() => setCopiedSha(false), 2000);
+  };
+
+  const handleExecuteAction = async () => {
+    if (!selectedAction) return;
+    if (actionReason.trim().length < 3) {
+      setActionError('Operational justification reason must be at least 3 characters.');
+      return;
+    }
+
+    // Strict validation gate check: Prevent approval if any gate failed (D-04 overrides deferred)
+    const hasFailedGate = data?.match_gates?.some((g: any) => g.status === 'FAIL');
+    if (selectedAction === 'APPROVE_AP_REVIEW' && hasFailedGate) {
+      setActionError('Approval blocked: this invoice failed deterministic policy validation checks. Tier 2 gate overrides (D-04) are deferred and disabled. Triage via Hold, Supplier Correction, Debit Note, Escalate, Rejection, or Quarantine.');
       return;
     }
 
     setActionLoading(true);
+    setActionError(null);
+    setActionSuccess(null);
+
     try {
-      await api.executeAction(invoiceId, action, actionReason);
+      await api.executeAction(invoiceId, selectedAction, actionReason.trim());
+      setActionSuccess(`Action '${selectedAction}' recorded successfully.`);
+      setSelectedAction(null);
       setActionReason('');
-      loadDetail();
+      await loadDetail();
     } catch (err: any) {
-      alert(`Action rejected: ${err.message}`);
+      setActionError(err.message || 'Action execution failed.');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const formatINR = (val?: number) => {
+  const formatINR = (val?: number | null) => {
     if (val === undefined || val === null) return '—';
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -65,24 +242,111 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ invoiceId,
     }).format(val);
   };
 
+  // Helper mapping gate names to human language
+  const humanGateName = (rawName: string) => {
+    const map: Record<string, string> = {
+      'Vendor Identity Registered': 'Supplier is registered and verified',
+      'PO Authorization Valid': 'Purchase order found and valid',
+      'GRN Receipt Confirmed': 'Goods receipt (GRN) confirmed in ERP',
+      'QC Inspection Accepted': 'Quality inspection (QC) accepted',
+      'GST Arithmetic Reconciled': 'GST tax adds up mathematically',
+      'PO Price & Quantity Tolerance': 'Price and quantity match the PO (±1.5%)',
+      'Duplicate Invoice Check': 'Not a duplicate submission',
+    };
+    return map[rawName] || rawName;
+  };
+
+  // Helper providing actionable operational next steps for failed validation checks
+  const getRequiredNextAction = (rawName: string): string => {
+    switch (rawName) {
+      case 'Vendor Identity Registered':
+        return 'Verify supplier GSTIN/PAN against master reference data, or request supplier onboarding.';
+      case 'PO Authorization Valid':
+        return 'Verify purchase order validity and remaining balance, or request procurement amendment.';
+      case 'GRN Receipt Confirmed':
+        return 'Confirm delivery with warehouse receiving dock, or place invoice on Hold for Evidence.';
+      case 'QC Inspection Accepted':
+        return 'Obtain QC release certificate from warehouse, or place invoice on Hold for Evidence.';
+      case 'GST Arithmetic Reconciled':
+        return 'Request corrected tax invoice from supplier with reconciled statutory GST schedules.';
+      case 'PO Price & Quantity Tolerance':
+        return 'Contact supplier to amend billed price/quantity (±1.5% tolerance exceeded), or raise debit note.';
+      case 'Duplicate Invoice Check':
+        return 'Investigate prior invoice submission. If confirmed duplicate, execute Set Aside (Quarantine).';
+      default:
+        return 'Review discrepancy details and triage via Hold, Supplier Correction, or Quarantine.';
+    }
+  };
+
+  // Reason templates based on selected action
+  const getReasonTemplates = (action: string): string[] => {
+    switch (action) {
+      case 'APPROVE_AP_REVIEW':
+        return [
+          'All 7 policy checks verified against original PDF document.',
+          'Variance within agreed commercial tolerance; approved for processing.',
+          'Goods receipt and inspection certificate cross-referenced and confirmed.'
+        ];
+      case 'HOLD_PENDING_EVIDENCE':
+        return [
+          `Awaiting goods receipt note (GRN) from warehouse for PO ${data?.invoice?.po_reference || ''}.`,
+          'Awaiting quality inspection (QC) release certificate.',
+          'Purchase order balance exhausted; awaiting procurement amendment.'
+        ];
+      case 'REQUEST_SUPPLIER_CORRECTION':
+        return [
+          'Billed unit rate exceeds agreed PO contract rate; requesting amended invoice.',
+          'GST calculation does not reconcile with statutory GSTIN rate schedule.',
+          'Invoice missing mandatory purchase order reference number.'
+        ];
+      case 'RAISE_DEBIT_NOTE':
+        return [
+          'Excess quantity billed over verified GRN; debit note initiated for quantity discrepancy.',
+          'Unit rate discrepancy exceeds tolerance; debit note raised for differential.'
+        ];
+      case 'ESCALATE':
+        return [
+          'Commercial price variance escalated to Head of Procurement for sign-off.',
+          'Recurring supplier invoice discrepancy escalated to Financial Controller.'
+        ];
+      case 'REJECT_INVOICE':
+        return [
+          'Duplicate invoice submission with identical cryptographic hash.',
+          'Invalid or unauthorized purchase order reference cited on document.'
+        ];
+      case 'QUARANTINE':
+        return [
+          'Payment receipt or commercial statement, not a payable vendor invoice.',
+          'Illegible or corrupted scan; unresolvable extraction failure.'
+        ];
+      default:
+        return [];
+    }
+  };
+
   if (loading) {
     return (
-      <div className="py-20 text-center text-xs text-slate-400">
-        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-indigo-400" />
-        Retrieving authoritative 3-pane invoice data...
+      <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-16 text-center text-slate-500 dark:text-slate-400">
+        <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-indigo-600 dark:text-indigo-400" />
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Retrieving authoritative invoice workspace...</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Inspecting document storage, 7-gate validation state & audit events</p>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-lg p-6 text-xs text-center space-y-3">
-        <div className="text-rose-400 font-semibold">{error || 'Invoice not found.'}</div>
+      <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20 p-8 text-center text-xs space-y-3">
+        <AlertTriangle className="w-8 h-8 mx-auto text-red-600 dark:text-red-400" />
+        <h2 className="text-sm font-bold text-red-900 dark:text-red-300">{error || 'Invoice not found.'}</h2>
+        <p className="text-red-700 dark:text-red-400 max-w-md mx-auto">
+          The requested invoice ID may not exist or belongs to another tenant partition under active enterprise isolation rules.
+        </p>
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-800 text-slate-200 text-xs"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors shadow-2xs"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Return to Inbox
+          <ArrowLeft className="w-3.5 h-3.5" /> Return to Invoices
         </button>
       </div>
     );
@@ -90,260 +354,901 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ invoiceId,
 
   const { invoice, document, extracted_fields, lines, match_gates, approval, timeline } = data;
 
+  // Determine gate pass/fail statistics
+  const totalGates = match_gates?.length || 0;
+  const passedGates = match_gates?.filter((g: any) => g.status === 'PASS').length || 0;
+  const failedGates = match_gates?.filter((g: any) => g.status === 'FAIL') || [];
+
+  const isAuditor = currentUser?.role === 'AUDITOR';
+  const isApproved = invoice.stage === 'INTERNAL_APPROVAL_COMPLETE' || invoice.decision === 'AUTO_APPROVED' || invoice.decision === 'MANUALLY_APPROVED';
+  const isPendingSecondApproval = invoice.workflow_substatus === 'PENDING_SECOND_APPROVAL' || approval?.status === 'PENDING_SECOND_APPROVAL';
+
   return (
-    <div className="space-y-4">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-800">
+    <div className="space-y-4 pb-20">
+      {/* 1. Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <button
             onClick={onBack}
-            className="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-400 hover:text-white"
+            title="Return to Invoices list"
+            className="p-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base font-bold text-white font-mono">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white font-mono">
                 {invoice.invoice_number || invoice.id}
               </h1>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                {invoice.stage}
-              </span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                {invoice.decision}
-              </span>
+              <StatusBadge invoice={invoice} size="sm" />
+              {isPendingSecondApproval && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                  Dual Control Active
+                </span>
+              )}
             </div>
-            <div className="text-xs text-slate-400 mt-0.5">
-              Vendor: <span className="text-slate-200 font-medium">{invoice.vendor_name || 'Unidentified'}</span> | Total: <span className="font-mono text-slate-100">{formatINR(invoice.total_amount)}</span>
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2">
+              <span>Supplier: <strong className="text-slate-700 dark:text-slate-200 font-medium">{invoice.vendor_name || 'Unregistered'}</strong></span>
+              {invoice.vendor_gstin && <span>• <span className="font-mono">{invoice.vendor_gstin}</span></span>}
+              {invoice.po_reference && <span>• PO: <span className="font-mono">{invoice.po_reference}</span></span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Header Right: Amount & Statutory Due */}
+        <div className="flex items-center gap-3 sm:gap-4 sm:text-right shrink-0">
+          <button
+            onClick={() => {
+              setShowTour(true);
+              setTourStep(1);
+              tourSteps[0].onEnter();
+            }}
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-xs font-medium transition-colors shadow-2xs"
+            title="Start Guided AP Review Tour"
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>Tour</span>
+          </button>
+          <div>
+            <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
+              {formatINR(invoice.total_amount)}
+            </div>
+            <div className="text-[11px] text-slate-500 dark:text-slate-400">
+              {invoice.msme_statutory_deadline ? (
+                <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
+                  <Clock className="w-3 h-3" />
+                  Due: {invoice.msme_statutory_deadline.substring(0, 10)}
+                </span>
+              ) : (
+                'Total Billed Amount'
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3-Pane Operational Inspection Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* PANE 1: Original Document & Extracted Fields */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-4 flex flex-col h-[750px] overflow-hidden">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-3">
-            <h2 className="text-xs font-semibold text-slate-200 uppercase flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-indigo-400" />
-              Pane 1: Document & Extraction
-            </h2>
-            {document?.preview_url && (
-              <a 
-                href={document.preview_url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-[11px] text-indigo-400 hover:underline flex items-center gap-1"
+      {/* Guided Review Tour Coachmark Banner */}
+      {showTour && (
+        <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/90 dark:bg-indigo-950/60 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+              {tourStep}/6
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">
+                  Guided AP Workspace Tour • Step {tourStep} of 6
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">(Esc to exit)</span>
+              </div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                {tourSteps[tourStep - 1].title}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                {tourSteps[tourStep - 1].description}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+            {tourStep > 1 && (
+              <button
+                onClick={() => {
+                  const prev = tourStep - 1;
+                  setTourStep(prev);
+                  tourSteps[prev - 1].onEnter();
+                }}
+                className="px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 transition-colors shadow-2xs"
               >
-                Full PDF <ExternalLink className="w-3 h-3" />
-              </a>
+                Previous
+              </button>
             )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-            {document ? (
-              <div className="bg-slate-950 p-2.5 rounded border border-slate-800 text-[11px] font-mono space-y-1">
-                <div><span className="text-slate-500">Filename:</span> {document.filename}</div>
-                <div><span className="text-slate-500">SHA-256:</span> {document.sha256?.substring(0, 20)}...</div>
-                <div><span className="text-slate-500">Size:</span> {(document.size_bytes / 1024).toFixed(1)} KB</div>
-              </div>
+            {tourStep < 6 ? (
+              <button
+                onClick={() => {
+                  const next = tourStep + 1;
+                  setTourStep(next);
+                  tourSteps[next - 1].onEnter();
+                }}
+                className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition-colors shadow-xs"
+              >
+                Next Step &rarr;
+              </button>
             ) : (
-              <div className="text-slate-500 text-center py-4">No original file attached</div>
+              <button
+                onClick={() => setShowTour(false)}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition-colors shadow-xs"
+              >
+                Finish Tour &check;
+              </button>
             )}
-
-            <div>
-              <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Traceable Field Evidence
-              </h3>
-              {(!extracted_fields || extracted_fields.length === 0) ? (
-                <div className="text-slate-500 text-center py-6">
-                  Zero extracted fields. Extraction pipeline pending.
-                </div>
-              ) : (
-                <div className="space-y-1.5">
-                  {extracted_fields.map((f: any, idx: number) => (
-                    <div key={idx} className="bg-slate-950/80 p-2 rounded border border-slate-800/80 flex items-center justify-between text-xs">
-                      <div>
-                        <div className="text-slate-400 font-mono text-[11px]">{f.field_name}</div>
-                        <div className="text-slate-200 font-medium">{f.value || '—'}</div>
-                      </div>
-                      <div className="text-right font-mono text-[10px] text-slate-500">
-                        {f.confidence !== null ? `${(f.confidence * 100).toFixed(0)}% conf` : 'unverified'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() => setShowTour(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+              title="Close Tour"
+            >
+              &times;
+            </button>
           </div>
         </div>
+      )}
 
-        {/* PANE 2: 5-Way Reconciliation & Lines */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-4 flex flex-col h-[750px] overflow-hidden">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-3">
-            <h2 className="text-xs font-semibold text-slate-200 uppercase flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-indigo-400" />
-              Pane 2: Line Reconciliation
-            </h2>
-            <span className="text-[11px] font-mono text-slate-400">PO: {invoice.po_reference || 'NONE'}</span>
+      {/* 2. Verdict Banner (Visual Hierarchy: Verdict First) */}
+      <div className={`p-4 rounded-xl border flex items-start gap-3 shadow-2xs ${
+        isApproved
+          ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
+          : isPendingSecondApproval
+          ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800/60 text-purple-900 dark:text-purple-200'
+          : failedGates.length > 0
+          ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200'
+          : totalGates > 0 && passedGates === totalGates
+          ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
+          : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
+      }`}>
+        {isApproved ? (
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+        ) : isPendingSecondApproval ? (
+          <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+        ) : failedGates.length > 0 ? (
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+        ) : totalGates > 0 && passedGates === totalGates ? (
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+        ) : (
+          <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+        )}
+
+        <div className="text-xs space-y-1.5 flex-1">
+          <div className="font-semibold text-sm flex flex-wrap items-center justify-between gap-2">
+            <span>
+              {isApproved ? (
+                'Invoice Approved for Payment Run'
+              ) : isPendingSecondApproval ? (
+                'Waiting for Secondary Controller Approval'
+              ) : failedGates.length > 0 ? (
+                `Blocked: ${failedGates.length} Validation Check(s) Failed — Approval Blocked`
+              ) : totalGates > 0 && passedGates === totalGates ? (
+                'All 7 Automatic Checks Passed — Ready to Approve'
+              ) : (
+                'Invoice Ingested — Validation Pipeline Pending'
+              )}
+            </span>
+            {failedGates.length > 0 && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+                Gate Overrides Disabled (D-04 Deferred)
+              </span>
+            )}
           </div>
-
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-            {(!lines || lines.length === 0) ? (
-              <div className="text-slate-500 text-center py-8">
-                No parsed line items. Line extraction pending.
-              </div>
+          <p className="opacity-90">
+            {isApproved ? (
+              'Internal AP review is complete. In accordance with strict production truth rules, no external payment or ERP posting has been executed.'
+            ) : isPendingSecondApproval ? (
+              `First approval was rendered by ${approval?.first_approver_id || 'AP Lead'}. A distinct Financial Controller or System Admin must render secondary sign-off.`
+            ) : failedGates.length > 0 ? (
+              'This invoice cannot be approved while deterministic policy checks fail. In accordance with approved governance (D-04 overrides deferred), approvals are blocked until exceptions are reconciled. Please triage using an authorized action below.'
+            ) : totalGates > 0 && passedGates === totalGates ? (
+              'Supplier identity, PO authorization, GRN delivery, QC acceptance, arithmetic, and price tolerances all verified.'
             ) : (
-              <div className="divide-y divide-slate-800/60 font-mono text-[11px]">
-                {lines.map((l: any) => (
-                  <div key={l.line_number} className="py-2.5 flex items-center justify-between">
-                    <div>
-                      <div className="text-slate-200 font-sans">{l.description}</div>
-                      <div className="text-slate-500">{l.quantity} units @ {formatINR(l.rate)}</div>
-                    </div>
-                    <div className="text-slate-100 font-bold tabular-nums">
-                      {formatINR(l.total)}
-                    </div>
-                  </div>
+              'Original document received. Waiting for asynchronous Bedrock extraction and deterministic matching engine evaluation.'
+            )}
+          </p>
+
+          {/* Explicit failed gates listing with required next actions */}
+          {failedGates.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-amber-200/80 dark:border-amber-800/80 space-y-1.5">
+              <span className="text-[10px] font-bold text-amber-950 dark:text-amber-100 uppercase tracking-wider">
+                Failing Checks & Required Next Actions:
+              </span>
+              <ul className="space-y-1">
+                {failedGates.map((g: any, i: number) => (
+                  <li key={i} className="text-[11px] text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-baseline gap-1">
+                    <span className="font-semibold text-amber-950 dark:text-amber-100">• {humanGateName(g.gate_name)}:</span>
+                    <span className="opacity-90">{g.notes || 'Validation tolerance exceeded.'}</span>
+                    <span className="font-medium text-amber-950 dark:text-amber-100">
+                      &rarr; <em>Next Action: {getRequiredNextAction(g.gate_name)}</em>
+                    </span>
+                  </li>
                 ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Action Execution Feedback Banners */}
+      {actionSuccess && (
+        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span>{actionSuccess}</span>
+          </div>
+          <button onClick={() => setActionSuccess(null)} className="font-mono text-xs hover:opacity-75">&times;</button>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span>{actionError}</span>
+          </div>
+          <button onClick={() => setActionError(null)} className="font-mono text-xs hover:opacity-75">&times;</button>
+        </div>
+      )}
+
+      {/* 3. Split-Pane Workspace: Document (Left) + Evidence Tabs (Right) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* PANE 1: Original Document (5 cols on lg) */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[780px]">
+          {/* Document Toolbar */}
+          <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate" title={document?.filename || 'Document'}>
+                {document?.filename || 'No document file'}
+              </span>
+              {document?.sha256 && (
+                <button
+                  onClick={() => handleCopySha(document.sha256)}
+                  title="Copy full cryptographic SHA-256 hash"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+                >
+                  {copiedSha ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  <span>{document.sha256.substring(0, 8)}...</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setZoomLevel(Math.max(50, zoomLevel - 15))}
+                disabled={zoomLevel <= 50}
+                title="Zoom Out"
+                className="p-1 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-30"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[10px] font-mono font-medium text-slate-600 dark:text-slate-300 w-10 text-center">
+                {zoomLevel}%
+              </span>
+              <button
+                onClick={() => setZoomLevel(Math.min(200, zoomLevel + 15))}
+                disabled={zoomLevel >= 200}
+                title="Zoom In"
+                className="p-1 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-30"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => setZoomLevel(100)}
+                title="Reset Zoom to 100%"
+                className="p-1 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="h-3.5 w-px bg-slate-300 dark:bg-slate-700 mx-1" />
+
+              {previewUrl && (
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Open original document in new browser tab"
+                  className="p-1 rounded text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              )}
+              {document?.document_id && (
+                <button
+                  onClick={handleRefreshSignedUrl}
+                  disabled={refreshingDocUrl}
+                  title="Regenerate pre-signed URL (300s TTL)"
+                  className="p-1 rounded text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingDocUrl ? 'animate-spin text-indigo-600' : ''}`} />
+                </button>
+              )}
+              {document?.document_id && (
+                <a
+                  href={`/api/v1/documents/${document.document_id}/download`}
+                  download={document.filename || 'invoice.pdf'}
+                  title="Download verified document (SHA-256 validated)"
+                  className="p-1 rounded text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                </a>
+              )}
+            </div>
+          </div>
+
+          {/* Embedded Viewer Canvas */}
+          <div className="flex-1 bg-slate-100 dark:bg-slate-950 p-2 overflow-auto flex items-center justify-center relative">
+            {previewUrl ? (
+              <div 
+                className="w-full h-full transition-transform duration-150 origin-top-left"
+                style={{ transform: `scale(${zoomLevel / 100})`, width: `${10000 / zoomLevel}%`, height: `${10000 / zoomLevel}%` }}
+              >
+                <iframe
+                  src={previewUrl}
+                  title={document?.filename || 'Invoice PDF Preview'}
+                  className="w-full h-full rounded border border-slate-200 dark:border-slate-800 shadow-xs"
+                />
+              </div>
+            ) : document ? (
+              <div className="text-center p-8 space-y-3">
+                <FileText className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto" />
+                <p className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                  Document link expired or awaiting secure presigned authorization.
+                </p>
+                <button
+                  onClick={handleRefreshSignedUrl}
+                  disabled={refreshingDocUrl}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-medium hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${refreshingDocUrl ? 'animate-spin' : ''}`} />
+                  Generate Fresh Signed URL
+                </button>
+              </div>
+            ) : (
+              <div className="text-center p-8 space-y-2 text-slate-500 dark:text-slate-400">
+                <FileText className="w-10 h-10 text-slate-400 dark:text-slate-600 mx-auto" />
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No original document attached</p>
+                <p className="text-[11px] max-w-xs mx-auto">
+                  This record was created without an associated PDF artifact, or the document was deleted.
+                </p>
               </div>
             )}
-
-            {/* Net Payable Waterfall */}
-            <div className="bg-slate-950 p-3 rounded border border-slate-800 space-y-1.5 mt-4 text-xs font-mono">
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-800 pb-1 mb-2 font-sans">
-                Net Payable Waterfall
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Subtotal Billed:</span>
-                <span className="text-slate-200 tabular-nums">{formatINR(invoice.subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>GST Tax (Reconciled):</span>
-                <span className="text-slate-200 tabular-nums">{formatINR(invoice.tax_amount)}</span>
-              </div>
-              <div className="flex justify-between text-slate-200 font-bold border-t border-slate-800 pt-1">
-                <span>Net Payable:</span>
-                <span className="text-emerald-400 tabular-nums">{formatINR(invoice.net_payable || invoice.total_amount)}</span>
-              </div>
-            </div>
           </div>
         </div>
 
-        {/* PANE 3: Decision Trace, Dual Control & Actions */}
-        <div className="bg-slate-900/70 border border-slate-800 rounded-lg p-4 flex flex-col h-[750px] overflow-hidden">
-          <div className="flex items-center justify-between pb-2.5 border-b border-slate-800 mb-3">
-            <h2 className="text-xs font-semibold text-slate-200 uppercase flex items-center gap-1.5">
-              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
-              Pane 3: Match Gates & Actions
-            </h2>
+        {/* PANE 2 & 3: Tabbed Analysis & Evidence Panel (6 cols on lg) */}
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[780px]">
+          {/* Analysis Tab Bar */}
+          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 pt-1 gap-1">
+            <button
+              onClick={() => setActiveTab('matching')}
+              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
+                activeTab === 'matching'
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Matching & Lines</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('checks')}
+              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
+                activeTab === 'checks'
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Policy Gates ({passedGates}/{totalGates})</span>
+              {failedGates.length > 0 && (
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
+                activeTab === 'details'
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Extracted Fields ({extracted_fields?.length || 0})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
+                activeTab === 'history'
+                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Audit Trail ({timeline?.length || 0})</span>
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
-            {/* 17 Gates Summary */}
-            <div>
-              <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Deterministic Policy Gates
-              </h3>
-              {(!match_gates || match_gates.length === 0) ? (
-                <div className="text-slate-500 text-center py-4 bg-slate-950 rounded border border-slate-800">
-                  AOP Match engine evaluation pending.
+          {/* Tab Content Container */}
+          <div className="flex-1 p-4 overflow-y-auto space-y-4">
+            {/* TAB 1: MATCHING & LINE ITEMS */}
+            {activeTab === 'matching' && (
+              <div className="space-y-4">
+                {/* Header Facts Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Supplier Name</span>
+                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{invoice.vendor_name || '—'}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Supplier GSTIN</span>
+                    <div className="font-mono text-slate-800 dark:text-slate-200">{invoice.vendor_gstin || '—'}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">PO Reference</span>
+                    <div className="font-mono text-slate-800 dark:text-slate-200">{invoice.po_reference || 'NONE'}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Billed Subtotal</span>
+                    <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 tabular-nums">{formatINR(invoice.subtotal)}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">GST Tax Amount</span>
+                    <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 tabular-nums">{formatINR(invoice.tax_amount)}</div>
+                  </div>
+                  <div>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Net Payable</span>
+                    <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatINR(invoice.net_payable || invoice.total_amount)}</div>
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-1 text-[11px] font-mono">
-                  {match_gates.map((g: any) => (
-                    <div key={g.gate_number} className="flex items-center justify-between p-1.5 rounded bg-slate-950 border border-slate-800/60">
-                      <span className="text-slate-300">#{g.gate_number} {g.gate_name}</span>
-                      <span className={g.status === 'PASS' ? 'text-emerald-400' : (g.status === 'FAIL' ? 'text-rose-400' : 'text-amber-400')}>
-                        {g.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Dual Control Status */}
-            {approval && (
-              <div className="bg-indigo-950/30 border border-indigo-800/40 rounded p-3 text-[11px] space-y-1">
-                <div className="font-semibold text-indigo-300">Dual-Control Approval Gate:</div>
-                <div className="text-slate-300">First Approver: {approval.first_approver_id || 'Pending'}</div>
-                <div className="text-slate-300">Second Approver: {approval.second_approver_id || 'Pending'}</div>
-                <div className="text-slate-400 font-mono">Status: {approval.status}</div>
+                {/* Line Items Table */}
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+                    Billed Line Items ({lines?.length || 0})
+                  </h3>
+                  {(!lines || lines.length === 0) ? (
+                    <div className="text-center py-6 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                      No line items extracted. Extraction pipeline pending.
+                    </div>
+                  ) : (
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                          <tr>
+                            <th className="py-2 px-3 w-10">#</th>
+                            <th className="py-2 px-3">Description</th>
+                            <th className="py-2 px-3 text-right">Qty</th>
+                            <th className="py-2 px-3 text-right">Rate</th>
+                            <th className="py-2 px-3 text-right">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
+                          {lines.map((l: any) => (
+                            <tr key={l.line_number} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                              <td className="py-2 px-3 text-slate-400">{l.line_number}</td>
+                              <td className="py-2 px-3 font-sans text-slate-800 dark:text-slate-200">{l.description}</td>
+                              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">{l.quantity}</td>
+                              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">{formatINR(l.rate)}</td>
+                              <td className="py-2 px-3 text-right font-bold text-slate-900 dark:text-white tabular-nums">{formatINR(l.total)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Net Payable Waterfall */}
+                <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono space-y-1.5">
+                  <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wide border-b border-slate-200 dark:border-slate-800 pb-1 mb-2 font-sans">
+                    Net Payable Waterfall
+                  </div>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>Subtotal Billed:</span>
+                    <span className="text-slate-900 dark:text-slate-200 tabular-nums">{formatINR(invoice.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                    <span>GST Tax Reconciled:</span>
+                    <span className="text-slate-900 dark:text-slate-200 tabular-nums">{formatINR(invoice.tax_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-900 dark:text-white font-bold border-t border-slate-200 dark:border-slate-800 pt-1.5 text-sm">
+                    <span>Net Authorizable Payable:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">{formatINR(invoice.net_payable || invoice.total_amount)}</span>
+                  </div>
+                </div>
+
+                {/* Reference Comparison Honest Disclosure */}
+                <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-900/40 text-xs text-sky-900 dark:text-sky-300 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+                  <p>
+                    <strong>Authoritative Reference Integrity:</strong> Purchase order and goods receipt comparison is computed strictly against synchronized SAP S/4HANA ERP records. When external line items are missing from the ERP sync, comparison displays unavailable rather than zero or mock values.
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Append-Only Timeline */}
-            <div>
-              <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Audit Trail ({timeline?.length || 0} events)
-              </h3>
-              {(!timeline || timeline.length === 0) ? (
-                <div className="text-slate-500 text-center py-3 bg-slate-950 rounded border border-slate-800 text-[11px]">
-                  No historical actions logged.
+            {/* TAB 2: 7 POLICY GATES */}
+            {activeTab === 'checks' && (
+              <div className="space-y-4">
+                {/* Progress bar */}
+                <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
+                    <span>Validation Gate Results</span>
+                    <span>{passedGates} of {totalGates} Checks Passed</span>
+                  </div>
+                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full transition-all duration-300 ${
+                        failedGates.length > 0 ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                      style={{ width: `${totalGates > 0 ? (passedGates / totalGates) * 100 : 0}%` }}
+                    />
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-1.5 text-[11px] font-mono">
-                  {timeline.map((t: any) => (
-                    <div key={t.event_id} className="p-2 rounded bg-slate-950 border border-slate-800/60">
-                      <div className="flex justify-between text-slate-300">
-                        <span className="font-bold text-indigo-400">{t.action}</span>
-                        <span className="text-slate-500">{t.timestamp.substring(11, 19)}</span>
-                      </div>
-                      <div className="text-slate-400 text-[10px] mt-0.5">By: {t.actor_id} ({t.actor_role})</div>
-                      {t.reason && <div className="text-slate-300 font-sans mt-1 text-[11px]">{t.reason}</div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
-            {/* Action Form */}
-            <div className="bg-slate-950 p-3 rounded border border-slate-800 space-y-2 mt-auto">
-              <label className="block text-[11px] font-semibold text-slate-300">
-                Action Operational Justification (Mandatory):
-              </label>
-              <textarea
-                value={actionReason}
-                onChange={(e) => setActionReason(e.target.value)}
-                placeholder="State operational reason for decision..."
-                className="w-full bg-slate-900 border border-slate-800 rounded p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
-                rows={2}
-              />
-              <div className="grid grid-cols-2 gap-2 pt-1">
+                {/* Gate List */}
+                {(!match_gates || match_gates.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                    No validation gates evaluated yet for this record.
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {/* Render failed gates first */}
+                    {[...match_gates]
+                      .sort((a: any, b: any) => (a.status === 'FAIL' ? -1 : (b.status === 'FAIL' ? 1 : 0)))
+                      .map((g: any) => (
+                        <div 
+                          key={g.gate_number} 
+                          className={`p-3 rounded-lg border text-xs space-y-1.5 transition-colors ${
+                            g.status === 'PASS'
+                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50 text-slate-800 dark:text-slate-200'
+                              : g.status === 'FAIL'
+                              ? 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 text-rose-950 dark:text-rose-200'
+                              : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50 text-amber-950 dark:text-amber-200'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {g.status === 'PASS' ? (
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                              ) : g.status === 'FAIL' ? (
+                                <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                              ) : (
+                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                              )}
+                              <span className="font-semibold text-slate-900 dark:text-white">
+                                Check #{g.gate_number}: {humanGateName(g.gate_name)}
+                              </span>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                              g.status === 'PASS'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
+                                : g.status === 'FAIL'
+                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
+                            }`}>
+                              {g.status}
+                            </span>
+                          </div>
+
+                          {g.notes && (
+                            <p className="text-[11px] opacity-90 pl-6">
+                              {g.notes}
+                            </p>
+                          )}
+
+                          {g.evidence_source_id && (
+                            <div className="pl-6 text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                              <span>Traceable Evidence:</span>
+                              <code className="bg-slate-200 dark:bg-slate-800 px-1 py-0.2 rounded text-slate-700 dark:text-slate-300">
+                                {g.evidence_source_id}
+                              </code>
+                            </div>
+                          )}
+
+                          {g.status === 'FAIL' && (
+                            <div className="pl-6 pt-1 text-[11px] text-rose-950 dark:text-rose-200 flex items-start gap-1.5">
+                              <span className="font-semibold text-rose-950 dark:text-rose-100 shrink-0">Required Action:</span>
+                              <span className="font-medium">{getRequiredNextAction(g.gate_name)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 3: EXTRACTED FIELDS */}
+            {activeTab === 'details' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Traceable Field Extractions ({extracted_fields?.length || 0})
+                  </h3>
+                  <span className="text-[11px] font-mono text-slate-500">Mantle Bedrock OCR</span>
+                </div>
+
+                {(!extracted_fields || extracted_fields.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                    Nothing has been extracted from this document yet.
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                        <tr>
+                          <th className="py-2.5 px-3">Field Name</th>
+                          <th className="py-2.5 px-3">Extracted Value</th>
+                          <th className="py-2.5 px-3">Page</th>
+                          <th className="py-2.5 px-3 text-right">Confidence</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
+                        {extracted_fields.map((f: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">{f.field_name}</td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white font-sans">{f.value || '—'}</td>
+                            <td className="py-2.5 px-3 text-slate-500">{f.source_page || '1'}</td>
+                            <td className="py-2.5 px-3 text-right">
+                              {f.confidence !== null ? (
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                  f.confidence >= 0.9
+                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                }`}>
+                                  {(f.confidence * 100).toFixed(0)}%
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 4: AUDIT HISTORY TIMELINE */}
+            {activeTab === 'history' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                    Immutable Regulatory Audit Trail
+                  </h3>
+                  <span className="text-[11px] font-mono text-slate-500">{timeline?.length || 0} events logged</span>
+                </div>
+
+                {(!timeline || timeline.length === 0) ? (
+                  <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                    No historical events recorded for this invoice yet.
+                  </div>
+                ) : (
+                  <div className="space-y-3 relative pl-4 border-l-2 border-slate-200 dark:border-slate-800">
+                    {timeline.map((t: any) => (
+                      <div key={t.event_id} className="relative space-y-1 text-xs">
+                        {/* Dot indicator */}
+                        <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-white dark:border-slate-900" />
+                        
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-900 dark:text-white font-mono">{t.action}</span>
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                              {t.actor_role}
+                            </span>
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-500">
+                            {t.timestamp.replace('T', ' ').substring(0, 19)}
+                          </span>
+                        </div>
+
+                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Actor ID: <code className="font-mono">{t.actor_id}</code>
+                        </div>
+
+                        {t.reason && (
+                          <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 mt-1">
+                            {t.reason}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Sticky Decision Bar (Bottom) */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 lg:pl-64 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-3 sm:px-6 transition-colors shadow-lg">
+        {isAuditor ? (
+          <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 py-1 font-medium">
+            <ShieldCheck className="w-4 h-4 text-slate-400" />
+            <span>Your role (Auditor) has read-only oversight permissions. Decision actions are disabled.</span>
+          </div>
+        ) : isApproved ? (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-7xl mx-auto text-xs">
+            <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Invoice review complete. Approved for payment run — no payment or ERP posting has been made.</span>
+            </div>
+            <button
+              onClick={onBack}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium hover:bg-slate-50 text-xs shadow-2xs"
+            >
+              Return to Invoices
+            </button>
+          </div>
+        ) : (
+          <div className="max-w-7xl mx-auto space-y-3">
+            {/* Inline Action Confirmation Drawer */}
+            {selectedAction && (
+              <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/50 dark:bg-indigo-950/30 text-xs space-y-3 shadow-md animate-in fade-in duration-150">
+                <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/60 pb-2">
+                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-sm">
+                    <span>Confirm Action:</span>
+                    <code className="text-indigo-700 dark:text-indigo-300 font-mono">{selectedAction}</code>
+                  </div>
+                  <button
+                    onClick={() => { setSelectedAction(null); setActionError(null); }}
+                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-mono text-sm"
+                  >
+                    &times;
+                  </button>
+                </div>
+
+
+                {/* Reason Textarea */}
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <label className="font-semibold text-slate-800 dark:text-slate-200">
+                      Operational Justification (Mandatory, min 3 characters):
+                    </label>
+                    <span className={`font-mono ${actionReason.trim().length >= 3 ? 'text-slate-400' : 'text-amber-600 font-bold'}`}>
+                      {actionReason.trim().length} chars
+                    </span>
+                  </div>
+                  <textarea
+                    value={actionReason}
+                    onChange={(e) => setActionReason(e.target.value)}
+                    placeholder="Enter thorough operational justification for this financial decision..."
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    rows={2}
+                  />
+                </div>
+
+                {/* Context-Sensitive Reason Template Chips */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Suggested reason templates:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {getReasonTemplates(selectedAction).map((tmpl, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActionReason(tmpl)}
+                        className="px-2 py-1 rounded-md text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
+                      >
+                        {tmpl}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Confirm / Cancel Buttons */}
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-indigo-100 dark:border-indigo-900/60">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedAction(null); setActionError(null); }}
+                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExecuteAction}
+                    disabled={actionLoading || actionReason.trim().length < 3}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-2xs"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? 'animate-spin' : ''}`} />
+                    <span>{actionLoading ? 'Recording...' : 'Confirm & Write to Audit'}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Primary Action Button Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
+                <span>Select operational decision:</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Secondary Actions */}
                 <button
-                  onClick={() => handleAction('APPROVE_AP_REVIEW')}
+                  onClick={() => { setSelectedAction('HOLD_PENDING_EVIDENCE'); setActionReason(''); }}
                   disabled={actionLoading}
-                  className="px-2.5 py-1.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium"
-                >
-                  Approve Review
-                </button>
-                <button
-                  onClick={() => handleAction('HOLD_PENDING_EVIDENCE')}
-                  disabled={actionLoading}
-                  className="px-2.5 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
                 >
                   Hold for Evidence
                 </button>
+
                 <button
-                  onClick={() => handleAction('REQUEST_SUPPLIER_CORRECTION')}
+                  onClick={() => { setSelectedAction('REQUEST_SUPPLIER_CORRECTION'); setActionReason(''); }}
                   disabled={actionLoading}
-                  className="px-2.5 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
                 >
-                  Request Correction
+                  Ask Supplier to Correct
                 </button>
+
                 <button
-                  onClick={() => handleAction('QUARANTINE')}
+                  onClick={() => { setSelectedAction('RAISE_DEBIT_NOTE'); setActionReason(''); }}
                   disabled={actionLoading}
-                  className="px-2.5 py-1.5 rounded bg-purple-800 hover:bg-purple-700 text-white text-xs"
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
                 >
-                  Quarantine File
+                  Raise Debit Note
                 </button>
+
+                <button
+                  onClick={() => { setSelectedAction('ESCALATE'); setActionReason(''); }}
+                  disabled={actionLoading}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
+                >
+                  Escalate
+                </button>
+
+                <button
+                  onClick={() => { setSelectedAction('REJECT_INVOICE'); setActionReason(''); }}
+                  disabled={actionLoading}
+                  className="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-xs font-medium transition-colors shadow-2xs"
+                >
+                  Reject Invoice
+                </button>
+
+                <button
+                  onClick={() => { setSelectedAction('QUARANTINE'); setActionReason(''); }}
+                  disabled={actionLoading}
+                  className="px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/60 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 text-xs font-medium transition-colors shadow-2xs"
+                >
+                  Set Aside (Quarantine)
+                </button>
+
+                {/* Primary Action Button or Blocked Indicator */}
+                {failedGates.length > 0 ? (
+                  <div
+                    title={`Approval blocked: ${failedGates.length} validation gate(s) failed. Failed-gate overrides (D-04) are disabled.`}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 cursor-not-allowed select-none shadow-2xs"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Approval Blocked ({failedGates.length} Failing Checks)</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setSelectedAction('APPROVE_AP_REVIEW'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-xs transition-colors"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Approve Review</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

@@ -1,0 +1,154 @@
+import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Menu, ShieldCheck, Keyboard } from 'lucide-react';
+import { Sidebar } from './Sidebar';
+import { ThemeToggle } from './ThemeToggle';
+import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import type { AuthenticatedUser, HealthResponse } from '../types';
+
+interface AppShellProps {
+  user: AuthenticatedUser | null;
+  health: HealthResponse | null;
+  onLogout?: () => void;
+  children: React.ReactNode;
+  onSwitchRole?: (role: string) => void;
+}
+
+export const AppShell: React.FC<AppShellProps> = ({
+  user,
+  health,
+  onLogout,
+  children,
+  onSwitchRole,
+}) => {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const location = useLocation();
+
+  // Register global shortcuts (? for help, g sequences for navigation)
+  useKeyboardShortcuts({
+    onToggleShortcutsHelp: () => setShortcutsOpen((prev) => !prev),
+    onEscape: () => {
+      setShortcutsOpen(false);
+      setSidebarOpen(false);
+    },
+  });
+
+  // Determine current page title
+  const getPageTitle = (pathname: string) => {
+    if (pathname.startsWith('/today')) return 'Today';
+    if (pathname.startsWith('/setup')) return 'Workspace Setup';
+    if (pathname.startsWith('/invoices/')) return 'Invoice Review';
+    if (pathname.startsWith('/invoices')) return 'Invoices';
+    if (pathname.startsWith('/approvals')) return 'Approvals Queue';
+    if (pathname.startsWith('/audit')) return 'Audit Trail';
+    if (pathname.startsWith('/settings/connections')) return 'Connections';
+    if (pathname.startsWith('/settings/reference-data')) return 'Reference Data';
+    if (pathname.startsWith('/settings/team')) return 'Team & Access';
+    return 'Dashboard';
+  };
+
+  const isDevMode = !import.meta.env.PROD;
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
+      {/* Global Sidebar */}
+      <Sidebar
+        user={user}
+        health={health}
+        onLogout={onLogout}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
+
+      {/* Main Content Column (offset by 64px on lg viewports for the fixed sidebar) */}
+      <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
+        {/* Top Header Bar */}
+        <header
+          className="sticky top-0 z-30 h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xs flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-colors"
+          role="banner"
+        >
+          {/* Left: Mobile hamburger & breadcrumbs */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden"
+              aria-label="Open sidebar menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white">
+                {getPageTitle(location.pathname)}
+              </span>
+            </div>
+          </div>
+
+          {/* Right Controls: Role Switcher (Dev), Theme Toggle & User Info */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Dev Mode Role Switcher */}
+            {isDevMode && onSwitchRole && user && (
+              <div className="hidden sm:flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
+                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Role:</span>
+                <select
+                  value={user.role || ''}
+                  onChange={(e) => onSwitchRole(e.target.value)}
+                  className="bg-transparent text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-hidden cursor-pointer"
+                  aria-label="Switch Evaluation Role"
+                >
+                  <option value="AP_ASSOCIATE" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">AP Associate</option>
+                  <option value="AP_LEAD" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">AP Lead</option>
+                  <option value="CONTROLLER" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Financial Controller</option>
+                  <option value="AUDITOR" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Auditor (Read-Only)</option>
+                  <option value="SYSTEM_ADMIN" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">System Admin</option>
+                </select>
+              </div>
+            )}
+
+            {/* Keyboard Shortcuts Trigger Button */}
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg transition-colors"
+              title="Keyboard Shortcuts (Press ?)"
+              aria-label="Open keyboard shortcuts cheat sheet"
+            >
+              <Keyboard className="w-3.5 h-3.5" />
+              <kbd className="font-mono text-[10px] font-semibold bg-white dark:bg-slate-800 px-1 py-0.2 rounded border border-slate-300 dark:border-slate-700">?</kbd>
+            </button>
+
+            {/* High-Contrast Light / Dark Theme Switcher */}
+            <ThemeToggle />
+          </div>
+        </header>
+
+        {/* Dynamic Route Viewport */}
+        <main
+          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6"
+          role="main"
+        >
+          {children}
+        </main>
+
+        {/* Keyboard Shortcuts Help Dialog */}
+        <KeyboardShortcutsModal
+          isOpen={shortcutsOpen}
+          onClose={() => setShortcutsOpen(false)}
+        />
+
+        {/* Global Footer */}
+        <footer className="border-t border-slate-200 dark:border-slate-850 bg-white/50 dark:bg-slate-950/40 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Autonomous AP Command Center &copy; 2026. Enterprise Financial Operations.</span>
+            <span className="text-[11px] font-mono text-slate-400 dark:text-slate-600">
+              Environment: {isDevMode ? 'Local Dev / SME Eval' : 'Production'}
+            </span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+};

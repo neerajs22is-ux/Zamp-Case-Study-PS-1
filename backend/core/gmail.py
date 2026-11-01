@@ -556,6 +556,7 @@ def process_single_message_ingestion(
             job = IngestionJob(
                 id=job_id,
                 org_id=account.org_id,
+                document_id=doc_id,
                 idempotency_key=f"gmail_{message_id}_{sha256_hash}",
                 source_channel="GMAIL",
                 status="QUEUED",

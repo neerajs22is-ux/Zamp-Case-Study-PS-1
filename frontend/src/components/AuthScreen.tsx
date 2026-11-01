@@ -8,7 +8,8 @@ import {
   AlertCircle, 
   UserCheck,
   Send,
-  Loader2
+  Loader2,
+  Info
 } from 'lucide-react';
 import { api, setAuthToken } from '../api/client';
 import type { AuthenticatedUser, AccessRequest } from '../types';
@@ -34,8 +35,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [requestedRole, setRequestedRole] = useState('AP_ASSOCIATE');
   const [accessReason, setAccessReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
-  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [actionMessage, setActionMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [myRequests, setMyRequests] = useState<AccessRequest[]>([]);
+  const [authStatus, setAuthStatus] = useState<any>(null);
+  const [showGoogleSetup, setShowGoogleSetup] = useState(false);
+
+  // Fetch IdP configuration status and check for OAuth redirect errors
+  useEffect(() => {
+    api.getAuthStatus().then(setAuthStatus).catch(() => {});
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const errDesc = urlParams.get('error_description') || urlParams.get('error');
+    if (errDesc) {
+      if (errDesc.includes('provider is not enabled') || errDesc.includes('Unsupported provider') || errDesc.includes('validation_failed')) {
+        setActionMessage({
+          type: 'error',
+          text: 'Google OAuth provider is unconfigured in the connected Supabase Cloud project (https://qxrrbyjczuqkgnexwqyh.supabase.co). Please use the SME Evaluation Quick Login or see the Manual Setup Instructions below.',
+        });
+        setShowGoogleSetup(true);
+      } else {
+        setActionMessage({
+          type: 'error',
+          text: `Supabase Authentication notice: ${decodeURIComponent(errDesc)}`,
+        });
+      }
+    }
+  }, []);
 
   // Fetch access requests if user is authenticated but not provisioned
   useEffect(() => {
@@ -54,8 +79,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   };
 
   const handleGoogleSignIn = () => {
-    // Official Supabase Auth Google Sign-In redirect
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || authStatus?.supabase_url || '';
     if (!supabaseUrl) {
       setActionMessage({
         type: 'error',
@@ -72,7 +96,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     if (token.trim().startsWith('test_token:')) {
       setActionMessage({
         type: 'error',
-        text: 'Test harness tokens (test_token:*) are strictly prohibited in DEVELOPMENT mode. Please use Quick Login or authenticate via Supabase Auth.',
+        text: 'Test harness tokens (test_token:*) are strictly prohibited in DEVELOPMENT mode. Please use SME Quick Login or authenticate via Supabase Auth.',
       });
       return;
     }
@@ -141,18 +165,20 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
   // State 1 & 3: Not signed in or Auth error
   if (!user) {
+    const isGoogleEnabled = authStatus?.google_oauth_enabled === true;
+
     return (
-      <div className="max-w-md mx-auto my-12 p-8 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl">
+      <div className="max-w-xl mx-auto my-10 p-6 md:p-8 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl">
         <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-4 text-indigo-400">
-            <Shield className="w-8 h-8" />
+          <div className="inline-flex p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-3 text-indigo-400">
+            <Shield className="w-7 h-7" />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Autonomous AP Command Center</h1>
-          <p className="text-xs text-slate-400 mt-1.5">Enterprise Employee Authentication & Secure Access</p>
+          <p className="text-xs text-slate-400 mt-1">Enterprise Employee Authentication & Access Control</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg flex items-start gap-2 text-rose-300 text-xs">
+          <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2.5 text-rose-300 text-xs">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">Authentication Notice</p>
@@ -162,7 +188,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         )}
 
         {actionMessage && (
-          <div className={`mb-6 p-3 rounded-lg flex items-start gap-2 text-xs ${
+          <div className={`mb-6 p-3.5 rounded-xl flex items-start gap-2.5 text-xs ${
             actionMessage.type === 'success' 
               ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300' 
               : 'bg-rose-500/10 border border-rose-500/20 text-rose-300'
@@ -172,79 +198,161 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             ) : (
               <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
             )}
-            <span>{actionMessage.text}</span>
+            <span className="leading-relaxed">{actionMessage.text}</span>
           </div>
         )}
 
-        <div className="space-y-4">
-          <button
-            onClick={handleGoogleSignIn}
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-100 text-slate-900 font-semibold py-2.5 px-4 rounded-lg shadow transition-colors text-sm"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-            </svg>
-            Sign in with Google (Supabase Auth)
-          </button>
-
-          {/* Development & Verification Access - Strictly Barred in Production */}
-          {!import.meta.env.PROD && (
-            <>
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-800" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-slate-900 px-2 text-slate-500 font-mono">Development & Verification Access</span>
-                </div>
+        <div className="space-y-5">
+          {/* Section 1: Enterprise SSO (Google Workspace) */}
+          <div className="border border-slate-800 bg-slate-950/60 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2.5">
+                <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span className="text-xs font-semibold text-white">Google Workspace SSO</span>
               </div>
+              {isGoogleEnabled ? (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium">
+                  Active
+                </span>
+              ) : (
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 font-medium">
+                  Setup Required
+                </span>
+              )}
+            </div>
 
-              <div className="space-y-3">
-                <label className="block text-xs font-medium text-slate-300">
-                  Paste Supabase Bearer Token or Test Credentials
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="eyJhbGci... or test_token:ROLE:uid:email"
-                    value={devTokenInput}
-                    onChange={(e) => setDevTokenInput(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
-                  />
+            {isGoogleEnabled ? (
+              <button
+                onClick={handleGoogleSignIn}
+                className="w-full mt-2 flex items-center justify-center gap-2.5 bg-white hover:bg-slate-100 text-slate-900 font-semibold py-2 px-4 rounded-lg shadow transition-colors text-xs"
+              >
+                Sign in with Google Workspace
+              </button>
+            ) : (
+              <div className="mt-1">
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Enterprise SSO is configured against Supabase Auth, but the Google provider is currently disabled in your Supabase Cloud dashboard (<code className="text-slate-300 font-mono text-[10px]">qxrrbyjczuqkgnexwqyh.supabase.co</code>).
+                </p>
+                <div className="mt-3 flex items-center gap-2">
                   <button
-                    onClick={() => handleApplyDevToken(devTokenInput)}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                    onClick={() => setShowGoogleSetup(!showGoogleSetup)}
+                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5"
                   >
-                    Sign In
+                    <Info className="w-3.5 h-3.5 text-amber-400" />
+                    {showGoogleSetup ? 'Hide Setup Instructions' : 'View Setup Instructions'}
+                  </button>
+                  <button
+                    onClick={handleGoogleSignIn}
+                    className="text-[11px] bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-300 font-medium px-3 py-1.5 rounded-lg border border-slate-800 transition-colors"
+                  >
+                    Test Supabase Redirect
                   </button>
                 </div>
 
-                <div className="pt-2">
-                  <p className="text-[11px] text-slate-400 mb-1.5">SME Acceptance Quick Login (Authenticated via Supabase JWT):</p>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {[
-                      { label: 'SME AP Lead', email: 'sme_lead@company.internal', unprovisioned: false },
-                      { label: 'SME Controller', email: 'sme_controller@company.internal', unprovisioned: false },
-                      { label: 'SME AP Associate', email: 'sme_associate@company.internal', unprovisioned: false },
-                      { label: 'SME Auditor (Read-Only)', email: 'sme_auditor@company.internal', unprovisioned: false },
-                      { label: 'Unprovisioned Candidate', email: 'new_employee@company.internal', unprovisioned: true },
-                    ].map((item) => (
-                      <button
-                        key={item.label}
-                        disabled={actionLoading}
-                        onClick={() => handleQuickLogin(item.email, 'org_sme_eval', item.unprovisioned)}
-                        className="text-left px-2.5 py-1.5 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 rounded text-[11px] text-slate-300 transition-colors truncate disabled:opacity-50"
-                      >
-                        {item.label}
-                      </button>
-                    ))}
+                {showGoogleSetup && (
+                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 space-y-2">
+                    <p className="font-semibold text-white text-[11px]">To enable Google Workspace SSO:</p>
+                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-400">
+                      <li>
+                        In <span className="text-slate-200 font-medium">Google Cloud Console</span>, create an OAuth 2.0 Client ID (Web Application).
+                      </li>
+                      <li>
+                        Set <span className="text-slate-200 font-medium">Authorized Redirect URI</span> to:
+                        <div className="mt-1 font-mono text-[10px] bg-slate-950 p-1.5 rounded border border-slate-800 text-indigo-300 select-all break-all">
+                          {authStatus?.supabase_callback_url || 'https://qxrrbyjczuqkgnexwqyh.supabase.co/auth/v1/callback'}
+                        </div>
+                      </li>
+                      <li>
+                        In <span className="text-slate-200 font-medium">Supabase Dashboard</span> &rarr; <span className="text-slate-200">Authentication &rarr; Providers &rarr; Google</span>:
+                        <br />Toggle <strong>Enable Google provider</strong> and paste your Client ID and Client Secret.
+                      </li>
+                      <li>
+                        In Supabase <span className="text-slate-200 font-medium">Authentication &rarr; URL Configuration &rarr; Redirect URLs</span>, add:
+                        <div className="mt-1 font-mono text-[10px] bg-slate-950 p-1.5 rounded border border-slate-800 text-slate-300 space-y-0.5">
+                          {(authStatus?.allowed_redirect_urls || [
+                            'http://localhost:8000/auth/callback',
+                            'http://127.0.0.1:8000/auth/callback',
+                            'http://localhost:5173/auth/callback',
+                          ]).map((url: string) => (
+                            <div key={url} className="text-emerald-400 select-all">{url}</div>
+                          ))}
+                        </div>
+                      </li>
+                    </ol>
                   </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: SME Acceptance Quick Login (Local Evaluation Environment Only) */}
+          {(!import.meta.env.PROD || authStatus?.dev_session_enabled || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') && (
+            <div className="border border-slate-800 bg-slate-950/40 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <h2 className="text-xs font-semibold text-slate-200 uppercase tracking-wider font-mono">
+                  SME Evaluation Access
+                </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-medium">
+                  Local Evaluation Only
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
+                Issues authentic Supabase JWTs with verified roles. Restricted to local loopback hosts (127.0.0.1, localhost) in development mode and strictly isolated to tenant <code className="text-indigo-300 font-mono">org_sme_eval</code>.
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                {[
+                  { label: 'SME AP Lead', email: 'sme_lead@company.internal', unprovisioned: false },
+                  { label: 'SME Controller', email: 'sme_controller@company.internal', unprovisioned: false },
+                  { label: 'SME AP Associate', email: 'sme_associate@company.internal', unprovisioned: false },
+                  { label: 'SME Auditor (Read-Only)', email: 'sme_auditor@company.internal', unprovisioned: false },
+                  { label: 'Unprovisioned Candidate', email: 'new_employee@company.internal', unprovisioned: true },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    disabled={actionLoading}
+                    onClick={() => handleQuickLogin(item.email, 'org_sme_eval', item.unprovisioned)}
+                    className="text-left px-2.5 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-[11px] text-slate-200 transition-colors truncate disabled:opacity-50 font-medium"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 3: Developer & Diagnostics Access (Collapsible) */}
+          {(!import.meta.env.PROD || authStatus?.dev_session_enabled || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') && (
+            <details className="border border-slate-800/80 bg-slate-950/20 rounded-xl p-3 group">
+              <summary className="text-xs font-medium text-slate-400 hover:text-slate-300 cursor-pointer flex items-center justify-between font-mono select-none">
+                <span>Developer & Diagnostics Access (JWT Inspection)</span>
+                <span className="text-[10px] text-slate-500 group-open:rotate-90 transition-transform">&rarr;</span>
+              </summary>
+              <div className="pt-3 space-y-2">
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Direct token injection for automated testing or inspecting custom pre-generated Supabase JWTs. Test harness tokens (<code className="font-mono text-slate-400">test_token:*</code>) are strictly barred in development mode.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Paste valid Supabase Bearer JWT (eyJhbGci...)"
+                    value={devTokenInput}
+                    onChange={(e) => setDevTokenInput(e.target.value)}
+                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                  />
+                  <button
+                    onClick={() => handleApplyDevToken(devTokenInput)}
+                    className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                  >
+                    Apply Token
+                  </button>
                 </div>
               </div>
-            </>
+            </details>
           )}
         </div>
       </div>

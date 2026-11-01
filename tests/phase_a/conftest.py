@@ -9,11 +9,12 @@ from sqlalchemy.orm import sessionmaker
 
 # Set test environment
 os.environ["APP_ENV"] = "test"
-os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+# DATABASE_URL preserved from settings
 os.environ["STORAGE_BUCKET_NAME"] = "test-bucket"
 os.environ["SECRET_KEY"] = "test-secret-key-32-characters-minimum"
 
-from backend.core.config import settings
+from backend.core.config import settings, AppEnv
+settings.APP_ENV = AppEnv.TEST
 from backend.core.database import Base, get_db
 from backend.main import app
 

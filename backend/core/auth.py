@@ -68,6 +68,33 @@ class AuthenticatedUser(BaseModel):
         return self.role in (UserRole.SYSTEM_ADMIN, UserRole.CONTROLLER, UserRole.AP_LEAD)
 
 
+_GOOGLE_PROVIDER_CACHE: Dict[str, Any] = {"status": False, "checked_at": 0.0}
+
+def _get_supabase_google_provider_status() -> bool:
+    global _GOOGLE_PROVIDER_CACHE
+    now = time.time()
+    if now - _GOOGLE_PROVIDER_CACHE["checked_at"] < 60.0:
+        return bool(_GOOGLE_PROVIDER_CACHE["status"])
+
+    if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
+        _GOOGLE_PROVIDER_CACHE = {"status": False, "checked_at": now}
+        return False
+
+    try:
+        import urllib.request, json
+        url = settings.SUPABASE_URL.rstrip('/') + '/auth/v1/settings'
+        req = urllib.request.Request(url, headers={'apikey': settings.SUPABASE_ANON_KEY})
+        with urllib.request.urlopen(req, timeout=2.0) as resp:
+            data = json.loads(resp.read().decode())
+            status_val = bool(data.get('external', {}).get('google', False))
+            _GOOGLE_PROVIDER_CACHE = {"status": status_val, "checked_at": now}
+            return status_val
+    except Exception as exc:
+        logger.debug("Failed to query Supabase auth settings: %s", exc)
+        _GOOGLE_PROVIDER_CACHE = {"status": False, "checked_at": now}
+        return False
+
+
 def check_idp_health() -> Dict[str, Any]:
     """Returns truthful IdP integration status."""
     if not settings.is_identity_configured():
@@ -78,8 +105,11 @@ def check_idp_health() -> Dict[str, Any]:
             "client_id_configured": bool(settings.SUPABASE_URL or settings.OIDC_CLIENT_ID),
             "redirect_uri": settings.OIDC_REDIRECT_URI,
             "readiness": False,
+            "google_oauth_enabled": False,
             "message": "Supabase Auth / Google Workspace Identity Provider is not configured. Setup required.",
         }
+
+    google_enabled = _get_supabase_google_provider_status()
 
     return {
         "status": "CONNECTED",
@@ -88,7 +118,14 @@ def check_idp_health() -> Dict[str, Any]:
         "client_id_configured": True,
         "redirect_uri": settings.OIDC_REDIRECT_URI,
         "readiness": True,
-        "message": f"Configured against {settings.IDP_PROVIDER} ({settings.SUPABASE_URL or settings.OIDC_ISSUER_URL}).",
+        "google_oauth_enabled": google_enabled,
+        "supabase_callback_url": f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/callback" if settings.SUPABASE_URL else "",
+        "allowed_redirect_urls": [
+            "http://localhost:8000/auth/callback",
+            "http://127.0.0.1:8000/auth/callback",
+            "http://localhost:5173/auth/callback",
+        ],
+        "message": f"Configured against {settings.IDP_PROVIDER} ({settings.SUPABASE_URL or settings.OIDC_ISSUER_URL}). Google OAuth is {'enabled' if google_enabled else 'unconfigured in Supabase Cloud project'}.",
     }
 
 
