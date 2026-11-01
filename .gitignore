@@ -1,8 +1,48 @@
+# Python byte code and test artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Environments and secrets
 .env
+.env.*
+!.env.example
+!.env.cloudrun.example
+*.token
+*.jwt
+*.key
+
+# Backups, dumps and binary archives
+backups/
+backup_keys/
+*.enc
+*.dump
+*.tar.gz
+*.sql
+*.bak
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs
+*.log
+logs/
+
+# Scratch and transient local evaluation work
+scratch/
+
+# Node.js and frontend artifacts
+node_modules/
+dist/
+dist-ssr/
+frontend/node_modules/
+frontend/dist/
+
+# OS and Editor directories
 .DS_Store
+Thumbs.db
+.vscode/
+.idea/

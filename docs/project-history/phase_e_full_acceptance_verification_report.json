@@ -1,0 +1,1205 @@
+{
+  "health": {
+    "app_name": "Autonomous AP Command Center",
+    "app_env": "development",
+    "overall_status": "READY",
+    "timestamp": "2026-11-01T15:50:18.088701Z",
+    "subsystems": {
+      "database": {
+        "status": "CONNECTED",
+        "message": "Database connectivity verified.",
+        "database_type": "PostgreSQL",
+        "readiness": true
+      },
+      "object_storage": {
+        "status": "CONNECTED",
+        "provider": "supabase",
+        "bucket": "invoices",
+        "readiness": true,
+        "message": "Verified access to private Supabase Storage bucket 'invoices'."
+      },
+      "identity_provider": {
+        "status": "CONNECTED",
+        "provider": "supabase_auth",
+        "issuer": "https://qxrrbyjczuqkgnexwqyh.supabase.co/auth/v1",
+        "client_id_configured": true,
+        "redirect_uri": "http://localhost:8000/api/v1/auth/callback",
+        "readiness": true,
+        "message": "Configured against supabase_auth (https://qxrrbyjczuqkgnexwqyh.supabase.co)."
+      },
+      "gmail_ingestion": {
+        "status": "CONNECTED",
+        "mailbox": null,
+        "readiness": true,
+        "message": "Gmail OAuth credentials verified."
+      },
+      "sap_erp": {
+        "status": "NOT_CONFIGURED",
+        "company_code": null,
+        "endpoint": null,
+        "readiness": false,
+        "message": "SAP S/4HANA ERP API not configured."
+      }
+    }
+  },
+  "liveness": {
+    "status": "ALIVE",
+    "timestamp": "2026-11-01T15:50:18.090712Z",
+    "app_env": "development"
+  },
+  "dashboard": {
+    "status": "active",
+    "timestamp": "2026-11-01T15:50:18.207040Z",
+    "timezone": "Asia/Kolkata",
+    "summary": {
+      "total_invoices": 11,
+      "open_exceptions": 3,
+      "blocked_value_inr": 25960.0,
+      "msme_exposure_count": 0,
+      "touchless_rate_pct": 100.0,
+      "active_ingestion_jobs": 2
+    },
+    "stages": {
+      "ACTION_REQUIRED": 3,
+      "RECEIVED": 6,
+      "INTERNAL_APPROVAL_COMPLETE": 1,
+      "PENDING_APPROVAL": 1
+    },
+    "decisions": {
+      "FLAGGED_EXCEPTION": 1,
+      "AUTO_APPROVED": 1,
+      "NEEDS_REVIEW": 6,
+      "MATCH_CANDIDATE": 1,
+      "FLAGGED_HITL_REVIEW": 2
+    },
+    "metric_definitions": {
+      "open_exceptions": "Count of unresolved exception records in OPEN status.",
+      "blocked_value_inr": "Total net payable amount held in open exception triage.",
+      "msme_exposure_count": "Invoices with computed MSMED Act statutory deadlines requiring resolution.",
+      "touchless_rate_pct": "Percentage of decided invoices auto-approved without human intervention."
+    }
+  },
+  "inbox": {
+    "total_count": 5,
+    "page": 1,
+    "page_size": 25,
+    "total_pages": 1,
+    "items": [
+      {
+        "id": "inv_bd1991bd3575",
+        "invoice_number": "UNKNOWN",
+        "vendor_name": "Unknown",
+        "vendor_gstin": null,
+        "po_reference": null,
+        "total_amount": 0.0,
+        "currency": "INR",
+        "stage": "ACTION_REQUIRED",
+        "decision": "FLAGGED_HITL_REVIEW",
+        "decision_reason": "Scanned/degraded raster PDF with zero machine-readable text. Routed to HITL for manual verification.",
+        "msme_statutory_deadline": null,
+        "msme_deadline_status": null,
+        "created_at": "2026-11-01T15:44:18.307706Z",
+        "updated_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "id": "inv_85fd75d2aea1",
+        "invoice_number": "UNKNOWN",
+        "vendor_name": "Unknown",
+        "vendor_gstin": null,
+        "po_reference": null,
+        "total_amount": 0.0,
+        "currency": "INR",
+        "stage": "ACTION_REQUIRED",
+        "decision": "FLAGGED_HITL_REVIEW",
+        "decision_reason": "Scanned/degraded raster PDF with zero machine-readable text. Routed to HITL for manual verification.",
+        "msme_statutory_deadline": null,
+        "msme_deadline_status": null,
+        "created_at": "2026-11-01T15:44:17.000729Z",
+        "updated_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "id": "inv_dbfcaf77ba9b",
+        "invoice_number": "AP-26-011",
+        "vendor_name": "Asterion Precision Components Pvt Ltd",
+        "vendor_gstin": "29SYNTH0001A1Z5",
+        "po_reference": "PO-26-1011",
+        "total_amount": 25960.0,
+        "currency": "INR",
+        "stage": "ACTION_REQUIRED",
+        "decision": "FLAGGED_EXCEPTION",
+        "decision_reason": "Hold placed: Unit rate INR 220 exceeds PO-26-1001 agreed rate of INR 185. Holding for amended PO or credit note.",
+        "msme_statutory_deadline": null,
+        "msme_deadline_status": null,
+        "created_at": "2026-11-01T15:44:15.716968Z",
+        "updated_at": "2026-11-01T15:46:54.150171Z"
+      },
+      {
+        "id": "inv_d76401c096d0",
+        "invoice_number": "AP-26-009",
+        "vendor_name": "Asterion Precision Components Pvt Ltd",
+        "vendor_gstin": "29SYNTH0001A1Z5",
+        "po_reference": "PO-26-2001",
+        "total_amount": 231280.0,
+        "currency": "INR",
+        "stage": "PENDING_APPROVAL",
+        "decision": "MATCH_CANDIDATE",
+        "decision_reason": "3-Way match (PO, GRN, QC) and GST arithmetic verified. Awaiting human approval.",
+        "msme_statutory_deadline": null,
+        "msme_deadline_status": null,
+        "created_at": "2026-11-01T15:44:11.440585Z",
+        "updated_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "id": "inv_be609a16676f",
+        "invoice_number": "AP-26-001",
+        "vendor_name": "Asterion Precision Components Pvt Ltd",
+        "vendor_gstin": "29SYNTH0001A1Z5",
+        "po_reference": "PO-26-1001",
+        "total_amount": 26196.0,
+        "currency": "INR",
+        "stage": "INTERNAL_APPROVAL_COMPLETE",
+        "decision": "AUTO_APPROVED",
+        "decision_reason": "Internal AP review approved by SME AP Lead.",
+        "msme_statutory_deadline": null,
+        "msme_deadline_status": null,
+        "created_at": "2026-11-01T15:44:07.165588Z",
+        "updated_at": "2026-11-01T15:46:52.659252Z"
+      }
+    ]
+  },
+  "connections": {
+    "timestamp": "2026-11-01T15:50:19.285780Z",
+    "pillars": {
+      "identity": {
+        "status": "CONNECTED",
+        "provider": "supabase_auth",
+        "issuer": "https://qxrrbyjczuqkgnexwqyh.supabase.co/auth/v1",
+        "client_id_configured": true,
+        "redirect_uri": "http://localhost:8000/api/v1/auth/callback",
+        "readiness": true,
+        "message": "Configured against supabase_auth (https://qxrrbyjczuqkgnexwqyh.supabase.co)."
+      },
+      "database": {
+        "status": "CONNECTED",
+        "message": "Database connectivity verified.",
+        "database_type": "PostgreSQL",
+        "readiness": true
+      },
+      "object_storage": {
+        "status": "CONNECTED",
+        "provider": "supabase",
+        "bucket": "invoices",
+        "readiness": true,
+        "message": "Verified access to private Supabase Storage bucket 'invoices'."
+      },
+      "gmail_ingestion": {
+        "status": "CONNECTED",
+        "pillar": "gmail",
+        "mailbox": null,
+        "scopes": [
+          "https://www.googleapis.com/auth/gmail.readonly"
+        ],
+        "required_env": [
+          "GMAIL_CLIENT_ID",
+          "GMAIL_CLIENT_SECRET",
+          "GMAIL_REFRESH_TOKEN",
+          "GMAIL_TARGET_MAILBOX"
+        ],
+        "redirect_uri": "http://localhost:8000/api/v1/integrations/gmail/callback",
+        "readiness": true,
+        "message": "Authorized Gmail ingestion active."
+      },
+      "sap_erp": {
+        "status": "NOT_CONFIGURED",
+        "pillar": "sap_erp",
+        "system": "SAP S/4HANA (Read-Only)",
+        "company_code": null,
+        "api_endpoint": null,
+        "required_env": [
+          "SAP_API_BASE_URL",
+          "SAP_CLIENT_ID",
+          "SAP_CLIENT_SECRET",
+          "SAP_COMPANY_CODE"
+        ],
+        "readiness": false,
+        "message": "SAP S/4HANA read-only connection not provisioned."
+      }
+    },
+    "quarantined_count": 1,
+    "quarantined_documents": [
+      {
+        "id": "q_9b5ebabae921",
+        "document_id": "doc_a48d5e57f017",
+        "filename": "38_payment_receipt_RCPT_26_088.pdf",
+        "sha256": "8a80d8b722baf48a1e3cfed674718632676288a0110a20a1911d6dcf7619ace5",
+        "quarantine_reason": "COMMERCIAL_NON_PAYABLE_RECEIPT",
+        "details": "Identified as payment receipt (acknowledges past payment). Refused liability creation.",
+        "quarantined_at": "2026-11-01T15:45:00.660996Z"
+      }
+    ]
+  },
+  "scenario_1_APTC_001": {
+    "invoice": {
+      "id": "inv_be609a16676f",
+      "invoice_number": "AP-26-001",
+      "vendor_name": "Asterion Precision Components Pvt Ltd",
+      "vendor_gstin": "29SYNTH0001A1Z5",
+      "po_reference": "PO-26-1001",
+      "subtotal": 22200.0,
+      "tax_amount": 3996.0,
+      "total_amount": 26196.0,
+      "net_payable": 26196.0,
+      "currency": "INR",
+      "stage": "INTERNAL_APPROVAL_COMPLETE",
+      "decision": "AUTO_APPROVED",
+      "decision_reason": "Internal AP review approved by SME AP Lead.",
+      "msme_statutory_deadline": null,
+      "msme_deadline_status": null,
+      "created_at": "2026-11-01T15:44:07.165588Z",
+      "updated_at": "2026-11-01T15:46:52.659252Z"
+    },
+    "document": {
+      "document_id": "doc_b9f24de143fa",
+      "filename": "01_invoice_AP_26_001.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 3039,
+      "sha256": "254c7e0e4d9bcd3297efa1be26f77ef9942e1baa8cffb7b546842e005adccf3f",
+      "preview_url": "https://qxrrbyjczuqkgnexwqyh.supabase.co/storage/v1/object/sign/invoices/org_sme_eval/invoices/doc_b9f24de143fa/01_invoice_AP_26_001.pdf?token=[REDACTED_AUTHENTICATED_SESSION_TOKEN]"
+    },
+    "extracted_fields": [
+      {
+        "field_name": "supplier_name",
+        "value": "Asterion Precision Components Pvt Ltd",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "supplier_gstin",
+        "value": "29SYNTH0001A1Z5",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_number",
+        "value": "AP-26-001",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_date",
+        "value": "2026-09-02",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "po_reference",
+        "value": "PO-26-1001",
+        "confidence": 0.95,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "taxable_value",
+        "value": "22200.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "total_tax_amount",
+        "value": "3996.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "grand_total",
+        "value": "26196.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      }
+    ],
+    "lines": [
+      {
+        "line_number": 1,
+        "description": "Line item 1",
+        "quantity": 120.0,
+        "rate": 185.0,
+        "total": 26196.0
+      }
+    ],
+    "match_gates": [
+      {
+        "gate_number": 1,
+        "gate_name": "Vendor Identity Registered",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "fictional_supplier_master.csv",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      },
+      {
+        "gate_number": 2,
+        "gate_name": "PO Authorization Valid",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "PO-26-1001",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      },
+      {
+        "gate_number": 3,
+        "gate_name": "GRN Receipt Confirmed",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "goods_receipts.csv",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      },
+      {
+        "gate_number": 4,
+        "gate_name": "QC Inspection Accepted",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "quality_inspections.csv",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      },
+      {
+        "gate_number": 5,
+        "gate_name": "GST Arithmetic Reconciled",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "Calculated: 3996.0",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      },
+      {
+        "gate_number": 6,
+        "gate_name": "PO Price & Quantity Tolerance",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "Variance: 0.0%",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      },
+      {
+        "gate_number": 7,
+        "gate_name": "Duplicate Invoice Check",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "0 previous vouchers",
+        "checked_at": "2026-11-01T15:44:07.165588Z"
+      }
+    ],
+    "approval": null,
+    "timeline": [
+      {
+        "event_id": "evt_2c25dfed6d0a",
+        "actor_id": "usr_sme_lead_01",
+        "actor_role": "AP_LEAD",
+        "action": "APPROVE_AP_REVIEW",
+        "reason": "SME AP Lead verified 3-way match and 18% IGST against PO-26-1001. Approved.",
+        "timestamp": "2026-11-01T15:46:52.659252Z"
+      },
+      {
+        "event_id": "evt_15ff8236b380",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 01_invoice_AP_26_001.pdf (APTC-001) -> MATCH_CANDIDATE",
+        "timestamp": "2026-11-01T15:44:07.165588Z"
+      }
+    ]
+  },
+  "scenario_1_APTC_009": {
+    "invoice": {
+      "id": "inv_d76401c096d0",
+      "invoice_number": "AP-26-009",
+      "vendor_name": "Asterion Precision Components Pvt Ltd",
+      "vendor_gstin": "29SYNTH0001A1Z5",
+      "po_reference": "PO-26-2001",
+      "subtotal": 196000.0,
+      "tax_amount": 35280.0,
+      "total_amount": 231280.0,
+      "net_payable": 231280.0,
+      "currency": "INR",
+      "stage": "PENDING_APPROVAL",
+      "decision": "MATCH_CANDIDATE",
+      "decision_reason": "3-Way match (PO, GRN, QC) and GST arithmetic verified. Awaiting human approval.",
+      "msme_statutory_deadline": null,
+      "msme_deadline_status": null,
+      "created_at": "2026-11-01T15:44:11.440585Z",
+      "updated_at": "2026-11-01T15:44:11.440585Z"
+    },
+    "document": {
+      "document_id": "doc_d495a6bc5aef",
+      "filename": "09_invoice_AP_26_009.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 3049,
+      "sha256": "81fdd585979a3ecf2586617b2174110d36f313db988004fe5151bfef40a91e2e",
+      "preview_url": "https://qxrrbyjczuqkgnexwqyh.supabase.co/storage/v1/object/sign/invoices/org_sme_eval/invoices/doc_d495a6bc5aef/09_invoice_AP_26_009.pdf?token=[REDACTED_AUTHENTICATED_SESSION_TOKEN]"
+    },
+    "extracted_fields": [
+      {
+        "field_name": "supplier_name",
+        "value": "Asterion Precision Components Pvt Ltd",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "supplier_gstin",
+        "value": "29SYNTH0001A1Z5",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_number",
+        "value": "AP-26-009",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_date",
+        "value": "2026-09-10",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "po_reference",
+        "value": "PO-26-2001",
+        "confidence": 0.95,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "taxable_value",
+        "value": "196000.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "total_tax_amount",
+        "value": "35280.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "grand_total",
+        "value": "231280.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      }
+    ],
+    "lines": [
+      {
+        "line_number": 1,
+        "description": "Line item 1",
+        "quantity": 80.0,
+        "rate": 2450.0,
+        "total": 231280.0
+      }
+    ],
+    "match_gates": [
+      {
+        "gate_number": 1,
+        "gate_name": "Vendor Identity Registered",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "fictional_supplier_master.csv",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "gate_number": 2,
+        "gate_name": "PO Authorization Valid",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "PO-26-2001",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "gate_number": 3,
+        "gate_name": "GRN Receipt Confirmed",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "goods_receipts.csv",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "gate_number": 4,
+        "gate_name": "QC Inspection Accepted",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "quality_inspections.csv",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "gate_number": 5,
+        "gate_name": "GST Arithmetic Reconciled",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "Calculated: 35280.0",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "gate_number": 6,
+        "gate_name": "PO Price & Quantity Tolerance",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "Variance: 0.0%",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "gate_number": 7,
+        "gate_name": "Duplicate Invoice Check",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "0 previous vouchers",
+        "checked_at": "2026-11-01T15:44:11.440585Z"
+      }
+    ],
+    "approval": null,
+    "timeline": [
+      {
+        "event_id": "evt_6b4005696750",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 09_invoice_AP_26_009.pdf (APTC-009) -> MATCH_CANDIDATE",
+        "timestamp": "2026-11-01T15:44:11.440585Z"
+      }
+    ]
+  },
+  "scenario_2_APTC_030": {
+    "invoice": {
+      "id": "inv_dbfcaf77ba9b",
+      "invoice_number": "AP-26-011",
+      "vendor_name": "Asterion Precision Components Pvt Ltd",
+      "vendor_gstin": "29SYNTH0001A1Z5",
+      "po_reference": "PO-26-1011",
+      "subtotal": 22000.0,
+      "tax_amount": 3960.0,
+      "total_amount": 25960.0,
+      "net_payable": 25960.0,
+      "currency": "INR",
+      "stage": "ACTION_REQUIRED",
+      "decision": "FLAGGED_EXCEPTION",
+      "decision_reason": "Hold placed: Unit rate INR 220 exceeds PO-26-1001 agreed rate of INR 185. Holding for amended PO or credit note.",
+      "msme_statutory_deadline": null,
+      "msme_deadline_status": null,
+      "created_at": "2026-11-01T15:44:15.716968Z",
+      "updated_at": "2026-11-01T15:46:54.150171Z"
+    },
+    "document": {
+      "document_id": "doc_f07fe0f20697",
+      "filename": "30_invoice_AP_26_011.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 3032,
+      "sha256": "9833d4840d4b42510dc456be7afc2fb7101dca9c82af8fa3f8af541767e866b4",
+      "preview_url": "https://qxrrbyjczuqkgnexwqyh.supabase.co/storage/v1/object/sign/invoices/org_sme_eval/invoices/doc_f07fe0f20697/30_invoice_AP_26_011.pdf?token=[REDACTED_AUTHENTICATED_SESSION_TOKEN]"
+    },
+    "extracted_fields": [
+      {
+        "field_name": "supplier_name",
+        "value": "Asterion Precision Components Pvt Ltd",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "supplier_gstin",
+        "value": "29SYNTH0001A1Z5",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_number",
+        "value": "AP-26-011",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_date",
+        "value": "2026-10-01",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "po_reference",
+        "value": "PO-26-1011",
+        "confidence": 0.95,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "taxable_value",
+        "value": "22000.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "total_tax_amount",
+        "value": "3960.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "grand_total",
+        "value": "25960.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      }
+    ],
+    "lines": [
+      {
+        "line_number": 1,
+        "description": "Line item 1",
+        "quantity": 100.0,
+        "rate": 220.0,
+        "total": 25960.0
+      }
+    ],
+    "match_gates": [
+      {
+        "gate_number": 1,
+        "gate_name": "Vendor Identity Registered",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "fictional_supplier_master.csv",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "gate_number": 2,
+        "gate_name": "PO Authorization Valid",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "PO-26-1011",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "gate_number": 3,
+        "gate_name": "GRN Receipt Confirmed",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "goods_receipts.csv",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "gate_number": 4,
+        "gate_name": "QC Inspection Accepted",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "quality_inspections.csv",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "gate_number": 5,
+        "gate_name": "GST Arithmetic Reconciled",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "Calculated: 3960.0",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "gate_number": 6,
+        "gate_name": "PO Price & Quantity Tolerance",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "Variance: 18.92%",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "gate_number": 7,
+        "gate_name": "Duplicate Invoice Check",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "0 previous vouchers",
+        "checked_at": "2026-11-01T15:44:15.716968Z"
+      }
+    ],
+    "approval": null,
+    "timeline": [
+      {
+        "event_id": "evt_c1de02a6c495",
+        "actor_id": "usr_sme_lead_01",
+        "actor_role": "AP_LEAD",
+        "action": "HOLD_PENDING_EVIDENCE",
+        "reason": "Unit rate INR 220 exceeds PO-26-1001 agreed rate of INR 185. Holding for amended PO or credit note.",
+        "timestamp": "2026-11-01T15:46:54.150171Z"
+      },
+      {
+        "event_id": "evt_acb4de249de1",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 30_invoice_AP_26_011.pdf (APTC-030) -> FLAGGED_EXCEPTION",
+        "timestamp": "2026-11-01T15:44:15.716968Z"
+      }
+    ]
+  },
+  "scenario_3_APTC_036": {
+    "invoice": {
+      "id": "inv_85fd75d2aea1",
+      "invoice_number": "UNKNOWN",
+      "vendor_name": "Unknown",
+      "vendor_gstin": null,
+      "po_reference": null,
+      "subtotal": null,
+      "tax_amount": null,
+      "total_amount": null,
+      "net_payable": null,
+      "currency": "INR",
+      "stage": "ACTION_REQUIRED",
+      "decision": "FLAGGED_HITL_REVIEW",
+      "decision_reason": "Scanned/degraded raster PDF with zero machine-readable text. Routed to HITL for manual verification.",
+      "msme_statutory_deadline": null,
+      "msme_deadline_status": null,
+      "created_at": "2026-11-01T15:44:17.000729Z",
+      "updated_at": "2026-11-01T15:44:17.000729Z"
+    },
+    "document": {
+      "document_id": "doc_2f36ce57b37d",
+      "filename": "36_invoice_POS_26_112.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 38190,
+      "sha256": "a529b942ba051d73d39eb7203a00c452587ab715fea2960b495178fc0e20f854",
+      "preview_url": "https://qxrrbyjczuqkgnexwqyh.supabase.co/storage/v1/object/sign/invoices/org_sme_eval/invoices/doc_2f36ce57b37d/36_invoice_POS_26_112.pdf?token=[REDACTED_AUTHENTICATED_SESSION_TOKEN]"
+    },
+    "extracted_fields": [
+      {
+        "field_name": "supplier_name",
+        "value": "Unknown",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_number",
+        "value": "UNKNOWN",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_date",
+        "value": "1970-01-01",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "taxable_value",
+        "value": "0.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "total_tax_amount",
+        "value": "0.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "grand_total",
+        "value": "0.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      }
+    ],
+    "lines": [],
+    "match_gates": [
+      {
+        "gate_number": 1,
+        "gate_name": "Vendor Identity Registered",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "fictional_supplier_master.csv",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "gate_number": 2,
+        "gate_name": "PO Authorization Valid",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "None",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "gate_number": 3,
+        "gate_name": "GRN Receipt Confirmed",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "goods_receipts.csv",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "gate_number": 4,
+        "gate_name": "QC Inspection Accepted",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "quality_inspections.csv",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "gate_number": 5,
+        "gate_name": "GST Arithmetic Reconciled",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "Calculated: 0",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "gate_number": 6,
+        "gate_name": "PO Price & Quantity Tolerance",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "Variance: 0.0%",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "gate_number": 7,
+        "gate_name": "Duplicate Invoice Check",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "0 previous vouchers",
+        "checked_at": "2026-11-01T15:44:17.000729Z"
+      }
+    ],
+    "approval": null,
+    "timeline": [
+      {
+        "event_id": "evt_9795ea21cefa",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 36_invoice_POS_26_112.pdf (APTC-036) -> FLAGGED_HITL_REVIEW",
+        "timestamp": "2026-11-01T15:44:17.000729Z"
+      }
+    ]
+  },
+  "scenario_3_APTC_037": {
+    "invoice": {
+      "id": "inv_bd1991bd3575",
+      "invoice_number": "UNKNOWN",
+      "vendor_name": "Unknown",
+      "vendor_gstin": null,
+      "po_reference": null,
+      "subtotal": null,
+      "tax_amount": null,
+      "total_amount": null,
+      "net_payable": null,
+      "currency": "INR",
+      "stage": "ACTION_REQUIRED",
+      "decision": "FLAGGED_HITL_REVIEW",
+      "decision_reason": "Scanned/degraded raster PDF with zero machine-readable text. Routed to HITL for manual verification.",
+      "msme_statutory_deadline": null,
+      "msme_deadline_status": null,
+      "created_at": "2026-11-01T15:44:18.307706Z",
+      "updated_at": "2026-11-01T15:44:18.307706Z"
+    },
+    "document": {
+      "document_id": "doc_a682d0ac2ad4",
+      "filename": "37_invoice_CP_26_025.pdf",
+      "mime_type": "application/pdf",
+      "size_bytes": 70428,
+      "sha256": "65ff68322778bf70e90db0507044a1ebd79c8be57b9c98253901c4944ed20a0f",
+      "preview_url": "https://qxrrbyjczuqkgnexwqyh.supabase.co/storage/v1/object/sign/invoices/org_sme_eval/invoices/doc_a682d0ac2ad4/37_invoice_CP_26_025.pdf?token=[REDACTED_AUTHENTICATED_SESSION_TOKEN]"
+    },
+    "extracted_fields": [
+      {
+        "field_name": "supplier_name",
+        "value": "Unknown",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_number",
+        "value": "UNKNOWN",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "invoice_date",
+        "value": "1970-01-01",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "taxable_value",
+        "value": "0.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "total_tax_amount",
+        "value": "0.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      },
+      {
+        "field_name": "grand_total",
+        "value": "0.0",
+        "confidence": 0.99,
+        "source_page": 1,
+        "bounding_box": null
+      }
+    ],
+    "lines": [],
+    "match_gates": [
+      {
+        "gate_number": 1,
+        "gate_name": "Vendor Identity Registered",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "fictional_supplier_master.csv",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "gate_number": 2,
+        "gate_name": "PO Authorization Valid",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "None",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "gate_number": 3,
+        "gate_name": "GRN Receipt Confirmed",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "goods_receipts.csv",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "gate_number": 4,
+        "gate_name": "QC Inspection Accepted",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "quality_inspections.csv",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "gate_number": 5,
+        "gate_name": "GST Arithmetic Reconciled",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "Calculated: 0",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "gate_number": 6,
+        "gate_name": "PO Price & Quantity Tolerance",
+        "status": "FAIL",
+        "evidence_source_id": null,
+        "notes": "Variance: 0.0%",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "gate_number": 7,
+        "gate_name": "Duplicate Invoice Check",
+        "status": "PASS",
+        "evidence_source_id": null,
+        "notes": "0 previous vouchers",
+        "checked_at": "2026-11-01T15:44:18.307706Z"
+      }
+    ],
+    "approval": null,
+    "timeline": [
+      {
+        "event_id": "evt_12119b29c29e",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 37_invoice_CP_26_025.pdf (APTC-037) -> FLAGGED_HITL_REVIEW",
+        "timestamp": "2026-11-01T15:44:18.307706Z"
+      }
+    ]
+  },
+  "palmyra_vision_APTC_037": {
+    "status": "SUCCESS",
+    "visual_clarity": "CLEAR",
+    "extracted_supplier": "Coastal Packaging Solutions",
+    "extracted_gstin": "325YSYNTH001001K125",
+    "extracted_invoice_number": "325YSYNTH001001K125",
+    "extracted_total": 9500.0,
+    "routing_recommendation": "VISUAL_EXTRACTION_SUCCESS",
+    "reasons": [],
+    "latency_ms": 4157.26,
+    "cost_usd": 0.001843
+  },
+  "scenario_4_APTC_038": {
+    "quarantined_docs_count": 1,
+    "quarantined_doc_details": {
+      "id": "q_9b5ebabae921",
+      "document_id": "doc_a48d5e57f017",
+      "filename": "38_payment_receipt_RCPT_26_088.pdf",
+      "sha256": "8a80d8b722baf48a1e3cfed674718632676288a0110a20a1911d6dcf7619ace5",
+      "quarantine_reason": "COMMERCIAL_NON_PAYABLE_RECEIPT",
+      "details": "Identified as payment receipt (acknowledges past payment). Refused liability creation.",
+      "quarantined_at": "2026-11-01T15:45:00.660996Z"
+    }
+  },
+  "audit_trail": {
+    "total_count": 8,
+    "items": [
+      {
+        "id": "evt_c1de02a6c495",
+        "invoice_id": "inv_dbfcaf77ba9b",
+        "actor_id": "usr_sme_lead_01",
+        "actor_role": "AP_LEAD",
+        "action": "HOLD_PENDING_EVIDENCE",
+        "reason": "Unit rate INR 220 exceeds PO-26-1001 agreed rate of INR 185. Holding for amended PO or credit note.",
+        "correlation_id": null,
+        "before_state": {
+          "stage": "ACTION_REQUIRED",
+          "decision": "FLAGGED_EXCEPTION",
+          "net_payable": 25960.0
+        },
+        "after_state": {
+          "stage": "ACTION_REQUIRED",
+          "decision": "FLAGGED_EXCEPTION"
+        },
+        "source_reference": null,
+        "timestamp": "2026-11-01T15:46:54.150171Z"
+      },
+      {
+        "id": "evt_2c25dfed6d0a",
+        "invoice_id": "inv_be609a16676f",
+        "actor_id": "usr_sme_lead_01",
+        "actor_role": "AP_LEAD",
+        "action": "APPROVE_AP_REVIEW",
+        "reason": "SME AP Lead verified 3-way match and 18% IGST against PO-26-1001. Approved.",
+        "correlation_id": null,
+        "before_state": {
+          "stage": "PENDING_APPROVAL",
+          "decision": "MATCH_CANDIDATE",
+          "net_payable": 26196.0
+        },
+        "after_state": {
+          "stage": "INTERNAL_APPROVAL_COMPLETE",
+          "decision": "AUTO_APPROVED"
+        },
+        "source_reference": null,
+        "timestamp": "2026-11-01T15:46:52.659252Z"
+      },
+      {
+        "id": "evt_b0347a93a340",
+        "invoice_id": null,
+        "actor_id": "system_mantle_classifier",
+        "actor_role": "SYSTEM",
+        "action": "DOCUMENT_QUARANTINED",
+        "reason": "Commercial document classified as PAYMENT_RECEIPT. Excluded from AP payment ledger.",
+        "correlation_id": null,
+        "before_state": null,
+        "after_state": null,
+        "source_reference": "org_sme_eval/invoices/doc_a48d5e57f017/38_payment_receipt_RCPT_26_088.pdf",
+        "timestamp": "2026-11-01T15:45:00.660996Z"
+      },
+      {
+        "id": "evt_12119b29c29e",
+        "invoice_id": "inv_bd1991bd3575",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 37_invoice_CP_26_025.pdf (APTC-037) -> FLAGGED_HITL_REVIEW",
+        "correlation_id": null,
+        "before_state": null,
+        "after_state": {
+          "stage": "ACTION_REQUIRED",
+          "decision": "FLAGGED_HITL_REVIEW",
+          "net_payable": 0.0
+        },
+        "source_reference": "org_sme_eval/invoices/doc_a682d0ac2ad4/37_invoice_CP_26_025.pdf",
+        "timestamp": "2026-11-01T15:44:18.307706Z"
+      },
+      {
+        "id": "evt_9795ea21cefa",
+        "invoice_id": "inv_85fd75d2aea1",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 36_invoice_POS_26_112.pdf (APTC-036) -> FLAGGED_HITL_REVIEW",
+        "correlation_id": null,
+        "before_state": null,
+        "after_state": {
+          "stage": "ACTION_REQUIRED",
+          "decision": "FLAGGED_HITL_REVIEW",
+          "net_payable": 0.0
+        },
+        "source_reference": "org_sme_eval/invoices/doc_2f36ce57b37d/36_invoice_POS_26_112.pdf",
+        "timestamp": "2026-11-01T15:44:17.000729Z"
+      },
+      {
+        "id": "evt_acb4de249de1",
+        "invoice_id": "inv_dbfcaf77ba9b",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 30_invoice_AP_26_011.pdf (APTC-030) -> FLAGGED_EXCEPTION",
+        "correlation_id": null,
+        "before_state": null,
+        "after_state": {
+          "stage": "ACTION_REQUIRED",
+          "decision": "FLAGGED_EXCEPTION",
+          "net_payable": 25960.0
+        },
+        "source_reference": "org_sme_eval/invoices/doc_f07fe0f20697/30_invoice_AP_26_011.pdf",
+        "timestamp": "2026-11-01T15:44:15.716968Z"
+      },
+      {
+        "id": "evt_6b4005696750",
+        "invoice_id": "inv_d76401c096d0",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 09_invoice_AP_26_009.pdf (APTC-009) -> MATCH_CANDIDATE",
+        "correlation_id": null,
+        "before_state": null,
+        "after_state": {
+          "stage": "PENDING_APPROVAL",
+          "decision": "MATCH_CANDIDATE",
+          "net_payable": 231280.0
+        },
+        "source_reference": "org_sme_eval/invoices/doc_d495a6bc5aef/09_invoice_AP_26_009.pdf",
+        "timestamp": "2026-11-01T15:44:11.440585Z"
+      },
+      {
+        "id": "evt_15ff8236b380",
+        "invoice_id": "inv_be609a16676f",
+        "actor_id": "usr_sme_assoc_01",
+        "actor_role": "AP_ASSOCIATE",
+        "action": "INVOICE_INGESTED",
+        "reason": "Pipeline processed 01_invoice_AP_26_001.pdf (APTC-001) -> MATCH_CANDIDATE",
+        "correlation_id": null,
+        "before_state": null,
+        "after_state": {
+          "stage": "PENDING_APPROVAL",
+          "decision": "MATCH_CANDIDATE",
+          "net_payable": 26196.0
+        },
+        "source_reference": "org_sme_eval/invoices/doc_b9f24de143fa/01_invoice_AP_26_001.pdf",
+        "timestamp": "2026-11-01T15:44:07.165588Z"
+      }
+    ]
+  }
+}

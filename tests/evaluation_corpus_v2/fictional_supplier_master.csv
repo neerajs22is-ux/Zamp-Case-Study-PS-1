@@ -1,0 +1,13 @@
+﻿supplier_id,supplier_name,synthetic_gstin_placeholder,state,city,email
+V001,Asterion Precision Components Pvt Ltd,29SYNTH0001A1Z5,Karnataka,Bengaluru,billing@asterion.example
+V002,Kaveri Industrial Fasteners LLP,27SYNTH0002B1Z3,Maharashtra,Pune,accounts@kaveri.example
+V003,Meridian Industrial Chemicals Pvt Ltd,24SYNTH0003C1Z1,Gujarat,Ahmedabad,ar@meridian.example
+V004,Deccan CNC Works,29SYNTH0004D1Z8,Karnataka,Bengaluru,accounts@deccan.example
+V005,BluePeak Logistics India Pvt Ltd,33SYNTH0005E1Z6,Tamil Nadu,Chennai,billing@bluepeak.example
+V006,Prism Office Systems,07SYNTH0006F1Z4,Delhi,New Delhi,finance@prism.example
+V007,NimbleCloud Software India Pvt Ltd,29SYNTH0007G1Z2,Karnataka,Bengaluru,invoices@nimblecloud.example
+V008,Sahyadri Electrical Assemblies,27SYNTH0008H1Z0,Maharashtra,Nashik,billing@sahyadri.example
+V009,Orbit Facilities and Maintenance,29SYNTH0009J1Z7,Karnataka,Bengaluru,ap@orbit.example
+V010,Coastal Packaging Solutions,32SYNTH0010K1Z5,Kerala,Kochi,accounts@coastal.example
+V011,Northstar Testing and Calibration,06SYNTH0011L1Z3,Haryana,Gurugram,finance@northstar.example
+V012,Pacific Motion Systems Pte Ltd,,Singapore,Singapore,billing@pacificmotion.example

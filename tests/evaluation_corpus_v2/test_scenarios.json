@@ -1,0 +1,222 @@
+{
+  "standard_clean": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-001",
+      "APTC-005",
+      "APTC-006"
+    ]
+  },
+  "multi_line_interstate": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-002"
+    ]
+  },
+  "reduced_rate_item": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-003"
+    ]
+  },
+  "standard_interstate": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-004"
+    ]
+  },
+  "capital_goods": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-007"
+    ]
+  },
+  "service_invoice": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-008"
+    ]
+  },
+  "manufacturing_clean": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-009",
+      "APTC-013",
+      "APTC-014"
+    ]
+  },
+  "partial_receipt": {
+    "expected_outcome": "GRN_QUANTITY_REVIEW",
+    "document_ids": [
+      "APTC-010"
+    ]
+  },
+  "quality_hold": {
+    "expected_outcome": "QC_HOLD",
+    "document_ids": [
+      "APTC-011"
+    ]
+  },
+  "job_work_rate_check": {
+    "expected_outcome": "RATE_CONTRACT_REVIEW",
+    "document_ids": [
+      "APTC-012"
+    ]
+  },
+  "milestone_tooling": {
+    "expected_outcome": "MILESTONE_REVIEW",
+    "document_ids": [
+      "APTC-015"
+    ]
+  },
+  "job_work_qc": {
+    "expected_outcome": "QC_HOLD",
+    "document_ids": [
+      "APTC-016"
+    ]
+  },
+  "freight_invoice": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-017"
+    ]
+  },
+  "saas_recurring": {
+    "expected_outcome": "SERVICE_PERIOD_REVIEW",
+    "document_ids": [
+      "APTC-018"
+    ]
+  },
+  "facilities_service": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-019"
+    ]
+  },
+  "testing_service": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-020"
+    ]
+  },
+  "office_service": {
+    "expected_outcome": "MATCH_CANDIDATE",
+    "document_ids": [
+      "APTC-021"
+    ]
+  },
+  "credit_note_link": {
+    "expected_outcome": "LINK_TO_ORIGINAL_INVOICE",
+    "document_ids": [
+      "APTC-022"
+    ]
+  },
+  "debit_note_link": {
+    "expected_outcome": "LINK_TO_ORIGINAL_INVOICE",
+    "document_ids": [
+      "APTC-023"
+    ]
+  },
+  "advance_reconciliation": {
+    "expected_outcome": "ADVANCE_RECONCILIATION",
+    "document_ids": [
+      "APTC-024"
+    ]
+  },
+  "proforma_not_postable": {
+    "expected_outcome": "DO_NOT_POST",
+    "document_ids": [
+      "APTC-025"
+    ]
+  },
+  "synthetic_irn_validation": {
+    "expected_outcome": "IRN_VALIDATION_REVIEW",
+    "document_ids": [
+      "APTC-026"
+    ]
+  },
+  "foreign_currency": {
+    "expected_outcome": "FOREIGN_TRADE_REVIEW",
+    "document_ids": [
+      "APTC-027"
+    ]
+  },
+  "multiple_tax_rates": {
+    "expected_outcome": "TAX_BREAKDOWN_REVIEW",
+    "document_ids": [
+      "APTC-028"
+    ]
+  },
+  "reverse_charge_claimed": {
+    "expected_outcome": "RCM_TAX_REVIEW",
+    "document_ids": [
+      "APTC-029"
+    ]
+  },
+  "po_value_exceeded": {
+    "expected_outcome": "PO_VALUE_MISMATCH",
+    "document_ids": [
+      "APTC-030"
+    ]
+  },
+  "quantity_exceeds_grn": {
+    "expected_outcome": "GRN_QUANTITY_MISMATCH",
+    "document_ids": [
+      "APTC-031"
+    ]
+  },
+  "tax_total_discrepancy": {
+    "expected_outcome": "TAX_CALCULATION_EXCEPTION",
+    "document_ids": [
+      "APTC-032"
+    ]
+  },
+  "missing_po": {
+    "expected_outcome": "NON_PO_HUMAN_REVIEW",
+    "document_ids": [
+      "APTC-033"
+    ]
+  },
+  "missing_supplier_gstin": {
+    "expected_outcome": "VENDOR_IDENTITY_REVIEW",
+    "document_ids": [
+      "APTC-034"
+    ]
+  },
+  "semantic_duplicate_different_file": {
+    "expected_outcome": "DUPLICATE_CHECK",
+    "document_ids": [
+      "APTC-035"
+    ]
+  },
+  "image_only_scan": {
+    "expected_outcome": "OCR_EXTRACTION_REVIEW",
+    "document_ids": [
+      "APTC-036"
+    ]
+  },
+  "low_contrast_skewed_scan": {
+    "expected_outcome": "OCR_CONFIDENCE_REVIEW",
+    "document_ids": [
+      "APTC-037"
+    ]
+  },
+  "receipt_not_invoice": {
+    "expected_outcome": "CLASSIFY_NON_INVOICE",
+    "document_ids": [
+      "APTC-038"
+    ]
+  },
+  "purchase_order_not_invoice": {
+    "expected_outcome": "CLASSIFY_NON_INVOICE",
+    "document_ids": [
+      "APTC-039"
+    ]
+  },
+  "delivery_challan_not_invoice": {
+    "expected_outcome": "CLASSIFY_NON_INVOICE",
+    "document_ids": [
+      "APTC-040"
+    ]
+  }
+}

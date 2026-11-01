@@ -1,0 +1,86 @@
+# =============================================================================
+# Autonomous AP Command Center — Render Free Deployment Blueprint
+# =============================================================================
+# Zero-cost hosting specification for Render Free Web Service ($0.00/month).
+# Runtime: Multi-stage Docker container (React SPA frontend + FastAPI backend).
+# Invariants:
+#   - Non-root user execution (appuser, UID 1000).
+#   - Ephemeral disk; state persisted to Supabase Free PostgreSQL & Storage.
+#   - Inactive sleep after 15 minutes; cold start ~50s on incoming request.
+# =============================================================================
+
+services:
+  - type: web
+    name: ap-command-center
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/liveness
+    autoDeploy: true
+
+    envVars:
+      # Application Environment
+      - key: APP_ENV
+        value: production
+      - key: APP_HOST
+        value: 0.0.0.0
+      - key: PORT
+        value: 8080
+      - key: BASE_URL
+        sync: false
+        # Example: https://ap-command-center.onrender.com
+
+      # Security & Cryptography
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+        # Generate via: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+
+      # Supabase Free PostgreSQL Connection (Transaction Pooler, Port 6543)
+      - key: DATABASE_URL
+        sync: false
+        # Format: postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
+
+      # Supabase Auth & JWT Verification (Asymmetric JWKS)
+      - key: SUPABASE_URL
+        sync: false
+        # Format: https://[PROJECT_REF].supabase.co
+      - key: SUPABASE_JWKS_URL
+        sync: false
+        # Format: https://[PROJECT_REF].supabase.co/auth/v1/.well-known/jwks.json
+      - key: SUPABASE_JWT_AUDIENCE
+        value: authenticated
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+        # Format: Supabase service_role key or legacy JWT
+
+      # Supabase Client-Facing Anon Key (Public)
+      - key: SUPABASE_ANON_KEY
+        sync: false
+        # Format: sb_publishable_... or legacy anon key
+
+      # Google OAuth 2.0 Credentials (Direct Gmail API Integration)
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_TARGET_MAILBOX
+        sync: false
+        # Example: ap-invoices@company.com
+
+      # Storage & File Limits
+      - key: STORAGE_PROVIDER
+        value: supabase
+      - key: SUPABASE_STORAGE_BUCKET
+        value: invoices
+      - key: MAX_UPLOAD_FILE_SIZE_BYTES
+        value: 52428800
+
+      # AWS Bedrock Mantle Document Intelligence (Qwen 235B)
+      - key: MANTLE_API_KEY
+        sync: false
+        # Encrypted / secret variable in Render dashboard
+      - key: MANTLE_MODEL_ID
+        value: qwen.qwen3-235b-a22b-2507-v1:0

@@ -1,0 +1,28 @@
+po_number,supplier_id,supplier,currency,line_description,ordered_quantity,agreed_unit_price,ordered_taxable_value,status,test_reference_only
+PO-26-1001,V001,Asterion Precision Components Pvt Ltd,INR,Precision turned steel shafts,120,185,22200,APPROVED,True
+PO-26-1002,V002,Kaveri Industrial Fasteners LLP,INR,Aluminium brackets,750,72.0,24000.0,APPROVED,True
+PO-26-1003,V003,Meridian Industrial Chemicals Pvt Ltd,INR,Industrial safety gloves,80,145.0,11600.0,APPROVED,True
+PO-26-1004,V010,Coastal Packaging Solutions,INR,Corrugated cartons,1000,18.0,18000.0,APPROVED,True
+PO-26-1005,V008,Sahyadri Electrical Assemblies,INR,Electrical contactors,35,1250.0,43750.0,APPROVED,True
+PO-26-1006,V003,Meridian Industrial Chemicals Pvt Ltd,INR,Machine lubricant,40,390.0,15600.0,APPROVED,True
+PO-26-1007,V006,Prism Office Systems,INR,Office workstations,6,28500.0,171000.0,APPROVED,True
+PO-26-1008,V011,Northstar Testing and Calibration,INR,Calibration service,1,18000.0,18000.0,APPROVED,True
+PO-26-2001,V001,Asterion Precision Components Pvt Ltd,INR,CNC machined steel housing,80,2450.0,196000.0,APPROVED,True
+PO-26-2002,V002,Kaveri Industrial Fasteners LLP,INR,M8 stainless fasteners,5000,4.5,22500,APPROVED,True
+PO-26-2003,V003,Meridian Industrial Chemicals Pvt Ltd,INR,Epoxy resin drums,24,6800.0,163200.0,APPROVED,True
+PO-26-2004,V004,Deccan CNC Works,INR,CNC turning job work - batch A,1,72500.0,72500.0,APPROVED,True
+PO-26-2005,V008,Sahyadri Electrical Assemblies,INR,Wiring harness assemblies,300,410.0,123000.0,APPROVED,True
+PO-26-2006,V010,Coastal Packaging Solutions,INR,Industrial packaging,2000,22.0,44000.0,APPROVED,True
+PO-26-2007,V001,Asterion Precision Components Pvt Ltd,INR,Production tooling inserts,12,9400.0,112800.0,APPROVED,True
+PO-26-2008,V004,Deccan CNC Works,INR,Precision grinding operation,1,38500.0,38500.0,APPROVED,True
+PO-SVC-301,V005,BluePeak Logistics India Pvt Ltd,INR,Inbound freight - consignment BLR-118,1,26500.0,26500.0,APPROVED,True
+PO-SVC-302,V007,NimbleCloud Software India Pvt Ltd,INR,Cloud collaboration subscription - annual,1,48000.0,48000.0,APPROVED,True
+PO-SVC-303,V009,Orbit Facilities and Maintenance,INR,Plant HVAC preventive maintenance,1,32000.0,32000.0,APPROVED,True
+PO-SVC-304,V011,Northstar Testing and Calibration,INR,Dimensional inspection and calibration,3,8500.0,25500.0,APPROVED,True
+PO-SVC-305,V006,Prism Office Systems,INR,Office printer maintenance,2,4200.0,8400.0,APPROVED,True
+PO-26-2009,V008,Sahyadri Electrical Assemblies,INR,Control panel assembly,15,7400.0,111000.0,APPROVED,True
+PO-26-2010,V010,Coastal Packaging Solutions,INR,Paper cartons,500,20.0,16500.0,APPROVED,True
+PO-SVC-306,V005,BluePeak Logistics India Pvt Ltd,INR,Goods transport service,1,18000.0,18000.0,APPROVED,True
+PO-OFF-440,V006,Prism Office Systems,INR,Office stationery assorted,30,650.0,19500.0,APPROVED,True
+PO-26-2011,V010,Coastal Packaging Solutions,INR,Packaging material - lot 1,800,19.0,15800.0,APPROVED,True
+PO-26-1011,V001,Asterion Precision Components Pvt Ltd,INR,Steel shaft lot,80,185,14800.0,APPROVED,True
