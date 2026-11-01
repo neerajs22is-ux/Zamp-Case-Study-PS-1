@@ -517,7 +517,7 @@ export const SourceRecordsPage: React.FC = () => {
               </div>
 
               <div className="p-3 bg-slate-50 dark:bg-slate-950/40 rounded-lg border border-slate-100 dark:border-slate-800/60 text-[11px] text-slate-500">
-                <span>Retrieved from SAP S/4HANA snapshot at </span>
+                <span>Retrieved from {data?.is_live_sync ? 'SAP S/4HANA snapshot' : 'procurement reference snapshot'} at </span>
                 <span className="font-mono text-slate-700 dark:text-slate-300">
                   {selectedPo.retrieved_at ? new Date(selectedPo.retrieved_at).toLocaleString('en-IN') : 'Synchronized cache'}
                 </span>

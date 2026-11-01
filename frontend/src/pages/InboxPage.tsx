@@ -186,9 +186,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
         {(!data?.items || data.items.length === 0) ? (
           <div className="py-16 text-center text-slate-500 dark:text-slate-400 text-xs space-y-2">
             <FileText className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
-            <div className="font-semibold text-slate-700 dark:text-slate-200">No genuine invoices found in database ledger</div>
+            <div className="font-semibold text-slate-700 dark:text-slate-200">No invoices found in review queue</div>
             <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              In accordance with production truth rules, zero fake records exist. Upload genuine invoices in <span className="text-indigo-600 dark:text-indigo-400 underline cursor-pointer">Connections</span> or configure Gmail API intake to populate this ledger.
+              No invoices match your current filter. Upload an invoice in <span className="text-indigo-600 dark:text-indigo-400 underline cursor-pointer">Connections</span> or configure intake sources to populate this list.
             </p>
           </div>
         ) : (

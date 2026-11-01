@@ -76,7 +76,7 @@ stateDiagram-v2
 - **Single Approval ($< ₹5,00,000$):** Can be fully approved by `AP_LEAD` (`usr_sme_lead_01`).
 - **Dual Approval ($\ge ₹5,00,000$):**
   1. `AP_LEAD` submits first approval. Invoice stage transitions to `ACTION_REQUIRED` with `ApprovalRequest` status `PENDING_SECOND_APPROVAL`.
-  2. Second sign-off must be performed by a different user with role `CONTROLLER` (`usr_sme_ctrl_01`).
+  2. Second sign-off must be performed by a different user with role `CONTROLLER` (`usr_sme_ctrl_01`) or `SYSTEM_ADMIN`.
   3. **Anti-Self-Approval Rule:** If the Controller's user ID matches the initial approver, the request is rejected with HTTP 400.
 
 ---

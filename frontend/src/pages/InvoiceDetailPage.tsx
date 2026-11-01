@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
+import { DEFAULT_POLICY } from '../content/policy';
 import type { AuthenticatedUser } from '../types';
 
 interface InvoiceDetailPageProps {
@@ -32,6 +33,15 @@ interface InvoiceDetailPageProps {
 }
 
 type TabType = 'matching' | 'checks' | 'details' | 'history';
+
+const formatINR = (val?: number | null) => {
+  if (val === undefined || val === null) return '—';
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  }).format(val);
+};
 
 export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ 
   invoiceId, 
@@ -58,6 +68,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // Policy & Threshold Resolution
+  const dualApprovalThreshold = data?.policy?.dual_approval_threshold_inr || data?.approval?.threshold_inr || DEFAULT_POLICY.dual_approval_threshold_inr;
+  const rateTolerancePercent = data?.policy?.rate_tolerance_percent || DEFAULT_POLICY.rate_tolerance_percent;
+
   // Guided Review Tour State (6 coachmarks)
   const [showTour, setShowTour] = useState(false);
   const [tourStep, setTourStep] = useState(1);
@@ -71,26 +85,26 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     },
     {
       step: 2,
-      title: 'Extracted Invoice Metadata',
-      description: 'Review structured invoice attributes extracted via AWS Bedrock Mantle: Vendor Name, GSTIN, HSN codes, Taxable Amount, and CGST/SGST/IGST tax splits.',
+      title: 'Extracted Information',
+      description: 'Review invoice information read by AI: Vendor Name, GSTIN, invoice date, amounts, and tax breakdowns, verified before matching against records.',
       onEnter: () => setActiveTab('details'),
     },
     {
       step: 3,
       title: 'Authoritative PO & GRN Match',
-      description: 'Cross-reference invoice line items against authoritative purchase orders and goods receipt notes from SAP S/4HANA with strict 0.00% quantity and 2.50% price variance thresholds.',
+      description: `Cross-reference invoice line items against authoritative procurement reference snapshots with strict 0.00% quantity and ±${rateTolerancePercent.toFixed(2)}% price variance thresholds.`,
       onEnter: () => setActiveTab('matching'),
     },
     {
       step: 4,
-      title: 'Policy Validation Gates',
-      description: 'Audit the 7 deterministic validation checks. When gates fail, D-04 failed-gate overrides are strictly deferred and blocked, requiring explicit exception triage.',
+      title: 'Policy Validation Checks',
+      description: 'Audit the 7 policy validation checks. When checks fail, approvals are strictly blocked until exceptions are triaged or resolved.',
       onEnter: () => setActiveTab('checks'),
     },
     {
       step: 5,
       title: 'Dual Approval & Audit Trail',
-      description: 'Track the complete cryptographic audit trail. Invoices exceeding ₹1,00,000 enforce dual approval where two distinct approvers sign off before completion.',
+      description: `Track the complete immutable audit trail. Invoices exceeding ${formatINR(dualApprovalThreshold)} enforce dual approval where two distinct approvers sign off before completion.`,
       onEnter: () => setActiveTab('history'),
     },
     {
@@ -209,10 +223,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       return;
     }
 
-    // Strict validation gate check: Prevent approval if any gate failed (D-04 overrides deferred)
+    // Strict validation check: Prevent approval if any policy check failed
     const hasFailedGate = data?.match_gates?.some((g: any) => g.status === 'FAIL');
     if (selectedAction === 'APPROVE_AP_REVIEW' && hasFailedGate) {
-      setActionError('Approval blocked: this invoice failed deterministic policy validation checks. Tier 2 gate overrides (D-04) are deferred and disabled. Triage via Hold, Supplier Correction, Debit Note, Escalate, Rejection, or Quarantine.');
+      setActionError('Approval blocked: this invoice failed policy validation checks. Policy overrides are disabled. Please triage via Hold, Ask Supplier to Correct, Debit Note, Escalate, Reject, or Quarantine.');
       return;
     }
 
@@ -231,15 +245,6 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     } finally {
       setActionLoading(false);
     }
-  };
-
-  const formatINR = (val?: number | null) => {
-    if (val === undefined || val === null) return '—';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    }).format(val);
   };
 
   // Helper mapping gate names to human language
@@ -340,7 +345,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         <AlertTriangle className="w-8 h-8 mx-auto text-red-600 dark:text-red-400" />
         <h2 className="text-sm font-bold text-red-900 dark:text-red-300">{error || 'Invoice not found.'}</h2>
         <p className="text-red-700 dark:text-red-400 max-w-md mx-auto">
-          The requested invoice ID may not exist or belongs to another tenant partition under active enterprise isolation rules.
+          The requested invoice could not be found or you do not have permission to access it in this organization.
         </p>
         <button
           onClick={onBack}
@@ -520,7 +525,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           <div className="font-semibold text-sm flex flex-wrap items-center justify-between gap-2">
             <span>
               {isApproved ? (
-                'Invoice Approved for Payment Run'
+                'Invoice Review Complete (Internal Sign-Off)'
               ) : isPendingSecondApproval ? (
                 'Waiting for Secondary Controller Approval'
               ) : failedGates.length > 0 ? (
@@ -533,17 +538,17 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             </span>
             {failedGates.length > 0 && (
               <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
-                Gate Overrides Disabled (D-04 Deferred)
+                Approval blocked until the failed checks are resolved.
               </span>
             )}
           </div>
           <p className="opacity-90">
             {isApproved ? (
-              'Internal AP review is complete. In accordance with strict production truth rules, no external payment or ERP posting has been executed.'
+              'Internal AP review is complete. No payment has been executed and no ERP or General Ledger posting has occurred. Approval signifies internal AP sign-off; the supplier has not yet been paid.'
             ) : isPendingSecondApproval ? (
               `First approval was rendered by ${approval?.first_approver_id || 'AP Lead'}. A distinct Financial Controller or System Admin must render secondary sign-off.`
             ) : failedGates.length > 0 ? (
-              'This invoice cannot be approved while deterministic policy checks fail. In accordance with approved governance (D-04 overrides deferred), approvals are blocked until exceptions are reconciled. Please triage using an authorized action below.'
+              'This invoice cannot be approved while policy validation checks fail. Policy overrides are disabled; approvals are strictly blocked until all discrepancies are resolved or triaged using an authorized action below.'
             ) : totalGates > 0 && passedGates === totalGates ? (
               'Supplier identity, PO authorization, GRN delivery, QC acceptance, arithmetic, and price tolerances all verified.'
             ) : (
@@ -761,7 +766,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               }`}
             >
               <FileText className="w-3.5 h-3.5" />
-              <span>Extracted Fields ({extracted_fields?.length || 0})</span>
+              <span>Extracted Information ({extracted_fields?.length || 0})</span>
             </button>
 
             <button
@@ -870,7 +875,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-950/20 border border-sky-200 dark:border-sky-900/40 text-xs text-sky-900 dark:text-sky-300 flex items-start gap-2.5">
                   <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
                   <p>
-                    <strong>Authoritative Reference Integrity:</strong> Purchase order and goods receipt comparison is computed strictly against synchronized SAP S/4HANA ERP records. When external line items are missing from the ERP sync, comparison displays unavailable rather than zero or mock values.
+                    <strong>Authoritative Reference Integrity:</strong> Evaluated against authoritative procurement reference snapshots. This evaluation workspace uses fictional procurement reference data. Live SAP S/4HANA synchronization is not configured.
                   </p>
                 </div>
               </div>
@@ -968,14 +973,16 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               </div>
             )}
 
-            {/* TAB 3: EXTRACTED FIELDS */}
+            {/* TAB 3: EXTRACTED INFORMATION */}
             {activeTab === 'details' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Traceable Field Extractions ({extracted_fields?.length || 0})
+                    Information Read by AI ({extracted_fields?.length || 0})
                   </h3>
-                  <span className="text-[11px] font-mono text-slate-500">Mantle Bedrock OCR</span>
+                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded">
+                    Verified by automatic checks
+                  </span>
                 </div>
 
                 {(!extracted_fields || extracted_fields.length === 0) ? (
@@ -990,7 +997,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                           <th className="py-2.5 px-3">Field Name</th>
                           <th className="py-2.5 px-3">Extracted Value</th>
                           <th className="py-2.5 px-3">Page</th>
-                          <th className="py-2.5 px-3 text-right">Confidence</th>
+                          <th className="py-2.5 px-3 text-right">Verification Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
@@ -1001,12 +1008,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                             <td className="py-2.5 px-3 text-slate-500">{f.source_page || '1'}</td>
                             <td className="py-2.5 px-3 text-right">
                               {f.confidence !== null ? (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] ${
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
                                   f.confidence >= 0.9
                                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                                     : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
                                 }`}>
-                                  {(f.confidence * 100).toFixed(0)}%
+                                  {f.confidence >= 0.9 ? 'Verified' : 'Needs Review'}
                                 </span>
                               ) : (
                                 <span className="text-slate-400">—</span>
@@ -1084,7 +1091,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 max-w-7xl mx-auto text-xs">
             <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 font-semibold">
               <CheckCircle2 className="w-4 h-4" />
-              <span>Invoice review complete. Approved for payment run — no payment or ERP posting has been made.</span>
+              <span>Invoice review complete (Internal sign-off). Cleared for external payment batching; no disbursement or General Ledger posting has occurred.</span>
             </div>
             <button
               onClick={onBack}
@@ -1229,7 +1236,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 {/* Primary Action Button or Blocked Indicator */}
                 {failedGates.length > 0 ? (
                   <div
-                    title={`Approval blocked: ${failedGates.length} validation gate(s) failed. Failed-gate overrides (D-04) are disabled.`}
+                    title={`Approval blocked: ${failedGates.length} validation check(s) failed. Policy overrides are disabled.`}
                     className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 cursor-not-allowed select-none shadow-2xs"
                   >
                     <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />

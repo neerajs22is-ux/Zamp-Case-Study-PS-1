@@ -107,7 +107,7 @@ def list_approvals(
             cannot_approve_reason = "Auditor role has read-only oversight permissions."
         elif has_failed_gate:
             can_approve = False
-            cannot_approve_reason = f"Approval blocked: {len(failed_gate_names)} validation gate(s) failed ({', '.join(failed_gate_names)}). Overrides (D-04) are disabled."
+            cannot_approve_reason = f"Approval blocked: {len(failed_gate_names)} validation check(s) failed ({', '.join(failed_gate_names)}). Policy overrides are disabled."
         elif req.status == "APPROVED":
             can_approve = False
             cannot_approve_reason = "Dual approval is already complete."

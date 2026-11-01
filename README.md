@@ -17,7 +17,7 @@ Mid-size and enterprise organizations process thousands of commercial vendor inv
 - **Duplicate Payments:** Inadvertent double payment of identical vendor invoices across different accounting periods or batches.
 - **Price & Quantity Leakage:** Overlooking unauthorized unit price increases exceeding contracted Purchase Order (PO) rates or paying for goods not yet delivered to the warehouse.
 - **Indian GST Non-Compliance:** Miscalculating interstate (IGST) versus intrastate (CGST + SGST) tax splits, invalid supplier GSTINs, or missing statutory 45-day payment deadlines under Section 15 of the MSME Development Act.
-- **Auditor Liability:** Lack of an immutable, cryptographic audit trail linking invoice approvals to source document coordinates, purchase order lines, and human justifications.
+- **Auditor Liability:** Lack of an immutable, database-enforced regulatory audit trail linking invoice approvals to source document coordinates, purchase order lines, and human justifications.
 
 The **Autonomous AP Command Center** solves these challenges by combining **multi-modal document intelligence** (powered by AWS Bedrock Mantle Qwen3-235B) with a **deterministic Python/SQL matching engine**. The system autonomously classifies commercial documents, verifies Indian GST arithmetic, performs 3-way reconciliation (PO, GRN, QC), absorbs allowable contractual tolerances, and packages exceptions for human review in an interactive **3-Pane Review Workspace**.
 

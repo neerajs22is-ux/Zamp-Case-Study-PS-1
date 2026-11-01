@@ -17,13 +17,13 @@ This document catalogues known functional constraints, system boundaries, and cu
 - **Identified Usability Friction:** On standard laptop displays ($\le 1440\text{px}$ width), the 3-pane split becomes crowded. Operators must horizontally scroll or zoom out their browser to read line-item descriptions and match gate notes simultaneously.
 - **Target Improvement:** Adaptive or collapsible pane layout (e.g. toggleable document evidence drawer, floating action bar, or full-width tabbed view).
 
-### B. Lack of Keyboard Navigation & AP Power-User Shortcuts
-- **Current Behavior:** All invoice triage, pagination, pane switching, and action submissions require manual mouse clicks.
-- **Identified Usability Friction:** High-volume AP clerks process dozens of invoices per hour. The absence of keyboard shortcuts (e.g., `J`/`K` for next/previous invoice, `A` for approve, `H` for hold, `R` for reject, `Esc` to close modal) significantly slows down review velocity.
+### B. Keyboard Navigation & AP Power-User Shortcuts (Resolved in Phase 5)
+- **Status:** **Implemented & Verified in Phase 5.**
+- **Resolved Functionality:** Operators can navigate tabs via number keys (`1` for Matching, `2` for Checks, `3` for Extracted Information, `4` for Audit Trail), trigger triage actions (`A` for Approve, `H` for Hold, `R` for Reject, `Esc` to dismiss confirmation drawer), and press `?` to open the Keyboard Shortcuts modal.
 
-### C. Action Justification Friction
-- **Current Behavior:** When an AP Lead or Controller clicks `APPROVE_AP_REVIEW`, `HOLD_PENDING_EVIDENCE`, or `REJECT_INVOICE`, an action modal opens requiring mandatory text justification before the submit button becomes active.
-- **Identified Usability Friction:** While mandatory justification is essential for audit compliance, there are no quick-select templates or pre-populated macro reasons (e.g., *"Unit price exceeds PO rate by >1.5%"*, *"PO balance exhausted"*), requiring operators to type repetitive explanations manually.
+### C. Pre-Populated Justification Templates & Triage Macros (Resolved in Phase 5)
+- **Status:** **Implemented & Verified in Phase 5.**
+- **Resolved Functionality:** Context-sensitive, clickable reason template chips are provided for all triage actions (e.g., *"Unit price exceeds contracted PO rate by >1.5%"*, *"PO balance exhausted"*, *"QC inspection pending"*), allowing clerks to populate audit justifications with one click while retaining the mandatory 3-character minimum.
 
 ### D. Single-Invoice Triage Only (No Bulk Actions)
 - **Current Behavior:** The main Inbox ([`frontend/src/pages/InboxPage.tsx`](../frontend/src/pages/InboxPage.tsx)) displays invoices in a tabular list, but each invoice must be clicked and opened individually to be reviewed or approved.

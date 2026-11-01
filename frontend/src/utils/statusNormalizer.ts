@@ -75,7 +75,7 @@ export function statusFor(invoice: StatusInput): NormalizedStatus {
       tone: 'success',
       badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900/50',
       iconName: 'check',
-      reason: 'Internal review complete. Approved for payment run (no ERP posting or payment executed).',
+      reason: 'Internal review complete (Internal sign-off). No ERP posting or payment executed.',
       isApprovalCandidate: false,
       isBlocked: false,
     };

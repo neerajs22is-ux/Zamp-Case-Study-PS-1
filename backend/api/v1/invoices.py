@@ -165,6 +165,11 @@ def get_invoice_detail(
         "match_gates": gates_data,
         "approval": approval_data,
         "timeline": timeline,
+        "policy": {
+            "dual_approval_threshold_inr": settings.DUAL_APPROVAL_THRESHOLD_INR,
+            "rate_tolerance_percent": settings.RATE_TOLERANCE_PERCENT,
+            "rounding_tolerance_inr": settings.ROUNDING_TOLERANCE_INR,
+        },
     }
 
 
@@ -250,8 +255,8 @@ def execute_invoice_action(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=(
-                        f"Cannot approve invoice '{invoice_id}': {len(failed_gates)} deterministic validation gate(s) failed "
-                        f"({', '.join(failed_names)}). Failed-gate policy overrides (D-04) are deferred and disabled. "
+                        f"Cannot approve invoice '{invoice_id}': {len(failed_gates)} validation check(s) failed "
+                        f"({', '.join(failed_names)}). Policy overrides are disabled. "
                         f"Authorized triage actions: HOLD_PENDING_EVIDENCE, REQUEST_SUPPLIER_CORRECTION, "
                         f"RAISE_DEBIT_NOTE, ESCALATE, REJECT_INVOICE, or QUARANTINE."
                     ),
