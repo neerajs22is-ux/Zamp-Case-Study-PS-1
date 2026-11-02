@@ -69,9 +69,9 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
   const qc = poSnapshot?.qc;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* 4-Node Procurement Verification Flow Card */}
-      <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
+      <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2">
@@ -95,8 +95,31 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
           </div>
         </div>
 
+        {/* Linear Stage Velocity Tracker */}
+        <div className="flex flex-wrap items-center justify-between text-[11px] font-mono px-3 py-1.5 rounded-md bg-white dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800/70 text-slate-500 gap-y-1">
+          <span className="flex items-center gap-1.5 text-indigo-700 dark:text-indigo-300 font-semibold">
+            <span className="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-950 flex items-center justify-center text-[10px]">1</span>
+            <span>Billed Claim</span>
+          </span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&rarr;</span>
+          <span className={`flex items-center gap-1.5 font-semibold ${hasPo ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${hasPo ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-slate-100 dark:bg-slate-800'}`}>2</span>
+            <span>PO Contract</span>
+          </span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&rarr;</span>
+          <span className={`flex items-center gap-1.5 font-semibold ${grn ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${grn ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-slate-100 dark:bg-slate-800'}`}>3</span>
+            <span>Receiving (GRN)</span>
+          </span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&rarr;</span>
+          <span className={`flex items-center gap-1.5 font-semibold ${qc ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400'}`}>
+            <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${qc ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-slate-100 dark:bg-slate-800'}`}>4</span>
+            <span>Quality (QC)</span>
+          </span>
+        </div>
+
         {/* 4 Flow Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-0.5">
           {/* Node 1: Invoice */}
           <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5">
             <div className="flex items-center justify-between">
@@ -244,19 +267,19 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
             No line items extracted. Extraction pipeline pending.
           </div>
         ) : (
-          <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[780px]">
-              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto shadow-2xs">
+            <table className="w-full text-left text-xs min-w-[840px]">
+              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] select-none">
                 <tr>
                   <th className="py-2.5 px-3 w-8">#</th>
-                  <th className="py-2.5 px-3">Description</th>
+                  <th className="py-2.5 px-3">Billed Item & PO Reference</th>
                   <th className="py-2.5 px-3 text-right">Billed Qty</th>
                   <th className="py-2.5 px-3 text-right">PO Qty</th>
                   <th className="py-2.5 px-3 text-right">Billed Rate</th>
                   <th className="py-2.5 px-3 text-right">PO Rate</th>
                   <th className="py-2.5 px-3 text-right">Rate Variance</th>
                   <th className="py-2.5 px-3 text-right">Line Total</th>
-                  <th className="py-2.5 px-3 text-center">Match Status</th>
+                  <th className="py-2.5 px-3 text-center">Match Verdict & Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
@@ -266,6 +289,7 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                   const hasPoLine = Boolean(matchingPoLine);
 
                   let rateVariancePercent: number | null = null;
+                  let rateDeltaINR: number | null = null;
                   let isRateFailed = false;
                   let isQtyFailed = false;
 
@@ -273,6 +297,7 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                     const poRate = matchingPoLine.contracted_unit_rate;
                     if (poRate > 0) {
                       rateVariancePercent = ((l.rate - poRate) / poRate) * 100;
+                      rateDeltaINR = (l.rate - poRate) * l.quantity;
                       if (Math.abs(rateVariancePercent) > rateTolerancePercent) {
                         isRateFailed = true;
                       }
@@ -285,13 +310,21 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                   const isLineMatch = hasPoLine && !isRateFailed && !isQtyFailed;
 
                   return (
-                    <tr key={l.line_number} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                    <tr key={l.line_number} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
                       <td className="py-2.5 px-3 text-slate-400">{l.line_number}</td>
                       <td className="py-2.5 px-3 font-sans text-slate-800 dark:text-slate-200">
-                        <div>{l.description}</div>
-                        {hasPoLine && matchingPoLine && matchingPoLine.description !== l.description && (
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                            PO: {matchingPoLine.description} ({matchingPoLine.item_code || 'No code'})
+                        <div className="font-medium">{l.description}</div>
+                        {hasPoLine && matchingPoLine ? (
+                          <div className="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-1.5">
+                            <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Matched:</span>
+                            <span>{matchingPoLine.description}</span>
+                            {matchingPoLine.item_code && (
+                              <span className="text-slate-400">({matchingPoLine.item_code})</span>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-[10px] text-amber-600 dark:text-amber-400 font-sans mt-0.5">
+                            Unmatched against purchase order line schedule
                           </div>
                         )}
                       </td>
@@ -309,13 +342,22 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                       </td>
                       <td className="py-2.5 px-3 text-right tabular-nums">
                         {rateVariancePercent !== null ? (
-                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                            isRateFailed
-                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
-                              : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                          }`}>
-                            {rateVariancePercent > 0 ? `+${rateVariancePercent.toFixed(2)}%` : `${rateVariancePercent.toFixed(2)}%`}
-                          </span>
+                          <div className="flex flex-col items-end gap-0.5">
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                              isRateFailed
+                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                                : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                            }`}>
+                              {rateVariancePercent > 0 ? `+${rateVariancePercent.toFixed(2)}%` : `${rateVariancePercent.toFixed(2)}%`}
+                            </span>
+                            {rateDeltaINR !== null && Math.abs(rateDeltaINR) > 0.01 && (
+                              <span className={`text-[10px] font-mono ${
+                                isRateFailed ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-slate-400'
+                              }`}>
+                                {rateDeltaINR > 0 ? `+${formatINR(rateDeltaINR)}` : formatINR(rateDeltaINR)}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}
@@ -325,19 +367,31 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         {!hasPo ? (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-sans font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                             No PO Record
                           </span>
                         ) : isLineMatch ? (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 inline-flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            Pass
-                          </span>
+                          <div className="inline-flex flex-col items-center">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-sans font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 inline-flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Pass
+                            </span>
+                            <span className="text-[9px] text-emerald-700 dark:text-emerald-400 mt-0.5 font-sans">
+                              Within ±{rateTolerancePercent.toFixed(2)}%
+                            </span>
+                          </div>
                         ) : (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 inline-flex items-center gap-1">
-                            <XCircle className="w-3 h-3 text-rose-600" />
-                            {isRateFailed && isQtyFailed ? 'Rate & Qty Exceeded' : isRateFailed ? 'Rate Exceeded' : 'Qty Exceeded'}
-                          </span>
+                          <div className="inline-flex flex-col items-center gap-0.5">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-sans font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 inline-flex items-center gap-1">
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              {isRateFailed && isQtyFailed ? 'Rate & Qty Exceeded' : isRateFailed ? 'Rate Exceeded' : 'Qty Exceeded'}
+                            </span>
+                            {isRateFailed && rateDeltaINR && rateDeltaINR > 0 && (
+                              <span className="text-[9px] text-rose-600 dark:text-rose-400 font-mono font-semibold">
+                                Action: Debit Note ({formatINR(rateDeltaINR)})
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>

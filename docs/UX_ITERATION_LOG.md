@@ -342,3 +342,61 @@
 ### 8. Stage 8: Checkpoint & Scorecard
 - **Composite Score:** Improved from 8.15 to **8.32 / 10**.
 - **Commit:** `feat(ux-it6): streamline verdict banner, default-collapse case explanation guide, and pull 2-pane workspace above the fold`
+
+
+---
+
+## Iteration 7: Procurement 3-Way Matching Visualization
+
+### 1. Stage 1: Observe & Measure
+- **Target Surface:** Matching Tab (`frontend/src/components/ProcurementVerificationFlow.tsx`).
+- **Initial Deficiencies:**
+  - The 4 procurement nodes (1. Supplier Invoice, 2. Purchase Order, 3. Goods Receipt, 4. Quality Control) were arranged as 4 disjointed grid cards without a connecting progression indicator ($1 \to 2 \to 3 \to 4$).
+  - In the line-item matching table, rate variance was displayed only as a percentage (e.g. `+2.50%`). An AP Lead or Associate had no visibility into the actual monetary discrepancy ($\Delta \text{ INR}$) without doing manual arithmetic.
+  - The Match Status column showed binary Pass/Fail badges without actionable operational recommendations (such as recommending an exact debit note amount when the rate exceeded tolerance).
+
+### 2. Stage 2: Multi-Perspective Review
+- **AP Lead & Associate:** Needs to know the exact financial exposure in INR when an invoice line item overbills compared to the contracted PO rate so they can draft an accurate debit note or request a supplier correction.
+- **Controller:** Demands commercial governance visibility—seeing the rupee delta alongside the percentage variance makes commercial leakage immediately tangible.
+- **Auditor:** Requires clear visual confirmation that lines were cross-referenced against authoritative PO snapshots.
+- **HR Evaluator:** Judges whether the application provides institutional financial software intelligence (like Ramp or Mercury) rather than static data dumps.
+
+### 3. Stage 3: Deep Diagnosis
+- The line items table mapped values but only computed `rateVariancePercent = ((l.rate - poRate) / poRate) * 100`, omitting `rateDeltaINR = (l.rate - poRate) * l.quantity`.
+- The 4 nodes lacked a cohesive horizontal velocity tracker connecting the four stages of three-way matching.
+
+### 4. Stage 4: Explore Alternatives
+- *Alternative A:* Replace the table with stacked card tiles.
+  *Critique:* Rejected. Tabular alignment is essential in finance for scanning multi-line orders, quantities, and rates.
+- *Alternative B (Implemented):* 
+  1. Add a Linear Stage Velocity Tracker ($1 \to 2 \to 3 \to 4$) above the 4 nodes showing the pipeline progression (Billed Claim $\to$ PO Contract $\to$ Receiving GRN $\to$ Quality QC).
+  2. Enhance the Line-by-Line Match table with a dual variance presentation: Rate Variance (`%`) and monetary delta (`+₹X.XX`).
+  3. Introduce inline actionable operational recommendations in the Match Verdict column (e.g., `Action: Debit Note (+₹500.00)` or `Within ±1.50%`).
+
+### 5. Stage 5: Careful Implementation
+- **Modified File:** `frontend/src/components/ProcurementVerificationFlow.tsx`:
+  - Added Linear Stage Velocity Tracker with numeric circular badges and arrow connectors.
+  - Computed `rateDeltaINR = (l.rate - poRate) * l.quantity`.
+  - Added monetary delta chips (`+₹X.XX` in rose or neutral) under the percentage variance badge.
+  - Added actionable triage suggestions in the `Match Verdict & Action` column.
+  - Cleaned up table typography with tabular numerals (`tabular-nums font-mono`).
+
+### 6. Stage 6: Rigorous Verification
+- **Playwright Test Execution (`scratch/inspect_iteration_7.py`):**
+  - Linear Stage Velocity Tracker verified present and active across all 4 stages.
+  - Table headers `Rate Variance` and `Match Verdict & Action` verified.
+  - Verified on exception invoice `AP-26-011` (`inv_dbfcaf77ba9b`) that line item rate discrepancies display the red `Debit Note (+₹X)` recommendation.
+- **Screenshots Saved:**
+  - `scratch/screenshots/it7_matching_passing_1440.png`
+  - `scratch/screenshots/it7_matching_exception_1440.png`
+  - `scratch/screenshots/it7_matching_mobile_375.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 441ms.
+  - `python -m pytest tests/phase_2/ -q`: `6 passed, 0 failed` in 4.74s.
+
+### 7. Stage 7: Independent Critique
+- The matching flow now clearly communicates how the four procurement records interlock, and the line-by-line comparison provides immediate commercial delta visibility.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 8.32 to **8.48 / 10**.
+- **Commit:** `feat(ux-it7): linear stage velocity tracker, monetary rate delta calculations, and actionable debit note recommendations in 3-way match table`
