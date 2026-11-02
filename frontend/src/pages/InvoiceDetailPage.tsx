@@ -1016,82 +1016,94 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             </button>
           </div>
         ) : (
-          <div className="max-w-7xl mx-auto space-y-3">
+          <div className="max-w-7xl mx-auto space-y-2">
             {/* Primary Action Button Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
-                <span>Select operational decision:</span>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Left Group: Discrepancy Triage */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 hidden sm:inline select-none">
+                  Triage:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => { setSelectedAction('HOLD_PENDING_EVIDENCE'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    Hold for Evidence
+                  </button>
+
+                  <button
+                    onClick={() => { setSelectedAction('REQUEST_SUPPLIER_CORRECTION'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    Ask Supplier to Correct
+                  </button>
+
+                  <button
+                    onClick={() => { setSelectedAction('RAISE_DEBIT_NOTE'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    Raise Debit Note
+                  </button>
+                </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Secondary Actions */}
-                <button
-                  onClick={() => { setSelectedAction('HOLD_PENDING_EVIDENCE'); setActionReason(''); }}
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
-                >
-                  Hold for Evidence
-                </button>
+              {/* Right Group: Governance & Sign-Off */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="h-4 w-px bg-slate-200 dark:border-slate-700 hidden md:block" />
+                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-500 hidden lg:inline select-none">
+                  Governance:
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    onClick={() => { setSelectedAction('ESCALATE'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    Escalate
+                  </button>
 
-                <button
-                  onClick={() => { setSelectedAction('REQUEST_SUPPLIER_CORRECTION'); setActionReason(''); }}
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
-                >
-                  Ask Supplier to Correct
-                </button>
+                  <button
+                    onClick={() => { setSelectedAction('QUARANTINE'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="px-2.5 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/60 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    Set Aside (Quarantine)
+                  </button>
 
-                <button
-                  onClick={() => { setSelectedAction('RAISE_DEBIT_NOTE'); setActionReason(''); }}
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
-                >
-                  Raise Debit Note
-                </button>
-
-                <button
-                  onClick={() => { setSelectedAction('ESCALATE'); setActionReason(''); }}
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs font-medium transition-colors shadow-2xs"
-                >
-                  Escalate
-                </button>
-
-                <button
-                  onClick={() => { setSelectedAction('REJECT_INVOICE'); setActionReason(''); }}
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-xs font-medium transition-colors shadow-2xs"
-                >
-                  Reject Invoice
-                </button>
-
-                <button
-                  onClick={() => { setSelectedAction('QUARANTINE'); setActionReason(''); }}
-                  disabled={actionLoading}
-                  className="px-3 py-1.5 rounded-lg border border-purple-200 dark:border-purple-900/60 bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 hover:bg-purple-100 text-xs font-medium transition-colors shadow-2xs"
-                >
-                  Set Aside (Quarantine)
-                </button>
+                  <button
+                    onClick={() => { setSelectedAction('REJECT_INVOICE'); setActionReason(''); }}
+                    disabled={actionLoading}
+                    className="px-2.5 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 text-xs font-medium transition-colors shadow-2xs"
+                  >
+                    Reject Invoice
+                  </button>
+                </div>
 
                 {/* Primary Action Button or Blocked Indicator */}
-                {failedGates.length > 0 ? (
-                  <div
-                    title={`Approval blocked: ${failedGates.length} validation check(s) failed. Policy overrides are disabled.`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 cursor-not-allowed select-none shadow-2xs"
-                  >
-                    <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Approval Blocked ({failedGates.length} Failing Checks)</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setSelectedAction('APPROVE_AP_REVIEW'); setActionReason(''); }}
-                    disabled={actionLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-xs transition-colors"
-                  >
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Approve Review</span>
-                  </button>
-                )}
+                <div className="pl-1 sm:pl-2 sm:border-l border-slate-200 dark:border-slate-700">
+                  {failedGates.length > 0 ? (
+                    <div
+                      title={`Approval blocked: ${failedGates.length} validation check(s) failed. Policy overrides are disabled.`}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 cursor-not-allowed select-none shadow-2xs"
+                    >
+                      <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>Approval Blocked ({failedGates.length} Failing)</span>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setSelectedAction('APPROVE_AP_REVIEW'); setActionReason(''); }}
+                      disabled={actionLoading}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 shadow-xs transition-colors"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Approve Review</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

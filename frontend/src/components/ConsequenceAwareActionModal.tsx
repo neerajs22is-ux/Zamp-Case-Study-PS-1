@@ -169,6 +169,15 @@ export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalPr
 }) => {
   if (!isOpen || !action) return null;
 
+  const formatINR = (val: number | null | undefined) => {
+    if (val === null || val === undefined) return '—';
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2,
+    }).format(val);
+  };
+
   const info = ACTION_CONSEQUENCES[action] || {
     action,
     label: action,
@@ -183,6 +192,7 @@ export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalPr
   const totalAmount = invoice.total_amount || 0;
   const secondPersonCheck = info.requiresSecondPerson(totalAmount, policy.dual_approval_threshold_inr);
   const isApproveBlocked = action === 'APPROVE_AP_REVIEW' && hasFailedGates;
+  const isDualApproval = action === 'APPROVE_AP_REVIEW' && totalAmount >= policy.dual_approval_threshold_inr;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -235,36 +245,62 @@ export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalPr
             </div>
           )}
 
-          {/* Consequence Grid */}
+          {/* Dual Control Step Progression Banner */}
+          {isDualApproval && (
+            <div className="p-3 rounded-lg bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-purple-950 dark:text-purple-200">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span>Dual-Control Governance (Threshold: {formatINR(policy.dual_approval_threshold_inr)})</span>
+                </span>
+                <span className="font-mono text-[10px] text-purple-700 dark:text-purple-300">
+                  Total: {formatINR(totalAmount)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px]">
+                <div className="flex-1 p-2 rounded bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700">
+                  <span className="font-bold text-purple-700 dark:text-purple-300 block text-[10px] uppercase">Step 1 (Now)</span>
+                  <span className="text-slate-800 dark:text-slate-200 font-medium">Initial AP Lead Sign-Off</span>
+                </div>
+                <span className="text-purple-400 font-bold">&rarr;</span>
+                <div className="flex-1 p-2 rounded bg-purple-100/50 dark:bg-purple-900/30 border border-purple-200/60 dark:border-purple-800/60">
+                  <span className="font-bold text-purple-600 dark:text-purple-400 block text-[10px] uppercase">Step 2 (Next)</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium">Financial Controller Review</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Consequence Breakdown - Typographic Layout */}
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
             <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Operational Consequence Breakdown
             </h3>
 
-            <div className="space-y-2 text-[11px]">
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block font-sans">1. What this does:</span>
+            <div className="space-y-2.5 text-[11px]">
+              <div className="pl-2.5 border-l-2 border-indigo-500">
+                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">1. What this does</span>
                 <p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
                   {info.whatHappens}
                 </p>
               </div>
 
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block font-sans">2. Resulting workflow state:</span>
+              <div className="pl-2.5 border-l-2 border-slate-300 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">2. Resulting workflow state</span>
                 <code className="text-indigo-700 dark:text-indigo-300 font-mono text-[10px] bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/60 inline-block mt-0.5">
                   Stage: {info.targetStage}
                 </code>
               </div>
 
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block font-sans">3. Does this require another person?</span>
+              <div className="pl-2.5 border-l-2 border-slate-300 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">3. Does this require another person?</span>
                 <p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
                   {secondPersonCheck.explanation}
                 </p>
               </div>
 
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block font-sans">4. What happens next:</span>
+              <div className="pl-2.5 border-l-2 border-slate-300 dark:border-slate-700">
+                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">4. What happens next</span>
                 <p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
                   {info.whatHappensNext}
                 </p>
@@ -272,10 +308,10 @@ export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalPr
             </div>
 
             {/* Explicit "What It Does NOT Do" Panel */}
-            <div className="p-2.5 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-950 dark:text-amber-200 space-y-1">
+            <div className="p-3 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-950 dark:text-amber-200 space-y-1">
               <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-900 dark:text-amber-300">
                 <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>What this action does NOT do:</span>
+                <span>Explicit Safety & Control Guarantees (What this does NOT do):</span>
               </div>
               <ul className="list-disc list-inside space-y-0.5 text-[10px] pl-1 opacity-90 leading-relaxed font-sans">
                 {info.whatItDoesNOTDo.map((item, idx) => (

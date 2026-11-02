@@ -459,3 +459,64 @@
 ### 8. Stage 8: Checkpoint & Scorecard
 - **Composite Score:** Improved from 8.48 to **8.61 / 10**.
 - **Commit:** `feat(ux-it8): eliminate card-in-card nesting, implement typographic knowledge layout, and streamline policy check drawers`
+
+
+---
+
+## Iteration 9: Approval Actions, Consequences & Modals
+
+### 1. Stage 1: Observe & Measure
+- **Target Surface:** Sticky Bottom Action Bar (`InvoiceDetailPage.tsx`) and `ConsequenceAwareActionModal.tsx`.
+- **Initial Deficiencies:**
+  - The sticky bottom bar presented 7 unorganized buttons in an undifferentiated horizontal line (`Hold`, `Ask Supplier`, `Debit Note`, `Escalate`, `Reject`, `Quarantine`, `Approve Review`).
+  - There was no visual distinction between routine discrepancy triage actions and binding legal/financial sign-off.
+  - When approving high-value invoices ($\ge$ ₹5,00,000) enforcing dual control, the modal explained the requirement in prose but lacked a clear visual two-step progression ($1 \to 2$) showing that AP Lead approval routes to Controller sign-off.
+
+### 2. Stage 2: Multi-Perspective Review
+- **AP Lead & Associate:** Wants clear visual separation so they don't accidentally click `Reject` or `Escalate` when intending to triage via `Hold` or `Debit Note`.
+- **Controller:** Demands explicit verification of dual-control routes before committing sign-offs.
+- **Auditor:** Evaluates internal controls—verifying that approval explicitly disclaims automated bank disbursement or premature ERP posting.
+- **HR Evaluator:** Judges operational polish against institutional banking and procurement products (Stripe, Mercury, Brex).
+
+### 3. Stage 3: Deep Diagnosis
+- Buttons were placed in a single `flex-wrap gap-2` container without semantic clustering.
+- The modal contained nested box borders that cluttered the reading experience.
+
+### 4. Stage 4: Explore Alternatives
+- *Alternative A:* Collapse actions into a dropdown menu.
+  *Critique:* Rejected. AP triage workflows require immediate 1-click visibility into common operations.
+- *Alternative B (Implemented):* 
+  1. Organize the bottom sticky bar into 2 semantic clusters: `Triage:` (Hold, Supplier Correction, Debit Note) and `Governance:` (Escalate, Quarantine, Reject), separated by a subtle vertical divider from the primary `Approve Review` (or `Approval Blocked`) button.
+  2. In `ConsequenceAwareActionModal.tsx`, introduce a Two-Step Dual-Control Progression banner ($1 \to 2$) when total $\ge$ ₹5,00,000, displaying `Step 1 (Now): Initial AP Lead Sign-Off` $\to$ `Step 2 (Next): Financial Controller Review`.
+  3. Flatten the consequence breakdown into clean typographic definition lines with border accents and elevated safety guarantees.
+
+### 5. Stage 5: Careful Implementation
+- **Modified Files:**
+  - `frontend/src/components/ConsequenceAwareActionModal.tsx`:
+    - Added `formatINR` helper.
+    - Integrated Two-Step Dual-Control Progression banner for high-value approvals.
+    - Converted consequence grid to clean typographic sections with colored border-left indicators.
+    - Elevated explicit non-disbursement safety guarantees.
+  - `frontend/src/pages/InvoiceDetailPage.tsx`:
+    - Grouped bottom actions into `Triage:` and `Governance:` sections with divider rules.
+    - Preserved responsive flex wrapping across all screen widths.
+
+### 6. Stage 6: Rigorous Verification
+- **Playwright Test Execution (`scratch/inspect_iteration_9.py`):**
+  - Verified `Triage:` and `Governance:` semantic labels on the bottom bar.
+  - Verified `Confirm Action: Approve Invoice (Internal Sign-Off)` modal displays the consequence breakdown and explicit non-disbursing safety guarantees.
+  - Verified `Approval Blocked` lock button renders when policy checks fail on `AP-26-011`.
+- **Screenshots Saved:**
+  - `scratch/screenshots/it9_approve_modal_standard_1440.png`
+  - `scratch/screenshots/it9_bottom_bar_blocked_1440.png`
+  - `scratch/screenshots/it9_bottom_bar_mobile_375.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 451ms.
+  - `python -m pytest tests/phase_2/ -q`: `6 passed, 0 failed` in 6.16s.
+
+### 7. Stage 7: Independent Critique
+- The bottom action surface now prevents mis-clicks through semantic clustering and provides complete transparency into the operational and governance consequences of every decision.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 8.61 to **8.76 / 10**.
+- **Commit:** `feat(ux-it9): semantic triage and governance action grouping, dual-control two-step visual progression, and consequence modal safety elevation`
