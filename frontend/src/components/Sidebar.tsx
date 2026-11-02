@@ -51,8 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const settingsItems = [
     { to: '/setup', label: 'Setup Checklist', icon: CheckCircle2 },
-    { to: '/settings/connections', label: 'Connections', icon: Link2 },
-    { to: '/settings/reference-data', label: 'Reference Data', icon: Database },
+    { to: '/settings/connections', label: 'Connections & Storage', icon: Link2 },
+    { to: '/settings/reference-data', label: 'Procurement Records', icon: Database },
     ...(canAccessTeam ? [{ to: '/settings/team', label: 'Team & Access', icon: Users }] : []),
   ];
 
@@ -188,10 +188,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </div>
                       {typeof item.badge === 'number' && item.badge > 0 && (
                         <span
-                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold tabular-nums ${
-                            isActive
-                              ? 'bg-indigo-200/60 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200'
-                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums border ${
+                            item.label === 'Invoices'
+                              ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
+                              : 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800'
                           }`}
                         >
                           {item.badge}

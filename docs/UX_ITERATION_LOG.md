@@ -112,3 +112,59 @@
 ### 8. Stage 8: Checkpoint & Scorecard
 - **Composite Score:** Improved from 7.31 to **7.51 / 10**.
 - **Commit:** `feat(ux-it2): streamline dashboard hierarchy, auto-collapse readiness checklist, and pull actionable queue above the fold`
+
+
+---
+
+## Iteration 3: Navigation & Information Architecture
+
+### 1. Stage 1: Observe & Measure
+- **Target Surface:** `AppShell` header breadcrumbs, global `Sidebar`, and cross-application wayfinding.
+- **Empirical Findings:**
+  - Sidebar badge properties (`invoiceCount`, `approvalCount`) were defined in `SidebarProps` but never passed by `AppShell.tsx`, leaving the badges permanently unrendered regardless of queue volume.
+  - Sidebar item label `Reference Data` was abstract database terminology that confused business users; the underlying data is procurement records (Vendors, POs, GRNs, QC).
+  - The top header bar rendered only flat static strings without breadcrumbs, preventing users from seeing their hierarchy or clicking back when viewing an invoice (`/invoices/:id`).
+
+### 2. Stage 2: Multi-Perspective Review
+- **AP Lead & Controller:** Need live ambient counters in the sidebar so they know when exceptions (Invoices queue) or dual approvals require their attention without manually checking `/today` or `/invoices`.
+- **Auditor:** Requires clear, domain-accurate taxonomy ("Procurement Records", "Audit Trail", "Connections & Storage") rather than generic software terms.
+- **HR Evaluator:** Judges whether navigation feels like a cohesive enterprise application with effortless wayfinding and clear hierarchy.
+
+### 3. Stage 3: Deep Diagnosis
+- `AppShell.tsx` did not query or listen to `api.getDashboardMetrics()`, leaving `Sidebar` unpopulated.
+- Header title resolution was purely a flat string return function that ignored path segments and parent routes.
+
+### 4. Stage 4: Explore Alternatives
+- *Alternative A:* Rely on custom React Context for global badge counts. Rejected: unnecessary complexity and potential re-render churn.
+- *Alternative B (Implemented):* Implement a lightweight, resilient query in `AppShell` triggered on `location.pathname` changes and on a 30s background sync. Pass verified counts to `Sidebar`. Add semantic color-coded badges (amber for open exceptions, purple for pending approvals). Add interactive two-part breadcrumbs with clickable parent links.
+
+### 5. Stage 5: Careful Implementation
+- **Modified Files:**
+  - `frontend/src/components/AppShell.tsx`:
+    - Added `navCounts` state querying `api.getDashboardMetrics()`.
+    - Passed `invoiceCount` (exceptions) and `approvalCount` (approvals) into `<Sidebar />`.
+    - Implemented interactive breadcrumbs: `Invoices / <invoice_id>` (with clickable NavLink) and `Management / Procurement Master Records`.
+  - `frontend/src/components/Sidebar.tsx`:
+    - Renamed `Reference Data` to `Procurement Records` and `Connections` to `Connections & Storage`.
+    - Added semantic color-coded badge styles (amber border/fill for Invoices exceptions, purple border/fill for Approvals).
+
+### 6. Stage 6: Rigorous Verification
+- **Playwright Test Execution (`scratch/inspect_iteration_3.py`):**
+  - Verified active amber badge `[2]` renders next to `Invoices` in the sidebar.
+  - Verified navigation to Procurement Records displays `Management / Procurement Master Records` in header.
+  - Verified clicking into an invoice displays `Invoices / inv_dual_eval_sec` with clickable return link.
+  - Screenshots:
+    - `scratch/screenshots/it3_sidebar_badges_1440.png`
+    - `scratch/screenshots/it3_procurement_records_1440.png`
+    - `scratch/screenshots/it3_invoice_detail_header_1440.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 436ms.
+  - `python -m pytest tests/ -q`: `266 passed, 12 skipped, 0 failed` in 37.28s.
+
+### 7. Stage 7: Independent Critique
+- The application now has ambient situational awareness. When an AP operator is working in Audit or Connections, they immediately see `[2]` next to Invoices.
+- Wayfinding inside invoice detail provides a clean breadcrumb back to the filtered ledger.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 7.51 to **7.76 / 10**.
+- **Commit:** `feat(ux-it3): live sidebar notification badges, domain-accurate procurement taxonomy, and clickable breadcrumb navigation`

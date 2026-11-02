@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useLocation, NavLink } from 'react-router-dom';
 import { Menu, ShieldCheck, Keyboard } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
+import { api } from '../api/client';
 import type { AuthenticatedUser, HealthResponse } from '../types';
 
 interface AppShellProps {
@@ -24,7 +25,34 @@ export const AppShell: React.FC<AppShellProps> = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [navCounts, setNavCounts] = useState<{ exceptions: number; approvals: number }>({ exceptions: 0, approvals: 0 });
   const location = useLocation();
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchCounts = async () => {
+      try {
+        const metrics = await api.getDashboardMetrics();
+        if (isMounted && metrics?.summary) {
+          const exceptions = metrics.summary.open_exceptions || 0;
+          const ready = (metrics.summary as any).ready_to_approve || 0;
+          const second = (metrics.summary as any).pending_second_approval || 0;
+          setNavCounts({
+            exceptions,
+            approvals: ready + second,
+          });
+        }
+      } catch {
+        // Silently skip if session not ready
+      }
+    };
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [location.pathname]);
 
   // Register global shortcuts (? for help, g sequences for navigation)
   useKeyboardShortcuts({
@@ -43,8 +71,8 @@ export const AppShell: React.FC<AppShellProps> = ({
     if (pathname.startsWith('/invoices')) return 'Invoices';
     if (pathname.startsWith('/approvals')) return 'Approvals Queue';
     if (pathname.startsWith('/audit')) return 'Audit Trail';
-    if (pathname.startsWith('/settings/connections')) return 'Connections';
-    if (pathname.startsWith('/settings/reference-data')) return 'Reference Data';
+    if (pathname.startsWith('/settings/connections')) return 'Connections & Storage';
+    if (pathname.startsWith('/settings/reference-data')) return 'Procurement Master Records';
     if (pathname.startsWith('/settings/team')) return 'Team & Access';
     return 'Dashboard';
   };
@@ -60,6 +88,8 @@ export const AppShell: React.FC<AppShellProps> = ({
         onLogout={onLogout}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        invoiceCount={navCounts.exceptions}
+        approvalCount={navCounts.approvals}
       />
 
       {/* Main Content Column (offset by 64px on lg viewports for the fixed sidebar) */}
@@ -80,10 +110,33 @@ export const AppShell: React.FC<AppShellProps> = ({
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm sm:text-base text-slate-900 dark:text-white">
-                {getPageTitle(location.pathname)}
-              </span>
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm">
+              {location.pathname.startsWith('/invoices/') ? (
+                <>
+                  <NavLink
+                    to="/invoices"
+                    className="text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-colors font-medium"
+                  >
+                    Invoices
+                  </NavLink>
+                  <span className="text-slate-300 dark:text-slate-700">/</span>
+                  <span className="font-semibold text-slate-900 dark:text-white font-mono">
+                    {location.pathname.replace('/invoices/', '')}
+                  </span>
+                </>
+              ) : location.pathname.startsWith('/settings/') ? (
+                <>
+                  <span className="text-slate-500 dark:text-slate-400 font-medium">Management</span>
+                  <span className="text-slate-300 dark:text-slate-700">/</span>
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {getPageTitle(location.pathname)}
+                  </span>
+                </>
+              ) : (
+                <span className="font-semibold text-slate-900 dark:text-white">
+                  {getPageTitle(location.pathname)}
+                </span>
+              )}
             </div>
           </div>
 
