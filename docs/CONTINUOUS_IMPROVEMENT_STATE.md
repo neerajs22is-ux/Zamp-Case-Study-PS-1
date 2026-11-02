@@ -37,7 +37,7 @@
 | **It. 11** | Connections & Integration Transparency | **COMPLETED** | `ConnectionsPage.tsx` | 4-pillar architecture topology strip, ERP snapshot disclosure, Quarantine Security Vault, copyable admin config parameters |
 | **It. 12** | Procurement Master Reference Data | **COMPLETED** | `SourceRecordsPage.tsx` | Procurement portfolio metric strip, PO utilization visualizer, master data anti-tamper notice, domain matching guidance |
 | **It. 13** | Audit Trail & Immutability Ledger | **COMPLETED** | `AuditPage.tsx` | Immutable audit ledger metric strip, category segmentation, 21-action taxonomy, visual diff & raw JSON payload inspector |
-| **It. 14** | Team Access & Role Governance | QUEUED | `AccessManagementPage.tsx` | RBAC role clarity, invitation security |
+| **It. 14** | Team Access & Role Governance | **COMPLETED** | `AccessManagementPage.tsx` | Role governance metrics strip, RBAC entitlements matrix, member search, invitation security invariant disclosures |
 | **It. 15** | Typography & Visual Hierarchy System | QUEUED | `frontend/src/index.css`, Tailwind tokens | Font scales, tracking, weights, tabular nums |
 | **It. 16** | Spacing, Rhythm & Component Density | QUEUED | Global components | Eliminating ghost cards and cramped paddings |
 | **It. 17** | Tablet & Mobile Ergonomic Polish | QUEUED | Multi-viewport responsive polish | Touch targets, bottom bar tray, mobile drawers |
