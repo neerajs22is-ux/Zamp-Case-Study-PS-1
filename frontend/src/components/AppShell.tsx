@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
-import { Menu, ShieldCheck, Keyboard } from 'lucide-react';
+import { Menu, ShieldCheck, Keyboard, Sparkles } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
+import { HRShowcaseModal } from './HRShowcaseModal';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { api } from '../api/client';
 import type { AuthenticatedUser, HealthResponse } from '../types';
@@ -25,6 +26,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [showcaseOpen, setShowcaseOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<{ exceptions: number; approvals: number }>({ exceptions: 0, approvals: 0 });
   const location = useLocation();
 
@@ -151,6 +153,17 @@ export const AppShell: React.FC<AppShellProps> = ({
               <span>AP Sign-Off Only • No Bank Disbursements</span>
             </div>
 
+            {/* HR Showcase Tour Launcher */}
+            <button
+              onClick={() => setShowcaseOpen(true)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs"
+              title="Open HR Showcase & Evaluation Scenarios Tour"
+              aria-label="Open HR Showcase scenarios tour"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">Showcase Tour</span>
+            </button>
+
             {/* Dev Mode Role Switcher */}
             {isDevMode && onSwitchRole && user && (
               <div className="hidden sm:flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
@@ -199,6 +212,13 @@ export const AppShell: React.FC<AppShellProps> = ({
         <KeyboardShortcutsModal
           isOpen={shortcutsOpen}
           onClose={() => setShortcutsOpen(false)}
+        />
+
+        {/* HR Showcase Tour Dialog */}
+        <HRShowcaseModal
+          isOpen={showcaseOpen}
+          onClose={() => setShowcaseOpen(false)}
+          onSwitchRole={onSwitchRole}
         />
 
         {/* Global Footer */}
