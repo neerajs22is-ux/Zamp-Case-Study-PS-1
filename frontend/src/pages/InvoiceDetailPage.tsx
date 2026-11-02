@@ -11,7 +11,6 @@ import {
   Check,
   AlertTriangle,
   CheckCircle2,
-  XCircle,
   Clock,
   ZoomIn,
   ZoomOut,
@@ -19,11 +18,17 @@ import {
   Info,
   ShieldAlert,
   Lock,
-  Compass
+  Compass,
+  BookOpen
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
 import { DEFAULT_POLICY } from '../content/policy';
+import { GlossaryModal } from '../components/GlossaryModal';
+import { CaseSummaryCard } from '../components/CaseSummaryCard';
+import { ProcurementVerificationFlow } from '../components/ProcurementVerificationFlow';
+import { PolicyChecksGrouped } from '../components/PolicyChecksGrouped';
+import { ConsequenceAwareActionModal } from '../components/ConsequenceAwareActionModal';
 import type { AuthenticatedUser } from '../types';
 
 interface InvoiceDetailPageProps {
@@ -68,6 +73,15 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
+  // Glossary Modal State
+  const [showGlossary, setShowGlossary] = useState(false);
+  const [glossaryTerm, setGlossaryTerm] = useState<string | undefined>(undefined);
+
+  const openGlossaryWithTerm = (term?: string) => {
+    setGlossaryTerm(term);
+    setShowGlossary(true);
+  };
+
   // Policy & Threshold Resolution
   const dualApprovalThreshold = data?.policy?.dual_approval_threshold_inr || data?.approval?.threshold_inr || DEFAULT_POLICY.dual_approval_threshold_inr;
   const rateTolerancePercent = data?.policy?.rate_tolerance_percent || DEFAULT_POLICY.rate_tolerance_percent;
@@ -104,7 +118,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     {
       step: 5,
       title: 'Dual Approval & Audit Trail',
-      description: `Track the complete immutable audit trail. Invoices exceeding ${formatINR(dualApprovalThreshold)} enforce dual approval where two distinct approvers sign off before completion.`,
+      description: `Track the complete append-only audit trail. Invoices exceeding ${formatINR(dualApprovalThreshold)} enforce dual approval where two distinct approvers sign off before completion.`,
       onEnter: () => setActiveTab('history'),
     },
     {
@@ -401,7 +415,15 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
 
         {/* Header Right: Amount & Statutory Due */}
-        <div className="flex items-center gap-3 sm:gap-4 sm:text-right shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 sm:text-right shrink-0">
+          <button
+            onClick={() => openGlossaryWithTerm()}
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors shadow-2xs"
+            title="Open Accounts Payable Terminology Glossary"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span>Glossary</span>
+          </button>
           <button
             onClick={() => {
               setShowTour(true);
@@ -578,7 +600,18 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
       </div>
 
-      {/* Action Execution Feedback Banners */}
+      {/* 2.5 Case Explanation & Decision Guide Card */}
+      <CaseSummaryCard
+        invoice={invoice}
+        matchGates={match_gates}
+        userRole={currentUser?.role || undefined}
+        policy={{
+          dual_approval_threshold_inr: dualApprovalThreshold,
+          rate_tolerance_percent: rateTolerancePercent,
+          rounding_tolerance_inr: 20.0,
+        }}
+        onOpenGlossary={openGlossaryWithTerm}
+      />
       {actionSuccess && (
         <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -751,7 +784,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               }`}
             >
               <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Policy Gates ({passedGates}/{totalGates})</span>
+              <span>Policy Checks ({passedGates}/{totalGates})</span>
               {failedGates.length > 0 && (
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
               )}
@@ -787,70 +820,14 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             {/* TAB 1: MATCHING & LINE ITEMS */}
             {activeTab === 'matching' && (
               <div className="space-y-4">
-                {/* Header Facts Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs">
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Supplier Name</span>
-                    <div className="font-medium text-slate-800 dark:text-slate-200 truncate">{invoice.vendor_name || '—'}</div>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Supplier GSTIN</span>
-                    <div className="font-mono text-slate-800 dark:text-slate-200">{invoice.vendor_gstin || '—'}</div>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">PO Reference</span>
-                    <div className="font-mono text-slate-800 dark:text-slate-200">{invoice.po_reference || 'NONE'}</div>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Billed Subtotal</span>
-                    <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 tabular-nums">{formatINR(invoice.subtotal)}</div>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">GST Tax Amount</span>
-                    <div className="font-mono font-semibold text-slate-800 dark:text-slate-200 tabular-nums">{formatINR(invoice.tax_amount)}</div>
-                  </div>
-                  <div>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Net Payable</span>
-                    <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{formatINR(invoice.net_payable || invoice.total_amount)}</div>
-                  </div>
-                </div>
-
-                {/* Line Items Table */}
-                <div>
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
-                    Billed Line Items ({lines?.length || 0})
-                  </h3>
-                  {(!lines || lines.length === 0) ? (
-                    <div className="text-center py-6 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                      No line items extracted. Extraction pipeline pending.
-                    </div>
-                  ) : (
-                    <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
-                          <tr>
-                            <th className="py-2 px-3 w-10">#</th>
-                            <th className="py-2 px-3">Description</th>
-                            <th className="py-2 px-3 text-right">Qty</th>
-                            <th className="py-2 px-3 text-right">Rate</th>
-                            <th className="py-2 px-3 text-right">Total</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
-                          {lines.map((l: any) => (
-                            <tr key={l.line_number} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                              <td className="py-2 px-3 text-slate-400">{l.line_number}</td>
-                              <td className="py-2 px-3 font-sans text-slate-800 dark:text-slate-200">{l.description}</td>
-                              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">{l.quantity}</td>
-                              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300 tabular-nums">{formatINR(l.rate)}</td>
-                              <td className="py-2 px-3 text-right font-bold text-slate-900 dark:text-white tabular-nums">{formatINR(l.total)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
+                {/* 4-Node Procurement Verification Flow & Line-by-Line Match */}
+                <ProcurementVerificationFlow
+                  invoice={invoice}
+                  lines={lines}
+                  poSnapshot={data?.po_snapshot}
+                  rateTolerancePercent={rateTolerancePercent}
+                  onOpenGlossary={openGlossaryWithTerm}
+                />
 
                 {/* Net Payable Waterfall */}
                 <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-mono space-y-1.5">
@@ -881,96 +858,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               </div>
             )}
 
-            {/* TAB 2: 7 POLICY GATES */}
+            {/* TAB 2: 7 POLICY GATES GROUPED BY 3 BUSINESS QUESTIONS */}
             {activeTab === 'checks' && (
-              <div className="space-y-4">
-                {/* Progress bar */}
-                <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2">
-                  <div className="flex justify-between text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <span>Validation Gate Results</span>
-                    <span>{passedGates} of {totalGates} Checks Passed</span>
-                  </div>
-                  <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full transition-all duration-300 ${
-                        failedGates.length > 0 ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
-                      style={{ width: `${totalGates > 0 ? (passedGates / totalGates) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Gate List */}
-                {(!match_gates || match_gates.length === 0) ? (
-                  <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                    No validation gates evaluated yet for this record.
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {/* Render failed gates first */}
-                    {[...match_gates]
-                      .sort((a: any, b: any) => (a.status === 'FAIL' ? -1 : (b.status === 'FAIL' ? 1 : 0)))
-                      .map((g: any) => (
-                        <div 
-                          key={g.gate_number} 
-                          className={`p-3 rounded-lg border text-xs space-y-1.5 transition-colors ${
-                            g.status === 'PASS'
-                              ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800/50 text-slate-800 dark:text-slate-200'
-                              : g.status === 'FAIL'
-                              ? 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60 text-rose-950 dark:text-rose-200'
-                              : 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50 text-amber-950 dark:text-amber-200'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {g.status === 'PASS' ? (
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                              ) : g.status === 'FAIL' ? (
-                                <XCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-                              ) : (
-                                <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-                              )}
-                              <span className="font-semibold text-slate-900 dark:text-white">
-                                Check #{g.gate_number}: {humanGateName(g.gate_name)}
-                              </span>
-                            </div>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                              g.status === 'PASS'
-                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300'
-                                : g.status === 'FAIL'
-                                ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/60 dark:text-rose-300'
-                                : 'bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300'
-                            }`}>
-                              {g.status}
-                            </span>
-                          </div>
-
-                          {g.notes && (
-                            <p className="text-[11px] opacity-90 pl-6">
-                              {g.notes}
-                            </p>
-                          )}
-
-                          {g.evidence_source_id && (
-                            <div className="pl-6 text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                              <span>Traceable Evidence:</span>
-                              <code className="bg-slate-200 dark:bg-slate-800 px-1 py-0.2 rounded text-slate-700 dark:text-slate-300">
-                                {g.evidence_source_id}
-                              </code>
-                            </div>
-                          )}
-
-                          {g.status === 'FAIL' && (
-                            <div className="pl-6 pt-1 text-[11px] text-rose-950 dark:text-rose-200 flex items-start gap-1.5">
-                              <span className="font-semibold text-rose-950 dark:text-rose-100 shrink-0">Required Action:</span>
-                              <span className="font-medium">{getRequiredNextAction(g.gate_name)}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
+              <PolicyChecksGrouped
+                matchGates={match_gates}
+                onOpenGlossary={openGlossaryWithTerm}
+              />
             )}
 
             {/* TAB 3: EXTRACTED INFORMATION */}
@@ -1033,7 +926,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Immutable Regulatory Audit Trail
+                    Append-Only Audit Trail
                   </h3>
                   <span className="text-[11px] font-mono text-slate-500">{timeline?.length || 0} events logged</span>
                 </div>
@@ -1102,81 +995,6 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           </div>
         ) : (
           <div className="max-w-7xl mx-auto space-y-3">
-            {/* Inline Action Confirmation Drawer */}
-            {selectedAction && (
-              <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/50 dark:bg-indigo-950/30 text-xs space-y-3 shadow-md animate-in fade-in duration-150">
-                <div className="flex items-center justify-between border-b border-indigo-100 dark:border-indigo-900/60 pb-2">
-                  <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-white text-sm">
-                    <span>Confirm Action:</span>
-                    <code className="text-indigo-700 dark:text-indigo-300 font-mono">{selectedAction}</code>
-                  </div>
-                  <button
-                    onClick={() => { setSelectedAction(null); setActionError(null); }}
-                    className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 font-mono text-sm"
-                  >
-                    &times;
-                  </button>
-                </div>
-
-
-                {/* Reason Textarea */}
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-[11px]">
-                    <label className="font-semibold text-slate-800 dark:text-slate-200">
-                      Operational Justification (Mandatory, min 3 characters):
-                    </label>
-                    <span className={`font-mono ${actionReason.trim().length >= 3 ? 'text-slate-400' : 'text-amber-600 font-bold'}`}>
-                      {actionReason.trim().length} chars
-                    </span>
-                  </div>
-                  <textarea
-                    value={actionReason}
-                    onChange={(e) => setActionReason(e.target.value)}
-                    placeholder="Enter thorough operational justification for this financial decision..."
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                    rows={2}
-                  />
-                </div>
-
-                {/* Context-Sensitive Reason Template Chips */}
-                <div className="space-y-1">
-                  <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider">Suggested reason templates:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {getReasonTemplates(selectedAction).map((tmpl, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActionReason(tmpl)}
-                        className="px-2 py-1 rounded-md text-[10px] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors text-left"
-                      >
-                        {tmpl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Confirm / Cancel Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-indigo-100 dark:border-indigo-900/60">
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedAction(null); setActionError(null); }}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleExecuteAction}
-                    disabled={actionLoading || actionReason.trim().length < 3}
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-semibold transition-colors shadow-2xs"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${actionLoading ? 'animate-spin' : ''}`} />
-                    <span>{actionLoading ? 'Recording...' : 'Confirm & Write to Audit'}</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
             {/* Primary Action Button Bar */}
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">
@@ -1257,6 +1075,36 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           </div>
         )}
       </div>
+
+      {/* Consequence-Aware Action Modal */}
+      <ConsequenceAwareActionModal
+        isOpen={Boolean(selectedAction)}
+        action={selectedAction}
+        invoice={invoice}
+        policy={{
+          dual_approval_threshold_inr: dualApprovalThreshold,
+          rate_tolerance_percent: rateTolerancePercent,
+          rounding_tolerance_inr: 20.0,
+        }}
+        reason={actionReason}
+        onReasonChange={setActionReason}
+        reasonTemplates={selectedAction ? getReasonTemplates(selectedAction) : []}
+        isLoading={actionLoading}
+        errorMessage={actionError}
+        onConfirm={handleExecuteAction}
+        onClose={() => {
+          setSelectedAction(null);
+          setActionError(null);
+        }}
+        hasFailedGates={failedGates.length > 0}
+      />
+
+      {/* Accessible Terminology Glossary Modal */}
+      <GlossaryModal
+        isOpen={showGlossary}
+        onClose={() => setShowGlossary(false)}
+        initialTerm={glossaryTerm}
+      />
     </div>
   );
 };

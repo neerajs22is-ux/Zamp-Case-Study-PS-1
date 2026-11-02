@@ -23,7 +23,8 @@ from backend.core.database import get_db
 from backend.core.storage import storage_adapter
 from backend.models.domain import (
     ApprovalRequest, AuditEvent, Document, ExceptionRecord, ExtractedField, ExtractionRun,
-    Invoice, InvoiceLine, MatchGateCheck, MatchRun
+    GoodsReceiptLineSnapshot, GoodsReceiptSnapshot, Invoice, InvoiceLine, MatchGateCheck, MatchRun,
+    QualityControlSnapshot, WorkOrderLineSnapshot, WorkOrderSnapshot
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoice Detail & Actions"])
@@ -96,6 +97,85 @@ def get_invoice_detail(
         for l in lines
     ]
 
+    # 2.5 Authoritative Procurement Reference Snapshot (PO, GRN, QC)
+    po_snapshot = None
+    if inv.po_reference:
+        wo = db.scalar(
+            select(WorkOrderSnapshot).where(
+                WorkOrderSnapshot.po_number == inv.po_reference,
+                WorkOrderSnapshot.org_id == current_user.org_id,
+            )
+        )
+        if wo:
+            wo_lines = db.scalars(
+                select(WorkOrderLineSnapshot)
+                .where(WorkOrderLineSnapshot.po_id == wo.id, WorkOrderLineSnapshot.org_id == current_user.org_id)
+                .order_by(WorkOrderLineSnapshot.line_number)
+            ).all()
+
+            grn = db.scalar(
+                select(GoodsReceiptSnapshot).where(
+                    GoodsReceiptSnapshot.po_number == inv.po_reference,
+                    GoodsReceiptSnapshot.org_id == current_user.org_id,
+                )
+            )
+            grn_lines_data = []
+            qc_data = None
+            if grn:
+                grn_lines_rows = db.scalars(
+                    select(GoodsReceiptLineSnapshot).where(
+                        GoodsReceiptLineSnapshot.grn_id == grn.id,
+                        GoodsReceiptLineSnapshot.org_id == current_user.org_id,
+                    )
+                ).all()
+                grn_lines_data = [
+                    {
+                        "po_line_number": gl.po_line_number,
+                        "accepted_quantity": float(gl.accepted_quantity),
+                        "rejected_quantity": float(gl.rejected_quantity),
+                    }
+                    for gl in grn_lines_rows
+                ]
+                qc = db.scalar(
+                    select(QualityControlSnapshot).where(
+                        QualityControlSnapshot.grn_number == grn.grn_number,
+                        QualityControlSnapshot.org_id == current_user.org_id,
+                    )
+                )
+                if qc:
+                    qc_data = {
+                        "qc_certificate_number": qc.qc_certificate_number,
+                        "overall_status": qc.overall_status,
+                        "retrieved_at": qc.retrieved_at.isoformat() + "Z" if qc.retrieved_at else None,
+                    }
+
+            po_snapshot = {
+                "po_number": wo.po_number,
+                "vendor_code": wo.vendor_code,
+                "total_authorized_amount": float(wo.total_authorized_amount) if wo.total_authorized_amount else None,
+                "remaining_balance": float(wo.remaining_balance) if wo.remaining_balance else None,
+                "currency": wo.currency,
+                "status": wo.status,
+                "retrieved_at": wo.retrieved_at.isoformat() + "Z" if wo.retrieved_at else None,
+                "lines": [
+                    {
+                        "line_number": wol.line_number,
+                        "item_code": wol.item_code,
+                        "description": wol.description,
+                        "authorized_quantity": float(wol.authorized_quantity),
+                        "contracted_unit_rate": float(wol.contracted_unit_rate),
+                        "authorized_line_total": float(wol.authorized_line_total),
+                    }
+                    for wol in wo_lines
+                ],
+                "grn": {
+                    "grn_number": grn.grn_number,
+                    "received_date": grn.received_date.isoformat() + "Z" if grn.received_date else None,
+                    "lines": grn_lines_data,
+                } if grn else None,
+                "qc": qc_data,
+            }
+
     # 3. Match Gates Trace
     match_run = db.scalar(select(MatchRun).where(MatchRun.invoice_id == inv.id).order_by(MatchRun.evaluated_at.desc()))
     gates_data = []
@@ -162,6 +242,7 @@ def get_invoice_detail(
         "document": doc_data,
         "extracted_fields": extracted_fields_data,
         "lines": serialized_lines,
+        "po_snapshot": po_snapshot,
         "match_gates": gates_data,
         "approval": approval_data,
         "timeline": timeline,
