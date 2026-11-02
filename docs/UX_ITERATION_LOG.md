@@ -168,3 +168,55 @@
 ### 8. Stage 8: Checkpoint & Scorecard
 - **Composite Score:** Improved from 7.51 to **7.76 / 10**.
 - **Commit:** `feat(ux-it3): live sidebar notification badges, domain-accurate procurement taxonomy, and clickable breadcrumb navigation`
+
+
+---
+
+## Iteration 4: Onboarding & Guided Discovery
+
+### 1. Stage 1: Observe & Measure
+- **Target Surface:** First-run Setup Wizard (`/setup`) and Contextual Guided Workspace Tour (`InvoiceDetailPage.tsx`).
+- **Empirical Findings:**
+  - Setup Wizard Step 6 (Workspace Review Tour) only showed static coachmark cards. Users had to advance through 5 static slides before finding a finish button, with no immediate bridge into the authentic live review workspace.
+  - In `InvoiceDetailPage.tsx`, the Guided Review Tour was triggered via `window.location.search.includes('tour=true')` which failed during React Router SPA client transitions.
+  - The `Tour` and `Glossary` header buttons were hidden on tablet and mobile viewports (`hidden sm:inline-flex`).
+
+### 2. Stage 2: Multi-Perspective Review
+- **First-Time Operator & HR Evaluator:** Wants to immediately test the real interactive review workspace with live 3-way matching and 7-gate validation, rather than merely reading static slide descriptions.
+- **Mobile User:** Needs access to the Guided Tour and Glossary even on smaller mobile screens.
+
+### 3. Stage 3: Deep Diagnosis
+- Disconnect between setup wizard and actual operational workspace.
+- Reliance on raw `window.location.search` instead of React Router's `useSearchParams` hook caused silent state mismatch on SPA link navigation.
+
+### 4. Stage 4: Explore Alternatives
+- *Alternative A:* Force full linear onboarding completion before allowing invoice inspection. Rejected: excessive barrier to evaluation.
+- *Alternative B (Implemented):* Add a prominent "Launch Live Tour →" hero banner directly on Step 6 targeting authentic sample invoice `AP-26-009`, connect `useSearchParams` in `InvoiceDetailPage.tsx` for instant tour banner activation, persist `ap.workspace_tour.completed` in `localStorage`, and enable responsive visibility of Tour & Glossary header buttons.
+
+### 5. Stage 5: Careful Implementation
+- **Modified Files:**
+  - `frontend/src/pages/OnboardingPage.tsx`:
+    - Imported `Compass` icon.
+    - Added "Experience the Live Interactive Review Workspace" banner on Step 6 with 1-click CTA targeting `AP-26-009`.
+  - `frontend/src/pages/InvoiceDetailPage.tsx`:
+    - Integrated `useSearchParams` from `'react-router-dom'` to reliably handle `?tour=true`.
+    - Maintained Tour & Glossary buttons across all viewports (`inline-flex` with responsive text labels).
+    - Added `localStorage.setItem('ap.workspace_tour.completed', 'true')` on tour completion.
+
+### 6. Stage 6: Rigorous Verification
+- **Runtime Verification:**
+  - Navigating to `/invoices/inv_d76401c096d0?tour=true` loads the full workspace and activates Step 1 of 6 of the Guided AP Workspace Tour with dynamic tab switching and verified live line-item match data.
+  - Screenshots:
+    - `scratch/screenshots/it4_setup_step1_1440.png`
+    - `scratch/screenshots/it4_loaded_tour_1440.png`
+    - `scratch/screenshots/it4_invoice_mobile_375.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 438ms.
+  - `python -m pytest tests/ -q`: `266 passed, 12 skipped, 0 failed` in 37.91s.
+
+### 7. Stage 7: Independent Critique
+- The onboarding journey is now actionable. A reviewer going through setup can immediately experience the real application with live data and guided walkthroughs.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 7.76 to **7.95 / 10**.
+- **Commit:** `feat(ux-it4): live interactive workspace tour bridge from setup wizard, responsive tour triggers, and state-driven coachmarks`

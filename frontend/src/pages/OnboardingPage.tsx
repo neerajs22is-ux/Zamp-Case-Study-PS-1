@@ -14,7 +14,8 @@ import {
   Check,
   RefreshCw,
   ExternalLink,
-  ChevronRight
+  ChevronRight,
+  Compass
 } from 'lucide-react';
 import { api } from '../api/client';
 import type { AuthenticatedUser } from '../types';
@@ -798,6 +799,26 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ currentUser }) =
               </p>
             </div>
 
+            {/* Launch Live Interactive Tour Banner */}
+            <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent border border-indigo-200 dark:border-indigo-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div>
+                <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                  Experience the Live Interactive Review Workspace
+                </span>
+                <span className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5 block">
+                  Step through authentic sample invoice AP-26-009 with live 3-way matching, tolerance gates, and policy checks.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(`/invoices/${uploadedInvoiceId || 'inv_d76401c096d0'}?tour=true`)}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>Launch Live Tour &rarr;</span>
+              </button>
+            </div>
+
             {/* Interactive Coachmark Card */}
             <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -836,13 +857,25 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ currentUser }) =
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 ) : (
-                  <button
-                    onClick={() => setCurrentStep(7)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs"
-                  >
-                    <span>Finish tour</span>
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/invoices/${uploadedInvoiceId || 'inv_d76401c096d0'}?tour=true`)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                      title="Open the real live invoice workspace with guided coachmarks active"
+                    >
+                      <Compass className="w-3.5 h-3.5" />
+                      <span>Launch Live Tour &rarr;</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(7)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                    >
+                      <span>Finish &check;</span>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

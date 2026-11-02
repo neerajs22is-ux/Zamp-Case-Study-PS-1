@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   ArrowLeft, 
   FileText, 
@@ -58,6 +59,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   
   // Navigation & Tabs
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('matching');
   
   // Document Viewer State
@@ -145,10 +147,15 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
   useEffect(() => {
     loadDetail();
-    if (window.location.search.includes('tour=true')) {
-      setShowTour(true);
-    }
   }, [invoiceId]);
+
+  useEffect(() => {
+    if (searchParams.get('tour') === 'true') {
+      setShowTour(true);
+      setTourStep(1);
+      tourSteps[0].onEnter();
+    }
+  }, [searchParams]);
 
   // Review Workspace Ergonomic Keyboard Shortcuts
   useEffect(() => {
@@ -428,11 +435,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         <div className="flex items-center gap-2 sm:gap-3 sm:text-right shrink-0">
           <button
             onClick={() => openGlossaryWithTerm()}
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-medium transition-colors shadow-2xs"
             title="Open Accounts Payable Terminology Glossary"
           >
             <BookOpen className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-            <span>Glossary</span>
+            <span className="hidden sm:inline">Glossary</span>
           </button>
           <button
             onClick={() => {
@@ -440,11 +447,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               setTourStep(1);
               tourSteps[0].onEnter();
             }}
-            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-xs font-medium transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800/80 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-xs font-medium transition-colors shadow-2xs"
             title="Start Guided AP Review Tour"
           >
             <Compass className="w-3.5 h-3.5" />
-            <span>Tour</span>
+            <span className="hidden sm:inline">Tour</span>
           </button>
           <div>
             <div className="text-xl font-bold font-mono text-slate-900 dark:text-white tabular-nums">
@@ -512,7 +519,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               </button>
             ) : (
               <button
-                onClick={() => setShowTour(false)}
+                onClick={() => {
+                  setShowTour(false);
+                  localStorage.setItem('ap.workspace_tour.completed', 'true');
+                }}
                 className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition-colors shadow-xs"
               >
                 Finish Tour &check;
