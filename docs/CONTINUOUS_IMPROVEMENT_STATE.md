@@ -28,8 +28,8 @@
 | **It. 2** | Dashboard Hierarchy & Operational Clarity | **COMPLETED** | `DashboardPage.tsx` | Auto-collapsing readiness checklist, linear velocity strip, pulled queue above fold (y=702px) |
 | **It. 3** | Navigation & Information Architecture | **COMPLETED** | `AppShell.tsx`, `Sidebar.tsx` | Ambient sidebar badges (exceptions/approvals), Procurement Records taxonomy, interactive breadcrumbs |
 | **It. 4** | Onboarding & Guided Discovery | **COMPLETED** | `OnboardingPage.tsx`, `InvoiceDetailPage.tsx` | Live workspace tour bridge from Step 6, state-driven searchParams tour activation, responsive tour controls |
-| **It. 5** | Invoice Inbox Ledger & Scanability | IN PROGRESS | `InboxPage.tsx` | Table layout, search/filters, density |
-| **It. 6** | Invoice Detail Workspace & Above-Fold Layout | QUEUED | `InvoiceDetailPage.tsx` | 2-pane ratio, scrolling, sticky header |
+| **It. 5** | Invoice Inbox Ledger & Scanability | **COMPLETED** | `InboxPage.tsx` | Quick segmented tabs, zero-latency real-time search, full row clickability, review CTA buttons, sticky header |
+| **It. 6** | Invoice Detail Workspace & Above-Fold Layout | IN PROGRESS | `InvoiceDetailPage.tsx` | 2-pane ratio, scrolling, sticky header |
 | **It. 7** | Procurement 3-Way Matching Visualization | QUEUED | `ProcurementVerificationFlow.tsx` | Line item cross-referencing, visual hierarchy |
 | **It. 8** | Policy Checks & Plain-Language Explanations | QUEUED | `PolicyChecksGrouped.tsx` | Eliminating card-in-card nesting, clear next steps |
 | **It. 9** | Approval Actions, Consequences & Modals | QUEUED | `ConsequenceAwareActionModal.tsx`, Bottom bar | Action certainty, impact transparency |

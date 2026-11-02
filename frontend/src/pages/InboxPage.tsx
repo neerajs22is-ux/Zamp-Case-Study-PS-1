@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Inbox as InboxIcon, 
@@ -11,7 +11,9 @@ import {
   CheckCircle2,
   AlertCircle,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search,
+  X
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
@@ -27,10 +29,58 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
   const [loading, setLoading] = useState(true);
   const [stageFilter, setStageFilter] = useState<string>(searchParams.get('stage') || '');
   const [decisionFilter, setDecisionFilter] = useState<string>(searchParams.get('decision') || '');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [syncingMailbox, setSyncingMailbox] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  const activeQuickTab = (() => {
+    if (stageFilter === 'ACTION_REQUIRED') return 'EXCEPTIONS';
+    if (decisionFilter === 'AUTO_APPROVED') return 'READY';
+    if (decisionFilter === 'MANUALLY_APPROVED') return 'APPROVED';
+    if (decisionFilter === 'QUARANTINED') return 'QUARANTINE';
+    return 'ALL';
+  })();
+
+  const setQuickTab = (tab: string) => {
+    setPage(1);
+    const next = new URLSearchParams();
+    if (tab === 'EXCEPTIONS') {
+      next.set('stage', 'ACTION_REQUIRED');
+      setStageFilter('ACTION_REQUIRED');
+      setDecisionFilter('');
+    } else if (tab === 'READY') {
+      next.set('decision', 'AUTO_APPROVED');
+      setStageFilter('');
+      setDecisionFilter('AUTO_APPROVED');
+    } else if (tab === 'APPROVED') {
+      next.set('decision', 'MANUALLY_APPROVED');
+      setStageFilter('');
+      setDecisionFilter('MANUALLY_APPROVED');
+    } else if (tab === 'QUARANTINE') {
+      next.set('decision', 'QUARANTINED');
+      setStageFilter('');
+      setDecisionFilter('QUARANTINED');
+    } else {
+      setStageFilter('');
+      setDecisionFilter('');
+    }
+    setSearchParams(next);
+  };
+
+  const filteredItems = useMemo(() => {
+    if (!data?.items) return [];
+    if (!searchQuery.trim()) return data.items;
+    const q = searchQuery.toLowerCase().trim();
+    return data.items.filter((inv) =>
+      (inv.vendor_name || '').toLowerCase().includes(q) ||
+      (inv.invoice_number || '').toLowerCase().includes(q) ||
+      (inv.po_reference || '').toLowerCase().includes(q) ||
+      (inv.vendor_gstin || '').toLowerCase().includes(q) ||
+      inv.id.toLowerCase().includes(q)
+    );
+  }, [data?.items, searchQuery]);
 
   // Sync state if query params change externally
   useEffect(() => {
@@ -200,43 +250,94 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
         </div>
       )}
 
-      {/* Filter Strip */}
-      <div className="flex flex-wrap items-center gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl text-xs shadow-2xs">
-        <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium">
-          <Filter className="w-3.5 h-3.5 text-slate-400" />
-          <span>Filters:</span>
+      {/* Quick Segmented Ledger Tabs */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs border-b border-slate-200 dark:border-slate-800">
+        {[
+          { id: 'ALL', label: 'All Invoices' },
+          { id: 'EXCEPTIONS', label: 'Needs Attention', badge: 'Action Required', badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' },
+          { id: 'READY', label: 'Ready to Approve', badge: 'Clean Match', badgeColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' },
+          { id: 'APPROVED', label: 'Approved', badge: 'Complete', badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' },
+        ].map((tab) => {
+          const isActive = activeQuickTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setQuickTab(tab.id)}
+              className={`inline-flex items-center gap-2 px-3.5 py-2 font-medium border-b-2 -mb-px whitespace-nowrap transition-colors ${
+                isActive
+                  ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400 font-semibold'
+                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className={`px-1.5 py-0.2 rounded text-[10px] font-medium ${tab.badgeColor}`}>
+                  {tab.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filter & Real-Time Search Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-xl text-xs shadow-2xs">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search supplier, invoice #, PO reference..."
+            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white pl-8 pr-8 py-1.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
 
-        <select
-          value={stageFilter}
-          onChange={(e) => handleStageChange(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
-        >
-          <option value="">All Processing Stages</option>
-          <option value="ACTION_REQUIRED">Action Required (Needs Human Review)</option>
-          <option value="DECIDED">Decided (Evaluation Complete)</option>
-          <option value="MATCHING">Matching (PO / GRN Verification)</option>
-          <option value="EXTRACTED">Extracted (Data Parsed)</option>
-          <option value="PARSING">Processing (OCR & AI Ingestion)</option>
-          <option value="VALIDATING">Validating (Format & Sanity Checks)</option>
-          <option value="RECEIVED">Received (Pending Pipeline)</option>
-        </select>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 font-medium hidden sm:flex">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <span>Advanced:</span>
+          </div>
 
-        <select
-          value={decisionFilter}
-          onChange={(e) => handleDecisionChange(e.target.value)}
-          className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
-        >
-          <option value="">All Verification Decisions</option>
-          <option value="AUTO_APPROVED">Passed Straight-Through (All Gates Met)</option>
-          <option value="MANUALLY_APPROVED">AP Team Approved (Human Sign-off)</option>
-          <option value="NEEDS_REVIEW">Needs Review (Exceptions / Discrepancies)</option>
-          <option value="REJECTED">Rejected by AP</option>
-          <option value="QUARANTINED">Quarantined (Security / Fraud Block)</option>
-        </select>
+          <select
+            value={stageFilter}
+            onChange={(e) => handleStageChange(e.target.value)}
+            className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+          >
+            <option value="">All Processing Stages</option>
+            <option value="ACTION_REQUIRED">Action Required (Needs Human Review)</option>
+            <option value="DECIDED">Decided (Evaluation Complete)</option>
+            <option value="MATCHING">Matching (PO / GRN Verification)</option>
+            <option value="EXTRACTED">Extracted (Data Parsed)</option>
+            <option value="PARSING">Processing (OCR & AI Ingestion)</option>
+            <option value="VALIDATING">Validating (Format & Sanity Checks)</option>
+            <option value="RECEIVED">Received (Pending Pipeline)</option>
+          </select>
 
-        <div className="w-full sm:w-auto sm:ml-auto text-slate-500 dark:text-slate-400 font-mono text-[11px] tabular-nums">
-          Showing {data?.items.length || 0} of {data?.total_count || 0} records
+          <select
+            value={decisionFilter}
+            onChange={(e) => handleDecisionChange(e.target.value)}
+            className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+          >
+            <option value="">All Verification Decisions</option>
+            <option value="AUTO_APPROVED">Passed Straight-Through (All Gates Met)</option>
+            <option value="MANUALLY_APPROVED">AP Team Approved (Human Sign-off)</option>
+            <option value="NEEDS_REVIEW">Needs Review (Exceptions / Discrepancies)</option>
+            <option value="REJECTED">Rejected by AP</option>
+            <option value="QUARANTINED">Quarantined (Security / Fraud Block)</option>
+          </select>
+
+          <div className="text-slate-500 dark:text-slate-400 font-mono text-[11px] tabular-nums pl-1">
+            {filteredItems.length} records
+          </div>
         </div>
       </div>
 
@@ -250,10 +351,18 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
               No invoices match your current filter. Upload an invoice in <span className="text-indigo-600 dark:text-indigo-400 underline cursor-pointer">Connections</span> or configure intake sources to populate this list.
             </p>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="py-12 text-center text-slate-500 text-xs space-y-2">
+            <Search className="w-6 h-6 text-slate-400 mx-auto" />
+            <p className="font-semibold text-slate-700 dark:text-slate-300">No invoices matched "{searchQuery}"</p>
+            <button onClick={() => setSearchQuery('')} className="text-indigo-600 hover:underline font-medium">
+              Clear search filter
+            </button>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs min-w-[760px]">
-              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider">
+              <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider backdrop-blur-xs">
                 <tr>
                   <th className="py-3 px-4">Supplier</th>
                   <th className="py-3 px-4">Invoice #</th>
@@ -265,19 +374,25 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {data.items.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                {filteredItems.map((inv) => (
+                  <tr 
+                    key={inv.id} 
+                    onClick={() => onSelectInvoice(inv.id)}
+                    className="hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
+                  >
                     <td className="py-3 px-4">
-                      <div className="font-medium text-slate-900 dark:text-slate-100">{inv.vendor_name || 'Unknown Supplier'}</div>
+                      <div className="font-medium text-slate-900 dark:text-slate-100 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {inv.vendor_name || 'Unknown Supplier'}
+                      </div>
                       <div className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{inv.vendor_gstin || 'No GSTIN'}</div>
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">
                       {inv.invoice_number || inv.id.substring(0, 10)}
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400">
                       {inv.po_reference || '—'}
                     </td>
-                    <td className="py-3 px-4 font-mono font-semibold text-right text-slate-900 dark:text-slate-100 tabular-nums">
+                    <td className="py-3 px-4 font-mono font-semibold text-right text-slate-900 dark:text-white tabular-nums">
                       {formatINR(inv.total_amount)}
                     </td>
                     <td className="py-3 px-4 text-[11px] font-mono">
@@ -288,10 +403,15 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button
-                        onClick={() => onSelectInvoice(inv.id)}
-                        className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium text-xs hover:underline"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectInvoice(inv.id);
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/60 shadow-2xs transition-colors"
                       >
-                        Inspect <ArrowUpRight className="w-3 h-3" />
+                        <span>Review</span>
+                        <ArrowUpRight className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                       </button>
                     </td>
                   </tr>
