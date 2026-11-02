@@ -31,8 +31,8 @@
 | **It. 5** | Invoice Inbox Ledger & Scanability | **COMPLETED** | `InboxPage.tsx` | Quick segmented tabs, zero-latency real-time search, full row clickability, review CTA buttons, sticky header |
 | **It. 6** | Invoice Detail Workspace & Above-Fold Layout | **COMPLETED** | `CaseSummaryCard.tsx`, `InvoiceDetailPage.tsx` | Streamlined verdict banner, default-collapsed decision guide, pulled 2-pane workspace up by 301.7px (y=260px) |
 | **It. 7** | Procurement 3-Way Matching Visualization | **COMPLETED** | `ProcurementVerificationFlow.tsx` | Linear stage velocity tracker ($1 \to 2 \to 3 \to 4$), dual rate variance (% and INR delta), actionable debit note recommendations |
-| **It. 8** | Policy Checks & Plain-Language Explanations | IN PROGRESS | `PolicyChecksGrouped.tsx` | Eliminating card-in-card nesting, clear next steps |
-| **It. 9** | Approval Actions, Consequences & Modals | QUEUED | `ConsequenceAwareActionModal.tsx`, Bottom bar | Action certainty, impact transparency |
+| **It. 8** | Policy Checks & Plain-Language Explanations | **COMPLETED** | `PolicyChecksGrouped.tsx` | Eliminating 4-tier card nesting, typographic knowledge grid layout, clear next steps |
+| **It. 9** | Approval Actions, Consequences & Modals | IN PROGRESS | `ConsequenceAwareActionModal.tsx`, Bottom bar | Action certainty, impact transparency |
 | **It. 10** | Exception Management & Statutory Urgency | QUEUED | `ExceptionsPage.tsx` | MSME sorting, reassign UX, exposure |
 | **It. 11** | Connections & Integration Transparency | QUEUED | `ConnectionsPage.tsx` | Status honesty, health diagnostics, setup |
 | **It. 12** | Procurement Master Reference Data | QUEUED | `SourceRecordsPage.tsx` | Provenance badges, tab switching, search |

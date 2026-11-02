@@ -223,7 +223,7 @@ export const PolicyChecksGrouped: React.FC<PolicyChecksGroupedProps> = ({ matchG
               </div>
 
               {/* Group Gates List */}
-              <div className="p-3 space-y-2.5">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {sortedGates.map((gate) => {
                   const kb = GATE_KNOWLEDGE_BASE[gate.gate_name];
                   const isExpanded = expandedGates[gate.gate_name] ?? (gate.status === 'FAIL');
@@ -233,18 +233,18 @@ export const PolicyChecksGrouped: React.FC<PolicyChecksGroupedProps> = ({ matchG
                   return (
                     <div
                       key={gate.gate_number || gate.gate_name}
-                      className={`rounded-lg border transition-all duration-150 ${
+                      className={`transition-colors duration-150 ${
                         isFail
-                          ? 'bg-rose-50/40 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/60 shadow-xs'
+                          ? 'bg-rose-50/30 dark:bg-rose-950/20'
                           : isPass
-                          ? 'bg-slate-50/50 dark:bg-slate-950/30 border-slate-200/80 dark:border-slate-800/80'
-                          : 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/60'
+                          ? 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'
+                          : 'bg-amber-50/30 dark:bg-amber-950/20'
                       }`}
                     >
                       {/* Gate Row Header */}
                       <div 
                         onClick={() => toggleGate(gate.gate_name)}
-                        className="p-3 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-slate-100/50 dark:hover:bg-slate-800/30 rounded-lg transition-colors"
+                        className="px-3.5 py-3 flex items-center justify-between gap-3 cursor-pointer select-none transition-colors"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
                           {isPass ? (
@@ -297,67 +297,69 @@ export const PolicyChecksGrouped: React.FC<PolicyChecksGroupedProps> = ({ matchG
                         </div>
                       </div>
 
-                      {/* Progressive Disclosure Explanation Drawer */}
+                      {/* Progressive Disclosure Explanation Drawer (Typographic - No Nested Cards) */}
                       {isExpanded && kb && (
-                        <div className="px-3.5 pb-3.5 pt-1 border-t border-slate-200/60 dark:border-slate-800/60 space-y-2.5 text-xs animate-in fade-in duration-150">
+                        <div className="px-4 pb-3.5 pt-1 border-t border-slate-100 dark:border-slate-800/60 space-y-2.5 text-xs bg-slate-50/50 dark:bg-slate-950/40 animate-in fade-in duration-150">
                           {/* Evidence reference */}
                           {gate.evidence_source_id && (
                             <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 flex items-center gap-1.5 pt-1">
                               <span className="font-sans font-medium text-slate-600 dark:text-slate-300">Traceable Evidence Source:</span>
-                              <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200">
+                              <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-800 dark:text-slate-200 font-mono text-[10px]">
                                 {gate.evidence_source_id}
                               </code>
                             </div>
                           )}
 
-                          {/* Knowledge Grid */}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-[11px]">
-                            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
-                              <strong className="text-slate-900 dark:text-white block font-semibold mb-0.5">
-                                What is checked:
+                          {/* Typographic Knowledge Grid */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-5 gap-y-2.5 pt-1 text-[11px]">
+                            <div className="space-y-0.5">
+                              <strong className="text-slate-900 dark:text-white block font-semibold">
+                                What the system checked:
                               </strong>
-                              <span className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                                 {kb.whatIsChecked}
-                              </span>
+                              </p>
                             </div>
 
-                            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
-                              <strong className="text-slate-900 dark:text-white block font-semibold mb-0.5">
-                                Why the business needs it:
+                            <div className="space-y-0.5">
+                              <strong className="text-slate-900 dark:text-white block font-semibold">
+                                Why business policy requires it:
                               </strong>
-                              <span className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                                 {kb.whyNeeded}
-                              </span>
+                              </p>
                             </div>
 
-                            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
-                              <strong className="text-emerald-700 dark:text-emerald-400 block font-semibold mb-0.5">
-                                What PASS means:
+                            <div className="space-y-0.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60">
+                              <strong className="text-emerald-700 dark:text-emerald-400 flex items-center gap-1 font-semibold">
+                                <CheckCircle2 className="w-3 h-3" />
+                                <span>What PASS means:</span>
                               </strong>
-                              <span className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                                 {kb.passMeaning}
-                              </span>
+                              </p>
                             </div>
 
-                            <div className="p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800">
-                              <strong className="text-rose-700 dark:text-rose-400 block font-semibold mb-0.5">
-                                What FAIL means:
+                            <div className="space-y-0.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800/60">
+                              <strong className="text-rose-700 dark:text-rose-400 flex items-center gap-1 font-semibold">
+                                <XCircle className="w-3 h-3" />
+                                <span>What FAIL means:</span>
                               </strong>
-                              <span className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
                                 {kb.failMeaning}
-                              </span>
+                              </p>
                             </div>
                           </div>
 
                           {/* Next Steps for Failed Gate */}
                           {isFail && (
-                            <div className="p-2.5 rounded-lg bg-rose-100/70 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-900 text-rose-950 dark:text-rose-200 text-xs flex items-start gap-2">
+                            <div className="mt-2 p-2.5 rounded-md bg-rose-100/70 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-900 text-rose-950 dark:text-rose-200 text-xs flex items-start gap-2">
                               <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
                               <div>
                                 <span className="font-bold block text-rose-950 dark:text-rose-100 mb-0.5">
                                   Required Action:
                                 </span>
-                                <p className="leading-relaxed">
+                                <p className="leading-relaxed text-[11px]">
                                   {kb.actionOnFail}
                                 </p>
                               </div>
