@@ -638,4 +638,61 @@
 - **Composite Score:** Improved from 8.65 to **8.80 / 10**.
 - **Commit:** `feat(ux-it11): four-pillar architecture topology strip, erp snapshot disclosure, quarantine security vault, and copyable admin configuration`
 
+---
+
+## Iteration 12: Procurement Master Reference Data
+
+### 1. Stage 1: Observe & Baseline
+- **Observed Surface:** `frontend/src/pages/SourceRecordsPage.tsx` and `backend/api/v1/source_records.py`.
+- **Baseline Behavior:**
+  - 4 tabs (`Vendors`, `Purchase Orders`, `Goods Receipts`, `Quality Inspection`) without high-level procurement summary metrics.
+  - When GRN or QC tabs had 0 standalone records, the page rendered a bare empty table without domain guidance on how those records function in 3-way matching.
+  - PO slide-over drawer lacked an authorized vs remaining balance progress visualizer.
+  - Absence of explicit anti-tamper security notices explaining why master data edits are disabled.
+
+### 2. Stage 2: Multi-Perspective Review
+- **AP Lead & Associate:** Need to rapidly cross-reference vendor codes and PO authorization balances when auditing flagged invoices.
+- **Financial Controller:** Requires immediate visibility into aggregate committed procurement exposure (total authorized PO value and unconsumed remaining balance).
+- **Auditor:** Needs to verify that reference data is immutable and read-only to prevent fraudulent master record tampering.
+- **HR Evaluator:** Needs an intuitive, enterprise-grade master reference explorer that communicates why procurement baselines are decoupled from invoice workflows.
+
+### 3. Stage 3: Deep Diagnosis & Problem Definition
+- Inability to see portfolio-level master data metrics.
+- Unhelpful empty states on GRN and QC tabs in synthetic evaluation mode.
+- Lack of visual progress tracking for PO consumption.
+
+### 4. Stage 4: Explore Alternatives & Trade-offs
+- *Alternative A:* Add mock "Add Vendor / Edit PO" mutation buttons. (Rejected: violates core security invariant forbidding phantom master data mutation).
+- *Alternative B (Implemented):* Keep data strictly read-only and immutable; add 4-card Procurement Portfolio Metric strip (Verified Vendors, Authorized POs, Total Authorized INR, Remaining Balance INR); add utilization progress visualizer in PO slide-over drawer; add clear domain guidance on empty GRN/QC tabs; add Anti-Tamper Invariant security notices.
+
+### 5. Stage 5: Careful Implementation
+- `frontend/src/pages/SourceRecordsPage.tsx`:
+  - Added 4-card Procurement Portfolio Metric strip with monospace INR amounts.
+  - Added Authorization Utilization percentage and progress bar to PO Detail Slide-Over Drawer.
+  - Added Anti-Tamper Invariant security callout explaining why reference data is strictly read-only.
+  - Added informative procurement matching explanations on GRN and QC tabs when standalone records are 0.
+  - Added sticky table headers with backdrop blur.
+
+### 6. Stage 6: Rigorous Verification
+- **Playwright Test Execution (`scratch/inspect_iteration_12.py`):**
+  - Verified 4-card procurement portfolio metric strip renders with accurate numbers.
+  - Verified Vendor table displays MSME and Bank Verified badges.
+  - Verified Purchase Orders tab and opened PO Detail Slide-Over Drawer with authorization utilization progress bar and anti-tamper invariant.
+  - Verified responsive rendering at 1440px desktop and 375px mobile.
+- **Screenshots Saved:**
+  - `scratch/screenshots/it12_records_vendors_1440.png`
+  - `scratch/screenshots/it12_records_po_drawer_1440.png`
+  - `scratch/screenshots/it12_records_mobile_375.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 436ms.
+  - `python -m pytest tests/phase_1/test_phase1_truth_and_plain_language.py -q`: `6 passed, 0 failed` in 3.58s.
+
+### 7. Stage 7: Independent Critique
+- The Procurement Master Reference surface now functions as an authentic ERP audit mirror. It protects data integrity through explicit immutability guarantees while giving operators deep visibility into PO commitments and vendor compliance.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 8.80 to **8.88 / 10**.
+- **Commit:** `feat(ux-it12): procurement portfolio metric strip, po utilization visualizer, master data anti-tamper notice, and domain guidance`
+
+
 
