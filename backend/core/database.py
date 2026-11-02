@@ -41,8 +41,18 @@ def get_engine():
         )
 
     # PostgreSQL configuration
+    # Note: When using transaction poolers like PgBouncer (e.g. Supabase port 6543),
+    # prepared statements can cause DuplicatePreparedStatement errors across re-used pooled connections.
+    # Setting prepare_threshold=None for psycopg v3 disables client-side prepared statement caching cleanly.
+    pg_connect_args = {}
+    if "psycopg" in db_url and "psycopg2" not in db_url:
+        pg_connect_args["prepare_threshold"] = None
+    elif db_url.startswith("postgresql://") or db_url.startswith("postgresql+psycopg://"):
+        pg_connect_args["prepare_threshold"] = None
+
     return create_engine(
         db_url,
+        connect_args=pg_connect_args,
         poolclass=QueuePool,
         pool_size=settings.DB_POOL_SIZE,
         max_overflow=settings.DB_MAX_OVERFLOW,
