@@ -49,7 +49,8 @@ def list_invoices(
     if decision:
         stmt = stmt.where(Invoice.decision == decision)
     if vendor:
-        stmt = stmt.where(Invoice.vendor_name.ilike(f"%{vendor}%"))
+        escaped_vendor = vendor.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        stmt = stmt.where(Invoice.vendor_name.ilike(f"%{escaped_vendor}%", escape="\\"))
 
     # Total count query
     count_stmt = select(func.count()).select_from(stmt.subquery())

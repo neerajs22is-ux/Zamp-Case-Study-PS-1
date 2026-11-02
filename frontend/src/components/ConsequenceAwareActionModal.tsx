@@ -333,7 +333,7 @@ export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalPr
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex items-center justify-between gap-3">
+        <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2.5">
           <button
             type="button"
             onClick={onClose}

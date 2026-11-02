@@ -145,7 +145,7 @@ export const SourceRecordsPage: React.FC = () => {
       {/* Tabs and Search Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800/80 text-xs">
+        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800/80 text-xs overflow-x-auto whitespace-nowrap max-w-full">
           <button
             onClick={() => setActiveTab('vendors')}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-medium transition-colors ${
@@ -259,7 +259,7 @@ export const SourceRecordsPage: React.FC = () => {
                     No vendor records match &quot;{searchQuery}&quot;.
                   </div>
                 ) : (
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[660px]">
                     <thead className="bg-slate-50 dark:bg-slate-950/60 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
                       <tr>
                         <th className="py-2.5 px-4 font-medium">Vendor Code</th>

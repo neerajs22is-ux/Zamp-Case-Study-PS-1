@@ -96,7 +96,7 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
         </div>
 
         {/* 4 Flow Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 pt-1">
           {/* Node 1: Invoice */}
           <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs space-y-1.5">
             <div className="flex items-center justify-between">
@@ -245,7 +245,7 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
           </div>
         ) : (
           <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[640px]">
+            <table className="w-full text-left text-xs min-w-[780px]">
               <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
                 <tr>
                   <th className="py-2.5 px-3 w-8">#</th>

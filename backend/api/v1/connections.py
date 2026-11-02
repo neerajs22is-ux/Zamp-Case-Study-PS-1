@@ -73,6 +73,11 @@ def get_connections_status(
             records = db.execute(
                 select(QuarantinedDocument, Document)
                 .join(Document, QuarantinedDocument.document_id == Document.id)
+                .where(
+                    QuarantinedDocument.org_id == current_user.org_id,
+                    Document.org_id == current_user.org_id,
+                )
+                .order_by(QuarantinedDocument.created_at.desc())
                 .limit(20)
             ).all()
             for q, doc in records:
@@ -106,7 +111,9 @@ def get_connections_status(
 async def upload_invoice(
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    current_user: AuthenticatedUser = Depends(require_active_membership),
+    current_user: AuthenticatedUser = Depends(
+        require_role([UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
+    ),
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
     """Authenticated manual invoice upload (delegates to core document ingestion pipeline)."""

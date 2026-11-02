@@ -92,9 +92,16 @@ async def serve_spa_or_asset(full_path: str):
     if full_path.startswith("api/"):
         return JSONResponse(status_code=404, content={"detail": f"API endpoint '/{full_path}' not found."})
 
-    target_file = os.path.join(frontend_dist, full_path)
-    if full_path and os.path.isfile(target_file):
-        return FileResponse(target_file)
+    safe_base = os.path.abspath(frontend_dist)
+    target_file = os.path.abspath(os.path.join(safe_base, full_path.lstrip("/\\")))
+
+    # Guard against directory traversal
+    try:
+        if os.path.commonpath([safe_base, target_file]) == safe_base:
+            if full_path and os.path.isfile(target_file):
+                return FileResponse(target_file)
+    except (ValueError, Exception):
+        pass  # Different drives or invalid path sequence
 
     index_file = os.path.join(frontend_dist, "index.html")
     if os.path.exists(index_file):

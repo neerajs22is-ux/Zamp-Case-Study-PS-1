@@ -242,7 +242,7 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ currentUser }) =
   const isAuditor = currentUser?.role === 'AUDITOR';
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-8 flex flex-col justify-between">
+    <div className="max-w-4xl mx-auto w-full space-y-6">
       {/* Top Bar: Progress and Exit */}
       <div className="max-w-4xl mx-auto w-full flex items-center justify-between pb-6 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
@@ -967,11 +967,6 @@ export const OnboardingPage: React.FC<OnboardingPageProps> = ({ currentUser }) =
         )}
       </div>
 
-      {/* Footer hint */}
-      <div className="max-w-4xl mx-auto w-full pt-6 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400 flex items-center justify-between">
-        <span>Autonomous AP Command Center • Production-Ready Operation</span>
-        <span>Press <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 border rounded font-mono">?</kbd> anywhere for keyboard shortcuts</span>
-      </div>
     </div>
   );
 };

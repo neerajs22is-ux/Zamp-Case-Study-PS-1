@@ -234,7 +234,7 @@ export const AuditPage: React.FC<AuditPageProps> = ({ currentUser }) => {
           </button>
         )}
 
-        <div className="ml-auto text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+        <div className="w-full sm:w-auto sm:ml-auto text-slate-500 dark:text-slate-400 font-mono text-[11px]">
           Showing {events.length} event{events.length === 1 ? '' : 's'}
         </div>
       </div>
@@ -255,7 +255,7 @@ export const AuditPage: React.FC<AuditPageProps> = ({ currentUser }) => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[780px]">
               <thead className="bg-slate-50 dark:bg-slate-950/60 text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
                 <tr>
                   <th className="py-2.5 px-4 font-medium">Timestamp (UTC)</th>

@@ -39,7 +39,9 @@ def build_tenant_storage_path(org_id: str, document_id: str, filename: str) -> s
     Format: org_{org_id}/invoices/{document_id}/{filename}
     """
     clean_org = org_id.strip()
-    clean_filename = os.path.basename(filename.strip()).replace(" ", "_")
+    import pathlib
+    clean_filename = pathlib.PureWindowsPath(filename.strip()).name
+    clean_filename = pathlib.PurePosixPath(clean_filename).name.replace(" ", "_")
     org_folder = clean_org if clean_org.startswith("org_") else f"org_{clean_org}"
     return f"{org_folder}/invoices/{document_id}/{clean_filename}"
 

@@ -68,7 +68,9 @@ class DocumentMetadataResponse(BaseModel):
 async def upload_document(
     file: UploadFile = File(...),
     background_tasks: BackgroundTasks = BackgroundTasks(),
-    current_user: AuthenticatedUser = Depends(require_active_membership),
+    current_user: AuthenticatedUser = Depends(
+        require_role([UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
+    ),
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
     """Authenticated tenant document upload with full integrity & isolation guarantees."""
@@ -80,19 +82,31 @@ async def upload_document(
             detail="Unsupported file format: Only PDF documents are supported for ingestion.",
         )
 
-    # 2. Read bytes and check length
-    content = await file.read()
-    if len(content) == 0:
+    # 2. Read bytes in chunks with hard memory limit
+    CHUNK_SIZE = 1024 * 1024  # 1 MB
+    max_bytes = settings.MAX_UPLOAD_FILE_SIZE_BYTES
+    chunks = []
+    total_read = 0
+
+    while True:
+        chunk = await file.read(CHUNK_SIZE)
+        if not chunk:
+            break
+        total_read += len(chunk)
+        if total_read > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File exceeds maximum permitted size of {max_bytes // (1024 * 1024)} MB.",
+            )
+        chunks.append(chunk)
+
+    if total_read == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is empty.",
         )
 
-    if len(content) > settings.MAX_UPLOAD_FILE_SIZE_BYTES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File exceeds maximum permitted size of {settings.MAX_UPLOAD_FILE_SIZE_BYTES // (1024 * 1024)} MB.",
-        )
+    content = b"".join(chunks)
 
     # 3. Magic bytes validation
     if not content.startswith(b"%PDF-"):
@@ -423,7 +437,9 @@ def preview_document(
 def soft_delete_document(
     document_id: str,
     reason: Optional[str] = Query(default=None),
-    current_user: AuthenticatedUser = Depends(require_active_membership),
+    current_user: AuthenticatedUser = Depends(
+        require_role([UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
+    ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Soft deletes document record while preserving physical file in storage."""

@@ -87,8 +87,17 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
 
-          {/* Right Controls: Role Switcher (Dev), Theme Toggle & User Info */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Right Controls: Boundary Pill, Role Switcher (Dev), Theme Toggle & User Info */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Operational Boundary Badge (Directly Answers Question 10: What this application does NOT do) */}
+            <div
+              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 select-none"
+              title="Autonomous AP Review: Verifies invoices against PO, GRN, and QC. Approvals represent internal review sign-off; bank disbursements and ERP General Ledger postings are strictly performed downstream by treasury."
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>AP Sign-Off Only • No Bank Disbursements</span>
+            </div>
+
             {/* Dev Mode Role Switcher */}
             {isDevMode && onSwitchRole && user && (
               <div className="hidden sm:flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">

@@ -155,6 +155,7 @@ export const AppContent: React.FC = () => {
         <Route path="/inbox" element={<Navigate to="/invoices" replace />} />
         <Route path="/exceptions" element={<ExceptionsPage onSelectInvoice={(id) => navigate(`/invoices/${id}`)} />} />
         <Route path="/connections" element={<ConnectionsRedirect />} />
+        <Route path="/vendors" element={<Navigate to="/settings/reference-data" replace />} />
         <Route path="/source-records" element={<Navigate to="/settings/reference-data" replace />} />
         <Route path="/access-management" element={<Navigate to="/settings/team" replace />} />
 

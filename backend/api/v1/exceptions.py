@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.core.auth import AuthenticatedUser, require_active_membership
+from backend.core.auth import AuthenticatedUser, UserRole, require_active_membership, require_role
 from backend.core.database import get_db
 from backend.models.domain import AuditEvent, ExceptionRecord, Invoice
 
@@ -77,14 +77,21 @@ def list_exceptions(
 def reassign_exception(
     exception_id: str,
     payload: ReassignPayload,
-    current_user: AuthenticatedUser = Depends(require_active_membership),
+    current_user: AuthenticatedUser = Depends(
+        require_role([UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
+    ),
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
     """Reassigns an exception to another team member and logs audit."""
     if db is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
 
-    exc = db.scalar(select(ExceptionRecord).where(ExceptionRecord.id == exception_id))
+    exc = db.scalar(
+        select(ExceptionRecord).where(
+            ExceptionRecord.id == exception_id,
+            ExceptionRecord.org_id == current_user.org_id,
+        )
+    )
     if not exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exception record not found.")
 

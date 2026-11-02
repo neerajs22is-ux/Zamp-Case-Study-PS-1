@@ -117,7 +117,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ currentUser }) => 
       </div>
 
       {/* 3. Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto whitespace-nowrap scrollbar-none">
         <button
           onClick={() => setActiveTab('pending')}
           className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
@@ -188,7 +188,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ currentUser }) => 
       ) : (
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[720px]">
               <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="px-4 py-3">Invoice & Supplier</th>

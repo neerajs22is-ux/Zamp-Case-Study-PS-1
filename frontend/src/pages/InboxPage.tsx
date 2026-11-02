@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Inbox as InboxIcon, 
   Filter, 
@@ -21,14 +22,23 @@ interface InboxPageProps {
 }
 
 export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<InboxResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [stageFilter, setStageFilter] = useState<string>('');
-  const [decisionFilter, setDecisionFilter] = useState<string>('');
+  const [stageFilter, setStageFilter] = useState<string>(searchParams.get('stage') || '');
+  const [decisionFilter, setDecisionFilter] = useState<string>(searchParams.get('decision') || '');
   const [page, setPage] = useState(1);
   const [syncingMailbox, setSyncingMailbox] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Sync state if query params change externally
+  useEffect(() => {
+    const stageParam = searchParams.get('stage') || '';
+    const decisionParam = searchParams.get('decision') || '';
+    if (stageParam !== stageFilter) setStageFilter(stageParam);
+    if (decisionParam !== decisionFilter) setDecisionFilter(decisionParam);
+  }, [searchParams]);
 
   const loadInbox = async () => {
     setLoading(true);
@@ -66,6 +76,55 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
   useEffect(() => {
     loadInbox();
   }, [page, stageFilter, decisionFilter]);
+
+  const handleStageChange = (newStage: string) => {
+    setStageFilter(newStage);
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    if (newStage) next.set('stage', newStage);
+    else next.delete('stage');
+    setSearchParams(next);
+  };
+
+  const handleDecisionChange = (newDecision: string) => {
+    setDecisionFilter(newDecision);
+    setPage(1);
+    const next = new URLSearchParams(searchParams);
+    if (newDecision) next.set('decision', newDecision);
+    else next.delete('decision');
+    setSearchParams(next);
+  };
+
+  const getMsmeBadge = (deadlineStr: string | null | undefined) => {
+    if (!deadlineStr) return <span className="text-slate-400 dark:text-slate-500">—</span>;
+    const deadline = new Date(deadlineStr);
+    const now = new Date();
+    const diffTime = deadline.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) {
+      return (
+        <span className="inline-flex items-center gap-1 font-semibold text-rose-700 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 px-2 py-0.5 rounded text-[11px]" title="Overdue under Section 15 of MSMED Act">
+          <Clock className="w-3 h-3 text-rose-600" />
+          {deadlineStr.substring(0, 10)} ({Math.abs(diffDays)}d overdue)
+        </span>
+      );
+    } else if (diffDays <= 7) {
+      return (
+        <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/60 px-2 py-0.5 rounded text-[11px]" title="Due within 7 days under Section 15 of MSMED Act">
+          <Clock className="w-3 h-3 text-amber-600" />
+          {deadlineStr.substring(0, 10)} ({diffDays}d left)
+        </span>
+      );
+    } else {
+      return (
+        <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/60 px-2 py-0.5 rounded text-[11px]" title="Statutory 45-day deadline under MSMED Act">
+          <Clock className="w-3 h-3 text-slate-400" />
+          {deadlineStr.substring(0, 10)} ({diffDays}d left)
+        </span>
+      );
+    }
+  };
 
   const formatINR = (val: number | null) => {
     if (val === null || val === undefined) return '—';
@@ -150,33 +209,33 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
 
         <select
           value={stageFilter}
-          onChange={(e) => { setStageFilter(e.target.value); setPage(1); }}
+          onChange={(e) => handleStageChange(e.target.value)}
           className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
         >
-          <option value="">All Stages</option>
-          <option value="RECEIVED">RECEIVED</option>
-          <option value="VALIDATING">VALIDATING</option>
-          <option value="PARSING">PARSING</option>
-          <option value="EXTRACTED">EXTRACTED</option>
-          <option value="MATCHING">MATCHING</option>
-          <option value="DECIDED">DECIDED</option>
-          <option value="ACTION_REQUIRED">ACTION_REQUIRED</option>
+          <option value="">All Processing Stages</option>
+          <option value="ACTION_REQUIRED">Action Required (Needs Human Review)</option>
+          <option value="DECIDED">Decided (Evaluation Complete)</option>
+          <option value="MATCHING">Matching (PO / GRN Verification)</option>
+          <option value="EXTRACTED">Extracted (Data Parsed)</option>
+          <option value="PARSING">Processing (OCR & AI Ingestion)</option>
+          <option value="VALIDATING">Validating (Format & Sanity Checks)</option>
+          <option value="RECEIVED">Received (Pending Pipeline)</option>
         </select>
 
         <select
           value={decisionFilter}
-          onChange={(e) => { setDecisionFilter(e.target.value); setPage(1); }}
+          onChange={(e) => handleDecisionChange(e.target.value)}
           className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
         >
-          <option value="">All Decisions</option>
-          <option value="AUTO_APPROVED">AUTO_APPROVED</option>
-          <option value="MANUALLY_APPROVED">MANUALLY_APPROVED</option>
-          <option value="NEEDS_REVIEW">NEEDS_REVIEW</option>
-          <option value="REJECTED">REJECTED</option>
-          <option value="QUARANTINED">QUARANTINED</option>
+          <option value="">All Verification Decisions</option>
+          <option value="AUTO_APPROVED">Passed Straight-Through (All Gates Met)</option>
+          <option value="MANUALLY_APPROVED">AP Team Approved (Human Sign-off)</option>
+          <option value="NEEDS_REVIEW">Needs Review (Exceptions / Discrepancies)</option>
+          <option value="REJECTED">Rejected by AP</option>
+          <option value="QUARANTINED">Quarantined (Security / Fraud Block)</option>
         </select>
 
-        <div className="ml-auto text-slate-500 dark:text-slate-400 font-mono text-[11px] tabular-nums">
+        <div className="w-full sm:w-auto sm:ml-auto text-slate-500 dark:text-slate-400 font-mono text-[11px] tabular-nums">
           Showing {data?.items.length || 0} of {data?.total_count || 0} records
         </div>
       </div>
@@ -193,7 +252,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[760px]">
               <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="py-3 px-4">Supplier</th>
@@ -222,14 +281,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                       {formatINR(inv.total_amount)}
                     </td>
                     <td className="py-3 px-4 text-[11px] font-mono">
-                      {inv.msme_statutory_deadline ? (
-                        <span className="inline-flex items-center gap-1 font-medium text-rose-600 dark:text-rose-400">
-                          <Clock className="w-3.5 h-3.5" />
-                          {inv.msme_statutory_deadline.substring(0, 10)}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 dark:text-slate-500">—</span>
-                      )}
+                      {getMsmeBadge(inv.msme_statutory_deadline)}
                     </td>
                     <td className="py-3 px-4">
                       <StatusBadge invoice={inv} size="sm" />

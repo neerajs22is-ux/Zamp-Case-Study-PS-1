@@ -44,20 +44,20 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-400" />
             Exceptions Priority Queue
           </h1>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Ranked primarily by legally verified MSME statutory deadline, then exposure amount.
           </p>
         </div>
         <button
           onClick={loadExceptions}
           disabled={loading}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-900 border border-slate-800 text-xs text-slate-300 hover:bg-slate-800 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           Refresh Queue
@@ -65,15 +65,15 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
       </div>
 
       {/* Statutory Sorting Rule Callout */}
-      <div className="bg-slate-900/60 border border-slate-800 rounded-lg p-3 text-xs flex items-start gap-2.5">
+      <div className="bg-amber-50/70 dark:bg-slate-900/60 border border-amber-200 dark:border-slate-800 rounded-xl p-3 text-xs flex items-start gap-2.5">
         <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-        <div className="text-slate-300 space-y-0.5">
-          <span className="font-semibold text-slate-200">Statutory Urgency Invariant:</span> Snoozing or holding an exception never suppresses or shifts the statutory MSMED Act 45-day deadline. Penal interest compounds monthly at 3× RBI bank rate if settlement is delayed.
+        <div className="text-slate-700 dark:text-slate-300 space-y-0.5">
+          <span className="font-semibold text-slate-900 dark:text-slate-200">Statutory Urgency Invariant:</span> Snoozing or holding an exception never suppresses or shifts the statutory MSMED Act 45-day deadline. Penal interest compounds monthly at 3× RBI bank rate if settlement is delayed.
         </div>
       </div>
 
       {/* Exceptions Table */}
-      <div className="bg-slate-900/70 border border-slate-800 rounded-lg overflow-hidden">
+      <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
         {items.length === 0 ? (
           <div className="py-16 text-center text-slate-400 text-xs space-y-2">
             <Clock className="w-8 h-8 text-slate-600 mx-auto" />
@@ -84,8 +84,8 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-950 text-slate-400 border-b border-slate-800 text-[11px]">
+            <table className="w-full text-left text-xs min-w-[680px]">
+              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-3">MSME Statutory Due</th>
                   <th className="py-2.5 px-3">Exposure Held</th>
@@ -95,9 +95,9 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
                   <th className="py-2.5 px-3">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                 {items.map((e) => (
-                  <tr key={e.exception_id} className="hover:bg-slate-800/40 transition-colors">
+                  <tr key={e.exception_id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                     <td className="py-3 px-3 font-mono text-[11px]">
                       {e.msme_statutory_deadline ? (
                         <span className="flex items-center gap-1.5 text-rose-400 font-semibold">
@@ -108,15 +108,15 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
                         <span className="text-slate-500">Unestablished</span>
                       )}
                     </td>
-                    <td className="py-3 px-3 font-mono text-slate-100 font-bold tabular-nums">
+                    <td className="py-3 px-3 font-mono text-slate-900 dark:text-slate-100 font-bold tabular-nums">
                       {formatINR(e.exposure_amount_inr)}
                     </td>
                     <td className="py-3 px-3">
-                      <div className="font-medium text-slate-200">{e.vendor_name || 'Unidentified'}</div>
+                      <div className="font-medium text-slate-900 dark:text-slate-200">{e.vendor_name || 'Unidentified'}</div>
                       <div className="text-[10px] text-slate-500 font-mono">Inv: {e.invoice_number || e.invoice_id}</div>
                     </td>
                     <td className="py-3 px-3">
-                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20">
                         Gate #{e.blocking_gate_number}: {e.blocking_gate_name}
                       </span>
                     </td>
@@ -126,7 +126,7 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
                     <td className="py-3 px-3">
                       <button
                         onClick={() => onSelectInvoice(e.invoice_id)}
-                        className="flex items-center gap-1 text-indigo-400 hover:text-indigo-300 font-medium text-xs"
+                        className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium text-xs hover:underline"
                       >
                         Resolve <ArrowUpRight className="w-3 h-3" />
                       </button>

@@ -207,6 +207,16 @@ class Settings(BaseSettings):
                     f"Security violation: DEBUG mode cannot be enabled in '{self.APP_ENV.value}'."
                 )
 
+            # Invariant 5: SECRET_KEY must be a cryptographically secure random string
+            if self.SECRET_KEY in (
+                "dev-secret-key-must-be-changed-in-production-32chars",
+                "change-this-to-a-secure-random-string-at-least-32-chars-long",
+                "",
+            ) or len(self.SECRET_KEY) < 32:
+                raise ConfigurationError(
+                    f"Security violation: SECRET_KEY must be a cryptographically random string (min 32 chars) in '{self.APP_ENV.value}'."
+                )
+
         return self
 
     def is_identity_configured(self) -> bool:

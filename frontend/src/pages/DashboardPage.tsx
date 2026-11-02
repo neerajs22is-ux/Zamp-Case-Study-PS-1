@@ -154,11 +154,57 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
         </div>
       )}
 
+      {/* Executive Overview & AP Paradigm Card (Answers Q1, Q2, Q3) */}
+      <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/70 via-white to-slate-50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-slate-950 p-4 sm:p-5 shadow-2xs space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 bg-indigo-100/80 dark:bg-indigo-950 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
+              Autonomous Accounts Payable System
+            </span>
+            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-1">
+              End-to-end invoice verification, 7-point policy compliance, and audit-ready internal sign-off.
+            </h2>
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
+              Automates three-way matching against Purchase Orders and Goods Receipts. High-value disbursements (&ge; ₹5,00,000) enforce mandatory secondary approval.
+            </p>
+          </div>
+          <div className="shrink-0 flex items-center gap-2">
+            <button
+              onClick={() => navigate('/setup')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors shadow-2xs"
+            >
+              <span>Onboarding Wizard</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* 4-Step Linear Journey Visualization */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-indigo-100/80 dark:border-indigo-900/40 text-[11px]">
+          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+            <span>PDF Ingestion</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+            <span>AI Field Reading</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+            <span>7 Policy Checks</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">4</span>
+            <span>Internal Sign-Off</span>
+          </div>
+        </div>
+      </div>
+
       {/* 2. Three High-Level Outcome Tiles */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Tile 1: Needs Attention */}
         <div
-          onClick={() => navigate('/invoices')}
+          onClick={() => navigate('/invoices?stage=ACTION_REQUIRED')}
           className="group cursor-pointer bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-900/60 hover:border-amber-400 dark:hover:border-amber-700 rounded-xl p-5 flex flex-col justify-between shadow-2xs transition-all hover:shadow-sm"
         >
           <div className="flex items-center justify-between">
@@ -185,7 +231,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
 
         {/* Tile 2: Ready to Approve */}
         <div
-          onClick={() => navigate('/invoices')}
+          onClick={() => navigate('/invoices?decision=AUTO_APPROVED')}
           className="group cursor-pointer bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/60 hover:border-emerald-400 dark:hover:border-emerald-700 rounded-xl p-5 flex flex-col justify-between shadow-2xs transition-all hover:shadow-sm"
         >
           <div className="flex items-center justify-between">
@@ -212,7 +258,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
 
         {/* Tile 3: Waiting for Second Approval */}
         <div
-          onClick={() => navigate('/approvals')}
+          onClick={() => navigate('/approvals?tab=pending')}
           className="group cursor-pointer bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-900/60 hover:border-purple-400 dark:hover:border-purple-700 rounded-xl p-5 flex flex-col justify-between shadow-2xs transition-all hover:shadow-sm"
         >
           <div className="flex items-center justify-between">

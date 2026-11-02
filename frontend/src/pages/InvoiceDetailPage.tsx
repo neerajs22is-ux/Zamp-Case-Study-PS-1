@@ -250,7 +250,17 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
     try {
       await api.executeAction(invoiceId, selectedAction, actionReason.trim());
-      setActionSuccess(`Action '${selectedAction}' recorded successfully.`);
+      const actionHumanNames: Record<string, string> = {
+        APPROVE_AP_REVIEW: 'Internal AP approval recorded',
+        HOLD_PENDING_EVIDENCE: 'Invoice placed on hold pending evidence',
+        REQUEST_SUPPLIER_CORRECTION: 'Correction request logged for supplier',
+        RAISE_DEBIT_NOTE: 'Debit note draft generated',
+        ESCALATE: 'Escalation notification dispatched',
+        REJECT_INVOICE: 'Invoice formally rejected by AP',
+        QUARANTINE: 'Document quarantined for security review',
+      };
+      const toastMsg = actionHumanNames[selectedAction] || `Action '${selectedAction}' recorded`;
+      setActionSuccess(`${toastMsg} successfully.`);
       setSelectedAction(null);
       setActionReason('');
       await loadDetail();
@@ -383,7 +393,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const isPendingSecondApproval = invoice.workflow_substatus === 'PENDING_SECOND_APPROVAL' || approval?.status === 'PENDING_SECOND_APPROVAL';
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-48 sm:pb-32 lg:pb-24">
       {/* 1. Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
@@ -635,7 +645,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       {/* 3. Split-Pane Workspace: Document (Left) + Evidence Tabs (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* PANE 1: Original Document (5 cols on lg) */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[780px]">
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[480px] lg:h-[780px]">
           {/* Document Toolbar */}
           <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -760,9 +770,9 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
 
         {/* PANE 2 & 3: Tabbed Analysis & Evidence Panel (6 cols on lg) */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[780px]">
+        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[520px] lg:h-[780px]">
           {/* Analysis Tab Bar */}
-          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 pt-1 gap-1">
+          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 pt-1 gap-1 overflow-x-auto whitespace-nowrap scrollbar-none">
             <button
               onClick={() => setActiveTab('matching')}
               className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${

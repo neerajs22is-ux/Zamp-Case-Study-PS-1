@@ -266,7 +266,9 @@ def gmail_oauth_callback(
 def sync_mailbox(
     max_messages: int = Query(default=10, ge=1, le=50),
     force_full: bool = Query(default=False),
-    current_user: AuthenticatedUser = Depends(require_active_membership),
+    current_user: AuthenticatedUser = Depends(
+        require_role([UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
+    ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Manually triggers mailbox sync and PDF invoice ingestion for the current tenant.

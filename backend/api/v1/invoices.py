@@ -343,9 +343,31 @@ def execute_invoice_action(
                     ),
                 )
 
-        invoice_total = float(inv.total_amount or 0.0)
+        # Prevent approval if total_amount is unset or non-positive
+        if inv.total_amount is None or inv.total_amount <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot approve invoice with null or zero total amount.",
+            )
+
+        # Handle undisputed partial approval
+        if payload.action == "APPROVE_UNDISPUTED":
+            if not payload.undisputed_amount or payload.undisputed_amount <= 0:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="APPROVE_UNDISPUTED action requires a positive 'undisputed_amount'.",
+                )
+            if float(payload.undisputed_amount) > float(inv.total_amount):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Undisputed amount ({payload.undisputed_amount}) cannot exceed total invoice amount ({inv.total_amount}).",
+                )
+            inv.net_payable_amount = payload.undisputed_amount
+
+        invoice_total = float(inv.total_amount)
         is_high_value = invoice_total >= settings.DUAL_APPROVAL_THRESHOLD_INR
 
+        approval_req = None
         if is_high_value:
             approval_req = db.scalar(
                 select(ApprovalRequest).where(
@@ -353,6 +375,16 @@ def execute_invoice_action(
                     ApprovalRequest.org_id == inv.org_id,
                 )
             )
+
+        # Enforce minimum approval authority for single approval or Step 1 of dual approval
+        if not is_high_value or not approval_req:
+            if current_user.role not in (UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Approval requires AP_LEAD, CONTROLLER, or SYSTEM_ADMIN role.",
+                )
+
+        if is_high_value:
             if not approval_req:
                 # Step 1 of Dual Approval
                 approval_req = ApprovalRequest(
