@@ -96,7 +96,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
         {/* Top Header Bar */}
         <header
-          className="sticky top-0 z-30 h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/90 backdrop-blur-xs flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-colors"
+          className="sticky top-0 z-30 h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md shadow-2xs flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-colors"
           role="banner"
         >
           {/* Left: Mobile hamburger & breadcrumbs */}
@@ -189,7 +189,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
         {/* Dynamic Route Viewport */}
         <main
-          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6"
+          className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5"
           role="main"
         >
           {children}

@@ -39,7 +39,7 @@
 | **It. 13** | Audit Trail & Immutability Ledger | **COMPLETED** | `AuditPage.tsx` | Immutable audit ledger metric strip, category segmentation, 21-action taxonomy, visual diff & raw JSON payload inspector |
 | **It. 14** | Team Access & Role Governance | **COMPLETED** | `AccessManagementPage.tsx` | Role governance metrics strip, RBAC entitlements matrix, member search, invitation security invariant disclosures |
 | **It. 15** | Typography & Visual Hierarchy System | **COMPLETED** | `frontend/src/index.css` | Institutional typography system, tight heading tracking, universal tabular numerics, custom scrollbars, selection highlights |
-| **It. 16** | Spacing, Rhythm & Component Density | QUEUED | Global components | Eliminating ghost cards and cramped paddings |
+| **It. 16** | Spacing, Rhythm & Component Density | **COMPLETED** | `AppShell.tsx`, `Sidebar.tsx` | Standardized py-5/py-6 container padding, active nav left accent bars, header backdrop-blur |
 | **It. 17** | Tablet & Mobile Ergonomic Polish | QUEUED | Multi-viewport responsive polish | Touch targets, bottom bar tray, mobile drawers |
 | **It. 18** | Accessibility, Focus States & Keyboard UX | QUEUED | Keyboard shortcuts, ARIA, focus rings | WCAG 2.1 AA compliance, tab stops |
 | **It. 19** | End-to-End HR Showcase Demonstration | QUEUED | `HR_SHOWCASE_GUIDE.md`, Demo presets | Seamless self-guided walkthrough mode |

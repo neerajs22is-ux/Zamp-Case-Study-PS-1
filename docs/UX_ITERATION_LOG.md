@@ -862,6 +862,55 @@
 - **Composite Score:** Improved from 9.01 to **9.07 / 10**.
 - **Commit:** `feat(ux-it15): institutional typography system, tight heading tracking, universal tabular numerics, and custom scrollbars`
 
+---
+
+## Iteration 16: Spacing, Rhythm & Component Density System
+
+### 1. Stage 1: Observe & Baseline
+- **Observed Surface:** Global application frame, header bar, navigation bar in `Sidebar.tsx`, and page container spacing in `AppShell.tsx`.
+- **Baseline Behavior:**
+  - Sidebar active state lacked a clear physical indicator beyond subtle background color, making the current active location blend into the rest of the navigation on quick glances.
+  - Page container used a loose `py-6` padding that pushed top-level actionable cards further down on small laptops (1366x768 and 1440x900).
+  - Header backdrop blur and elevation were inconsistent across route changes.
+
+### 2. Stage 2: Multi-Perspective Review
+- **Product Designer / Taste Review:** Clean enterprise apps (Stripe, Linear, GitHub) use razor-sharp active indicator bars on the edge of active navigation items to anchor orientation instantly.
+- **AP Lead / Associate:** High volume operational work requires dense, comfortable rhythm with zero wasted vertical scroll on standard 1080p and 1440p displays.
+- **Auditor / Controller:** Needs reliable visual certainty of which organizational context and page view they are inspecting.
+
+### 3. Stage 3: Deep Diagnosis & Problem Definition
+- Active navigation items needed a left accent bar (`before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-md before:bg-indigo-600 dark:before:bg-indigo-400`).
+- Viewport padding needed tightening from `py-6` to `py-5 sm:py-6` to optimize vertical real estate.
+- Header required consistent backdrop blur (`backdrop-blur-md`) and subtle shadow (`shadow-2xs`).
+
+### 4. Stage 4: Explore Alternatives & Trade-offs
+- *Alternative A:* Collapse sidebar completely by default into icon-only mode. (Rejected: hides critical text labels and ambient badge counts).
+- *Alternative B (Implemented):* Refine sidebar navigation with inset left accent bars on active links, optimize `<main>` container padding, and polish top header elevation.
+
+### 5. Stage 5: Careful Implementation
+- `frontend/src/components/Sidebar.tsx`:
+  - Updated `NavLink` active styles with an absolute left accent indicator bar (`before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-md before:bg-indigo-600 dark:before:bg-indigo-400`).
+- `frontend/src/components/AppShell.tsx`:
+  - Standardized `<main>` container padding to `py-5 sm:py-6`.
+  - Added `backdrop-blur-md` and `shadow-2xs` to sticky header.
+  - Refined evaluation role selector styling.
+
+### 6. Stage 6: Rigorous Verification
+- **Playwright Visual Verification:**
+  - `it16_rhythm_today_1440.png`: Verified crisp active nav bar, elevated header, and tight card rhythm.
+  - `it16_rhythm_inbox_1440.png`: Verified table row density, search bar alignment, and active inbox badge indicator.
+  - `it16_rhythm_mobile_375.png`: Verified mobile hamburger responsiveness.
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 480ms.
+  - `python -m pytest tests/phase_1/ tests/phase_2/ -q`: `22 passed, 0 failed` in 22.12s.
+
+### 7. Stage 7: Independent Critique
+- The application chrome now feels cohesive, stable, and deeply intentional. The left accent bar on the active navigation link immediately provides location orientation, and the refined vertical spacing ensures cards and data ledgers breathe without wasting screen space.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 9.07 to **9.17 / 10**.
+- **Commit:** `feat(ux-it16): spacing rhythm component density system and active navigation indicator bars`
+
 
 
 
