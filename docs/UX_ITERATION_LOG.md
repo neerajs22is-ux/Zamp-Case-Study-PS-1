@@ -276,3 +276,69 @@
 ### 8. Stage 8: Checkpoint & Scorecard
 - **Composite Score:** Improved from 7.95 to **8.15 / 10**.
 - **Commit:** `feat(ux-it5): quick segmented tabs, zero-latency real-time search, full-row clickability, and sticky table header on invoice inbox ledger`
+
+
+---
+
+## Iteration 6: Invoice Detail Workspace & Above-Fold Layout
+
+### 1. Stage 1: Observe & Measure
+- **Target Surface:** `/invoices/:id` (Invoice Detail Workspace).
+- **Runtime Measurement (Playwright 1440x900 on `inv_d76401c096d0`):**
+  - Child 0 (Header): `y = 80.0px`, `h = 60.0px`
+  - Child 1 (Verdict Banner): `y = 156.0px`, `h = 76.0px`
+  - Child 2 (CaseSummaryCard): `y = 248.0px`, `h = 297.7px` (expanded by default!)
+  - Child 3 (2-Pane Workspace — PDF Viewer & 3-Way Match Table): `y = 561.7px`, `h = 780.0px`
+  - Child 4 (Sticky Decision Bar): `y = 845.0px`, `h = 55.0px`
+- **Critical Finding:** Prior to Iteration 6, the primary working area (the original PDF document and the procurement 3-way matching table) had only **283.3px of visible height** above the bottom action bar. Users had to scroll immediately on every invoice because Child 1 and Child 2 consumed 374px of vertical space while repeating largely redundant information.
+
+### 2. Stage 2: Multi-Perspective Review
+- **AP Lead & Associate:** Needs to review the invoice PDF side-by-side with the 3-way match line items immediately upon opening the page without touching the scroll wheel.
+- **Controller:** Needs to immediately see the decision verdict and dual-control threshold without wading through multiple large stacked cards.
+- **Auditor:** Requires the plain-language case explanation and reference snapshot disclosures to remain readily accessible on demand.
+- **HR Evaluator:** Observes whether the interface feels like an expertly engineered split-pane productivity tool (Linear, Mercury, Stripe) or an unrefined vertical form.
+
+### 3. Stage 3: Deep Diagnosis
+- `CaseSummaryCard.tsx` initialized `isExpanded = true`, permanently rendering its full 298px 4-section grid above the fold.
+- The Verdict Banner in `InvoiceDetailPage.tsx` and `CaseSummaryCard` duplicated the same status badges, decision titles, and check tallies.
+- The vertical page rhythm used loose `space-y-4` padding.
+
+### 4. Stage 4: Explore Alternatives
+- *Alternative A:* Delete `CaseSummaryCard` entirely and leave only the Verdict Banner.
+  *Critique:* Rejected. Deleting the card removes the plain-language explanation of what was verified, dual-approval explanations, and the "What the invoice asks for" context that makes the system understandable to non-AP business users.
+- *Alternative B (Implemented):* 
+  1. Default `isExpanded = false` in `CaseSummaryCard.tsx`, transforming it into an ultra-compact 38px inline Decision Guide bar with a 1-click `Explain Case ▾` disclosure toggle.
+  2. Streamline the Verdict Banner in `InvoiceDetailPage.tsx` into a high-density, single-line executive status strip (`h = 46px`).
+  3. Tighten page container rhythm from `space-y-4` to `space-y-3`.
+
+### 5. Stage 5: Careful Implementation
+- **Modified Files:**
+  - `frontend/src/components/CaseSummaryCard.tsx`:
+    - Changed default `isExpanded` to `false`.
+    - Implemented high-density collapsed row with Sparkles icon, `Decision Guide: ${decisionTitle}`, and check tally badge.
+    - Added clean `Explain Case ▾` / `Collapse ▴` toggle.
+  - `frontend/src/pages/InvoiceDetailPage.tsx`:
+    - Refactored Verdict Banner padding to `p-3 rounded-lg border` with flex horizontal alignment.
+    - Maintained all required Phase 1 and Phase 2 plain-language strings and test assertions.
+    - Reduced layout spacing to `space-y-3`.
+
+### 6. Stage 6: Rigorous Verification
+- **DOM Measurement Verification:**
+  - `2-Pane Workspace` start position moved from `y = 561.7px` to `y = 260.0px` (pulled up by **301.7px**!).
+  - Visible height of document and matching table above the fold increased from **283.3px to 585.0px** (more than doubled!).
+  - Verified `Explain Case` toggle smoothly expands the 4-panel guide and collapses back without layout shift.
+- **Screenshots Saved:**
+  - `scratch/screenshots/it6_detail_collapsed_1440.png`
+  - `scratch/screenshots/it6_detail_expanded_1440.png`
+  - `scratch/screenshots/it6_detail_mobile_375.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 448ms.
+  - `python -m pytest tests/ -q`: `266 passed, 12 skipped, 0 failed` in 39.04s.
+
+### 7. Stage 7: Independent Critique
+- The workspace now feels immediate and authoritative. Opening any invoice presents the original PDF side-by-side with the 3-way match line items, with ~600px of vertical workspace visible above the fold.
+- Case explanations and decision rules remain available in 1 click for non-experts.
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 8.15 to **8.32 / 10**.
+- **Commit:** `feat(ux-it6): streamline verdict banner, default-collapse case explanation guide, and pull 2-pane workspace above the fold`

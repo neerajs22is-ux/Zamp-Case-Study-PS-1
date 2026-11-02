@@ -400,7 +400,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const isPendingSecondApproval = invoice.workflow_substatus === 'PENDING_SECOND_APPROVAL' || approval?.status === 'PENDING_SECOND_APPROVAL';
 
   return (
-    <div className="space-y-4 pb-48 sm:pb-32 lg:pb-24">
+    <div className="space-y-3 pb-48 sm:pb-32 lg:pb-24">
       {/* 1. Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
@@ -540,7 +540,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       )}
 
       {/* 2. Verdict Banner (Visual Hierarchy: Verdict First) */}
-      <div className={`p-4 rounded-xl border flex items-start gap-3 shadow-2xs ${
+      <div className={`p-3 rounded-lg border shadow-2xs ${
         isApproved
           ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
           : isPendingSecondApproval
@@ -551,73 +551,75 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
           : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
       }`}>
-        {isApproved ? (
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-        ) : isPendingSecondApproval ? (
-          <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-        ) : failedGates.length > 0 ? (
-          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        ) : totalGates > 0 && passedGates === totalGates ? (
-          <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-        ) : (
-          <Info className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-        )}
-
-        <div className="text-xs space-y-1.5 flex-1">
-          <div className="font-semibold text-sm flex flex-wrap items-center justify-between gap-2">
-            <span>
-              {isApproved ? (
-                'Invoice Review Complete (Internal Sign-Off)'
-              ) : isPendingSecondApproval ? (
-                'Waiting for Secondary Controller Approval'
-              ) : failedGates.length > 0 ? (
-                `Blocked: ${failedGates.length} Validation Check(s) Failed — Approval Blocked`
-              ) : totalGates > 0 && passedGates === totalGates ? (
-                'All 7 Automatic Checks Passed — Ready to Approve'
-              ) : (
-                'Invoice Ingested — Validation Pipeline Pending'
-              )}
-            </span>
-            {failedGates.length > 0 && (
-              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
-                Approval blocked until the failed checks are resolved.
-              </span>
-            )}
-          </div>
-          <p className="opacity-90">
-            {isApproved ? (
-              'Internal AP review is complete. No payment has been executed and no ERP or General Ledger posting has occurred. Approval signifies internal AP sign-off; the supplier has not yet been paid.'
-            ) : isPendingSecondApproval ? (
-              `First approval was rendered by ${approval?.first_approver_id || 'AP Lead'}. A distinct Financial Controller or System Admin must render secondary sign-off.`
-            ) : failedGates.length > 0 ? (
-              'This invoice cannot be approved while policy validation checks fail. Policy overrides are disabled; approvals are strictly blocked until all discrepancies are resolved or triaged using an authorized action below.'
-            ) : totalGates > 0 && passedGates === totalGates ? (
-              'Supplier identity, PO authorization, GRN delivery, QC acceptance, arithmetic, and price tolerances all verified.'
-            ) : (
-              'Original document received. Waiting for asynchronous Bedrock extraction and deterministic matching engine evaluation.'
-            )}
-          </p>
-
-          {/* Explicit failed gates listing with required next actions */}
-          {failedGates.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-amber-200/80 dark:border-amber-800/80 space-y-1.5">
-              <span className="text-[10px] font-bold text-amber-950 dark:text-amber-100 uppercase tracking-wider">
-                Failing Checks & Required Next Actions:
-              </span>
-              <ul className="space-y-1">
-                {failedGates.map((g: any, i: number) => (
-                  <li key={i} className="text-[11px] text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-baseline gap-1">
-                    <span className="font-semibold text-amber-950 dark:text-amber-100">• {humanGateName(g.gate_name)}:</span>
-                    <span className="opacity-90">{g.notes || 'Validation tolerance exceeded.'}</span>
-                    <span className="font-medium text-amber-950 dark:text-amber-100">
-                      &rarr; <em>Next Action: {getRequiredNextAction(g.gate_name)}</em>
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <div className="flex items-center gap-2.5">
+          {isApproved ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : isPendingSecondApproval ? (
+            <ShieldAlert className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+          ) : failedGates.length > 0 ? (
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          ) : totalGates > 0 && passedGates === totalGates ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : (
+            <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
           )}
+
+          <div className="text-xs flex-1 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-semibold text-xs sm:text-sm">
+                {isApproved ? (
+                  'Invoice Review Complete (Internal Sign-Off)'
+                ) : isPendingSecondApproval ? (
+                  'Waiting for Secondary Controller Approval'
+                ) : failedGates.length > 0 ? (
+                  `Blocked: ${failedGates.length} Validation Check(s) Failed — Approval Blocked`
+                ) : totalGates > 0 && passedGates === totalGates ? (
+                  'All 7 Automatic Checks Passed — Ready to Approve'
+                ) : (
+                  'Invoice Ingested — Validation Pipeline Pending'
+                )}
+              </span>
+              {failedGates.length > 0 && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
+                  Approval blocked until the failed checks are resolved.
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] opacity-85 hidden md:block">
+              {isApproved ? (
+                'Internal AP review is complete. No payment has been executed and no ERP or General Ledger posting has occurred. Approval signifies internal AP sign-off; the supplier has not yet been paid.'
+              ) : isPendingSecondApproval ? (
+                `First approval was rendered by ${approval?.first_approver_id || 'AP Lead'}. A distinct Financial Controller or System Admin must render secondary sign-off.`
+              ) : failedGates.length > 0 ? (
+                'This invoice cannot be approved while policy validation checks fail. Policy overrides are disabled; approvals are strictly blocked until all discrepancies are resolved or triaged using an authorized action below.'
+              ) : totalGates > 0 && passedGates === totalGates ? (
+                'Supplier identity, PO authorization, GRN delivery, QC acceptance, arithmetic, and price tolerances all verified.'
+              ) : (
+                'Original document received. Waiting for asynchronous Bedrock extraction and deterministic matching engine evaluation.'
+              )}
+            </p>
+          </div>
         </div>
+
+        {/* Explicit failed gates listing with required next actions */}
+        {failedGates.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-amber-200/80 dark:border-amber-800/80 space-y-1.5">
+            <span className="text-[10px] font-bold text-amber-950 dark:text-amber-100 uppercase tracking-wider">
+              Failing Checks & Required Next Actions:
+            </span>
+            <ul className="space-y-1">
+              {failedGates.map((g: any, i: number) => (
+                <li key={i} className="text-[11px] text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-baseline gap-1">
+                  <span className="font-semibold text-amber-950 dark:text-amber-100">• {humanGateName(g.gate_name)}:</span>
+                  <span className="opacity-90">{g.notes || 'Validation tolerance exceeded.'}</span>
+                  <span className="font-medium text-amber-950 dark:text-amber-100">
+                    &rarr; <em>Next Action: {getRequiredNextAction(g.gate_name)}</em>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       {/* 2.5 Case Explanation & Decision Guide Card */}
