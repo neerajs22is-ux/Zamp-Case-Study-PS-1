@@ -16,6 +16,7 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
+  Minimize2,
   Info,
   ShieldAlert,
   Lock,
@@ -61,6 +62,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   // Navigation & Tabs
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabType>('matching');
+  const [workspaceLayout, setWorkspaceLayout] = useState<'split' | 'analysis_focus' | 'doc_focus'>('split');
   
   // Document Viewer State
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -656,8 +658,14 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
       {/* 3. Split-Pane Workspace: Document (Left) + Evidence Tabs (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* PANE 1: Original Document (5 cols on lg) */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[480px] lg:h-[780px]">
+        {/* PANE 1: Original Document (5 cols on lg, or 12 cols when doc_focus) */}
+        <div className={`${
+          workspaceLayout === 'doc_focus'
+            ? 'lg:col-span-12'
+            : workspaceLayout === 'analysis_focus'
+            ? 'hidden'
+            : 'lg:col-span-5'
+        } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[480px] lg:h-[780px] min-w-0 transition-all duration-150`}>
           {/* Document Toolbar */}
           <div className="px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
@@ -781,60 +789,90 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           </div>
         </div>
 
-        {/* PANE 2 & 3: Tabbed Analysis & Evidence Panel (6 cols on lg) */}
-        <div className="lg:col-span-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[520px] lg:h-[780px]">
+        {/* PANE 2 & 3: Tabbed Analysis & Evidence Panel (7 cols on lg, or 12 cols when analysis_focus) */}
+        <div className={`${
+          workspaceLayout === 'analysis_focus'
+            ? 'lg:col-span-12'
+            : workspaceLayout === 'doc_focus'
+            ? 'hidden'
+            : 'lg:col-span-7'
+        } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[520px] lg:h-[780px] min-w-0 transition-all duration-150`}>
           {/* Analysis Tab Bar */}
-          <div className="flex items-center border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 pt-1 gap-1 overflow-x-auto whitespace-nowrap scrollbar-none">
-            <button
-              onClick={() => setActiveTab('matching')}
-              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                activeTab === 'matching'
-                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Matching & Lines</span>
-            </button>
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 pt-1 gap-1 min-w-0">
+            <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-none min-w-0 pb-1">
+              <button
+                onClick={() => setActiveTab('matching')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'matching'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Matching & Lines</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('checks')}
-              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                activeTab === 'checks'
-                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Policy Checks ({passedGates}/{totalGates})</span>
-              {failedGates.length > 0 && (
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              )}
-            </button>
+              <button
+                onClick={() => setActiveTab('checks')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'checks'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Policy Checks ({passedGates}/{totalGates})</span>
+                {failedGates.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                )}
+              </button>
 
-            <button
-              onClick={() => setActiveTab('details')}
-              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                activeTab === 'details'
-                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Extracted Information ({extracted_fields?.length || 0})</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'details'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Extracted Information ({extracted_fields?.length || 0})</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('history')}
-              className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-                activeTab === 'history'
-                  ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300 bg-white dark:bg-slate-900'
-                  : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Clock className="w-3.5 h-3.5" />
-              <span>Audit Trail ({timeline?.length || 0})</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'history'
+                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>Audit Trail ({timeline?.length || 0})</span>
+              </button>
+            </div>
+
+            {/* Workspace View Mode Toggle (Expand / Split) on desktop */}
+            <div className="hidden lg:flex items-center gap-1 shrink-0 pb-1 pr-1">
+              <button
+                type="button"
+                onClick={() => setWorkspaceLayout(workspaceLayout === 'analysis_focus' ? 'split' : 'analysis_focus')}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200/70 dark:hover:bg-slate-800/80 transition-colors"
+                title={workspaceLayout === 'analysis_focus' ? 'Restore Split View (50/50 workspace)' : 'Expand Analysis View (Full 12-column width)'}
+              >
+                {workspaceLayout === 'analysis_focus' ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span>Split View</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span>Expand Analysis</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Tab Content Container */}
