@@ -520,3 +520,64 @@
 ### 8. Stage 8: Checkpoint & Scorecard
 - **Composite Score:** Improved from 8.61 to **8.76 / 10**.
 - **Commit:** `feat(ux-it9): semantic triage and governance action grouping, dual-control two-step visual progression, and consequence modal safety elevation`
+
+---
+
+## Iteration 10: Exception Management & Statutory Urgency
+
+### 1. Stage 1: Observe & Baseline
+- **Observed Surface:** `frontend/src/pages/ExceptionsPage.tsx` and `backend/api/v1/exceptions.py`.
+- **Baseline Behavior:**
+  - Raw table of open exceptions with minimal metadata.
+  - No executive KPI metric summary (total exposure held, critical MSME count, high exposure count, unassigned count).
+  - No urgency filtering or real-time search.
+  - The backend had a complete, audit-logged `POST /api/v1/exceptions/{id}/reassign` endpoint, but the frontend lacked any button or modal to execute reassignments.
+  - Raw deadline strings lacked visual urgency indicators or countdown days.
+
+### 2. Stage 2: Multi-Perspective Review
+- **AP Lead:** Needs to see aggregate financial exposure at risk, triage by urgency, and reassign ownership to specific associates without leaving the queue.
+- **Financial Controller:** Requires rigorous monitoring of the 45-day MSMED Act 2006 statutory deadline to prevent statutory penal interest (compounding monthly at 3× RBI bank rate).
+- **Auditor:** Needs to verify that all exception reassignments create immutable audit trail entries with mandatory operational justifications.
+- **HR Evaluator:** Needs an intuitive, high-velocity queue layout that demonstrates how enterprise AP software manages legal and financial compliance risks.
+
+### 3. Stage 3: Deep Diagnosis & Problem Definition
+- Operators handling 20+ disputed invoices had no way to filter by urgency or search by vendor/invoice.
+- Exposure amount was buried in the table without aggregate portfolio visibility.
+- Lack of in-queue reassignment forced manual offline coordination.
+
+### 4. Stage 4: Explore Alternatives & Trade-offs
+- *Alternative A:* Add multi-level nested accordion drawers for every exception. (Rejected: creates unnecessary scrolling and visual clutter).
+- *Alternative B (Implemented):* Sleek executive KPI metric strip at top (Total Exposure, Critical MSME, High Exposure, Unassigned) + Segmented urgency filter pills (`All`, `Critical MSME`, `High Exposure`, `Unassigned`) + Real-time text search + Interactive table with relative countdown chips + Accessible modal dialog for audit-backed reassignments.
+
+### 5. Stage 5: Careful Implementation
+- `frontend/src/api/client.ts`: Added `reassignException(exceptionId, assignedUserId, reason)`.
+- `frontend/src/pages/ExceptionsPage.tsx`:
+  - Implemented 4-card KPI metric strip with high-contrast icon badges and monospace INR amounts.
+  - Added segmented urgency filter pills with real-time counts.
+  - Added zero-latency search input with quick-clear button.
+  - Implemented relative days-remaining calculations (`getDeadlineUrgency`) with color-coded badges (`Due in Xd`, `Overdue by Xd`, `Standard Terms`).
+  - Implemented accessible Reassign Modal with team member dropdown, mandatory audit reason textarea, and smooth confirmation feedback.
+  - Added sticky table header with backdrop blur.
+
+### 6. Stage 6: Rigorous Verification
+- **Playwright Test Execution (`scratch/inspect_iteration_10.py`):**
+  - Verified 4 KPI cards render accurately (`Total Blocked Exposure`, `Critical MSME Deadlines`, `High Exposure Items`, `Unassigned Queue`).
+  - Verified `Statutory Urgency Invariant` banner is visible.
+  - Verified tabs (`All Exceptions`, `High Exposure`, `Unassigned`) and search filtering.
+  - Tested opening and interacting with the Reassign Modal.
+  - Verified responsive rendering at 1440px desktop and 375px mobile.
+- **Screenshots Saved:**
+  - `scratch/screenshots/it10_exceptions_desktop_1440.png`
+  - `scratch/screenshots/it10_exceptions_reassign_modal_1440.png`
+  - `scratch/screenshots/it10_exceptions_mobile_375.png`
+- **Build & Tests:**
+  - `npm --prefix frontend run build`: Clean production build in 428ms.
+  - `python -m pytest tests/phase_e/test_security_and_financial_controls.py -q`: `11 passed, 0 failed` in 1.47s.
+
+### 7. Stage 7: Independent Critique
+- The Exceptions Queue is now a mission-control grade surface. It combines clear legal compliance visibility (MSMED Act 2006 countdowns) with actionable operational agility (1-click reassignments, real-time search, and direct resolution routing).
+
+### 8. Stage 8: Checkpoint & Scorecard
+- **Composite Score:** Improved from 8.62 to **8.65 / 10**.
+- **Commit:** `feat(ux-it10): executive exposure kpi strip, msme statutory urgency countdowns, real-time queue filtering, and audit-logged exception reassignments`
+

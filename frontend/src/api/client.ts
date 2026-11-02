@@ -100,6 +100,10 @@ export const api = {
     body: JSON.stringify({ action, reason, ...extra }),
   }),
   getExceptions: () => request<ExceptionsResponse>('/api/v1/exceptions'),
+  reassignException: (exceptionId: string, assignedUserId: string, reason: string) => request<any>(`/api/v1/exceptions/${exceptionId}/reassign`, {
+    method: 'POST',
+    body: JSON.stringify({ assigned_user_id: assignedUserId, reason }),
+  }),
   getSourceRecords: () => request<SourceRecordsData>('/api/v1/source-records'),
   getAudit: (params: { invoice_id?: string; actor_id?: string; action?: string; correlation_id?: string; limit?: number } = {}) => {
     const q = new URLSearchParams();

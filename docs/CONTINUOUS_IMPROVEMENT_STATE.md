@@ -33,7 +33,7 @@
 | **It. 7** | Procurement 3-Way Matching Visualization | **COMPLETED** | `ProcurementVerificationFlow.tsx` | Linear stage velocity tracker ($1 \to 2 \to 3 \to 4$), dual rate variance (% and INR delta), actionable debit note recommendations |
 | **It. 8** | Policy Checks & Plain-Language Explanations | **COMPLETED** | `PolicyChecksGrouped.tsx` | Eliminating 4-tier card nesting, typographic knowledge grid layout, clear next steps |
 | **It. 9** | Approval Actions, Consequences & Modals | **COMPLETED** | `ConsequenceAwareActionModal.tsx`, `InvoiceDetailPage.tsx` | Semantic action clustering (Triage vs Governance), two-step dual approval visual tracker, explicit non-disbursement safety guarantees |
-| **It. 10** | Exception Management & Statutory Urgency | QUEUED | `ExceptionsPage.tsx` | MSME sorting, reassign UX, exposure |
+| **It. 10** | Exception Management & Statutory Urgency | **COMPLETED** | `ExceptionsPage.tsx`, `frontend/src/api/client.ts` | Executive blocked exposure KPI strip, MSME statutory countdowns, urgency filter pills, instant search, audit-backed exception reassignment modal |
 | **It. 11** | Connections & Integration Transparency | QUEUED | `ConnectionsPage.tsx` | Status honesty, health diagnostics, setup |
 | **It. 12** | Procurement Master Reference Data | QUEUED | `SourceRecordsPage.tsx` | Provenance badges, tab switching, search |
 | **It. 13** | Audit Trail & Immutability Ledger | QUEUED | `AuditPage.tsx` | Event inspection, hash display, filter UX |
