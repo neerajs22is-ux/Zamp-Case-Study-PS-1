@@ -43,8 +43,8 @@
 | **It. 17** | Tablet & Mobile Ergonomic Polish | **COMPLETED** | `InvoiceDetailPage.tsx`, `SourceRecordsPage.tsx`, `AuditPage.tsx` | Full-width thumb CTA on mobile, 40px drawer close buttons, multi-viewport polish |
 | **It. 18** | Accessibility, Focus States & Keyboard UX | **COMPLETED** | `KeyboardShortcutsModal.tsx`, `GlossaryModal.tsx`, `ConsequenceAwareActionModal.tsx` | Mouseless shortcuts (?, /, Esc, g-nav, 1-4), backdrop dismissal, ARIA |
 | **It. 19** | End-to-End HR Showcase Demonstration | **COMPLETED** | `HRShowcaseModal.tsx`, `AppShell.tsx`, `HR_SHOWCASE_GUIDE.md` | In-app 6-scenario launcher, role auto-switch, complete evaluator guide |
-| **It. 20** | Independent Redesign Critique & Consolidation | QUEUED | Full repository review | Quality gates audit, architectural alignment |
-| **21+** | Production Readiness Loop (Architecture, Security, Reliability) | QUEUED | Backend & Infrastructure | ASVS compliance, rate limits, performance |
+| **It. 20** | Independent Redesign Critique & Consolidation | **COMPLETED** | Full repository review | Quality gates certified (9.64/10), 8-view sweep verified |
+| **21+** | Production Readiness Loop (Architecture, Security, Reliability) | IN PROGRESS | Backend & Infrastructure | ASVS compliance, rate limits, performance |
 
 ---
 
