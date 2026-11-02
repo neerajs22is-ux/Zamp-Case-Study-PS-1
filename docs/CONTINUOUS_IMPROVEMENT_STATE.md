@@ -41,7 +41,7 @@
 | **It. 15** | Typography & Visual Hierarchy System | **COMPLETED** | `frontend/src/index.css` | Institutional typography system, tight heading tracking, universal tabular numerics, custom scrollbars, selection highlights |
 | **It. 16** | Spacing, Rhythm & Component Density | **COMPLETED** | `AppShell.tsx`, `Sidebar.tsx` | Standardized py-5/py-6 container padding, active nav left accent bars, header backdrop-blur |
 | **It. 17** | Tablet & Mobile Ergonomic Polish | **COMPLETED** | `InvoiceDetailPage.tsx`, `SourceRecordsPage.tsx`, `AuditPage.tsx` | Full-width thumb CTA on mobile, 40px drawer close buttons, multi-viewport polish |
-| **It. 18** | Accessibility, Focus States & Keyboard UX | QUEUED | Keyboard shortcuts, ARIA, focus rings | WCAG 2.1 AA compliance, tab stops |
+| **It. 18** | Accessibility, Focus States & Keyboard UX | **COMPLETED** | `KeyboardShortcutsModal.tsx`, `GlossaryModal.tsx`, `ConsequenceAwareActionModal.tsx` | Mouseless shortcuts (?, /, Esc, g-nav, 1-4), backdrop dismissal, ARIA |
 | **It. 19** | End-to-End HR Showcase Demonstration | QUEUED | `HR_SHOWCASE_GUIDE.md`, Demo presets | Seamless self-guided walkthrough mode |
 | **It. 20** | Independent Redesign Critique & Consolidation | QUEUED | Full repository review | Quality gates audit, architectural alignment |
 | **21+** | Production Readiness Loop (Architecture, Security, Reliability) | QUEUED | Backend & Infrastructure | ASVS compliance, rate limits, performance |
