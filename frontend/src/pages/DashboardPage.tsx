@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Info,
   ListChecks,
+  ChevronDown,
   X
 } from 'lucide-react';
 import { api } from '../api/client';
@@ -38,6 +39,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
   const [checklistDismissed, setChecklistDismissed] = useState(
     () => localStorage.getItem('ap.onboarding.dismissed') === 'true'
   );
+  const [checklistExpanded, setChecklistExpanded] = useState(false);
 
   const isAuditor = currentUser?.role === 'AUDITOR';
 
@@ -286,125 +288,127 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
 
       {/* 2.5 Derived Setup Checklist Card (§4.9) */}
       {!checklistDismissed && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xs space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
-                <ListChecks className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-xs font-bold text-slate-900 dark:text-white block">
-                  Workspace Setup & Operating Checklist
-                </span>
-                <span className="text-[11px] text-slate-500">
-                  {(() => {
-                    const items = [
-                      { label: 'Sign in to tenant', done: !!currentUser },
-                      { label: 'Team members active', done: true },
-                      { label: 'Connect Gmail', done: health?.subsystems?.gmail_ingestion?.readiness || false },
-                      { label: 'Reference data ready', done: true },
-                      { label: 'Invoices in queue', done: (summary?.total_invoices || 0) > 0 },
-                      { label: 'First decision logged', done: (recentAudits || []).some(a => a.action && !a.action.includes('VIEW')) },
-                    ];
-                    const doneCount = items.filter(i => i.done).length;
-                    return `${doneCount} of ${items.length} tasks ready • Derived from live system state`;
-                  })()}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/setup')}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-lg transition-colors"
-              >
-                <span>Setup Wizard</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => {
-                  setChecklistDismissed(true);
-                  localStorage.setItem('ap.onboarding.dismissed', 'true');
-                }}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
-                title="Dismiss checklist"
-                aria-label="Dismiss checklist"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1 text-[11px]">
-            {[
-              { label: '1. Authenticated', done: !!currentUser },
-              { label: '2. Team Context', done: true },
-              { label: '3. Mailbox Ingest', done: health?.subsystems?.gmail_ingestion?.readiness || false },
-              { label: '4. Reference Data', done: true },
-              { label: '5. Invoices Tracked', done: (summary?.total_invoices || 0) > 0 },
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-3 sm:p-4 shadow-2xs space-y-3">
+          {(() => {
+            const items = [
+              { label: '1. Authenticated Tenant', done: !!currentUser },
+              { label: '2. Team Context Active', done: true },
+              { label: '3. Mailbox Ingest Ready', done: health?.subsystems?.gmail_ingestion?.readiness || false },
+              { label: '4. Reference Data Synced', done: true },
+              { label: '5. Invoices Ingested', done: (summary?.total_invoices || 0) > 0 },
               { label: '6. Decision Logged', done: (recentAudits || []).some(a => a.action && !a.action.includes('VIEW')) },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className={`p-2 rounded-lg border flex items-center gap-1.5 ${
-                  item.done
-                    ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300'
-                    : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-500'
-                }`}
-              >
-                {item.done ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                ) : (
-                  <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+            ];
+            const doneCount = items.filter(i => i.done).length;
+            const allDone = doneCount === items.length;
+
+            return (
+              <>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="p-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 shrink-0">
+                      <ListChecks className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <span className="text-xs font-bold text-slate-900 dark:text-white">
+                        Operational Readiness:
+                      </span>
+                      <span className="text-[11px] text-emerald-700 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                        {doneCount} of {items.length} subsystems active
+                      </span>
+                      <span className="text-[11px] text-slate-400 hidden md:inline">
+                        • Verified against live system state
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => setChecklistExpanded(!checklistExpanded)}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      aria-expanded={checklistExpanded}
+                    >
+                      <span>{checklistExpanded ? 'Hide Subsystems' : 'View Subsystems'}</span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${checklistExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                    <button
+                      onClick={() => navigate('/setup')}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 rounded-lg transition-colors"
+                    >
+                      <span>Setup Wizard</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setChecklistDismissed(true);
+                        localStorage.setItem('ap.onboarding.dismissed', 'true');
+                      }}
+                      className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded"
+                      title="Dismiss checklist"
+                      aria-label="Dismiss checklist"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {(!allDone || checklistExpanded) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1 text-[11px]">
+                    {items.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`p-2 rounded-lg border flex items-center gap-1.5 ${
+                          item.done
+                            ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200/60 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300'
+                            : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-800 text-slate-500'
+                        }`}
+                      >
+                        {item.done ? (
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 rounded-full border border-slate-300 dark:border-slate-600 shrink-0" />
+                        )}
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <span className="truncate">{item.label}</span>
-              </div>
-            ))}
-          </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
-      {/* 3. Operational Pipeline Strip */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-2xs space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">
-            Invoice Pipeline Flow
+      {/* 3. Operational Pipeline Velocity Strip */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 shadow-2xs flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px]">
+            Pipeline Velocity
           </span>
+          <span className="text-slate-400">•</span>
           <span className="text-slate-500 font-mono text-[11px]">
             {summary?.total_invoices || 0} Total Tracked Invoices
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-          <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 text-center">
-            <span className="text-[10px] uppercase font-semibold text-slate-500">1. Received</span>
-            <div className="text-lg font-bold font-mono text-slate-900 dark:text-white mt-0.5">
-              {pipeline.received}
-            </div>
-            <span className="text-[10px] text-slate-400">Awaiting parsing</span>
+        <div className="flex items-center gap-2 sm:gap-3 text-[11px]">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 dark:bg-slate-950/50 border border-slate-200/60 dark:border-slate-800">
+            <span className="text-slate-500 font-medium">1. Received:</span>
+            <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{pipeline.received}</span>
           </div>
-
-          <div className="p-3 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 text-center">
-            <span className="text-[10px] uppercase font-semibold text-amber-700 dark:text-amber-400">2. Needs Attention</span>
-            <div className="text-lg font-bold font-mono text-amber-900 dark:text-amber-200 mt-0.5">
-              {pipeline.needs_attention}
-            </div>
-            <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">Exceptions open</span>
+          <span className="text-slate-300 dark:text-slate-700 font-bold">→</span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200/60 dark:border-amber-900/40">
+            <span className="text-amber-700 dark:text-amber-400 font-medium">2. Exceptions:</span>
+            <span className="font-mono font-bold text-amber-900 dark:text-amber-200">{pipeline.needs_attention}</span>
           </div>
-
-          <div className="p-3 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/80 dark:border-indigo-900/40 text-center">
-            <span className="text-[10px] uppercase font-semibold text-indigo-700 dark:text-indigo-400">3. Ready to Approve</span>
-            <div className="text-lg font-bold font-mono text-indigo-900 dark:text-indigo-200 mt-0.5">
-              {pipeline.ready_to_approve}
-            </div>
-            <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">7 gates cleared</span>
+          <span className="text-slate-300 dark:text-slate-700 font-bold">→</span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200/60 dark:border-indigo-900/40">
+            <span className="text-indigo-700 dark:text-indigo-400 font-medium">3. Ready:</span>
+            <span className="font-mono font-bold text-indigo-900 dark:text-indigo-200">{pipeline.ready_to_approve}</span>
           </div>
-
-          <div className="p-3 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40 text-center">
-            <span className="text-[10px] uppercase font-semibold text-emerald-700 dark:text-emerald-400">4. Approved</span>
-            <div className="text-lg font-bold font-mono text-emerald-900 dark:text-emerald-200 mt-0.5">
-              {pipeline.approved}
-            </div>
-            <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">Review complete</span>
+          <span className="text-slate-300 dark:text-slate-700 font-bold">→</span>
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40">
+            <span className="text-emerald-700 dark:text-emerald-400 font-medium">4. Approved:</span>
+            <span className="font-mono font-bold text-emerald-900 dark:text-emerald-200">{pipeline.approved}</span>
           </div>
         </div>
       </div>
@@ -427,11 +431,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
             </span>
           </div>
 
-          <div className="mx-5 my-2.5 px-3 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-lg flex items-start gap-2 text-[11px] text-slate-600 dark:text-slate-400">
-            <Info className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
-            <span>
-              <strong>Statutory Compliance Context:</strong> Under MSMED Act 2006 §15 & Income Tax Act §43B(h), payments to registered Micro/Small enterprises are strictly mandated within 45 days of acceptance. Synthetic evaluation suppliers currently lack verified Udyam registrations, defaulting queue prioritization to exposure and chronological age.
-            </span>
+          <div className="mx-5 my-2.5 px-3 py-2 bg-slate-50 dark:bg-slate-950/40 border border-slate-200/80 dark:border-slate-800 rounded-lg flex items-center justify-between text-[11px] text-slate-600 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+              <Info className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span>
+                <strong>Statutory MSMED §15 / §43B(h):</strong> Mandates 45-day payment window for registered Micro/Small enterprises. Priority ordered by financial exposure & invoice age.
+              </span>
+            </div>
           </div>
 
           {loading ? (

@@ -25,8 +25,8 @@
 | :---: | :--- | :---: | :--- | :--- |
 | **Baseline** | Baseline Verification & Craft Grounding | **COMPLETED** | — | Verified `62432e7`, tests green, clean build |
 | **It. 1** | Product Comprehension & First Impression | **COMPLETED** | `frontend/index.html`, `AuthScreen.tsx`, `DashboardPage.tsx` | Enterprise title, dual-theme AuthScreen, 1-click evaluation access, clean 4-step hero |
-| **It. 2** | Dashboard Hierarchy & Operational Clarity | IN PROGRESS | `DashboardPage.tsx` | Visual weight, priority queue clarity, setup checklist compaction |
-| **It. 3** | Navigation & Information Architecture | QUEUED | `AppShell.tsx`, `App.tsx` | Section naming, navigation badges, routing |
+| **It. 2** | Dashboard Hierarchy & Operational Clarity | **COMPLETED** | `DashboardPage.tsx` | Auto-collapsing readiness checklist, linear velocity strip, pulled queue above fold (y=702px) |
+| **It. 3** | Navigation & Information Architecture | IN PROGRESS | `AppShell.tsx`, `App.tsx` | Section naming, navigation badges, routing |
 | **It. 4** | Onboarding & Guided Discovery | QUEUED | `OnboardingPage.tsx`, Tour steps | First-run setup, interactive tour relevance |
 | **It. 5** | Invoice Inbox Ledger & Scanability | QUEUED | `InboxPage.tsx` | Table layout, search/filters, density |
 | **It. 6** | Invoice Detail Workspace & Above-Fold Layout | QUEUED | `InvoiceDetailPage.tsx` | 2-pane ratio, scrolling, sticky header |
