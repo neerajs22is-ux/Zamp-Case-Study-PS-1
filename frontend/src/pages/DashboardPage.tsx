@@ -154,18 +154,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
         </div>
       )}
 
-      {/* Executive Overview & AP Paradigm Card (Answers Q1, Q2, Q3) */}
-      <div className="rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/70 via-white to-slate-50 dark:from-indigo-950/30 dark:via-slate-900 dark:to-slate-950 p-4 sm:p-5 shadow-2xs space-y-3">
+      {/* Executive Overview & AP Paradigm Card */}
+      <div className="rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-gradient-to-r from-indigo-50/60 via-white to-slate-50/60 dark:from-indigo-950/20 dark:via-slate-900 dark:to-slate-950 p-4 sm:p-5 shadow-2xs space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400 bg-indigo-100/80 dark:bg-indigo-950 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-800">
-              Autonomous Accounts Payable System
-            </span>
-            <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white mt-1">
-              End-to-end invoice verification, 7-point policy compliance, and audit-ready internal sign-off.
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+              Pre-Payment Invoice Verification & Controls
             </h2>
-            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-              Automates three-way matching against Purchase Orders and Goods Receipts. High-value disbursements (&ge; ₹5,00,000) enforce mandatory secondary approval.
+            <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 max-w-3xl leading-relaxed">
+              Automates three-way matching against purchase orders and goods receipt notes across 7 deterministic policy gates. Invoices requiring human attention are queued below; high-value disbursements (&ge; ₹5,00,000) enforce secondary Controller sign-off.
             </p>
           </div>
           <div className="shrink-0 flex items-center gap-2">
@@ -173,29 +170,32 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
               onClick={() => navigate('/setup')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-slate-700 transition-colors shadow-2xs"
             >
-              <span>Onboarding Wizard</span>
+              <span>Setup Checklist</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* 4-Step Linear Journey Visualization */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-indigo-100/80 dark:border-indigo-900/40 text-[11px]">
-          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
-            <span>PDF Ingestion</span>
+        {/* 4-Step Linear Journey Progression */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-3 border-t border-indigo-100 dark:border-indigo-900/40 text-xs">
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-semibold flex items-center justify-center text-[10px] shrink-0">1</span>
+            <span className="font-medium">Intake (PDF / Gmail)</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
-            <span>AI Field Reading</span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&rarr;</span>
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-semibold flex items-center justify-center text-[10px] shrink-0">2</span>
+            <span className="font-medium">AI Multimodal Extraction</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
-            <span>7 Policy Checks</span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&rarr;</span>
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-semibold flex items-center justify-center text-[10px] shrink-0">3</span>
+            <span className="font-medium">7 Deterministic Policy Gates</span>
           </div>
-          <div className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-            <span className="w-5 h-5 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold flex items-center justify-center text-[10px] shrink-0">4</span>
-            <span>Internal Sign-Off</span>
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">&rarr;</span>
+          <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+            <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-semibold flex items-center justify-center text-[10px] shrink-0">4</span>
+            <span className="font-medium">Dual-Control Sign-Off</span>
           </div>
         </div>
       </div>

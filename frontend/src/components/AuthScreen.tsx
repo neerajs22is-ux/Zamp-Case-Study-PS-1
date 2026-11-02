@@ -4,12 +4,13 @@ import {
   Key, 
   CheckCircle, 
   Clock, 
-  XCircle, 
   AlertCircle, 
   UserCheck,
   Send,
   Loader2,
-  Info
+  Info,
+  ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { api, setAuthToken } from '../api/client';
 import type { AuthenticatedUser, AccessRequest } from '../types';
@@ -40,7 +41,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [authStatus, setAuthStatus] = useState<any>(null);
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
 
-  // Fetch IdP configuration status and check for OAuth redirect errors
   useEffect(() => {
     api.getAuthStatus().then(setAuthStatus).catch(() => {});
 
@@ -49,10 +49,9 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     if (errDesc) {
       if (errDesc.includes('provider is not enabled') || errDesc.includes('Unsupported provider') || errDesc.includes('validation_failed')) {
         setActionMessage({
-          type: 'error',
-          text: 'Google OAuth provider is unconfigured in the connected Supabase Cloud project (https://qxrrbyjczuqkgnexwqyh.supabase.co). Please use the SME Evaluation Quick Login or see the Manual Setup Instructions below.',
+          type: 'info',
+          text: 'Google OAuth provider is unconfigured in the connected Supabase Cloud project. Please select an SME Evaluation Role below for instant access.',
         });
-        setShowGoogleSetup(true);
       } else {
         setActionMessage({
           type: 'error',
@@ -62,7 +61,6 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   }, []);
 
-  // Fetch access requests if user is authenticated but not provisioned
   useEffect(() => {
     if (user && !user.is_provisioned) {
       loadMyRequests();
@@ -153,33 +151,32 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     }
   };
 
-  // State 2: Authentication Loading
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
-        <p className="text-slate-400 text-sm font-medium">Verifying corporate credentials and session claims...</p>
+        <Loader2 className="w-10 h-10 text-indigo-600 dark:text-indigo-400 animate-spin" />
+        <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">Verifying corporate credentials and session claims...</p>
       </div>
     );
   }
 
-  // State 1 & 3: Not signed in or Auth error
   if (!user) {
     const isGoogleEnabled = authStatus?.google_oauth_enabled === true;
+    const isLocalEnv = !import.meta.env.PROD || authStatus?.dev_session_enabled || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 
     return (
-      <div className="max-w-xl mx-auto my-10 p-6 md:p-8 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl">
+      <div className="max-w-xl mx-auto my-6 p-6 sm:p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl transition-colors">
         <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-3 text-indigo-400">
+          <div className="inline-flex p-3 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 rounded-xl mb-3 text-indigo-600 dark:text-indigo-400">
             <Shield className="w-7 h-7" />
           </div>
-          <h1 className="text-xl font-bold text-white tracking-tight">Autonomous AP Command Center</h1>
-          <p className="text-xs text-slate-400 mt-1">Enterprise Employee Authentication & Access Control</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">AP Command Center</h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Autonomous Invoice Verification, Policy Compliance & Dual Approval</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-start gap-2.5 text-rose-300 text-xs">
-            <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+          <div className="mb-6 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl flex items-start gap-2.5 text-rose-800 dark:text-rose-300 text-xs">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold">Authentication Notice</p>
               <p className="mt-0.5 opacity-90">{error}</p>
@@ -190,21 +187,91 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
         {actionMessage && (
           <div className={`mb-6 p-3.5 rounded-xl flex items-start gap-2.5 text-xs ${
             actionMessage.type === 'success' 
-              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300' 
-              : 'bg-rose-500/10 border border-rose-500/20 text-rose-300'
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-800 dark:text-emerald-300' 
+              : actionMessage.type === 'info'
+              ? 'bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 text-sky-800 dark:text-sky-300'
+              : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-800 dark:text-rose-300'
           }`}>
             {actionMessage.type === 'success' ? (
-              <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            ) : actionMessage.type === 'info' ? (
+              <Info className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
             ) : (
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
             )}
             <span className="leading-relaxed">{actionMessage.text}</span>
           </div>
         )}
 
         <div className="space-y-5">
-          {/* Section 1: Enterprise SSO (Google Workspace) */}
-          <div className="border border-slate-800 bg-slate-950/60 rounded-xl p-4">
+          {/* Section 1: Instant SME Evaluation Access (Prominent for Evaluators) */}
+          {isLocalEnv && (
+            <div className="border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl p-4">
+              <div className="flex items-center justify-between mb-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                  <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Instant Evaluation Access</span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-100 dark:bg-indigo-900/60 border border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-300 font-semibold">
+                  1-Click Workspace Login
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-3 leading-relaxed">
+                Select a verified evaluation role to inspect genuine invoice matching, 7-point policy gates, and dual approval:
+              </p>
+              <div className="space-y-2">
+                {[
+                  { 
+                    label: 'SME AP Lead', 
+                    email: 'sme_lead@company.internal', 
+                    desc: 'Initial review sign-off (< ₹5,00,000), exception triage, debit notes',
+                    badge: 'Recommended for Demo',
+                    color: 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  },
+                  { 
+                    label: 'SME Financial Controller', 
+                    email: 'sme_controller@company.internal', 
+                    desc: 'Executive dual approval authority for high-value disbursements (≥ ₹5,00,000)',
+                    badge: 'Dual Control Step 2',
+                    color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                  },
+                  { 
+                    label: 'SME Auditor', 
+                    email: 'sme_auditor@company.internal', 
+                    desc: 'Read-only compliance inspection, tamper-evident audit ledger oversight',
+                    badge: 'Read-Only Oversight',
+                    color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                  },
+                  { 
+                    label: 'SME AP Associate', 
+                    email: 'sme_associate@company.internal', 
+                    desc: 'Operational queue intake, OCR parsing validation, discrepancy flagging',
+                    badge: 'Operational Intake',
+                    color: 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+                  },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    disabled={actionLoading}
+                    onClick={() => handleQuickLogin(item.email, 'org_sme_eval', false)}
+                    className={`w-full text-left p-2.5 rounded-lg text-xs transition-colors flex items-center justify-between shadow-2xs ${item.color} disabled:opacity-50`}
+                  >
+                    <div>
+                      <div className="font-semibold flex items-center gap-1.5">
+                        <span>{item.label}</span>
+                        <span className="text-[10px] opacity-75 font-normal">({item.badge})</span>
+                      </div>
+                      <div className="text-[10px] opacity-80 mt-0.5">{item.desc}</div>
+                    </div>
+                    <ArrowRight className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Section 2: Enterprise SSO (Google Workspace) */}
+          <div className="border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 rounded-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2.5">
                 <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -213,15 +280,15 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
-                <span className="text-xs font-semibold text-white">Google Workspace SSO</span>
+                <span className="text-xs font-semibold text-slate-800 dark:text-white">Google Workspace SSO (Production IdP)</span>
               </div>
               {isGoogleEnabled ? (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium">
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 font-medium">
                   Active
                 </span>
               ) : (
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-300 font-medium">
-                  Setup Required
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-medium">
+                  Optional Setup
                 </span>
               )}
             </div>
@@ -229,60 +296,31 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             {isGoogleEnabled ? (
               <button
                 onClick={handleGoogleSignIn}
-                className="w-full mt-2 flex items-center justify-center gap-2.5 bg-white hover:bg-slate-100 text-slate-900 font-semibold py-2 px-4 rounded-lg shadow transition-colors text-xs"
+                className="w-full mt-2 flex items-center justify-center gap-2.5 bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-semibold py-2 px-4 rounded-lg border border-slate-300 dark:border-slate-700 shadow-2xs transition-colors text-xs"
               >
                 Sign in with Google Workspace
               </button>
             ) : (
               <div className="mt-1">
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Enterprise SSO is configured against Supabase Auth, but the Google provider is currently disabled in your Supabase Cloud dashboard (<code className="text-slate-300 font-mono text-[10px]">qxrrbyjczuqkgnexwqyh.supabase.co</code>).
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Enterprise SSO connects against Supabase Auth. For production deployments with Google Workspace, enable the Google OAuth provider in Supabase Cloud.
                 </p>
-                <div className="mt-3 flex items-center gap-2">
+                <div className="mt-2.5 flex items-center gap-2">
                   <button
                     onClick={() => setShowGoogleSetup(!showGoogleSetup)}
-                    className="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium px-3 py-1.5 rounded-lg border border-slate-700 transition-colors flex items-center gap-1.5"
+                    className="text-[11px] bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-medium px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5"
                   >
-                    <Info className="w-3.5 h-3.5 text-amber-400" />
-                    {showGoogleSetup ? 'Hide Setup Instructions' : 'View Setup Instructions'}
-                  </button>
-                  <button
-                    onClick={handleGoogleSignIn}
-                    className="text-[11px] bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-300 font-medium px-3 py-1.5 rounded-lg border border-slate-800 transition-colors"
-                  >
-                    Test Supabase Redirect
+                    <Info className="w-3.5 h-3.5 text-indigo-500" />
+                    {showGoogleSetup ? 'Hide Cloud Instructions' : 'View Cloud Setup Instructions'}
                   </button>
                 </div>
 
                 {showGoogleSetup && (
-                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 space-y-2">
-                    <p className="font-semibold text-white text-[11px]">To enable Google Workspace SSO:</p>
-                    <ol className="list-decimal pl-4 space-y-1.5 text-[11px] text-slate-400">
-                      <li>
-                        In <span className="text-slate-200 font-medium">Google Cloud Console</span>, create an OAuth 2.0 Client ID (Web Application).
-                      </li>
-                      <li>
-                        Set <span className="text-slate-200 font-medium">Authorized Redirect URI</span> to:
-                        <div className="mt-1 font-mono text-[10px] bg-slate-950 p-1.5 rounded border border-slate-800 text-indigo-300 select-all break-all">
-                          {authStatus?.supabase_callback_url || 'https://qxrrbyjczuqkgnexwqyh.supabase.co/auth/v1/callback'}
-                        </div>
-                      </li>
-                      <li>
-                        In <span className="text-slate-200 font-medium">Supabase Dashboard</span> &rarr; <span className="text-slate-200">Authentication &rarr; Providers &rarr; Google</span>:
-                        <br />Toggle <strong>Enable Google provider</strong> and paste your Client ID and Client Secret.
-                      </li>
-                      <li>
-                        In Supabase <span className="text-slate-200 font-medium">Authentication &rarr; URL Configuration &rarr; Redirect URLs</span>, add:
-                        <div className="mt-1 font-mono text-[10px] bg-slate-950 p-1.5 rounded border border-slate-800 text-slate-300 space-y-0.5">
-                          {(authStatus?.allowed_redirect_urls || [
-                            'http://localhost:8000/auth/callback',
-                            'http://127.0.0.1:8000/auth/callback',
-                            'http://localhost:5173/auth/callback',
-                          ]).map((url: string) => (
-                            <div key={url} className="text-emerald-400 select-all">{url}</div>
-                          ))}
-                        </div>
-                      </li>
+                  <div className="mt-3 p-3 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-xs space-y-2">
+                    <p className="font-semibold text-slate-900 dark:text-slate-200 text-[11px]">To enable Google Workspace in Supabase:</p>
+                    <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+                      <li>In <span className="font-medium text-slate-800 dark:text-slate-200">Supabase Dashboard</span> &rarr; Authentication &rarr; Providers &rarr; Google: toggle Enable and enter Client ID & Secret.</li>
+                      <li>In Redirect URLs, add: <code className="font-mono text-indigo-600 dark:text-indigo-400 select-all">http://localhost:8000/auth/callback</code></li>
                     </ol>
                   </div>
                 )}
@@ -290,51 +328,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             )}
           </div>
 
-          {/* Section 2: SME Acceptance Quick Login (Local Evaluation Environment Only) */}
-          {(!import.meta.env.PROD || authStatus?.dev_session_enabled || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') && (
-            <div className="border border-slate-800 bg-slate-950/40 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-1.5">
-                <h2 className="text-xs font-semibold text-slate-200 uppercase tracking-wider font-mono">
-                  SME Evaluation Access
-                </h2>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-medium">
-                  Local Evaluation Only
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 mb-3 leading-relaxed">
-                Issues authentic Supabase JWTs with verified roles. Restricted to local loopback hosts (127.0.0.1, localhost) in development mode and strictly isolated to tenant <code className="text-indigo-300 font-mono">org_sme_eval</code>.
-              </p>
-              <div className="grid grid-cols-2 gap-1.5">
-                {[
-                  { label: 'SME AP Lead', email: 'sme_lead@company.internal', unprovisioned: false },
-                  { label: 'SME Controller', email: 'sme_controller@company.internal', unprovisioned: false },
-                  { label: 'SME AP Associate', email: 'sme_associate@company.internal', unprovisioned: false },
-                  { label: 'SME Auditor (Read-Only)', email: 'sme_auditor@company.internal', unprovisioned: false },
-                  { label: 'Unprovisioned Candidate', email: 'new_employee@company.internal', unprovisioned: true },
-                ].map((item) => (
-                  <button
-                    key={item.label}
-                    disabled={actionLoading}
-                    onClick={() => handleQuickLogin(item.email, 'org_sme_eval', item.unprovisioned)}
-                    className="text-left px-2.5 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 rounded-lg text-[11px] text-slate-200 transition-colors truncate disabled:opacity-50 font-medium"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Section 3: Developer & Diagnostics Access (Collapsible) */}
-          {(!import.meta.env.PROD || authStatus?.dev_session_enabled || window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') && (
-            <details className="border border-slate-800/80 bg-slate-950/20 rounded-xl p-3 group">
-              <summary className="text-xs font-medium text-slate-400 hover:text-slate-300 cursor-pointer flex items-center justify-between font-mono select-none">
+          {isLocalEnv && (
+            <details className="border border-slate-200 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl p-3 group">
+              <summary className="text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-300 cursor-pointer flex items-center justify-between font-mono select-none">
                 <span>Developer & Diagnostics Access (JWT Inspection)</span>
                 <span className="text-[10px] text-slate-500 group-open:rotate-90 transition-transform">&rarr;</span>
               </summary>
               <div className="pt-3 space-y-2">
                 <p className="text-[11px] text-slate-500 leading-relaxed">
-                  Direct token injection for automated testing or inspecting custom pre-generated Supabase JWTs. Test harness tokens (<code className="font-mono text-slate-400">test_token:*</code>) are strictly barred in development mode.
+                  Direct token injection for automated testing or inspecting custom Supabase JWTs.
                 </p>
                 <div className="flex gap-2">
                   <input
@@ -342,11 +345,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                     placeholder="Paste valid Supabase Bearer JWT (eyJhbGci...)"
                     value={devTokenInput}
                     onChange={(e) => setDevTokenInput(e.target.value)}
-                    className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+                    className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-mono"
                   />
                   <button
                     onClick={() => handleApplyDevToken(devTokenInput)}
-                    className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                    className="bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-2xs"
                   >
                     Apply Token
                   </button>
@@ -359,168 +362,134 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     );
   }
 
-  // State 4, 5, 6, 7, 8: Authenticated BUT Unprovisioned
+  // State 4+: Authenticated BUT Unprovisioned
   if (!user.is_provisioned) {
     const pendingRequest = myRequests.find((r) => r.status === 'PENDING');
-    const rejectedRequest = myRequests.find((r) => r.status === 'REJECTED');
 
     return (
       <div className="max-w-2xl mx-auto my-8 space-y-6">
-        {/* Banner: Authenticated Identity Notice */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-400">
+              <div className="p-2 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 rounded-lg text-amber-600 dark:text-amber-400">
                 <UserCheck className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-base font-semibold text-white">Identity Verified: Unprovisioned Employee</h2>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">{user.email} (ID: {user.id})</p>
+                <h2 className="text-base font-semibold text-slate-900 dark:text-white">Identity Verified: Unprovisioned Employee</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-mono mt-0.5">{user.email} (ID: {user.id})</p>
               </div>
             </div>
             <button
               onClick={onLogout}
-              className="text-xs text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-900/50 bg-slate-950 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs text-slate-600 dark:text-slate-400 hover:text-rose-600 border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-900/50 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg transition-colors"
             >
               Sign Out
             </button>
           </div>
 
-          <p className="text-xs text-slate-300 leading-relaxed">
-            Your corporate Google identity has been authenticated via Supabase Auth. However, you do not currently hold an active tenant membership in any organisation. To access the AP Command Center, accept an existing single-use invitation or submit an access request for administrator review.
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+            Your corporate identity has been authenticated. However, you do not currently hold an active tenant membership. Accept an invitation token or submit an access request below.
           </p>
 
           {actionMessage && (
             <div className={`mt-4 p-3 rounded-lg flex items-start gap-2 text-xs ${
               actionMessage.type === 'success' 
-                ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-300' 
-                : 'bg-rose-500/10 border border-rose-500/20 text-rose-300'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300' 
+                : 'bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300'
             }`}>
               {actionMessage.type === 'success' ? (
-                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
               )}
               <span>{actionMessage.text}</span>
             </div>
           )}
         </div>
 
-        {/* State 7: Access Request Pending Banner */}
+        {/* State 7: Pending */}
         {pendingRequest && (
-          <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-4 flex items-start gap-3 text-sky-200">
-            <Clock className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />
+          <div className="bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/30 rounded-xl p-4 flex items-start gap-3 text-sky-800 dark:text-sky-200">
+            <Clock className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
             <div className="text-xs">
-              <p className="font-semibold text-white">Access Request Under Review</p>
+              <p className="font-semibold text-slate-900 dark:text-white">Access Request Under Review</p>
               <p className="mt-1">
-                Your request for organisation <span className="font-mono font-semibold text-white">{pendingRequest.org_id}</span> ({pendingRequest.requested_role}) submitted on {new Date(pendingRequest.created_at).toLocaleDateString()} is pending review by an authorised administrator.
+                Your request for organisation <span className="font-mono font-semibold text-slate-900 dark:text-white">{pendingRequest.org_id}</span> ({pendingRequest.requested_role}) is pending review.
               </p>
-              <p className="mt-1 text-sky-300/80">You will be notified once reviewed. Automatic membership is not permitted.</p>
             </div>
           </div>
         )}
 
-        {/* State 8: Access Request Denied Banner */}
-        {rejectedRequest && !pendingRequest && (
-          <div className="bg-rose-500/10 border border-rose-500/30 rounded-xl p-4 flex items-start gap-3 text-rose-200">
-            <XCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
-            <div className="text-xs">
-              <p className="font-semibold text-white">Previous Access Request Declined</p>
-              <p className="mt-1">
-                Your previous request for organisation <span className="font-mono text-white">{rejectedRequest.org_id}</span> was not approved.
-              </p>
-              {rejectedRequest.review_reason && (
-                <p className="mt-1 bg-slate-950/60 p-2 rounded border border-rose-500/20 font-mono text-[11px]">
-                  Reason: {rejectedRequest.review_reason}
-                </p>
-              )}
-              <p className="mt-1 text-rose-300/80">Please contact your system administrator or accounts payable controller for assistance.</p>
-            </div>
-          </div>
-        )}
-
-        {/* State 4 & 5: Accept Invitation Form */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        {/* State 4 & 5: Accept Invitation */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-xl">
           <div className="flex items-center gap-2 mb-3">
-            <Key className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-sm font-semibold text-white">Option 1: Accept an Invitation Token</h3>
+            <Key className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Option 1: Accept an Invitation Token</h3>
           </div>
-          <p className="text-xs text-slate-400 mb-4">
-            If an administrator issued you an invitation, paste the single-use token below. The invited email must strictly match your signed-in email address (<span className="text-slate-300 font-mono">{user.email}</span>).
-          </p>
           <form onSubmit={handleAcceptInvitation} className="flex gap-2">
             <input
               type="text"
               placeholder="Paste 32-character single-use invitation token..."
               value={inviteToken}
               onChange={(e) => setInviteToken(e.target.value)}
-              className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono"
+              className="flex-1 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-mono"
             />
             <button
               type="submit"
               disabled={actionLoading || !inviteToken.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5"
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors shadow-2xs"
             >
-              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-              Accept Invitation
+              {actionLoading ? 'Verifying...' : 'Accept'}
             </button>
           </form>
         </div>
 
-        {/* State 6: Request Access Form */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl">
+        {/* State 6: Submit Access Request */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-xl">
           <div className="flex items-center gap-2 mb-3">
-            <Send className="w-4 h-4 text-indigo-400" />
-            <h3 className="text-sm font-semibold text-white">Option 2: Request Organisation Access</h3>
+            <Send className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Option 2: Submit Access Request</h3>
           </div>
-          <p className="text-xs text-slate-400 mb-4">
-            Submit an access request to be reviewed by a Controller or System Administrator. Submitting a request does not grant automatic access.
-          </p>
-          <form onSubmit={handleSubmitAccessRequest} className="space-y-4">
+          <form onSubmit={handleSubmitAccessRequest} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Target Organisation ID</label>
+                <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">Target Organisation ID</label>
                 <input
                   type="text"
                   value={targetOrgId}
                   onChange={(e) => setTargetOrgId(e.target.value)}
-                  placeholder="e.g. org_default"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-200 font-mono"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Requested Role</label>
+                <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">Requested Role</label>
                 <select
                   value={requestedRole}
                   onChange={(e) => setRequestedRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-200"
                 >
-                  <option value="AP_ASSOCIATE">AP Associate (Verification & Matching)</option>
-                  <option value="AP_LEAD">AP Lead (Approval & Routing)</option>
-                  <option value="CONTROLLER">Controller (Financial Authorisation)</option>
-                  <option value="CATEGORY_MANAGER">Category Manager (Commercials)</option>
-                  <option value="AUDITOR">Auditor (Strictly Read-Only)</option>
+                  <option value="AP_ASSOCIATE">AP Associate</option>
+                  <option value="AP_LEAD">AP Lead</option>
+                  <option value="CONTROLLER">Financial Controller</option>
+                  <option value="AUDITOR">Auditor (Read-Only)</option>
                 </select>
               </div>
             </div>
-
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Business Justification / Reason</label>
+              <label className="block text-[11px] font-medium text-slate-700 dark:text-slate-300 mb-1">Business Reason</label>
               <textarea
+                rows={2}
                 value={accessReason}
                 onChange={(e) => setAccessReason(e.target.value)}
-                placeholder="State your department, role, and business justification for accessing this AP tenant..."
-                rows={2}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                placeholder="State your department and reason for access..."
+                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-xs text-slate-900 dark:text-slate-200"
               />
             </div>
-
             <button
               type="submit"
-              disabled={actionLoading || !targetOrgId.trim()}
-              className="w-full bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2 border border-slate-700"
+              disabled={actionLoading || !accessReason.trim()}
+              className="px-4 py-2 bg-slate-800 dark:bg-slate-700 hover:bg-slate-900 text-white rounded-lg text-xs font-semibold disabled:opacity-50 transition-colors shadow-2xs"
             >
-              {actionLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
               Submit Access Request
             </button>
           </form>
@@ -529,6 +498,5 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     );
   }
 
-  // State 9: Provisioned & Active
   return null;
 };
