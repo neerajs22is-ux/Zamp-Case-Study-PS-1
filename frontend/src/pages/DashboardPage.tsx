@@ -233,7 +233,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
 
         {/* Tile 2: Ready to Approve */}
         <div
-          onClick={() => navigate('/invoices?decision=AUTO_APPROVED')}
+          onClick={() => navigate('/invoices?decision=MATCH_CANDIDATE')}
           className="group cursor-pointer bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-900/60 hover:border-emerald-400 dark:hover:border-emerald-700 rounded-xl p-5 flex flex-col justify-between shadow-2xs transition-all hover:shadow-sm"
         >
           <div className="flex items-center justify-between">
@@ -460,47 +460,75 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
                   key={exc.exception_id} 
                   className="p-4 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                 >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
-                        {exc.invoice_number || exc.invoice_id}
-                      </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
-                        {humanGateName(exc.root_cause_gate)}
-                      </span>
-                    </div>
-                    <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3">
-                      <span>Supplier: <strong className="text-slate-700 dark:text-slate-300 font-medium">{exc.vendor_name || 'Unregistered'}</strong></span>
-                      {exc.po_reference && <span>• PO: <code className="font-mono">{exc.po_reference}</code></span>}
-                    </div>
-                  </div>
+                  {(() => {
+                    const isUnreadable = exc.invoice_number === 'UNKNOWN' || exc.vendor_name === 'Unknown' || exc.root_cause_gate === 'OCR Readability Inspection' || (exc.exposure_amount_inr === 0 && (!exc.po_reference || exc.po_reference === 'NONE'));
+                    return (
+                      <>
+                        <div className="space-y-1 min-w-0">
+                          {isUnreadable ? (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-xs text-amber-900 dark:text-amber-200">
+                                  Couldn't read this document
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                                  Degraded Scan
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3">
+                                <span>Reference: <code className="font-mono text-[11px]">{exc.invoice_id}</code></span>
+                                <span>• <em>Upload a clearer copy to process</em></span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-xs text-slate-900 dark:text-white">
+                                  {exc.invoice_number || exc.invoice_id}
+                                </span>
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300 border border-rose-200 dark:border-rose-900">
+                                  {humanGateName(exc.root_cause_gate)}
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-3">
+                                <span>Supplier: <strong className="text-slate-700 dark:text-slate-300 font-medium">{exc.vendor_name || 'Unregistered'}</strong></span>
+                                {exc.po_reference && <span>• PO: <code className="font-mono">{exc.po_reference}</code></span>}
+                              </div>
+                            </>
+                          )}
+                        </div>
 
-                  <div className="flex items-center gap-4 shrink-0 sm:text-right">
-                    <div>
-                      <div className="font-mono font-bold text-xs text-slate-900 dark:text-white tabular-nums">
-                        {formatINR(exc.exposure_amount_inr)}
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        {exc.msme_statutory_deadline ? (
-                          <span className="text-rose-600 dark:text-rose-400 font-medium">
-                            MSME Mandate: {exc.msme_statutory_deadline.substring(0, 10)}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 dark:text-slate-500">
-                            Standard Terms (Age Priority)
-                          </span>
-                        )}
-                      </div>
-                    </div>
+                        <div className="flex items-center gap-4 shrink-0 sm:text-right">
+                          <div>
+                            <div className="font-mono font-bold text-xs text-slate-900 dark:text-white tabular-nums">
+                              {isUnreadable ? '—' : formatINR(exc.exposure_amount_inr)}
+                            </div>
+                            <div className="text-[10px] text-slate-500">
+                              {isUnreadable ? (
+                                <span className="text-amber-700 dark:text-amber-400 font-medium">Clearer scan needed</span>
+                              ) : exc.msme_statutory_deadline ? (
+                                <span className="text-rose-600 dark:text-rose-400 font-medium">
+                                  MSME Mandate: {exc.msme_statutory_deadline.substring(0, 10)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 dark:text-slate-500">
+                                  Standard Terms (Age Priority)
+                                </span>
+                              )}
+                            </div>
+                          </div>
 
-                    <button
-                      onClick={() => navigate(`/invoices/${exc.invoice_id}?from=/today`)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shadow-2xs transition-colors flex items-center gap-1"
-                    >
-                      <span>{isAuditor ? 'View' : 'Review'}</span>
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                          <button
+                            onClick={() => navigate(`/invoices/${exc.invoice_id}?from=/today`)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/50 shadow-2xs transition-colors flex items-center gap-1"
+                          >
+                            <span>{isAuditor ? 'View' : 'Review'}</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>

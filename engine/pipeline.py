@@ -137,11 +137,13 @@ class InvoiceProcessingPipeline:
         # -------------------------------------------------------------
         t3 = time.perf_counter()
         audit = self.rule_engine.evaluate(invoice, self.erp, stage_timings=stage_timings)
+        stage_status = "FAILED" if audit.decision in (DecisionState.REJECTED, DecisionState.FLAGGED_HITL_REVIEW) else "SUCCESS"
+
         stage_timings.append(
             StageTiming(
                 stage_name="4. AOP Policy & Tolerance Match",
                 latency_ms=round((time.perf_counter() - t3) * 1000, 2),
-                status="SUCCESS",
+                status=stage_status,
                 details={"decision": audit.decision.value, "reasons_count": len(audit.reasons)},
             )
         )

@@ -40,8 +40,8 @@ export const AppShell: React.FC<AppShellProps> = ({
           const ready = (metrics.summary as any).ready_to_approve || 0;
           const second = (metrics.summary as any).pending_second_approval || 0;
           setNavCounts({
-            exceptions,
-            approvals: ready + second,
+            exceptions: exceptions + ready,
+            approvals: second,
           });
         }
       } catch {

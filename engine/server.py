@@ -174,38 +174,17 @@ async def stream_scenario_execution(scenario_id: str):
 
     async def event_generator():
         # Event 1: Pipeline Init
-        yield f"data: {json.dumps({'event': 'INIT', 'message': f'Starting ingestion for {scenario_id}', 'scenario': scenario})}\n\n"
-        await asyncio.sleep(0.3)
+        yield f"data: {json.dumps({'event': 'INIT', 'message': f'Starting genuine ingestion for {scenario_id}', 'scenario': scenario})}\n\n"
 
-        # Event 2: Stage 1 - Ingestion
-        yield f"data: {json.dumps({'event': 'STAGE_START', 'stage': 1, 'name': 'Document Ingestion', 'details': 'Classifying digital text stream vs scanned image'})}\n\n"
-        await asyncio.sleep(0.35)
-        yield f"data: {json.dumps({'event': 'STAGE_COMPLETE', 'stage': 1, 'name': 'Document Ingestion', 'status': 'SUCCESS', 'doc_type': invoice_data.get('document_type', 'DIGITAL_PDF')})}\n\n"
-        await asyncio.sleep(0.2)
-
-        # Event 3: Stage 2 - Extraction
-        yield f"data: {json.dumps({'event': 'STAGE_START', 'stage': 2, 'name': 'Structured Extraction', 'details': 'Validating InvoiceSchema arithmetic invariants'})}\n\n"
-        await asyncio.sleep(0.4)
-        yield f"data: {json.dumps({'event': 'STAGE_COMPLETE', 'stage': 2, 'name': 'Structured Extraction', 'status': 'SUCCESS', 'invoice_number': invoice_data.get('invoice_number'), 'total': invoice_data.get('total_amount')})}\n\n"
-        await asyncio.sleep(0.2)
-
-        # Event 4: Stage 3 - ERP Cross-Reference
-        yield f"data: {json.dumps({'event': 'STAGE_START', 'stage': 3, 'name': 'ERP Cross-Reference', 'details': 'Querying Vendor Master, open PO balances, and duplicate ledger'})}\n\n"
-        await asyncio.sleep(0.35)
-        yield f"data: {json.dumps({'event': 'STAGE_COMPLETE', 'stage': 3, 'name': 'ERP Cross-Reference', 'status': 'SUCCESS'})}\n\n"
-        await asyncio.sleep(0.2)
-
-        # Event 5: Stage 4 - AOP Policy Evaluation & Match
-        yield f"data: {json.dumps({'event': 'STAGE_START', 'stage': 4, 'name': 'AOP Policy & Tolerance Match', 'details': 'Running 2-way line matching, split PO check, and variance tolerances'})}\n\n"
-        await asyncio.sleep(0.4)
-
-        # Execute actual engine logic
+        # Execute genuine engine logic synchronously
         audit = pipeline.process(invoice_data, filename=scenario["json_file"])
 
-        yield f"data: {json.dumps({'event': 'STAGE_COMPLETE', 'stage': 4, 'name': 'AOP Policy & Tolerance Match', 'status': 'SUCCESS'})}\n\n"
-        await asyncio.sleep(0.2)
+        # Stream actual executed pipeline stages
+        for idx, timing in enumerate(audit.stage_timings, start=1):
+            yield f"data: {json.dumps({'event': 'STAGE_START', 'stage': idx, 'name': timing.stage_name, 'details': timing.details})}\n\n"
+            yield f"data: {json.dumps({'event': 'STAGE_COMPLETE', 'stage': idx, 'name': timing.stage_name, 'status': timing.status, 'details': timing.details})}\n\n"
 
-        # Event 6: Final Decision & Audit
+        # Final Decision & Audit
         yield f"data: {json.dumps({'event': 'DECISION_FINAL', 'decision': audit.decision.value, 'audit': audit.model_dump(mode='json')})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.auth import AuthenticatedUser, require_active_membership
 from backend.core.database import get_db
-from backend.models.domain import Invoice
+from backend.models.domain import Document, IngestionJob, Invoice
 
 router = APIRouter(prefix="/inbox", tags=["Invoice Inbox"])
 
@@ -47,7 +47,10 @@ def list_invoices(
     if stage:
         stmt = stmt.where(Invoice.stage == stage)
     if decision:
-        stmt = stmt.where(Invoice.decision == decision)
+        if decision in ("AUTO_APPROVED", "MATCH_CANDIDATE", "READY"):
+            stmt = stmt.where(Invoice.decision.in_(["MATCH_CANDIDATE", "AUTO_APPROVED"]))
+        else:
+            stmt = stmt.where(Invoice.decision == decision)
     if vendor:
         escaped_vendor = vendor.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         stmt = stmt.where(Invoice.vendor_name.ilike(f"%{escaped_vendor}%", escape="\\"))
@@ -60,8 +63,22 @@ def list_invoices(
     offset = (page - 1) * page_size
     items = db.scalars(stmt.order_by(Invoice.created_at.desc()).offset(offset).limit(page_size)).all()
 
+    # Look up any active or recent IngestionJob for these invoices
+    job_info: Dict[str, Dict[str, Optional[str]]] = {}
+    if items:
+        inv_ids = [inv.id for inv in items]
+        docs_and_jobs = db.execute(
+            select(Document.invoice_id, IngestionJob.status, IngestionJob.error_message)
+            .join(IngestionJob, IngestionJob.document_id == Document.id)
+            .where(Document.invoice_id.in_(inv_ids), Document.org_id == current_user.org_id)
+        ).all()
+        for i_id, j_status, j_err in docs_and_jobs:
+            if i_id not in job_info or j_status in ("PROCESSING", "QUEUED", "FAILED"):
+                job_info[i_id] = {"status": j_status, "error": j_err}
+
     serialized_items = []
     for inv in items:
+        j_meta = job_info.get(inv.id, {})
         serialized_items.append({
             "id": inv.id,
             "invoice_number": inv.invoice_number,
@@ -73,6 +90,8 @@ def list_invoices(
             "stage": inv.stage,
             "decision": inv.decision,
             "decision_reason": inv.decision_reason,
+            "job_status": j_meta.get("status"),
+            "job_error": j_meta.get("error"),
             "msme_statutory_deadline": inv.msme_statutory_deadline.isoformat() + "Z" if inv.msme_statutory_deadline else None,
             "msme_deadline_status": inv.msme_deadline_status,
             "created_at": inv.created_at.isoformat() + "Z",

@@ -91,6 +91,8 @@ export interface InvoiceItem {
   stage: string;
   decision: string;
   decision_reason: string | null;
+  job_status?: string | null;
+  job_error?: string | null;
   msme_statutory_deadline: string | null;
   msme_deadline_status: string | null;
   created_at: string;
@@ -126,8 +128,10 @@ export interface ExceptionsResponse {
 }
 
 export interface SourceRecordsData {
-  origin_system: string;
-  is_live_sync?: boolean;
+  origin_system: string;
+
+  is_live_sync?: boolean;
+
   provenance?: string;
   vendors: Array<{
     id: string;

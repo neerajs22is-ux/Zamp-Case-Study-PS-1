@@ -393,8 +393,19 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const { invoice, document, extracted_fields, lines, match_gates, approval, timeline } = data;
 
   // Determine gate pass/fail statistics
+  const isUnreadable = Boolean(
+    invoice?.decision === 'FLAGGED_HITL_REVIEW' && (
+      !invoice?.invoice_number ||
+      invoice?.invoice_number === 'UNKNOWN' ||
+      invoice?.invoice_number.startsWith('SCAN-') ||
+      invoice?.vendor_name === 'Unidentified Supplier' ||
+      invoice?.vendor_name === 'Unknown' ||
+      (invoice?.total_amount === 0 && !invoice?.po_reference)
+    )
+  );
   const totalGates = match_gates?.length || 0;
   const passedGates = match_gates?.filter((g: any) => g.status === 'PASS').length || 0;
+  const notEvaluatedGates = match_gates?.filter((g: any) => g.status === 'NOT_EVALUATED' || g.status === 'UNKNOWN').length || 0;
   const failedGates = match_gates?.filter((g: any) => g.status === 'FAIL') || [];
 
   const isAuditor = currentUser?.role === 'AUDITOR';
@@ -547,9 +558,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
           : isPendingSecondApproval
           ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-800/60 text-purple-900 dark:text-purple-200'
+          : isUnreadable
+          ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200'
           : failedGates.length > 0
           ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/60 text-amber-900 dark:text-amber-200'
-          : totalGates > 0 && passedGates === totalGates
+          : totalGates > 0 && passedGates === totalGates && notEvaluatedGates === 0
           ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60 text-emerald-900 dark:text-emerald-200'
           : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200'
       }`}>
@@ -558,9 +571,9 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           ) : isPendingSecondApproval ? (
             <ShieldAlert className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-          ) : failedGates.length > 0 ? (
+          ) : isUnreadable || failedGates.length > 0 ? (
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
-          ) : totalGates > 0 && passedGates === totalGates ? (
+          ) : totalGates > 0 && passedGates === totalGates && notEvaluatedGates === 0 ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           ) : (
             <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -573,17 +586,19 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                   'Invoice Review Complete (Internal Sign-Off)'
                 ) : isPendingSecondApproval ? (
                   'Waiting for Secondary Controller Approval'
+                ) : isUnreadable ? (
+                  'Couldn\'t Read Document — Clearer Copy Required'
                 ) : failedGates.length > 0 ? (
                   `Blocked: ${failedGates.length} Validation Check(s) Failed — Approval Blocked`
-                ) : totalGates > 0 && passedGates === totalGates ? (
+                ) : totalGates > 0 && passedGates === totalGates && notEvaluatedGates === 0 ? (
                   'All 7 Automatic Checks Passed — Ready to Approve'
                 ) : (
-                  'Invoice Ingested — Validation Pipeline Pending'
+                  `Validation Incomplete — ${passedGates} of ${totalGates} Checks Passed`
                 )}
               </span>
-              {failedGates.length > 0 && (
+              {(isUnreadable || failedGates.length > 0) && (
                 <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-200/80 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-300 dark:border-amber-800">
-                  Approval blocked until the failed checks are resolved.
+                  {isUnreadable ? 'Document unreadable — clearer copy required.' : 'Approval blocked until the failed checks are resolved.'}
                 </span>
               )}
             </div>
@@ -592,9 +607,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 'Internal AP review is complete. No payment has been executed and no ERP or General Ledger posting has occurred. Approval signifies internal AP sign-off; the supplier has not yet been paid.'
               ) : isPendingSecondApproval ? (
                 `First approval was rendered by ${approval?.first_approver_id || 'AP Lead'}. A distinct Financial Controller or System Admin must render secondary sign-off.`
+              ) : isUnreadable ? (
+                'The document scan could not be read automatically due to scan degradation. Downstream price, PO, and tax checks have not been evaluated.'
               ) : failedGates.length > 0 ? (
                 'This invoice cannot be approved while policy validation checks fail. Policy overrides are disabled; approvals are strictly blocked until all discrepancies are resolved or triaged using an authorized action below.'
-              ) : totalGates > 0 && passedGates === totalGates ? (
+              ) : totalGates > 0 && passedGates === totalGates && notEvaluatedGates === 0 ? (
                 'Supplier identity, PO authorization, GRN delivery, QC acceptance, arithmetic, and price tolerances all verified.'
               ) : (
                 'Original document received. Waiting for asynchronous Bedrock extraction and deterministic matching engine evaluation.'
@@ -604,21 +621,31 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
 
         {/* Explicit failed gates listing with required next actions */}
-        {failedGates.length > 0 && (
+        {(isUnreadable || failedGates.length > 0) && (
           <div className="mt-2 pt-2 border-t border-amber-200/80 dark:border-amber-800/80 space-y-1.5">
             <span className="text-[10px] font-bold text-amber-950 dark:text-amber-100 uppercase tracking-wider">
-              Failing Checks & Required Next Actions:
+              {isUnreadable ? 'Document Issue & Required Next Action:' : 'Failing Checks & Required Next Actions:'}
             </span>
             <ul className="space-y-1">
-              {failedGates.map((g: any, i: number) => (
-                <li key={i} className="text-[11px] text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-baseline gap-1">
-                  <span className="font-semibold text-amber-950 dark:text-amber-100">• {humanGateName(g.gate_name)}:</span>
-                  <span className="opacity-90">{g.notes || 'Validation tolerance exceeded.'}</span>
+              {isUnreadable ? (
+                <li className="text-[11px] text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-baseline gap-1">
+                  <span className="font-semibold text-amber-950 dark:text-amber-100">• Document Readability:</span>
+                  <span className="opacity-90">Degraded raster scan with zero machine-readable text.</span>
                   <span className="font-medium text-amber-950 dark:text-amber-100">
-                    &rarr; <em>Next Action: {getRequiredNextAction(g.gate_name)}</em>
+                    &rarr; <em>Next Action: Upload a higher-resolution or unskewed copy, or enter details manually.</em>
                   </span>
                 </li>
-              ))}
+              ) : (
+                failedGates.map((g: any, i: number) => (
+                  <li key={i} className="text-[11px] text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-baseline gap-1">
+                    <span className="font-semibold text-amber-950 dark:text-amber-100">• {humanGateName(g.gate_name)}:</span>
+                    <span className="opacity-90">{g.notes || 'Validation tolerance exceeded.'}</span>
+                    <span className="font-medium text-amber-950 dark:text-amber-100">
+                      &rarr; <em>Next Action: {getRequiredNextAction(g.gate_name)}</em>
+                    </span>
+                  </li>
+                ))
+              )}
             </ul>
           </div>
         )}

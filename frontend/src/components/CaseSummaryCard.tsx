@@ -38,6 +38,17 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   const passedGates = matchGates.filter((g) => g.status === 'PASS');
   const hasFailedGates = failedGates.length > 0;
 
+  const isUnreadable = Boolean(
+    invoice.decision === 'FLAGGED_HITL_REVIEW' && (
+      !invoice.invoice_number ||
+      invoice.invoice_number === 'UNKNOWN' ||
+      invoice.invoice_number.startsWith('SCAN-') ||
+      invoice.vendor_name === 'Unidentified Supplier' ||
+      invoice.vendor_name === 'Unknown' ||
+      (invoice.total_amount === 0 && !invoice.po_reference)
+    )
+  );
+
   const totalAmount = invoice.total_amount || 0;
   const requiresDualApproval = totalAmount >= policy.dual_approval_threshold_inr;
   const isApproved = invoice.stage === 'INTERNAL_APPROVAL_COMPLETE';
@@ -56,6 +67,10 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
     decisionType = 'COMPLETED';
     decisionTitle = 'Review Complete (Signed Off)';
     decisionDescription = 'Internal AP review sign-off has been recorded. This invoice is cleared for external payment batching.';
+  } else if (isUnreadable) {
+    decisionType = 'BLOCKED';
+    decisionTitle = 'Approval Blocked (Document Unreadable)';
+    decisionDescription = 'This document could not be read automatically due to scan degradation. Downstream checks were not evaluated. Upload a clearer copy or input details manually.';
   } else if (hasFailedGates) {
     decisionType = 'BLOCKED';
     decisionTitle = `Approval Blocked (${failedGates.length} check${failedGates.length > 1 ? 's' : ''} failed)`;

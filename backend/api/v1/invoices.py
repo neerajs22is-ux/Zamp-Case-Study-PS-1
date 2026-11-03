@@ -23,7 +23,7 @@ from backend.core.database import get_db
 from backend.core.storage import storage_adapter
 from backend.models.domain import (
     ApprovalRequest, AuditEvent, Document, ExceptionRecord, ExtractedField, ExtractionRun,
-    GoodsReceiptLineSnapshot, GoodsReceiptSnapshot, Invoice, InvoiceLine, MatchGateCheck, MatchRun,
+    GoodsReceiptLineSnapshot, GoodsReceiptSnapshot, IngestionJob, Invoice, InvoiceLine, MatchGateCheck, MatchRun,
     QualityControlSnapshot, WorkOrderLineSnapshot, WorkOrderSnapshot
 )
 
@@ -146,6 +146,7 @@ def get_invoice_detail(
                     qc_data = {
                         "qc_certificate_number": qc.qc_certificate_number,
                         "overall_status": qc.overall_status,
+                        "status": qc.overall_status,
                         "retrieved_at": qc.retrieved_at.isoformat() + "Z" if qc.retrieved_at else None,
                     }
 
@@ -218,6 +219,18 @@ def get_invoice_detail(
         for a in audits
     ]
 
+    job_status = None
+    job_error = None
+    if doc:
+        job_rec = db.scalar(
+            select(IngestionJob)
+            .where(IngestionJob.document_id == doc.id, IngestionJob.org_id == current_user.org_id)
+            .order_by(IngestionJob.created_at.desc())
+        )
+        if job_rec:
+            job_status = job_rec.status
+            job_error = job_rec.error_message
+
     return {
         "invoice": {
             "id": inv.id,
@@ -233,6 +246,8 @@ def get_invoice_detail(
             "stage": inv.stage,
             "decision": inv.decision,
             "decision_reason": inv.decision_reason,
+            "job_status": job_status,
+            "job_error": job_error,
             "workflow_substatus": getattr(inv, "workflow_substatus", None),
             "msme_statutory_deadline": inv.msme_statutory_deadline.isoformat() + "Z" if inv.msme_statutory_deadline else None,
             "msme_deadline_status": inv.msme_deadline_status,

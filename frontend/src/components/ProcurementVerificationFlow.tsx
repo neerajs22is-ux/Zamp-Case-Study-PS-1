@@ -147,6 +147,12 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                 <span className="text-slate-400 font-sans text-[10.5px] shrink-0">Billed Total:</span>
                 <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatINR(invoice.total_amount)}</span>
               </div>
+              {invoice.tax_amount && invoice.tax_amount > 0 ? (
+                <div className="flex justify-between items-baseline gap-2 text-[10px] text-slate-500 dark:text-slate-400">
+                  <span className="text-slate-400 font-sans shrink-0">Base / Tax:</span>
+                  <span className="tabular-nums">{formatINR(invoice.subtotal_amount)} + {formatINR(invoice.tax_amount)} GST</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -176,11 +182,17 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                 <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{invoice.po_reference || 'NONE'}</span>
               </div>
               <div className="flex justify-between items-baseline gap-2">
-                <span className="text-slate-400 font-sans text-[10.5px] shrink-0">PO Total:</span>
+                <span className="text-slate-400 font-sans text-[10.5px] shrink-0">PO Base (Pre-Tax):</span>
                 <span className="font-bold text-slate-900 dark:text-white tabular-nums">
                   {hasPo && poSnapshot?.total_authorized_amount ? formatINR(poSnapshot.total_authorized_amount) : 'Not Found'}
                 </span>
               </div>
+              {hasPo && poSnapshot?.total_authorized_amount && invoice.tax_amount && invoice.tax_amount > 0 ? (
+                <div className="flex justify-between items-baseline gap-2 text-[10px] text-emerald-600 dark:text-emerald-400">
+                  <span className="text-slate-400 font-sans shrink-0">Gross (incl. GST):</span>
+                  <span className="font-semibold tabular-nums">{formatINR(poSnapshot.total_authorized_amount + invoice.tax_amount)}</span>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -197,7 +209,7 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                     : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                 }`}>
-                  {grn ? 'Confirmed' : 'Snapshot Unavailable'}
+                  {grn ? 'Confirmed' : 'Not Recorded'}
                 </span>
               </div>
               <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug mt-1 line-clamp-2">
@@ -211,8 +223,8 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
               </div>
               <div className="flex justify-between items-baseline gap-2">
                 <span className="text-slate-400 font-sans text-[10.5px] shrink-0">Receipt Status:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-sans text-[10.5px] text-right truncate" title={grn ? 'Physically Logged' : 'Freight Slip Confirmed'}>
-                  {grn ? 'Physically Logged' : 'Freight Slip Confirmed'}
+                <span className="text-slate-700 dark:text-slate-300 font-sans text-[10.5px] text-right truncate" title={grn ? 'Physically Logged' : 'No receipt logged'}>
+                  {grn ? (grn.lines && grn.lines[0] ? `${grn.lines[0].accepted_quantity} units received` : 'Physically Logged') : 'No receipt logged'}
                 </span>
               </div>
             </div>
@@ -231,7 +243,7 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                     ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                     : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
                 }`}>
-                  {qc ? qc.overall_status : 'Snapshot Unavailable'}
+                  {qc ? (qc.overall_status === 'ACCEPTED' ? 'Accepted' : qc.overall_status) : 'Not Recorded'}
                 </span>
               </div>
               <p className="text-[10.5px] text-slate-500 dark:text-slate-400 leading-snug mt-1 line-clamp-2">
@@ -245,8 +257,8 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
               </div>
               <div className="flex justify-between items-baseline gap-2">
                 <span className="text-slate-400 font-sans text-[10.5px] shrink-0">QA Verdict:</span>
-                <span className="text-slate-700 dark:text-slate-300 font-sans text-[10.5px] text-right truncate" title={qc ? qc.overall_status : 'Exempt / Not Filed'}>
-                  {qc ? qc.overall_status : 'Exempt / Not Filed'}
+                <span className="text-slate-700 dark:text-slate-300 font-sans text-[10.5px] text-right truncate" title={qc ? qc.overall_status : 'No inspection recorded'}>
+                  {qc ? (qc.overall_status === 'ACCEPTED' ? 'Accepted (Passed)' : qc.overall_status) : 'No inspection recorded'}
                 </span>
               </div>
             </div>

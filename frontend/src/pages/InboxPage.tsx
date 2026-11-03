@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { 
   Inbox as InboxIcon, 
@@ -13,7 +13,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  X
+  X,
+  Plus,
+  UploadCloud
 } from 'lucide-react';
 import { api } from '../api/client';
 import { StatusBadge } from '../components/StatusBadge';
@@ -34,10 +36,15 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
   const [syncingMailbox, setSyncingMailbox] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadFeedback, setUploadFeedback] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const activeQuickTab = (() => {
     if (stageFilter === 'ACTION_REQUIRED') return 'EXCEPTIONS';
-    if (decisionFilter === 'AUTO_APPROVED') return 'READY';
+    if (decisionFilter === 'MATCH_CANDIDATE' || decisionFilter === 'AUTO_APPROVED') return 'READY';
     if (decisionFilter === 'MANUALLY_APPROVED') return 'APPROVED';
     if (decisionFilter === 'QUARANTINED') return 'QUARANTINE';
     return 'ALL';
@@ -51,9 +58,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
       setStageFilter('ACTION_REQUIRED');
       setDecisionFilter('');
     } else if (tab === 'READY') {
-      next.set('decision', 'AUTO_APPROVED');
+      next.set('decision', 'MATCH_CANDIDATE');
       setStageFilter('');
-      setDecisionFilter('AUTO_APPROVED');
+      setDecisionFilter('MATCH_CANDIDATE');
     } else if (tab === 'APPROVED') {
       next.set('decision', 'MANUALLY_APPROVED');
       setStageFilter('');
@@ -67,6 +74,32 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
       setDecisionFilter('');
     }
     setSearchParams(next);
+  };
+
+  const handleUploadFile = async (file: File) => {
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      setUploadError('File exceeds maximum upload size of 50 MB.');
+      return;
+    }
+    setUploading(true);
+    setUploadError(null);
+    setUploadFeedback(`Uploading ${file.name}...`);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await api.uploadDocument(formData);
+      setUploadFeedback(`Uploaded ${file.name}. Invoice registered into processing queue.`);
+      await loadInbox();
+    } catch (err: any) {
+      if (err.message && err.message.includes('409')) {
+        setUploadError(`Duplicate detected: ${file.name} has already been registered in the system.`);
+      } else {
+        setUploadError(err.message || 'Invoice upload failed.');
+      }
+    } finally {
+      setUploading(false);
+    }
   };
 
   const filteredItems = useMemo(() => {
@@ -127,6 +160,29 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
     loadInbox();
   }, [page, stageFilter, decisionFilter]);
 
+  // Poll inbox every 3 seconds if any item is currently processing
+  useEffect(() => {
+    const hasActiveProcessing = data?.items?.some(
+      (inv) =>
+        inv.stage === 'RECEIVED' ||
+        inv.job_status === 'PROCESSING' ||
+        inv.job_status === 'QUEUED'
+    );
+    if (!hasActiveProcessing) return;
+
+    const timer = setInterval(() => {
+      api.getInbox({
+        page,
+        stage: stageFilter || undefined,
+        decision: decisionFilter || undefined,
+      }).then((res) => {
+        setData(res);
+      }).catch((err) => console.error('Background poll error:', err));
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [data?.items, page, stageFilter, decisionFilter]);
+
   const handleStageChange = (newStage: string) => {
     setStageFilter(newStage);
     setPage(1);
@@ -185,6 +241,63 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
     }).format(val);
   };
 
+  const getWhyNextAction = (inv: any) => {
+    if (inv.job_status === 'FAILED') {
+      return (
+        <span className="text-rose-600 dark:text-rose-400 font-medium text-[11px] block max-w-xs truncate" title={inv.job_error || 'Processing failed'}>
+          Processing failed: {inv.job_error || 'Check document format'}
+        </span>
+      );
+    }
+    if (inv.job_status === 'PROCESSING' || inv.job_status === 'QUEUED' || inv.stage === 'RECEIVED') {
+      return (
+        <span className="text-indigo-600 dark:text-indigo-400 font-medium text-[11px] flex items-center gap-1">
+          <RefreshCw className="w-3 h-3 animate-spin shrink-0" />
+          Reading invoice…
+        </span>
+      );
+    }
+    const isUnreadable =
+      inv.decision === 'FLAGGED_HITL_REVIEW' &&
+      (!inv.invoice_number || inv.invoice_number === 'UNKNOWN' || !inv.total_amount);
+    if (isUnreadable) {
+      return (
+        <span className="text-amber-700 dark:text-amber-400 font-medium text-[11px]">
+          Couldn't read document — clearer copy needed
+        </span>
+      );
+    }
+    if (inv.decision === 'AUTO_APPROVED' || inv.decision === 'MATCH_CANDIDATE') {
+      return (
+        <span className="text-emerald-700 dark:text-emerald-400 font-medium text-[11px]">
+          Clean match — ready to approve
+        </span>
+      );
+    }
+    if (inv.decision === 'MANUALLY_APPROVED') {
+      return (
+        <span className="text-slate-600 dark:text-slate-400 text-[11px]">
+          Approved by AP team
+        </span>
+      );
+    }
+    if (inv.decision === 'QUARANTINED') {
+      return (
+        <span className="text-rose-700 dark:text-rose-400 font-medium text-[11px] block max-w-xs truncate" title={inv.decision_reason || 'Security review required'}>
+          Quarantined: {inv.decision_reason || 'Security review'}
+        </span>
+      );
+    }
+    if (inv.decision_reason) {
+      return (
+        <span className="text-slate-700 dark:text-slate-300 text-[11px] block max-w-xs truncate" title={inv.decision_reason}>
+          {inv.decision_reason}
+        </span>
+      );
+    }
+    return <span className="text-slate-400">—</span>;
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -199,10 +312,35 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".pdf"
+            className="hidden"
+            onChange={(e) => {
+              if (e.target.files?.[0]) {
+                handleUploadFile(e.target.files[0]);
+                e.target.value = '';
+              }
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-colors shadow-2xs disabled:opacity-50"
+            title="Direct 1-Click Invoice PDF Upload"
+          >
+            {uploading ? (
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Plus className="w-3.5 h-3.5" />
+            )}
+            <span>{uploading ? 'Uploading…' : 'Upload Invoice'}</span>
+          </button>
           <button
             onClick={handleSyncMailbox}
             disabled={syncingMailbox}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-medium text-white transition-colors shadow-2xs disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs disabled:opacity-50"
             title="Incremental History API Sync"
           >
             <Mail className="w-3.5 h-3.5" />
@@ -217,6 +355,75 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
             Refresh
           </button>
         </div>
+      </div>
+
+      {/* Upload Feedback Banner */}
+      {uploadFeedback && (
+        <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded-xl p-3 text-xs text-indigo-800 dark:text-indigo-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {uploading ? (
+              <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin shrink-0" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            )}
+            <span>{uploadFeedback}</span>
+          </div>
+          <button 
+            onClick={() => setUploadFeedback(null)} 
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 text-xs ml-2 font-mono"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {uploadError && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 rounded-xl p-3 text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+            <span>{uploadError}</span>
+          </div>
+          <button 
+            onClick={() => setUploadError(null)} 
+            className="text-rose-600 dark:text-rose-400 hover:text-rose-800 text-xs ml-2 font-mono"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* 1-Click Upload Drag & Drop Zone */}
+      <div 
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragOver(false);
+          if (e.dataTransfer.files?.[0]) {
+            handleUploadFile(e.dataTransfer.files[0]);
+          }
+        }}
+        className={`border-2 border-dashed rounded-xl p-3.5 transition-all flex items-center justify-between text-xs ${
+          isDragOver 
+            ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300' 
+            : 'border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-900/30 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700'
+        }`}
+      >
+        <div className="flex items-center gap-2.5">
+          <UploadCloud className={`w-4 h-4 ${isDragOver ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+          <span>
+            <strong className="font-semibold text-slate-800 dark:text-slate-200">Drag and drop an invoice PDF here</strong> or{' '}
+            <button 
+              type="button" 
+              onClick={() => fileInputRef.current?.click()}
+              className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+            >
+              browse files
+            </button>{' '}
+            for direct automated ingestion
+          </span>
+        </div>
+        <span className="text-[11px] text-slate-400 font-mono hidden md:inline">PDF up to 50 MB</span>
       </div>
 
       {/* Sync Status Banner */}
@@ -348,7 +555,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
             <FileText className="w-8 h-8 text-slate-400 dark:text-slate-600 mx-auto" />
             <div className="font-semibold text-slate-700 dark:text-slate-200">No invoices found in review queue</div>
             <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-              No invoices match your current filter. Upload an invoice in <span className="text-indigo-600 dark:text-indigo-400 underline cursor-pointer">Connections</span> or configure intake sources to populate this list.
+              No invoices match your current filter. Drop an invoice PDF above or click Upload Invoice to ingest.
             </p>
           </div>
         ) : filteredItems.length === 0 ? (
@@ -361,7 +568,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[760px]">
+            <table className="w-full text-left text-xs min-w-[920px]">
               <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider backdrop-blur-xs">
                 <tr>
                   <th className="py-3 px-4">Supplier</th>
@@ -370,6 +577,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                   <th className="py-3 px-4 text-right">Amount</th>
                   <th className="py-3 px-4">MSME Statutory Due</th>
                   <th className="py-3 px-4">Workflow Status</th>
+                  <th className="py-3 px-4">Why / Next Action</th>
                   <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
@@ -400,6 +608,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                     </td>
                     <td className="py-3 px-4">
                       <StatusBadge invoice={inv} size="sm" />
+                    </td>
+                    <td className="py-3 px-4">
+                      {getWhyNextAction(inv)}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <button

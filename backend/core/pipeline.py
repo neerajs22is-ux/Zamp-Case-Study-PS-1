@@ -221,6 +221,12 @@ def execute_document_pipeline(
                 if job_rec.retry_count >= 3:
                     job_rec.status = "FAILED"
                     job_rec.error_message = f"Extraction failed: {str(e)}"
+                    if job_rec.document_id:
+                        failed_doc = err_db.scalar(select(Document).where(Document.id == job_rec.document_id))
+                        if failed_doc and failed_doc.invoice_id:
+                            failed_inv = err_db.scalar(select(Invoice).where(Invoice.id == failed_doc.invoice_id))
+                            if failed_inv:
+                                failed_inv.decision_reason = f"Processing failed: {str(e)}"
                 else:
                     job_rec.status = "QUEUED"
                     job_rec.lock_token = None
@@ -352,15 +358,30 @@ def execute_document_pipeline(
             "billed_tax",
             processing_result.tax_arithmetic.calculated_tax + getattr(processing_result.tax_arithmetic, "tax_discrepancy", 0.0)
         )
-        gate_checks = [
-            (1, "Vendor Identity Registered", "PASS" if processing_result.supplier_gstin else "FAIL", f"Supplier GSTIN: {processing_result.supplier_gstin or 'MISSING'}"),
-            (2, "PO Authorization Valid", "PASS" if processing_result.three_way_match.po_found else "FAIL", f"PO Ref: {processing_result.po_reference or 'NOT_FOUND'}"),
-            (3, "GRN Receipt Confirmed", "PASS" if processing_result.three_way_match.grn_found else "FAIL", "GRN matched in ERP receipts"),
-            (4, "QC Inspection Accepted", "PASS" if processing_result.three_way_match.qc_found else "FAIL", "QC inspection accepted"),
-            (5, "GST Arithmetic Reconciled", "PASS" if processing_result.tax_arithmetic.is_valid else "FAIL", f"Calculated: ₹{processing_result.tax_arithmetic.calculated_tax:.2f} vs Billed: ₹{billed_tax_val:.2f}"),
-            (6, "PO Price & Quantity Tolerance", "PASS" if is_po_match else "FAIL", f"Variance: {processing_result.three_way_match.price_variance_pct:.2f}% (Tolerance: ±1.5%)"),
-            (7, "Duplicate Invoice Check", "PASS" if not processing_result.duplicate_check.is_duplicate else "FAIL", "0 previous vouchers found"),
-        ]
+        is_unreadable_scan = (
+            processing_result.extraction_status == "DEGRADED_SCAN"
+            or (not processing_result.invoice_number and not processing_result.grand_total and not processing_result.supplier_gstin)
+        )
+        if is_unreadable_scan:
+            gate_checks = [
+                (1, "Vendor Identity Registered", "FAIL", "Document unreadable: degraded raster scan with no machine-readable text."),
+                (2, "PO Authorization Valid", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+                (3, "GRN Receipt Confirmed", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+                (4, "QC Inspection Accepted", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+                (5, "GST Arithmetic Reconciled", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+                (6, "PO Price & Quantity Tolerance", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+                (7, "Duplicate Invoice Check", "PASS" if not processing_result.duplicate_check.is_duplicate else "FAIL", "0 previous vouchers found"),
+            ]
+        else:
+            gate_checks = [
+                (1, "Vendor Identity Registered", "PASS" if processing_result.supplier_gstin else "FAIL", f"Supplier GSTIN: {processing_result.supplier_gstin or 'MISSING'}"),
+                (2, "PO Authorization Valid", "PASS" if processing_result.three_way_match.po_found else "FAIL", f"PO Ref: {processing_result.po_reference or 'NOT_FOUND'}"),
+                (3, "GRN Receipt Confirmed", "PASS" if processing_result.three_way_match.grn_found else "FAIL", "GRN matched in ERP receipts" if processing_result.three_way_match.grn_found else "No Goods Receipt Note (GRN) found in ERP receiving records."),
+                (4, "QC Inspection Accepted", "PASS" if processing_result.three_way_match.qc_found else "FAIL", "QC inspection accepted" if processing_result.three_way_match.qc_found else "No Quality Control (QC) inspection certificate found."),
+                (5, "GST Arithmetic Reconciled", "PASS" if processing_result.tax_arithmetic.is_valid else "FAIL", f"Calculated: ₹{processing_result.tax_arithmetic.calculated_tax:.2f} vs Billed: ₹{billed_tax_val:.2f}"),
+                (6, "PO Price & Quantity Tolerance", "PASS" if is_po_match else "FAIL", f"Variance: {processing_result.three_way_match.price_variance_pct:.2f}% (Tolerance: ±1.5%)"),
+                (7, "Duplicate Invoice Check", "PASS" if not processing_result.duplicate_check.is_duplicate else "FAIL", "0 previous vouchers found"),
+            ]
 
         failed_gate = None
         for gnum, gname, gstatus, gnotes in gate_checks:

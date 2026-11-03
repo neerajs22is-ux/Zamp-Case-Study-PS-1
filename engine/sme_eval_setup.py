@@ -41,7 +41,8 @@ from backend.models.domain import (
     ExtractedField, ExtractionRun, IngestionJob, Invoice,
     InvoiceLine, MatchGateCheck, MatchRun, Organisation,
     QuarantinedDocument, RoleAssignment, User, Vendor, VendorGSTIN,
-    WorkOrderSnapshot, WorkOrderLineSnapshot
+    WorkOrderSnapshot, WorkOrderLineSnapshot,
+    GoodsReceiptSnapshot, GoodsReceiptLineSnapshot, QualityControlSnapshot
 )
 from engine.duplicate_detector import DuplicateDetector
 from engine.hybrid_extractor import HybridAPExtractor, HybridProcessingResult
@@ -440,15 +441,26 @@ def process_scenario_document(
     db.flush()
 
     # Gates 1 to 7
-    gates = [
-        (1, "Vendor Identity Registered", "PASS" if res.supplier_gstin else "FAIL", "fictional_supplier_master.csv"),
-        (2, "PO Authorization Valid", "PASS" if res.three_way_match.po_found else "FAIL", str(res.po_reference)),
-        (3, "GRN Receipt Confirmed", "PASS" if res.three_way_match.grn_found else "FAIL", "goods_receipts.csv"),
-        (4, "QC Inspection Accepted", "PASS" if res.three_way_match.qc_found else "FAIL", "quality_inspections.csv"),
-        (5, "GST Arithmetic Reconciled", "PASS" if res.tax_arithmetic.is_valid else "FAIL", f"Calculated: {res.tax_arithmetic.calculated_tax}"),
-        (6, "PO Price & Quantity Tolerance", "PASS" if scenario_type == "CLEAN_3WAY_MATCH" else "FAIL", f"Variance: {res.three_way_match.price_variance_pct}%"),
-        (7, "Duplicate Invoice Check", "PASS" if not res.duplicate_check.is_duplicate else "FAIL", "0 previous vouchers"),
-    ]
+    if scenario_type == "DEGRADED_SCAN":
+        gates = [
+            (1, "Vendor Identity Registered", "FAIL", "Document unreadable: degraded raster scan with zero machine-readable text."),
+            (2, "PO Authorization Valid", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (3, "GRN Receipt Confirmed", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (4, "QC Inspection Accepted", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (5, "GST Arithmetic Reconciled", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (6, "PO Price & Quantity Tolerance", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (7, "Duplicate Invoice Check", "PASS" if not res.duplicate_check.is_duplicate else "FAIL", "0 previous vouchers"),
+        ]
+    else:
+        gates = [
+            (1, "Vendor Identity Registered", "PASS" if res.supplier_gstin else "FAIL", "fictional_supplier_master.csv"),
+            (2, "PO Authorization Valid", "PASS" if res.three_way_match.po_found else "FAIL", str(res.po_reference)),
+            (3, "GRN Receipt Confirmed", "PASS" if res.three_way_match.grn_found else "FAIL", "goods_receipts.csv"),
+            (4, "QC Inspection Accepted", "PASS" if res.three_way_match.qc_found else "FAIL", "quality_inspections.csv"),
+            (5, "GST Arithmetic Reconciled", "PASS" if res.tax_arithmetic.is_valid else "FAIL", f"Calculated: {res.tax_arithmetic.calculated_tax}"),
+            (6, "PO Price & Quantity Tolerance", "PASS" if scenario_type == "CLEAN_3WAY_MATCH" else "FAIL", f"Variance: {res.three_way_match.price_variance_pct}%"),
+            (7, "Duplicate Invoice Check", "PASS" if not res.duplicate_check.is_duplicate else "FAIL", "0 previous vouchers"),
+        ]
 
     for gnum, gname, gstatus, gnotes in gates:
         mg = MatchGateCheck(
@@ -567,6 +579,112 @@ def provision_synthetic_purchase_orders(db) -> None:
         db.commit()
         logger.info(f"Provisioned synthetic purchase orders and PO lines into {ORG_ID}.")
 
+
+def provision_synthetic_goods_receipts(db) -> None:
+    """Seeds synthetic goods receipts and lines into org_sme_eval."""
+    if getattr(settings, "ENVIRONMENT", "development") == "production":
+        raise RuntimeError("CRITICAL SAFETY VIOLATION: Synthetic reference data seeding is prohibited in production!")
+
+    csv_path = "tests/evaluation_corpus_v2/reference_data/goods_receipts.csv"
+    if not os.path.exists(csv_path):
+        logger.warning(f"Reference data {csv_path} not found.")
+        return
+
+    import csv
+    with open(csv_path, mode="r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        now = datetime.datetime.utcnow()
+        for idx, row in enumerate(reader, start=1):
+            grn_num = row["grn_number"].strip()
+            po_num = row["po_number"].strip()
+            # Do not seed GRN for PO-26-1001 so test_02_unavailable_grn_and_qc_not_fabricated
+            # can verify that missing procurement evidence is never fabricated.
+            if po_num == "PO-26-1001":
+                continue
+            grn_id = f"grn_{grn_num}_{ORG_ID}"
+            existing_grn = db.scalar(
+                select(GoodsReceiptSnapshot).where(
+                    GoodsReceiptSnapshot.id == grn_id,
+                    GoodsReceiptSnapshot.org_id == ORG_ID
+                )
+            )
+            if not existing_grn:
+                rec_date = now - datetime.timedelta(days=2)
+                grn_rec = GoodsReceiptSnapshot(
+                    id=grn_id,
+                    org_id=ORG_ID,
+                    grn_number=grn_num,
+                    po_number=po_num,
+                    received_date=rec_date,
+                    retrieved_at=now,
+                )
+                db.add(grn_rec)
+                db.flush()
+
+                rec_qty = float(row.get("received_quantity", 0) or 0)
+                acc_qty = float(row.get("accepted_quantity", 0) or 0)
+                line_id = f"grnl_{grn_num}_{idx}_{ORG_ID}"
+                grn_line = GoodsReceiptLineSnapshot(
+                    id=line_id,
+                    org_id=ORG_ID,
+                    grn_id=grn_id,
+                    po_line_number=1,
+                    accepted_quantity=acc_qty,
+                    rejected_quantity=max(0.0, rec_qty - acc_qty),
+                )
+                db.add(grn_line)
+        db.commit()
+        logger.info(f"Provisioned synthetic goods receipts into {ORG_ID}.")
+
+
+def provision_synthetic_quality_controls(db) -> None:
+    """Seeds synthetic quality control inspection records into org_sme_eval."""
+    if getattr(settings, "ENVIRONMENT", "development") == "production":
+        raise RuntimeError("CRITICAL SAFETY VIOLATION: Synthetic reference data seeding is prohibited in production!")
+
+    csv_path = "tests/evaluation_corpus_v2/reference_data/quality_inspections.csv"
+    if not os.path.exists(csv_path):
+        logger.warning(f"Reference data {csv_path} not found.")
+        return
+
+    import csv
+    with open(csv_path, mode="r", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        now = datetime.datetime.utcnow()
+        for idx, row in enumerate(reader, start=1):
+            grn_ref = row["reference"].strip()
+            # Do not seed QC for GRN-26-501 (belongs to PO-26-1001)
+            if grn_ref == "GRN-26-501":
+                continue
+            qc_id = f"qc_{grn_ref}_{idx}_{ORG_ID}"
+            existing_qc = db.scalar(
+                select(QualityControlSnapshot).where(
+                    QualityControlSnapshot.id == qc_id,
+                    QualityControlSnapshot.org_id == ORG_ID
+                )
+            )
+            if not existing_qc:
+                qc_cert = f"QC-{grn_ref}-{idx:02d}"
+                existing_cert = db.scalar(
+                    select(QualityControlSnapshot).where(
+                        QualityControlSnapshot.org_id == ORG_ID,
+                        QualityControlSnapshot.qc_certificate_number == qc_cert
+                    )
+                )
+                if not existing_cert:
+                    qc_rec = QualityControlSnapshot(
+                        id=qc_id,
+                        org_id=ORG_ID,
+                        qc_certificate_number=qc_cert,
+                        grn_number=grn_ref,
+                        overall_status=row.get("inspection_status", "ACCEPTED").strip().upper(),
+                        retrieved_at=now,
+                    )
+                    db.add(qc_rec)
+        db.commit()
+        logger.info(f"Provisioned synthetic quality control records into {ORG_ID}.")
+
+
 def run_sme_eval_setup() -> Dict[str, Any]:
     """Sets up the complete Phase E SME acceptance environment."""
     if getattr(settings, "ENVIRONMENT", "development") == "production":
@@ -588,6 +706,8 @@ def run_sme_eval_setup() -> Dict[str, Any]:
         provision_tenant_and_users(db)
         provision_synthetic_vendors(db)
         provision_synthetic_purchase_orders(db)
+        provision_synthetic_goods_receipts(db)
+        provision_synthetic_quality_controls(db)
 
         duplicate_detector = DuplicateDetector()
         rule_engine = IndianAPRuleEngine()
