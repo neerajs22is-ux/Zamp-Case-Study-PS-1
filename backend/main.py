@@ -30,6 +30,7 @@ from backend.api.v1.inbox import router as inbox_router
 from backend.api.v1.integrations_gmail import router as gmail_router
 from backend.api.v1.invoices import router as invoices_router
 from backend.api.v1.source_records import router as source_records_router
+from backend.api.v1.system import router as system_router
 from backend.core.config import AppEnv, settings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -88,6 +89,7 @@ app.include_router(exceptions_router, prefix="/api/v1")
 app.include_router(source_records_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")
 app.include_router(backup_router, prefix="/api/v1")
+app.include_router(system_router, prefix="/api/v1")
 
 # Mount frontend assets and provide SPA fallback
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")

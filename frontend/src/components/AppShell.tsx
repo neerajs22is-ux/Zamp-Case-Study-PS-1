@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
-import { Menu, ShieldCheck, Keyboard, Sparkles } from 'lucide-react';
+import { Menu, ShieldCheck, Keyboard, Sparkles, RotateCcw } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
@@ -27,8 +27,27 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showcaseOpen, setShowcaseOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [navCounts, setNavCounts] = useState<{ exceptions: number; approvals: number }>({ exceptions: 0, approvals: 0 });
   const location = useLocation();
+
+  const handleResetDemo = async () => {
+    if (isResetting) return;
+    const confirmed = window.confirm(
+      "Reset Evaluation Workspace?\n\nThis will restore all line item quantities and rates to synthetic baseline fixtures and re-evaluate policy gates. Audit trail is permanently preserved."
+    );
+    if (!confirmed) return;
+    try {
+      setIsResetting(true);
+      const res = await api.resetDemoState();
+      alert(`Success: ${res.message} (${res.re_evaluated_invoices_count} invoices reset)`);
+      window.location.reload();
+    } catch (err: any) {
+      alert(`Failed to reset demo: ${err.message}`);
+    } finally {
+      setIsResetting(false);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -96,6 +115,28 @@ export const AppShell: React.FC<AppShellProps> = ({
 
       {/* Main Content Column (offset by 64px on lg viewports for the fixed sidebar) */}
       <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
+        {/* Stage A4 (OPP-12): Evaluation Mode Watermark & Reset Control Banner */}
+        <div className="bg-slate-900 text-slate-100 dark:bg-black dark:text-slate-200 border-b border-slate-800 px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-2 shadow-xs shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-bold uppercase tracking-wider text-[10px] sm:text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded shrink-0">
+              Evaluation Mode — Sample ERP Data
+            </span>
+            <span className="text-slate-300 dark:text-slate-400 text-[11px] truncate hidden md:inline">
+              Procurement and invoice records are evaluation fixtures and do not represent a live SAP connection.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetDemo}
+            disabled={isResetting}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium border border-slate-700 transition-colors cursor-pointer shrink-0"
+            title="Reset evaluation invoices back to baseline fixtures"
+          >
+            <RotateCcw className={`w-3 h-3 ${isResetting ? 'animate-spin' : ''}`} />
+            <span>{isResetting ? 'Resetting...' : 'Reset Demo State'}</span>
+          </button>
+        </div>
+
         {/* Top Header Bar */}
         <header
           className="sticky top-0 z-30 h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md shadow-2xs flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-colors"

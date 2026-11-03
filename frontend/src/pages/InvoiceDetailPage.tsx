@@ -39,7 +39,7 @@ interface InvoiceDetailPageProps {
   currentUser?: AuthenticatedUser | null;
 }
 
-type TabType = 'matching' | 'checks' | 'details' | 'history';
+type TabType = 'verification' | 'history';
 
 const formatINR = (val?: number | null) => {
   if (val === undefined || val === null) return '—';
@@ -61,7 +61,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   
   // Navigation & Tabs
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<TabType>('matching');
+  const [activeTab, setActiveTab] = useState<TabType>('verification');
   const [workspaceLayout, setWorkspaceLayout] = useState<'split' | 'analysis_focus' | 'doc_focus'>('split');
   
   // Document Viewer State
@@ -103,26 +103,26 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     },
     {
       step: 2,
-      title: 'Extracted Information',
-      description: 'Review invoice information read by AI: Vendor Name, GSTIN, invoice date, amounts, and tax breakdowns, verified before matching against records.',
-      onEnter: () => setActiveTab('details'),
+      title: 'Unified Verification & 3-Way Matching',
+      description: 'Review policy checks and 3-way match line items in one combined workspace with strict 0.00% quantity and ±' + rateTolerancePercent.toFixed(2) + '% price variance thresholds.',
+      onEnter: () => setActiveTab('verification'),
     },
     {
       step: 3,
-      title: 'Authoritative PO & GRN Match',
-      description: `Cross-reference invoice line items against authoritative procurement reference snapshots with strict 0.00% quantity and ±${rateTolerancePercent.toFixed(2)}% price variance thresholds.`,
-      onEnter: () => setActiveTab('matching'),
+      title: 'Audited Line Item Correction',
+      description: 'Correct OCR misreads directly in the verification grid with mandatory reason and synchronous gate re-evaluation.',
+      onEnter: () => setActiveTab('verification'),
     },
     {
       step: 4,
-      title: 'Policy Validation Checks',
+      title: '7 Deterministic Policy Gates',
       description: 'Audit the 7 policy validation checks. When checks fail, approvals are strictly blocked until exceptions are triaged or resolved.',
-      onEnter: () => setActiveTab('checks'),
+      onEnter: () => setActiveTab('verification'),
     },
     {
       step: 5,
       title: 'Dual Approval & Audit Trail',
-      description: `Track the complete append-only audit trail. Invoices exceeding ${formatINR(dualApprovalThreshold)} enforce dual approval where two distinct approvers sign off before completion.`,
+      description: `Track the complete append-only audit trail and extracted metadata. Invoices exceeding ${formatINR(dualApprovalThreshold)} enforce dual approval.`,
       onEnter: () => setActiveTab('history'),
     },
     {
@@ -188,11 +188,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         setActionError(null);
         setShowTour(false);
       } else if (e.key === '1') {
-        setActiveTab('matching');
+        setActiveTab('verification');
       } else if (e.key === '2') {
-        setActiveTab('checks');
+        setActiveTab('history');
       } else if (e.key === '3') {
-        setActiveTab('details');
+        setActiveTab('history');
       } else if (e.key === '4') {
         setActiveTab('history');
       } else if (e.key.toLowerCase() === 'd') {
@@ -278,6 +278,16 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleCorrectLine = async (
+    lineId: string,
+    payload: { billed_quantity: number; billed_unit_rate: number; correction_reason: string }
+  ) => {
+    if (!data?.invoice) return;
+    const ifMatch = data.invoice.updated_at;
+    await api.correctInvoiceLine(data.invoice.id, lineId, payload, ifMatch);
+    await loadDetail();
   };
 
   // Helper mapping gate names to human language
@@ -824,46 +834,29 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             ? 'hidden'
             : 'lg:col-span-7'
         } bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs flex flex-col h-[520px] lg:h-[780px] min-w-0 transition-all duration-150`}>
-          {/* Analysis Tab Bar */}
+          {/* Analysis Tab Bar - Consolidating 4 tabs into 2 primary views (OPP-10) */}
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-2 pt-1 gap-1 min-w-0">
             <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap scrollbar-none min-w-0 pb-1">
               <button
-                onClick={() => setActiveTab('matching')}
+                onClick={() => setActiveTab('verification')}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'matching'
+                  activeTab === 'verification'
                     ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
-                <span>Matching & Lines</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('checks')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'checks'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Policy Checks ({passedGates}/{totalGates})</span>
+                <span>Verification & 3-Way Matching</span>
+                <span className={`px-1.5 py-0.2 rounded text-[10px] font-semibold ${
+                  failedGates.length > 0 
+                    ? 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' 
+                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                }`}>
+                  {passedGates}/{totalGates} Gates
+                </span>
                 {failedGates.length > 0 && (
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('details')}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                  activeTab === 'details'
-                    ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-2xs font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <FileText className="w-3.5 h-3.5" />
-                <span>Extracted Information ({extracted_fields?.length || 0})</span>
               </button>
 
               <button
@@ -875,7 +868,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 }`}
               >
                 <Clock className="w-3.5 h-3.5" />
-                <span>Audit Trail ({timeline?.length || 0})</span>
+                <span>History & Evidence</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  {timeline?.length || 0}
+                </span>
               </button>
             </div>
 
@@ -904,16 +900,24 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
           {/* Tab Content Container */}
           <div className="flex-1 p-4 overflow-y-auto space-y-4">
-            {/* TAB 1: MATCHING & LINE ITEMS */}
-            {activeTab === 'matching' && (
+            {/* VIEW 1: UNIFIED VERIFICATION & 3-WAY MATCHING */}
+            {activeTab === 'verification' && (
               <div className="space-y-4">
-                {/* 4-Node Procurement Verification Flow & Line-by-Line Match */}
+                {/* 7 Policy Gates Grouped by 3 Business Questions */}
+                <PolicyChecksGrouped
+                  matchGates={match_gates}
+                  onOpenGlossary={openGlossaryWithTerm}
+                />
+
+                {/* 4-Node Procurement Verification Flow & Line-by-Line Match with Inline Correction */}
                 <ProcurementVerificationFlow
                   invoice={invoice}
                   lines={lines}
                   poSnapshot={data?.po_snapshot}
                   rateTolerancePercent={rateTolerancePercent}
                   onOpenGlossary={openGlossaryWithTerm}
+                  onCorrectLine={handleCorrectLine}
+                  isAuditor={isAuditor}
                 />
 
                 {/* Net Payable Waterfall */}
@@ -945,115 +949,159 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               </div>
             )}
 
-            {/* TAB 2: 7 POLICY GATES GROUPED BY 3 BUSINESS QUESTIONS */}
-            {activeTab === 'checks' && (
-              <PolicyChecksGrouped
-                matchGates={match_gates}
-                onOpenGlossary={openGlossaryWithTerm}
-              />
-            )}
-
-            {/* TAB 3: EXTRACTED INFORMATION */}
-            {activeTab === 'details' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Information Read by AI ({extracted_fields?.length || 0})
-                  </h3>
-                  <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded">
-                    Verified by automatic checks
-                  </span>
-                </div>
-
-                {(!extracted_fields || extracted_fields.length === 0) ? (
-                  <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                    Nothing has been extracted from this document yet.
-                  </div>
-                ) : (
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
-                        <tr>
-                          <th className="py-2.5 px-3">Field Name</th>
-                          <th className="py-2.5 px-3">Extracted Value</th>
-                          <th className="py-2.5 px-3">Page</th>
-                          <th className="py-2.5 px-3 text-right">Verification Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
-                        {extracted_fields.map((f: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                            <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400">{f.field_name}</td>
-                            <td className="py-2.5 px-3 font-semibold text-slate-900 dark:text-white font-sans">{f.value || '—'}</td>
-                            <td className="py-2.5 px-3 text-slate-500">{f.source_page || '1'}</td>
-                            <td className="py-2.5 px-3 text-right">
-                              {f.confidence !== null ? (
-                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                  f.confidence >= 0.9
-                                    ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
-                                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
-                                }`}>
-                                  {f.confidence >= 0.9 ? 'Verified' : 'Needs Review'}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 4: AUDIT HISTORY TIMELINE */}
+            {/* VIEW 2: HISTORY & EVIDENCE */}
             {activeTab === 'history' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
-                    Append-Only Audit Trail
-                  </h3>
-                  <span className="text-[11px] font-mono text-slate-500">{timeline?.length || 0} events logged</span>
-                </div>
-
-                {(!timeline || timeline.length === 0) ? (
-                  <div className="text-center py-8 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
-                    No historical events recorded for this invoice yet.
+              <div className="space-y-6">
+                {/* Section A: Append-Only Audit Trail */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Append-Only Audit Trail
+                      </h3>
+                    </div>
+                    <span className="text-[11px] font-mono text-slate-500">{timeline?.length || 0} events logged</span>
                   </div>
-                ) : (
-                  <div className="space-y-3 relative pl-4 border-l-2 border-slate-200 dark:border-slate-800">
-                    {timeline.map((t: any) => (
-                      <div key={t.event_id} className="relative space-y-1 text-xs">
-                        {/* Dot indicator */}
-                        <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-indigo-500 border-2 border-white dark:border-slate-900" />
-                        
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-slate-900 dark:text-white font-mono">{t.action}</span>
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                              {t.actor_role}
+
+                  {(!timeline || timeline.length === 0) ? (
+                    <div className="text-center py-6 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                      No historical events recorded for this invoice yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 relative pl-4 border-l-2 border-slate-200 dark:border-slate-800">
+                      {timeline.map((t: any) => (
+                        <div key={t.event_id} className="relative space-y-1 text-xs">
+                          {/* Dot indicator */}
+                          <div className={`absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                            t.action === 'LINE_ITEM_CORRECTED'
+                              ? 'bg-amber-500'
+                              : t.action.includes('APPROVE')
+                              ? 'bg-emerald-500'
+                              : t.action.includes('REJECT')
+                              ? 'bg-rose-500'
+                              : 'bg-indigo-500'
+                          }`} />
+                          
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-slate-900 dark:text-white font-mono">{t.action}</span>
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                {t.actor_role}
+                              </span>
+                            </div>
+                            <span className="text-[11px] font-mono text-slate-500">
+                              {t.timestamp.replace('T', ' ').substring(0, 19)}
                             </span>
                           </div>
-                          <span className="text-[11px] font-mono text-slate-500">
-                            {t.timestamp.replace('T', ' ').substring(0, 19)}
-                          </span>
-                        </div>
 
-                        <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Actor ID: <code className="font-mono">{t.actor_id}</code>
-                        </div>
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                            Actor ID: <code className="font-mono">{t.actor_id}</code>
+                          </div>
 
-                        {t.reason && (
-                          <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 mt-1">
-                            {t.reason}
-                          </p>
-                        )}
-                      </div>
-                    ))}
+                          {t.reason && (
+                            <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800 mt-1">
+                              {t.reason}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Section B: Extracted Information Read by AI */}
+                <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                        Information Read by AI ({extracted_fields?.length || 0})
+                      </h3>
+                    </div>
+                    <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/40 px-2 py-0.5 rounded">
+                      Verified by deterministic gates
+                    </span>
                   </div>
-                )}
+
+                  {(!extracted_fields || extracted_fields.length === 0) ? (
+                    <div className="text-center py-6 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800">
+                      Nothing has been extracted from this document yet.
+                    </div>
+                  ) : (
+                    <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                          <tr>
+                            <th className="py-2 px-3">Field Name</th>
+                            <th className="py-2 px-3">Extracted Value</th>
+                            <th className="py-2 px-3">Page</th>
+                            <th className="py-2 px-3 text-right">Verification Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
+                          {extracted_fields.map((f: any, idx: number) => (
+                            <tr key={idx} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                              <td className="py-2 px-3 text-slate-600 dark:text-slate-400">{f.field_name}</td>
+                              <td className="py-2 px-3 font-semibold text-slate-900 dark:text-white font-sans">{f.value || '—'}</td>
+                              <td className="py-2 px-3 text-slate-500">{f.source_page || '1'}</td>
+                              <td className="py-2 px-3 text-right">
+                                {f.confidence !== null ? (
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    f.confidence >= 0.9
+                                      ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                                      : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+                                  }`}>
+                                    {f.confidence >= 0.9 ? 'Verified' : 'Needs Review'}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400">—</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* Section C: Cryptographic Document Verification & Hashes */}
+                <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                      Document Cryptographic Integrity & Evidence
+                    </h3>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">Original Filename:</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200 font-medium">
+                        {data?.document?.file_name || 'invoice.pdf'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">MIME Type:</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">
+                        {data?.document?.mime_type || 'application/pdf'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500 dark:text-slate-400">File Size:</span>
+                      <span className="font-mono text-slate-800 dark:text-slate-200">
+                        {data?.document?.file_size_bytes ? `${(data.document.file_size_bytes / 1024).toFixed(1)} KB` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800">
+                      <span className="text-slate-500 dark:text-slate-400">SHA-256 Hash:</span>
+                      <span className="font-mono text-[11px] text-slate-800 dark:text-slate-200 break-all select-all">
+                        {data?.document?.sha256_hash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

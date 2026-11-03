@@ -1,0 +1,68 @@
+flowchart TD
+    %% FinBooks End-to-End Invoice Lifecycle Architecture
+    subgraph Intake["1. Document Intake Stage"]
+        A1["User / Scanner / Email"] -->|Upload PDF, PNG, JPG, XLSX, CSV| A2["Vendor Bills Dropzone"]
+        A2 -->|Checkbox: 'Split merged PDF'| A3{"Batch Splitter"}
+        A3 -->|Single Document| A4["Document Hash Calculation<br/>(file_hash & business_hash)"]
+        A3 -->|Multi-page Batch| A5["Page Splitter per Vendor"]
+        A5 --> A4
+        A4 -->|Check Existing Hash| B1{"Duplicate Check"}
+    end
+
+    subgraph Deduplication["2. Exception & Deduplication Engine"]
+        B1 -->|Match: file_hash| B2["Level 1 Error: Exact Document Uploaded<br/>(File already processed)"]
+        B1 -->|Match: business_invoice_hash| B3["Level 2 Error: Business Duplicate<br/>(Same Vendor + Inv# + Date + Total)"]
+        B1 -->|Unique Hash| C1["AI OCR Extraction Engine"]
+        B2 --> B4["dupCard Alert Dialog<br/>- View Existing Invoice Link<br/>- Bypass / Continue Option"]
+        B3 --> B4
+    end
+
+    subgraph Extraction["3. OCR & Data Parsing Engine"]
+        C1 -->|S3 Storage: s3://ai-accountant-docs/...| C2["Raw Text Extraction (Tesseract/LLM)"]
+        C2 --> C3["Entity Parsing & Normalization"]
+        C3 --> C4["Vendor Resolution / Auto-Create Master"]
+        C3 --> C5["GST Breakdown (CGST, SGST, IGST)"]
+        C3 --> C6["Line Items & Amounts Extracted"]
+        C3 --> C7["Dates & Invoice Number Normalization"]
+    end
+
+    subgraph ReviewWorkspace["4. Document Review & Edit Workspace"]
+        C4 & C5 & C6 & C7 --> D1["Vendor Bills Queue<br/>Status: Pending / Approved"]
+        D1 -->|Click Paperclip / Filename| D2["Slide-out Source Doc Panel (srcDocPanel)<br/>- 560px Drawer<br/>- Zoom / Rotate / FitH Iframe<br/>- NO Direct Inline Field Editing"]
+        D1 -->|Click Pencil / Edit Action| D3["Edit Bill Modal (editForm)<br/>- Header-level fields only<br/>- Amount, CGST, SGST, IGST<br/>- NO Line Item Editing<br/>- Re-calculate Totals"]
+        D2 -.->|Context Switch: Cannot view simultaneously| D3
+    end
+
+    subgraph Reconciliation["5. Matching & Reconciliation"]
+        D1 -->|Auto PO Match Check| E1{"Vendor Order / PO Match"}
+        E1 -->|Match Found| E2["Matched Badge & Linked Order"]
+        E1 -->|No Match| E3["'No matching order' Badge"]
+        E3 -->|Click Badge| E4["Native prompt(): Enter SO-Number<br/>POST /vendor-bills/id/match-by-number"]
+        D1 -->|Bank Statement Reconcile| E5["Bank Match Algorithm<br/>Net of TDS, 30-60d Window"]
+    end
+
+    subgraph FinalDisposition["6. Approval, Payment & Export"]
+        D3 -->|Save Changes| F1["Status Update: Approved"]
+        D1 -->|Bulk Checkbox + Bulk Bar| F2["Bulk Approve (One Click)"]
+        F1 & F2 --> F3["Action: Mark Paid"]
+        F3 -->|Bank Settlement Recorded| F4["Status: Paid"]
+        F4 --> G1{"Accounting & Export Target"}
+        G1 -->|Pro/Advance Plan| G2["Double-Entry Ledger Posting"]
+        G1 -->|Tally Integration| G3["TallyPrime XML DayBook Export<br/>(or localhost:9000 push)"]
+        G1 -->|Zoho Integration| G4["Zoho Books CSV Export"]
+        G1 -->|Compliance| G5["GSTR-2B ITC Matching & Audit Trail"]
+    end
+
+    classDef intake fill:#e0f2fe,stroke:#0284c7,stroke-width:2px;
+    classDef exception fill:#fee2e2,stroke:#ef4444,stroke-width:2px;
+    classDef extraction fill:#fef3c7,stroke:#f59e0b,stroke-width:2px;
+    classDef review fill:#ccfbf1,stroke:#0d9488,stroke-width:2px;
+    classDef match fill:#f3e8ff,stroke:#9333ea,stroke-width:2px;
+    classDef export fill:#dcfce7,stroke:#22c55e,stroke-width:2px;
+
+    class A1,A2,A3,A4,A5 intake;
+    class B1,B2,B3,B4 exception;
+    class C1,C2,C3,C4,C5,C6,C7 extraction;
+    class D1,D2,D3 review;
+    class E1,E2,E3,E4,E5 match;
+    class F1,F2,F3,F4,G1,G2,G3,G4,G5 export;

@@ -11,7 +11,7 @@ from __future__ import annotations
 import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.core.auth import AuthenticatedUser, require_active_membership
@@ -26,6 +26,9 @@ def list_invoices(
     stage: Optional[str] = Query(None, description="Filter by processing stage"),
     decision: Optional[str] = Query(None, description="Filter by decision (AUTO_APPROVED, NEEDS_REVIEW, etc.)"),
     vendor: Optional[str] = Query(None, description="Filter by supplier name"),
+    fy: Optional[str] = Query(None, description="Filter by Indian Financial Year (e.g. FY 2026-27)"),
+    month: Optional[int] = Query(None, ge=1, le=12, description="Filter by calendar month (1-12)"),
+    year: Optional[int] = Query(None, description="Filter by calendar year"),
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     current_user: AuthenticatedUser = Depends(require_active_membership),
@@ -55,6 +58,38 @@ def list_invoices(
         escaped_vendor = vendor.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         stmt = stmt.where(Invoice.vendor_name.ilike(f"%{escaped_vendor}%", escape="\\"))
 
+    # Temporal period filtering on invoice_date (falling back to created_at)
+    inv_date_col = func.coalesce(Invoice.invoice_date, Invoice.created_at)
+
+    if month is not None:
+        stmt = stmt.where(func.extract("month", inv_date_col) == month)
+
+    if year is not None:
+        stmt = stmt.where(func.extract("year", inv_date_col) == year)
+
+    if fy:
+        try:
+            clean_fy = fy.replace("FY", "").strip()
+            parts = clean_fy.split("-")
+            start_year = int(parts[0])
+            if start_year < 100:
+                start_year += 2000
+            end_year = start_year + 1
+            stmt = stmt.where(
+                or_(
+                    and_(
+                        func.extract("year", inv_date_col) == start_year,
+                        func.extract("month", inv_date_col) >= 4,
+                    ),
+                    and_(
+                        func.extract("year", inv_date_col) == end_year,
+                        func.extract("month", inv_date_col) <= 3,
+                    ),
+                )
+            )
+        except Exception:
+            pass
+
     # Total count query
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total_count = db.scalar(count_stmt) or 0
@@ -82,6 +117,7 @@ def list_invoices(
         serialized_items.append({
             "id": inv.id,
             "invoice_number": inv.invoice_number,
+            "invoice_date": inv.invoice_date.isoformat() + "Z" if inv.invoice_date else (inv.created_at.isoformat() + "Z" if inv.created_at else None),
             "vendor_name": inv.vendor_name or "Unidentified",
             "vendor_gstin": inv.vendor_gstin,
             "po_reference": inv.po_reference,

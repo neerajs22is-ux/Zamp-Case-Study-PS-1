@@ -12,13 +12,13 @@ from __future__ import annotations
 import datetime
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from backend.core.auth import AuthenticatedUser, require_active_membership
 from backend.core.config import settings
 from backend.core.database import get_db
-from backend.models.domain import ApprovalRequest, ExceptionRecord, IngestionJob, Invoice
+from backend.models.domain import ApprovalRequest, ExceptionRecord, IngestionJob, Invoice, Vendor, VendorGSTIN
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard Operations"])
 
@@ -162,3 +162,96 @@ def get_dashboard_metrics(
             "timezone": settings.APP_TIMEZONE,
             "metrics": {},
         }
+
+
+
+@router.get("/exposure")
+def get_dashboard_exposure(
+    db: Optional[Session] = Depends(get_db),
+    current_user: AuthenticatedUser = Depends(require_active_membership),
+) -> Dict[str, Any]:
+    """Executive AP Capital Exposure & Operational Aging Scorecard (OPP-06).
+
+    Strictly separates operational ageing (> 30 days) from verified statutory MSME liabilities.
+    """
+    if db is None:
+        return {
+            "total_blocked_liability_inr": 0.0,
+            "blocked_invoices_count": 0,
+            "operational_aging_over_30_days_inr": 0.0,
+            "operational_aging_count": 0,
+            "cleared_for_erp_inr": 0.0,
+            "cleared_invoices_count": 0,
+            "statutory_msme_verified_due_inr": 0.0,
+            "statutory_msme_verified_count": 0,
+            "statutory_msme_note": "Database not connected. No exposure metrics available.",
+        }
+
+    org_id = current_user.org_id
+    now = datetime.datetime.utcnow()
+    thirty_days_ago = now - datetime.timedelta(days=30)
+    net_payable_col = func.coalesce(Invoice.net_payable_amount, Invoice.total_amount, 0.0)
+    inv_date_col = func.coalesce(Invoice.invoice_date, Invoice.created_at)
+
+    # 1. Blocked Invoices (in Exception or pending review/approval, not yet cleared or rejected)
+    blocked_stmt = select(
+        func.coalesce(func.sum(net_payable_col), 0.0),
+        func.count(Invoice.id)
+    ).where(
+        Invoice.org_id == org_id,
+        Invoice.stage.in_(["ACTION_REQUIRED", "PENDING_APPROVAL", "PENDING_SECOND_APPROVAL", "RECEIVED"]),
+        Invoice.stage != "INTERNAL_APPROVAL_COMPLETE",
+        Invoice.decision != "REJECTED",
+    )
+    blocked_sum, blocked_count = db.execute(blocked_stmt).one()
+
+    # 2. Operational Aging (> 30 Days Unsettled)
+    aging_stmt = select(
+        func.coalesce(func.sum(net_payable_col), 0.0),
+        func.count(Invoice.id)
+    ).where(
+        Invoice.org_id == org_id,
+        Invoice.stage != "INTERNAL_APPROVAL_COMPLETE",
+        Invoice.decision != "REJECTED",
+        inv_date_col < thirty_days_ago,
+    )
+    aging_sum, aging_count = db.execute(aging_stmt).one()
+
+    # 3. Cleared for ERP Posting (Internal Approval Complete)
+    cleared_stmt = select(
+        func.coalesce(func.sum(net_payable_col), 0.0),
+        func.count(Invoice.id)
+    ).where(
+        Invoice.org_id == org_id,
+        Invoice.stage == "INTERNAL_APPROVAL_COMPLETE",
+    )
+    cleared_sum, cleared_count = db.execute(cleared_stmt).one()
+
+    # 4. Verified Statutory MSME §15 Liabilities
+    # Only for vendors with verified Udyam number and registered MSME status
+    msme_stmt = select(
+        func.coalesce(func.sum(net_payable_col), 0.0),
+        func.count(Invoice.id)
+    ).join(
+        VendorGSTIN, VendorGSTIN.gstin == Invoice.vendor_gstin
+    ).join(
+        Vendor, and_(Vendor.id == VendorGSTIN.vendor_id, Vendor.org_id == org_id)
+    ).where(
+        Invoice.org_id == org_id,
+        Invoice.stage != "INTERNAL_APPROVAL_COMPLETE",
+        Vendor.msme_registered == True,
+        Vendor.udyam_number.isnot(None),
+    )
+    msme_sum, msme_count = db.execute(msme_stmt).one()
+
+    return {
+        "total_blocked_liability_inr": float(blocked_sum),
+        "blocked_invoices_count": int(blocked_count),
+        "operational_aging_over_30_days_inr": float(aging_sum),
+        "operational_aging_count": int(aging_count),
+        "cleared_for_erp_inr": float(cleared_sum),
+        "cleared_invoices_count": int(cleared_count),
+        "statutory_msme_verified_due_inr": float(msme_sum),
+        "statutory_msme_verified_count": int(msme_count),
+        "statutory_msme_note": "Statutory MSME §15 deadlines displayed only for verified Udyam suppliers. Operational aging reflects standard invoice ageing.",
+    }

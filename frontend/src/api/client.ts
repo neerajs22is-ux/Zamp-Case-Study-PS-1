@@ -82,19 +82,51 @@ export const api = {
     body: JSON.stringify({ reason }),
   }),
   getDashboardMetrics: () => request<DashboardMetrics>('/api/v1/dashboard/metrics'),
+  getDashboardExposure: () => request<{
+    total_blocked_liability_inr: number;
+    blocked_invoices_count: number;
+    operational_aging_over_30_days_inr: number;
+    operational_aging_count: number;
+    cleared_for_erp_inr: number;
+    cleared_invoices_count: number;
+    statutory_msme_verified_due_inr: number;
+    statutory_msme_verified_count: number;
+    statutory_msme_note: string;
+  }>('/api/v1/dashboard/exposure'),
+  resetDemoState: () => request<{ status: string; message: string; tenant: string; reset_lines_count: number; re_evaluated_invoices_count: number; timestamp: string }>('/api/v1/system/reset-demo', { method: 'POST' }),
   getConnections: () => request<any>('/api/v1/connections'),
   uploadInvoice: (formData: FormData) => request<any>('/api/v1/connections/upload', {
     method: 'POST',
     body: formData,
   }),
-  getInbox: (params: { page?: number; stage?: string; decision?: string } = {}) => {
+  getInbox: (params: { page?: number; stage?: string; decision?: string; vendor?: string; fy?: string; month?: number; year?: number } = {}) => {
     const q = new URLSearchParams();
     if (params.page) q.set('page', params.page.toString());
     if (params.stage) q.set('stage', params.stage);
     if (params.decision) q.set('decision', params.decision);
+    if (params.vendor) q.set('vendor', params.vendor);
+    if (params.fy) q.set('fy', params.fy);
+    if (params.month !== undefined && params.month !== null) q.set('month', params.month.toString());
+    if (params.year !== undefined && params.year !== null) q.set('year', params.year.toString());
     return request<InboxResponse>(`/api/v1/inbox?${q.toString()}`);
   },
   getInvoiceDetail: (id: string) => request<any>(`/api/v1/invoices/${id}`),
+  correctInvoiceLine: (
+    invoiceId: string,
+    lineId: string,
+    payload: { billed_quantity: number; billed_unit_rate: number; correction_reason: string },
+    ifMatch?: string
+  ) => {
+    const headers: Record<string, string> = {};
+    if (ifMatch) {
+      headers['If-Match'] = ifMatch;
+    }
+    return request<any>(`/api/v1/invoices/${invoiceId}/lines/${lineId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify(payload),
+    });
+  },
   executeAction: (id: string, action: string, reason: string, extra?: { undisputed_amount?: number; evidence_reference?: string }) => request<any>(`/api/v1/invoices/${id}/actions`, {
     method: 'POST',
     body: JSON.stringify({ action, reason, ...extra }),

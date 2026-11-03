@@ -1,0 +1,163 @@
+{
+  "ths": [
+    "PRODUCT/SERVICE",
+    "DETAILS",
+    "HSN/SAC",
+    "QTY*",
+    "UNIT",
+    "RATE*",
+    "DISCOUNT",
+    "FINAL",
+    ""
+  ],
+  "labels": [
+    "Customer Profile*",
+    "Billing Date*",
+    "Payment Due"
+  ],
+  "inputs": [
+    {
+      "id": "",
+      "name": "customer_id",
+      "placeholder": "",
+      "value": "",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":r2:",
+      "name": "invoice_date",
+      "placeholder": "",
+      "value": "2026-11-03",
+      "type": "date",
+      "ariaLabel": null
+    },
+    {
+      "id": ":r3:",
+      "name": "due_date",
+      "placeholder": "",
+      "value": "",
+      "type": "date",
+      "ariaLabel": null
+    },
+    {
+      "id": "",
+      "name": "",
+      "placeholder": "",
+      "value": "",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":r5:",
+      "name": "items.0.manual_name",
+      "placeholder": "Product/service name",
+      "value": "",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":r6:",
+      "name": "items.0.description",
+      "placeholder": "Notes...",
+      "value": "",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":r7:",
+      "name": "items.0.hsn_code",
+      "placeholder": "HSN",
+      "value": "",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":r8:",
+      "name": "items.0.quantity",
+      "placeholder": "Enter qty",
+      "value": "1",
+      "type": "number",
+      "ariaLabel": null
+    },
+    {
+      "id": "",
+      "name": "",
+      "placeholder": "",
+      "value": "Nos",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":ra:",
+      "name": "items.0.unit_price",
+      "placeholder": "",
+      "value": "0",
+      "type": "number",
+      "ariaLabel": null
+    },
+    {
+      "id": "",
+      "name": "",
+      "placeholder": "",
+      "value": "percentage",
+      "type": "text",
+      "ariaLabel": null
+    },
+    {
+      "id": ":rc:",
+      "name": "items.0.discount_percentage",
+      "placeholder": "",
+      "value": "0",
+      "type": "number",
+      "ariaLabel": null
+    },
+    {
+      "id": "",
+      "name": "",
+      "placeholder": "",
+      "value": "on",
+      "type": "checkbox",
+      "ariaLabel": "Save as product/service"
+    },
+    {
+      "id": ":re:",
+      "name": "terms_conditions",
+      "placeholder": "Legal terms, bank details, etc.",
+      "value": "",
+      "type": "textarea",
+      "ariaLabel": null
+    },
+    {
+      "id": "",
+      "name": "",
+      "placeholder": "",
+      "value": "x",
+      "type": "textarea",
+      "ariaLabel": null
+    },
+    {
+      "id": ":rf:",
+      "name": "notes",
+      "placeholder": "Internal notes or customer message...",
+      "value": "",
+      "type": "textarea",
+      "ariaLabel": null
+    },
+    {
+      "id": "",
+      "name": "",
+      "placeholder": "",
+      "value": "x",
+      "type": "textarea",
+      "ariaLabel": null
+    }
+  ],
+  "buttons": [
+    "Back",
+    "Add New Row",
+    "Cancel",
+    "Generate & Save Invoice",
+    "Ask Flick"
+  ]
+}

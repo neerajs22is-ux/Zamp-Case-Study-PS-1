@@ -1,0 +1,29 @@
+flowchart TD
+    %% Rossum Exception Handling & Escalation Map
+    DocumentArrival([Document Arrives at Processing Engine]) --> Evaluate[Evaluation against Queue Schema & Rules]
+    
+    Evaluate --> ExceptionCheck{Exception Detected?}
+    
+    ExceptionCheck -- "Missing Mandatory Field" --> Ex1[Mark field with '?' & increment error counter]
+    ExceptionCheck -- "Math Discrepancy (Subtotal + Tax != Total)" --> Ex2[Highlight Totals section in red warning]
+    ExceptionCheck -- "Unknown Supplier / Master Mismatch" --> Ex3[Trigger Vendor Match lookup failure]
+    ExceptionCheck -- "Low OCR Confidence (< threshold)" --> Ex4[Amber warning badge on datapoint]
+    ExceptionCheck -- "Wrong Document Type Ingested" --> Ex5[Document classification mismatch]
+    
+    Ex1 --> QueueToReview[Route to 'To review' Queue Tab]
+    Ex2 --> QueueToReview
+    Ex3 --> QueueToReview
+    Ex4 --> QueueToReview
+    Ex5 --> QueueToReview
+    
+    QueueToReview --> ReviewerAction{Reviewer Action in Workspace}
+    
+    ReviewerAction -- "Field Rectified via Point-and-Click" --> Resolve[Validation Errors Cleared -> Confirm]
+    ReviewerAction -- "Information Missing from Source PDF" --> Postpone[Click 'Postpone' -> Moves to Postponed Tab]
+    ReviewerAction -- "Fraudulent, Duplicate, or Illegible" --> Reject[Click 'Reject' -> Enter Rejection Reason]
+    ReviewerAction -- "Document belongs in Different Category" --> Reassign[Click 'Move to another queue' -> Select Target Queue]
+    
+    Postpone --> AwaitingVendor[Document Parked: Pending Vendor Clarification]
+    Reject --> RejectedArchive[Document Archived: Not Exported to ERP]
+    Reassign --> ReprocessNewQueue[Re-evaluated under Target Queue Schema]
+    Resolve --> DownstreamERP[Approved: Sent to ERP / Payment System]

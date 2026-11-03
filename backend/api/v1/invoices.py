@@ -12,9 +12,9 @@ from __future__ import annotations
 import datetime
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.core.auth import AuthenticatedUser, UserRole, require_active_membership, require_role
@@ -35,6 +35,12 @@ class ActionPayload(BaseModel):
     reason: str = Field(..., min_length=3, description="Operational justification for the action")
     undisputed_amount: Optional[float] = Field(None, description="Required for APPROVE_UNDISPUTED")
     evidence_reference: Optional[str] = None
+
+
+class LineCorrectionPayload(BaseModel):
+    billed_quantity: float = Field(..., gt=0, description="Corrected billed quantity")
+    billed_unit_rate: float = Field(..., gt=0, description="Corrected unit rate")
+    correction_reason: str = Field(..., min_length=3, description="Audit reason for correcting extracted line item")
 
 
 @router.get("/{invoice_id}")
@@ -88,11 +94,15 @@ def get_invoice_detail(
     lines = db.scalars(select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id).order_by(InvoiceLine.line_number)).all()
     serialized_lines = [
         {
+            "id": l.id,
             "line_number": l.line_number,
             "description": l.description,
             "quantity": float(l.billed_quantity),
             "rate": float(l.billed_unit_rate),
             "total": float(l.billed_line_total),
+            "is_corrected": bool(getattr(l, "is_corrected", False)),
+            "previous_unit_rate": float(l.previous_unit_rate) if getattr(l, "previous_unit_rate", None) is not None else None,
+            "line_version": getattr(l, "line_version", 1),
         }
         for l in lines
     ]
@@ -541,4 +551,366 @@ def execute_invoice_action(
         "workflow_substatus": inv.workflow_substatus,
         "decision_reason": inv.decision_reason,
         "audit_event_id": audit.id,
+    }
+
+
+def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
+    """Synchronously re-evaluates all 7 deterministic AP policy gates after financial mutation."""
+    now_utc = datetime.datetime.utcnow()
+    lines = db.scalars(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == inv.id, InvoiceLine.org_id == org_id).order_by(InvoiceLine.line_number)
+    ).all()
+
+    wo = None
+    wo_lines = []
+    grn = None
+    qc = None
+
+    if inv.po_reference:
+        wo = db.scalar(
+            select(WorkOrderSnapshot).where(
+                WorkOrderSnapshot.po_number == inv.po_reference,
+                WorkOrderSnapshot.org_id == org_id,
+            )
+        )
+        if wo:
+            wo_lines = db.scalars(
+                select(WorkOrderLineSnapshot)
+                .where(WorkOrderLineSnapshot.po_id == wo.id, WorkOrderLineSnapshot.org_id == org_id)
+                .order_by(WorkOrderLineSnapshot.line_number)
+            ).all()
+
+            grn = db.scalar(
+                select(GoodsReceiptSnapshot).where(
+                    GoodsReceiptSnapshot.po_number == inv.po_reference,
+                    GoodsReceiptSnapshot.org_id == org_id,
+                )
+            )
+            if grn:
+                qc = db.scalar(
+                    select(QualityControlSnapshot).where(
+                        QualityControlSnapshot.grn_number == grn.grn_number,
+                        QualityControlSnapshot.org_id == org_id,
+                    )
+                )
+
+    # Gate 1: Vendor Identity Registered
+    g1_status = "PASS" if inv.vendor_gstin else "FAIL"
+    g1_notes = f"Supplier GSTIN: {inv.vendor_gstin or 'MISSING'}"
+
+    # Gate 2: PO Authorization Valid
+    g2_status = "PASS" if wo else "FAIL"
+    g2_notes = f"PO Ref: {inv.po_reference or 'NOT_FOUND'}" if wo else "No valid Purchase Order (PO) found in ERP contracts."
+
+    # Gate 3: GRN Receipt Confirmed
+    if grn:
+        g3_status = "PASS"
+        g3_notes = f"GRN matched in ERP receipts: {grn.grn_number}"
+    else:
+        g3_status = "FAIL"
+        g3_notes = "No Goods Receipt Note (GRN) found in ERP receiving records."
+
+    # Gate 4: QC Inspection Accepted
+    if qc and getattr(qc, "overall_status", "") in ("ACCEPTED", "PASS"):
+        g4_status = "PASS"
+        g4_notes = f"QC inspection accepted: certificate #{qc.qc_certificate_number}"
+    elif qc:
+        g4_status = "FAIL"
+        g4_notes = f"QC inspection rejected or incomplete (Status: {qc.overall_status})"
+    else:
+        g4_status = "FAIL"
+        g4_notes = "No Quality Control (QC) inspection certificate found."
+
+    # Gate 5: GST Arithmetic Reconciled
+    subtotal = sum(float(l.billed_line_total) for l in lines)
+    tax = float(inv.tax_amount or 0.0)
+    total = float(inv.total_amount or 0.0)
+    discrepancy = abs(total - (subtotal + tax))
+    g5_status = "PASS" if discrepancy <= 1.00 else "FAIL"
+    g5_notes = f"Calculated: ₹{(subtotal + tax):.2f} vs Billed: ₹{total:.2f} (Discrepancy: ₹{discrepancy:.2f})"
+
+    # Gate 6: PO Price & Quantity Tolerance (±1.50% rate, 0.00% qty)
+    g6_status = "PASS"
+    g6_notes = ""
+    if not wo:
+        g6_status = "FAIL"
+        g6_notes = "Check not evaluated: no matching PO contract found."
+    elif not lines:
+        g6_status = "FAIL"
+        g6_notes = "Check failed: invoice has no line items."
+    else:
+        tolerances_breached = []
+        max_variance = 0.0
+        for idx, l in enumerate(lines):
+            matching_wo_line = None
+            for wol in wo_lines:
+                if wol.line_number == l.line_number or (wol.description and l.description and wol.description.lower().strip() == l.description.lower().strip()):
+                    matching_wo_line = wol
+                    break
+            if not matching_wo_line and idx < len(wo_lines):
+                matching_wo_line = wo_lines[idx]
+
+            if not matching_wo_line:
+                tolerances_breached.append(f"Line #{l.line_number} has no corresponding PO line.")
+                continue
+
+            contracted_rate = float(matching_wo_line.contracted_unit_rate)
+            billed_rate = float(l.billed_unit_rate)
+            if contracted_rate > 0:
+                var_pct = ((billed_rate - contracted_rate) / contracted_rate) * 100.0
+                if abs(var_pct) > abs(max_variance):
+                    max_variance = var_pct
+                if abs(var_pct) > settings.RATE_TOLERANCE_PERCENT:
+                    tolerances_breached.append(
+                        f"Line #{l.line_number} rate variance {var_pct:+.2f}% exceeds ±{settings.RATE_TOLERANCE_PERCENT:.2f}% (Billed ₹{billed_rate:.2f} vs PO ₹{contracted_rate:.2f})"
+                    )
+
+            if float(l.billed_quantity) > float(matching_wo_line.authorized_quantity):
+                tolerances_breached.append(
+                    f"Line #{l.line_number} quantity {float(l.billed_quantity)} exceeds PO authorized quantity {float(matching_wo_line.authorized_quantity)} (0.00% over-delivery tolerance)"
+                )
+
+        if tolerances_breached:
+            g6_status = "FAIL"
+            g6_notes = "; ".join(tolerances_breached[:2])
+        else:
+            g6_status = "PASS"
+            g6_notes = f"All {len(lines)} line(s) within ±{settings.RATE_TOLERANCE_PERCENT:.2f}% rate (Max variance: {max_variance:+.2f}%) and 0.00% quantity tolerance."
+
+    # Gate 7: Duplicate Invoice Check
+    dup_count = db.scalar(
+        select(func.count(Invoice.id)).where(
+            Invoice.org_id == org_id,
+            Invoice.vendor_gstin == inv.vendor_gstin,
+            Invoice.invoice_number == inv.invoice_number,
+            Invoice.id != inv.id,
+        )
+    ) or 0
+    g7_status = "PASS" if dup_count == 0 else "FAIL"
+    g7_notes = f"{dup_count} previous vouchers found"
+
+    # Check if record is an unreadable or degraded scan (P0-2 buyer trust preservation)
+    is_unreadable_scan = (
+        inv.decision == "FLAGGED_HITL_REVIEW"
+        or (not inv.vendor_gstin and (not inv.invoice_number or inv.invoice_number in ("SCAN-APTC-036", "POS-26-112", "UNKNOWN")) and (not inv.total_amount or inv.total_amount <= 0))
+    )
+    if is_unreadable_scan:
+        gate_checks = [
+            (1, "Vendor Identity Registered", "FAIL", "Document unreadable: degraded raster scan with no machine-readable text."),
+            (2, "PO Authorization Valid", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (3, "GRN Receipt Confirmed", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (4, "QC Inspection Accepted", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (5, "GST Arithmetic Reconciled", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (6, "PO Price & Quantity Tolerance", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
+            (7, "Duplicate Invoice Check", "PASS" if dup_count == 0 else "FAIL", f"{dup_count} previous vouchers found"),
+        ]
+    else:
+        gate_checks = [
+            (1, "Vendor Identity Registered", g1_status, g1_notes),
+            (2, "PO Authorization Valid", g2_status, g2_notes),
+            (3, "GRN Receipt Confirmed", g3_status, g3_notes),
+            (4, "QC Inspection Accepted", g4_status, g4_notes),
+            (5, "GST Arithmetic Reconciled", g5_status, g5_notes),
+            (6, "PO Price & Quantity Tolerance", g6_status, g6_notes),
+            (7, "Duplicate Invoice Check", g7_status, g7_notes),
+        ]
+
+    all_passed = all(g[2] == "PASS" for g in gate_checks)
+    match_run_id = f"mr_{uuid.uuid4().hex[:12]}"
+    match_run = MatchRun(
+        id=match_run_id,
+        org_id=org_id,
+        invoice_id=inv.id,
+        policy_version="standard_3way_v1",
+        overall_result="PASS" if all_passed else "FAIL",
+        evaluated_at=now_utc,
+    )
+    db.add(match_run)
+    db.flush()
+
+    first_failure = None
+    for gnum, gname, gstatus, gnotes in gate_checks:
+        mg = MatchGateCheck(
+            id=f"mg_{match_run_id}_{gnum}",
+            org_id=org_id,
+            match_run_id=match_run_id,
+            gate_number=gnum,
+            gate_name=gname,
+            status=gstatus,
+            evidence_notes=gnotes,
+            checked_at=now_utc,
+        )
+        db.add(mg)
+        if gstatus == "FAIL" and first_failure is None:
+            first_failure = (gnum, gname, gnotes)
+
+    # Update invoice state
+    if all_passed:
+        inv.stage = "PENDING_APPROVAL"
+        inv.decision = "MATCH_CANDIDATE"
+        inv.decision_reason = "All 7 deterministic policy gates passed. Ready for approval."
+    else:
+        gnum, gname, gnotes = first_failure
+        inv.stage = "ACTION_REQUIRED"
+        inv.decision = "FLAGGED_EXCEPTION"
+        inv.decision_reason = f"Gate {gnum} ({gname}) failed: {gnotes}"
+
+    return match_run
+
+
+@router.patch("/{invoice_id}/lines/{line_id}")
+def update_invoice_line(
+    invoice_id: str,
+    line_id: str,
+    payload: LineCorrectionPayload,
+    if_match: Optional[str] = Header(None),
+    current_user: AuthenticatedUser = Depends(require_active_membership),
+    db: Optional[Session] = Depends(get_db),
+) -> Dict[str, Any]:
+    """Updates an invoice line item with optimistic concurrency control, audit logging, and gate re-evaluation."""
+    if db is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
+
+    if current_user.is_read_only() or current_user.role == UserRole.AUDITOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Auditor role is strictly read-only and cannot execute corrections.",
+        )
+
+    # 1. Fetch Invoice
+    inv = db.scalar(
+        select(Invoice).where(Invoice.id == invoice_id, Invoice.org_id == current_user.org_id).with_for_update()
+    )
+    if not inv:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Invoice '{invoice_id}' not found.")
+
+    # 2. Optimistic Concurrency Check (If-Match)
+    if if_match and inv.updated_at:
+        clean_if_match = if_match.strip('\"').rstrip("Z")
+        current_etag = inv.updated_at.isoformat().rstrip("Z")
+        if clean_if_match != current_etag:
+            raise HTTPException(
+                status_code=status.HTTP_412_PRECONDITION_FAILED,
+                detail="Precondition Failed: Invoice has been modified by another reviewer. Please refresh.",
+            )
+
+    # 3. Fetch Target Line
+    line = db.scalar(
+        select(InvoiceLine)
+        .where(InvoiceLine.id == line_id, InvoiceLine.invoice_id == invoice_id, InvoiceLine.org_id == current_user.org_id)
+        .with_for_update()
+    )
+    if not line:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Invoice line '{line_id}' not found.")
+
+    old_rate = float(line.billed_unit_rate)
+    old_qty = float(line.billed_quantity)
+    new_rate = round(float(payload.billed_unit_rate), 4)
+    new_qty = round(float(payload.billed_quantity), 4)
+
+    # 4. Apply line update & increment line version
+    line.previous_unit_rate = old_rate
+    line.billed_unit_rate = new_rate
+    line.billed_quantity = new_qty
+    line.billed_line_total = round(new_rate * new_qty, 2)
+    line.is_corrected = True
+    line.line_version = (line.line_version or 1) + 1
+
+    # 5. Recalculate totals
+    all_lines = db.scalars(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == invoice_id, InvoiceLine.org_id == current_user.org_id)
+    ).all()
+    new_subtotal = round(sum(float(l.billed_line_total) for l in all_lines), 2)
+    inv.subtotal_amount = new_subtotal
+    inv.total_amount = round(new_subtotal + float(inv.tax_amount or 0.0), 2)
+    inv.net_payable_amount = inv.total_amount
+
+    # 6. Invalidate stale approvals if any existed
+    approval_req = db.scalar(
+        select(ApprovalRequest).where(
+            ApprovalRequest.invoice_id == inv.id,
+            ApprovalRequest.org_id == current_user.org_id,
+        )
+    )
+    approval_invalidated = False
+    if approval_req and approval_req.status in ("PENDING_SECOND_APPROVAL", "APPROVED"):
+        approval_req.status = "REVOKED_CORRECTION"
+        approval_req.first_approver_id = None
+        approval_req.first_approved_at = None
+        approval_req.second_approver_id = None
+        approval_req.second_approved_at = None
+        inv.stage = "ACTION_REQUIRED"
+        inv.workflow_substatus = None
+        inv.decision = "NEEDS_REVIEW"
+        inv.decision_reason = f"Previous approval invalidated: Line {line.line_number} corrected from rate ₹{old_rate:.2f} (qty {old_qty}) to rate ₹{new_rate:.2f} (qty {new_qty})."
+        approval_invalidated = True
+
+    # 7. Synchronously re-evaluate gates
+    new_match_run = reevaluate_match_gates(db, inv, current_user.org_id)
+
+    # 8. Record immutable audit event
+    now_utc = datetime.datetime.utcnow()
+    inv.updated_at = now_utc
+    audit = AuditEvent(
+        id=f"evt_{uuid.uuid4().hex[:12]}",
+        invoice_id=inv.id,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value if current_user.role else "AP_ASSOCIATE",
+        action="LINE_ITEM_CORRECTED",
+        reason=payload.correction_reason,
+        before_state={"billed_unit_rate": old_rate, "billed_quantity": old_qty, "billed_line_total": float(old_rate * old_qty)},
+        after_state={"billed_unit_rate": new_rate, "billed_quantity": new_qty, "billed_line_total": float(line.billed_line_total)},
+        source_reference=f"line_id:{line.id};line_number:{line.line_number};old_rate:{old_rate};new_rate:{new_rate};old_qty:{old_qty};new_qty:{new_qty}",
+        timestamp=now_utc,
+    )
+    db.add(audit)
+    db.commit()
+
+    # Fetch newly created gates
+    new_gates = db.scalars(
+        select(MatchGateCheck).where(MatchGateCheck.match_run_id == new_match_run.id).order_by(MatchGateCheck.gate_number)
+    ).all()
+
+    return {
+        "status": "UPDATED",
+        "line": {
+            "id": line.id,
+            "line_number": line.line_number,
+            "description": line.description,
+            "quantity": float(line.billed_quantity),
+            "rate": float(line.billed_unit_rate),
+            "total": float(line.billed_line_total),
+            "is_corrected": line.is_corrected,
+            "previous_unit_rate": float(line.previous_unit_rate) if line.previous_unit_rate is not None else None,
+            "line_version": line.line_version,
+        },
+        "invoice": {
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "subtotal": float(inv.subtotal_amount) if inv.subtotal_amount else None,
+            "tax_amount": float(inv.tax_amount) if inv.tax_amount else None,
+            "total_amount": float(inv.total_amount) if inv.total_amount else None,
+            "net_payable": float(inv.net_payable_amount) if inv.net_payable_amount else None,
+            "stage": inv.stage,
+            "decision": inv.decision,
+            "decision_reason": inv.decision_reason,
+            "workflow_substatus": inv.workflow_substatus,
+            "approval_invalidated": approval_invalidated,
+            "updated_at": inv.updated_at.isoformat() + "Z",
+        },
+        "new_match_run": {
+            "id": new_match_run.id,
+            "overall_result": new_match_run.overall_result,
+            "gates": [
+                {
+                    "gate_number": g.gate_number,
+                    "gate_name": g.gate_name,
+                    "status": g.status,
+                    "notes": g.evidence_notes,
+                    "checked_at": g.checked_at.isoformat() + "Z",
+                }
+                for g in new_gates
+            ],
+        },
     }

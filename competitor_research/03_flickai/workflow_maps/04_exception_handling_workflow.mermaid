@@ -1,0 +1,42 @@
+flowchart TD
+    subgraph ExceptionDetection["1. Exception Trigger & Classification"]
+        E1["Mandatory Field Missing (e.g., 'Customer is required', missing HSN/SAC, missing rate)"]
+        E2["Quota Boundary Reached (100/100 monthly PDF invoices consumed)"]
+        E3["RBAC / Permission Gate Encountered ('Access Denied' on /compliance/gst or /compliance/tds)"]
+        E4["Reconciliation Discrepancy (Unmatched bank statement lines, gateway fee variance)"]
+        E5["File Format / Upload Rejection (File >10MB or unsupported extension)"]
+    end
+
+    subgraph VisualSignals["2. UI Signal & Alert Hierarchy"]
+        V1["Inline Field Red Border + Text Error (Mui-error class)"]
+        V2["Full Page Access Denied Screen with 'Go to Dashboard' Button"]
+        V3["Persistent Quota Progress Bar (0/100 PDFs used badge)"]
+        V4["Table Status Badge ('Unmatched' in warning orange/red)"]
+        V5["Snackbar / Toast Notification on Failed Submission"]
+    end
+
+    subgraph UserAction["3. Human Remediation Paths"]
+        U1["Direct Keyboard Edit in Form / Data Grid"]
+        U2["Trigger 'Ask Flick' AI Assistant Drawer for Guided Answers"]
+        U3["Navigate to Billing / Contact Admin for Organization Upgrade"]
+        U4["Manual Adjustment / Split Entry in Ledger Management"]
+        U5["Re-export or Convert Source Document to Supported Format"]
+    end
+
+    subgraph SystemOutcome["4. Resolution & Verification"]
+        O1["Re-validation Passed -> State Transition to 'Completed'"]
+        O2["Plan Upgraded -> Features Unlocked"]
+        O3["Reconciliation Matched -> Posted to General Ledger"]
+        O4["Audit Trail Preserved in Transaction History"]
+    end
+
+    E1 --> V1 --> U1 --> O1
+    E2 --> V3 --> U3 --> O2
+    E3 --> V2 --> U3 --> O2
+    E4 --> V4 --> U4 --> O3
+    E5 --> V5 --> U5 --> O1
+    E1 -. Query AI .-> U2
+    E4 -. Query AI .-> U2
+    O1 --> O4
+    O2 --> O4
+    O3 --> O4

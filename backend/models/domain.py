@@ -480,6 +480,7 @@ class Invoice(Base):
 
     __table_args__ = (
         UniqueConstraint("id", "org_id", name="uq_invoices_id_org"),
+        Index("idx_invoices_org_invoice_date", "org_id", "invoice_date"),
     )
 
 
@@ -494,6 +495,9 @@ class InvoiceLine(Base):
     billed_quantity = Column(Numeric(12, 4), nullable=False)
     billed_unit_rate = Column(Numeric(12, 4), nullable=False)
     billed_line_total = Column(Numeric(15, 2), nullable=False)
+    is_corrected = Column(Boolean, default=False, nullable=False)
+    previous_unit_rate = Column(Numeric(12, 4), nullable=True)
+    line_version = Column(Integer, default=1, nullable=False)
 
     invoice = relationship(
         "Invoice",

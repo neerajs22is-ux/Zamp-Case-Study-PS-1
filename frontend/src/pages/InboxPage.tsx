@@ -31,6 +31,8 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
   const [loading, setLoading] = useState(true);
   const [stageFilter, setStageFilter] = useState<string>(searchParams.get('stage') || '');
   const [decisionFilter, setDecisionFilter] = useState<string>(searchParams.get('decision') || '');
+  const [fyFilter, setFyFilter] = useState<string>(() => searchParams.get('fy') || localStorage.getItem('ap.inbox.fy') || '');
+  const [monthFilter, setMonthFilter] = useState<string>(() => searchParams.get('month') || localStorage.getItem('ap.inbox.month') || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [syncingMailbox, setSyncingMailbox] = useState(false);
@@ -130,12 +132,34 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
         page,
         stage: stageFilter || undefined,
         decision: decisionFilter || undefined,
+        fy: fyFilter || undefined,
+        month: monthFilter ? parseInt(monthFilter, 10) : undefined,
       });
       setData(res);
     } catch (err: any) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFyChange = (val: string) => {
+    setPage(1);
+    setFyFilter(val);
+    if (val) {
+      localStorage.setItem('ap.inbox.fy', val);
+    } else {
+      localStorage.removeItem('ap.inbox.fy');
+    }
+  };
+
+  const handleMonthChange = (val: string) => {
+    setPage(1);
+    setMonthFilter(val);
+    if (val) {
+      localStorage.setItem('ap.inbox.month', val);
+    } else {
+      localStorage.removeItem('ap.inbox.month');
     }
   };
 
@@ -158,7 +182,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
 
   useEffect(() => {
     loadInbox();
-  }, [page, stageFilter, decisionFilter]);
+  }, [page, stageFilter, decisionFilter, fyFilter, monthFilter]);
 
   // Poll inbox every 3 seconds if any item is currently processing
   useEffect(() => {
@@ -542,6 +566,52 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
             <option value="QUARANTINED">Quarantined (Security / Fraud Block)</option>
           </select>
 
+          {/* Stage A3 (OPP-04): Temporal Accounting Period Selectors */}
+          <select
+            value={fyFilter}
+            onChange={(e) => handleFyChange(e.target.value)}
+            className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs font-mono"
+            aria-label="Filter by Financial Year"
+          >
+            <option value="">All Financial Years</option>
+            <option value="FY 2026-27">FY 2026-27 (Current)</option>
+            <option value="FY 2025-26">FY 2025-26</option>
+            <option value="FY 2024-25">FY 2024-25</option>
+          </select>
+
+          <select
+            value={monthFilter}
+            onChange={(e) => handleMonthChange(e.target.value)}
+            className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-xs"
+            aria-label="Filter by Calendar Month"
+          >
+            <option value="">All Months</option>
+            <option value="4">April</option>
+            <option value="5">May</option>
+            <option value="6">June</option>
+            <option value="7">July</option>
+            <option value="8">August</option>
+            <option value="9">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+            <option value="1">January</option>
+            <option value="2">February</option>
+            <option value="3">March</option>
+          </select>
+
+          {(fyFilter || monthFilter) && (
+            <button
+              onClick={() => {
+                handleFyChange('');
+                handleMonthChange('');
+              }}
+              className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline px-1 font-medium"
+            >
+              Clear Period
+            </button>
+          )}
+
           <div className="text-slate-500 dark:text-slate-400 font-mono text-[11px] tabular-nums pl-1">
             {filteredItems.length} records
           </div>
@@ -573,6 +643,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                 <tr>
                   <th className="py-3 px-4">Supplier</th>
                   <th className="py-3 px-4">Invoice #</th>
+                  <th className="py-3 px-4">Date</th>
                   <th className="py-3 px-4">PO / WO Ref</th>
                   <th className="py-3 px-4 text-right">Amount</th>
                   <th className="py-3 px-4">MSME Statutory Due</th>
@@ -596,6 +667,9 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
                     </td>
                     <td className="py-3 px-4 font-mono font-medium text-slate-800 dark:text-slate-200">
                       {inv.invoice_number || inv.id.substring(0, 10)}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-[11px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                      {(inv as any).invoice_date ? new Date((inv as any).invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
                     </td>
                     <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400">
                       {inv.po_reference || '—'}

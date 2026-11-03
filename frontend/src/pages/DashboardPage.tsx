@@ -31,6 +31,7 @@ interface DashboardPageProps {
 export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => {
   const navigate = useNavigate();
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
+  const [exposure, setExposure] = useState<any | null>(null);
   const [exceptions, setExceptions] = useState<any[]>([]);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [recentAudits, setRecentAudits] = useState<any[]>([]);
@@ -47,17 +48,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
     setLoading(true);
     setError(null);
     try {
-      const [metricsData, exceptionsData, healthData, auditData] = await Promise.allSettled([
+      const [metricsData, exceptionsData, healthData, auditData, exposureData] = await Promise.allSettled([
         api.getDashboardMetrics(),
         api.getExceptions(),
         api.getHealth(),
         api.getAudit(),
+        api.getDashboardExposure(),
       ]);
 
       if (metricsData.status === 'fulfilled') setMetrics(metricsData.value);
       if (exceptionsData.status === 'fulfilled') setExceptions(exceptionsData.value.items || []);
       if (healthData.status === 'fulfilled') setHealth(healthData.value);
       if (auditData.status === 'fulfilled') setRecentAudits((auditData.value.items || []).slice(0, 5));
+      if (exposureData.status === 'fulfilled') setExposure(exposureData.value);
     } catch (err: any) {
       setError(err.message || 'Failed to retrieve operational metrics.');
     } finally {
@@ -199,6 +202,80 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser }) => 
             <span className="w-5 h-5 rounded-full bg-indigo-600 text-white font-semibold flex items-center justify-center text-[10px] shrink-0">4</span>
             <span className="font-medium">Dual-Control Sign-Off</span>
           </div>
+        </div>
+      </div>
+
+      {/* Stage A5 (OPP-06): Executive AP Capital Exposure & Operational Ageing Scorecard */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-2xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800/80 pb-3">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <span>Executive AP Capital Exposure Scorecard</span>
+              <span className="text-[10px] font-mono uppercase bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/60">
+                Live Liquidity Impact
+              </span>
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Capital blocked in exception triage vs cleared operational payables.
+            </p>
+          </div>
+          <div className="text-[11px] font-mono text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            <span>Updated live from ledger</span>
+          </div>
+        </div>
+
+        {/* 3 Exposure Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Card 1: Total Blocked AP Liability */}
+          <div className="p-4 rounded-lg bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-900/40">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-rose-800 dark:text-rose-300">
+              Total Blocked AP Liability
+            </div>
+            <div className="text-2xl font-bold font-mono text-rose-950 dark:text-rose-200 tabular-nums my-1.5">
+              {formatINR(exposure?.total_blocked_liability_inr)}
+            </div>
+            <div className="text-xs text-rose-700/90 dark:text-rose-400 flex items-center justify-between">
+              <span>{exposure?.blocked_invoices_count ?? 0} invoices in review/exception</span>
+              <span className="font-semibold text-[11px]">Triage Required</span>
+            </div>
+          </div>
+
+          {/* Card 2: Operational Ageing (> 30 Days) */}
+          <div className="p-4 rounded-lg bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+              Operational Ageing (&gt; 30 Days)
+            </div>
+            <div className="text-2xl font-bold font-mono text-amber-950 dark:text-amber-200 tabular-nums my-1.5">
+              {formatINR(exposure?.operational_aging_over_30_days_inr)}
+            </div>
+            <div className="text-xs text-amber-700/90 dark:text-amber-400 flex items-center justify-between">
+              <span>{exposure?.operational_aging_count ?? 0} invoices unsettled &gt; 30 days</span>
+              <span className="font-semibold text-[11px]">Ageing Payables</span>
+            </div>
+          </div>
+
+          {/* Card 3: Cleared for ERP Posting */}
+          <div className="p-4 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/80 dark:border-emerald-900/40">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+              Cleared for ERP Posting
+            </div>
+            <div className="text-2xl font-bold font-mono text-emerald-950 dark:text-emerald-200 tabular-nums my-1.5">
+              {formatINR(exposure?.cleared_for_erp_inr)}
+            </div>
+            <div className="text-xs text-emerald-700/90 dark:text-emerald-400 flex items-center justify-between">
+              <span>{exposure?.cleared_invoices_count ?? 0} invoices fully approved</span>
+              <span className="font-semibold text-[11px]">Treasury Ready</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Legal & Governance Boundary Disclaimer */}
+        <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200/70 dark:border-slate-800/70 flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+          <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+          <p>
+            <strong>Regulatory Distinction:</strong> Operational aging reflects standard commercial payable aging. Statutory MSME §15 interest penalties (45-day hard deadline) are applied strictly when verified supplier Udyam registration is certified on file.
+          </p>
         </div>
       </div>
 

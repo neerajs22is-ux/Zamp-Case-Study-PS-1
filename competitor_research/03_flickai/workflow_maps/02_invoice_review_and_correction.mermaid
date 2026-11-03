@@ -1,0 +1,50 @@
+flowchart TD
+    subgraph Trigger["1. Review Workspace Initialization"]
+        A["User Opens Invoice in Review/Edit Mode (/invoices/new or /invoices/:id/edit)"]
+        B["Render Header Data & Line Items Grid (Material-UI Data Matrix)"]
+    end
+
+    subgraph HeaderValidation["2. Header & Profile Validation"]
+        C1["Customer Profile Selection (Auto-complete / Customer Master)"]
+        C2["Billing Date (MUI DatePicker)"]
+        C3["Payment Due Date / Terms Calculation"]
+        C4{"Customer Profile Empty?"}
+        C5["Render Inline Error: 'Customer is required' (Mui-error state)"]
+    end
+
+    subgraph LineItemsGrid["3. Dynamic Line Items & Tax Calculation"]
+        D1["Line Item Columns: Product/Service | Details | HSN/SAC | Qty* | Unit | Rate* | Discount | Final"]
+        D2["User Clicks 'Add New Row' -> Dynamically Append Row Object"]
+        D3["Inline Field Updates (Qty, Rate, Discount %, HSN/SAC Code)"]
+        D4["Real-time Subtotal & Tax Recalculation"]
+        D5{"Missing Mandatory Qty or Rate?"}
+        D6["Field-level Red Highlight & Submit Block"]
+    end
+
+    subgraph ActionOutcome["4. Action & Outcome Handling"]
+        E1["User Clicks 'Generate & Save Invoice'"]
+        E2{"All Mandatory Validations Pass?"}
+        E3["Prevent Save & Display Summary Notification / Focus Error"]
+        E4["Generate Final Invoice Record"]
+        E5["Post Journal Entry to General Ledger (/ledgers)"]
+        E6["Update Accounts Receivable (AR) & Financial Dashboard"]
+    end
+
+    A --> B
+    B --> C1
+    B --> C2
+    B --> C3
+    C1 --> C4
+    C4 -- Yes --> C5
+    C4 -- No --> D1
+    D1 --> D2
+    D2 --> D3
+    D3 --> D4
+    D4 --> D5
+    D5 -- Yes --> D6
+    D5 -- No --> E1
+    E1 --> E2
+    E2 -- No --> E3
+    E2 -- Yes --> E4
+    E4 --> E5
+    E5 --> E6

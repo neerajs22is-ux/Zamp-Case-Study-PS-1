@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { 
   FileText, ShoppingCart, Truck, ShieldCheck, CheckCircle2, 
-  XCircle, Info, HelpCircle, Columns, Layers
+  XCircle, Info, HelpCircle, Columns, Layers, Edit3, Save, X, AlertTriangle
 } from 'lucide-react';
 
 interface InvoiceLine {
+  id?: string;
   line_number: number;
   description: string;
   quantity: number;
   rate: number;
   total: number;
+  is_corrected?: boolean;
+  previous_unit_rate?: number | null;
+  line_version?: number;
 }
 
 interface POLine {
@@ -45,6 +49,8 @@ interface ProcurementVerificationFlowProps {
   } | null;
   rateTolerancePercent?: number;
   onOpenGlossary?: (term?: string) => void;
+  onCorrectLine?: (lineId: string, payload: { billed_quantity: number; billed_unit_rate: number; correction_reason: string }) => Promise<void>;
+  isAuditor?: boolean;
 }
 
 export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowProps> = ({
@@ -53,8 +59,62 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
   poSnapshot,
   rateTolerancePercent = 1.50,
   onOpenGlossary,
+  onCorrectLine,
+  isAuditor = false,
 }) => {
   const [viewMode, setViewMode] = useState<'comparison' | 'detailed'>('comparison');
+  const [editingLine, setEditingLine] = useState<InvoiceLine | null>(null);
+  const [editQty, setEditQty] = useState<number>(0);
+  const [editRate, setEditRate] = useState<number>(0);
+  const [editReason, setEditReason] = useState<string>('');
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState<boolean>(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const startEdit = (line: InvoiceLine) => {
+    if (isAuditor || !onCorrectLine) return;
+    setEditingLine(line);
+    setEditQty(line.quantity);
+    setEditRate(line.rate);
+    setEditReason('');
+    setEditError(null);
+  };
+
+  const cancelEdit = () => {
+    setEditingLine(null);
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingLine || !onCorrectLine) return;
+    if (editQty <= 0) {
+      setEditError('Quantity must be greater than zero.');
+      return;
+    }
+    if (editRate <= 0) {
+      setEditError('Unit rate must be greater than zero.');
+      return;
+    }
+    if (!editReason.trim() || editReason.trim().length < 3) {
+      setEditError('A specific correction reason (min 3 characters) is required for audit compliance.');
+      return;
+    }
+
+    try {
+      setIsSubmittingEdit(true);
+      setEditError(null);
+      const lineId = editingLine.id || `line_${invoice.id}_${editingLine.line_number}`;
+      await onCorrectLine(lineId, {
+        billed_quantity: editQty,
+        billed_unit_rate: editRate,
+        correction_reason: editReason.trim(),
+      });
+      setEditingLine(null);
+    } catch (err: any) {
+      setEditError(err.message || 'Failed to apply line correction.');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
 
   const formatINR = (val: number | null | undefined) => {
     if (val === null || val === undefined) return '—';
@@ -540,8 +600,20 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
 
                           {/* 3. Quantity (Billed / PO) */}
                           <td className="py-2 px-2 text-right tabular-nums whitespace-nowrap">
-                            <div className={`font-bold text-xs ${isQtyFailed ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                              {l.quantity}
+                            <div className="flex items-center justify-end gap-1">
+                              <span className={`font-bold text-xs ${isQtyFailed ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                                {l.quantity}
+                              </span>
+                              {onCorrectLine && !isAuditor && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(l)}
+                                  className="p-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                  title="Correct line quantity or rate"
+                                >
+                                  <Edit3 className="w-2.5 h-2.5" />
+                                </button>
+                              )}
                             </div>
                             <div className="text-[10px] text-slate-400 font-sans">
                               PO: {hasPoLine && matchingPoLine ? matchingPoLine.authorized_quantity : '—'}
@@ -550,8 +622,25 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
 
                           {/* 4. Unit Rate (Billed / PO) */}
                           <td className="py-2 px-2 text-right tabular-nums whitespace-nowrap">
-                            <div className={`font-bold text-xs ${isRateFailed ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
-                              {formatINR(l.rate)}
+                            <div className="flex items-center justify-end gap-1">
+                              <span className={`font-bold text-xs ${isRateFailed ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                                {formatINR(l.rate)}
+                              </span>
+                              {l.is_corrected && (
+                                <span className="text-[9px] bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 px-1 py-0.2 rounded font-sans" title={`Corrected (was ₹${l.previous_unit_rate})`}>
+                                  Corrected
+                                </span>
+                              )}
+                              {onCorrectLine && !isAuditor && (
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(l)}
+                                  className="p-0.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                  title="Correct line rate or quantity"
+                                >
+                                  <Edit3 className="w-2.5 h-2.5" />
+                                </button>
+                              )}
                             </div>
                             <div className="text-[10px] text-slate-400 font-sans">
                               PO: {hasPoLine && matchingPoLine ? formatINR(matchingPoLine.contracted_unit_rate) : '—'}
@@ -613,6 +702,15 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                                   <span className="text-[9px] text-rose-600 dark:text-rose-400 font-mono font-semibold">
                                     Debit Note: {formatINR(rateDeltaINR)}
                                   </span>
+                                )}
+                                {onCorrectLine && !isAuditor && (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(l)}
+                                    className="mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors"
+                                  >
+                                    Correct Rate
+                                  </button>
                                 )}
                               </div>
                             )}
@@ -750,6 +848,15 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
                                     Debit Note: {formatINR(rateDeltaINR)}
                                   </span>
                                 )}
+                                {onCorrectLine && !isAuditor && (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(l)}
+                                    className="mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:hover:bg-indigo-900 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors"
+                                  >
+                                    Correct Rate
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -790,6 +897,108 @@ export const ProcurementVerificationFlow: React.FC<ProcurementVerificationFlowPr
           </p>
         </div>
       </div>
+
+      {/* Stage A1 (OPP-01): Audited In-Place Line Correction Dialog */}
+      {editingLine && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl max-w-lg w-full p-5 space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Edit3 className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  <span>Audited Line-Item Correction — #{editingLine.line_number}</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
+                  {editingLine.description}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-lg bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/40 text-xs text-sky-900 dark:text-sky-300">
+              <p>
+                <strong>Audit Notice:</strong> Changes trigger synchronous policy gate re-evaluation. The original raw OCR extraction is permanently preserved in the audit register.
+              </p>
+            </div>
+
+            {editError && (
+              <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                  Billed Quantity
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.0001"
+                  value={editQty}
+                  onChange={(e) => setEditQty(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                  Billed Unit Rate (₹)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={editRate}
+                  onChange={(e) => setEditRate(parseFloat(e.target.value) || 0)}
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-900 dark:text-white font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="text-xs">
+              <label className="block text-slate-600 dark:text-slate-400 font-medium mb-1">
+                Mandatory Audit Justification / Reason <span className="text-rose-500">*</span>
+              </label>
+              <textarea
+                rows={2}
+                value={editReason}
+                onChange={(e) => setEditReason(e.target.value)}
+                placeholder="e.g., OCR misread decimal placement on unit rate (was 14500.00, corrected to contracted 13900.00)"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={cancelEdit}
+                disabled={isSubmittingEdit}
+                className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-medium hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={isSubmittingEdit}
+                className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs disabled:opacity-50"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>{isSubmittingEdit ? 'Re-evaluating Gates...' : 'Save & Re-evaluate'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,52 @@
+flowchart TD
+    subgraph IntakeChannels["1. Multi-Format Ingestion Channels"]
+        A1["Purchase Invoices (PDF drag-and-drop / file selector)"]
+        A2["Sales Invoices (PDF or CSV Template Upload)"]
+        A3["Bank Statements (CSV or PDF Upload)"]
+        A4["Payment Aggregator (Razorpay CSV / Sample Template)"]
+    end
+
+    subgraph QuotaAndValidation["2. Tenant Quota & Format Validation"]
+        B1["File Type & Extension Filter (.pdf, .csv, max 10MB)"]
+        B2{"File Extension Valid?"}
+        B3["Error Alert: Unsupported File Format"]
+        B4["Quota Monitor: Trial Limit Check (100 PDF invoices/month)"]
+        B5{"Monthly Limit Exceeded?"}
+        B6["Warning Banner: 100/100 Quota Reached (Upgrade Required)"]
+        B7["Ingestion Accepted: Timestamp & Tenant Metadata Bound"]
+    end
+
+    subgraph ProcessingPipeline["3. Extraction & AI Pipeline"]
+        C1["Document Parser & OCR Text Layer Extraction"]
+        C2["Field Entity Recognizer (Vendor/Customer, Date, Inv #, PoS)"]
+        C3["Table Extraction Engine (Item, Description, HSN/SAC, Qty, Rate, Tax)"]
+        C4["Tax Calculator (CGST + SGST for Intra-State, IGST for Inter-State)"]
+    end
+
+    subgraph WorkflowState["4. Queue & Workspace Status"]
+        D1["State: Pending"]
+        D2["State: Processing"]
+        D3{"Extraction Error or Missing Field?"}
+        D4["State: Failed / Requires Attention"]
+        D5["State: Completed / Ready for Review"]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> B1
+    A4 --> B1
+    B1 --> B2
+    B2 -- No --> B3
+    B2 -- Yes --> B4
+    B4 --> B5
+    B5 -- Yes --> B6
+    B5 -- No --> B7
+    B7 --> C1
+    C1 --> C2
+    C2 --> C3
+    C3 --> C4
+    C4 --> D1
+    D1 --> D2
+    D2 --> D3
+    D3 -- Yes --> D4
+    D3 -- No --> D5
