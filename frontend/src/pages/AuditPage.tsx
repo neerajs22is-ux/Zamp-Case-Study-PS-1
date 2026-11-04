@@ -204,7 +204,7 @@ export const AuditPage: React.FC<AuditPageProps> = ({ currentUser }) => {
       </div>
 
       {/* 3. Audit Events Table */}
-      <Card className="overflow-hidden">
+      <Card data-tour="audit-table" className="overflow-hidden">
         {loading && events.length === 0 ? (
           <LoadingState label="Loading audit records..." className="py-16" />
         ) : filteredEvents.length === 0 ? (

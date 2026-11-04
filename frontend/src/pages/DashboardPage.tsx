@@ -132,7 +132,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ currentUser, onNav
       />
 
       {/* 2. Zone 1: The Daily Triad (Top KPI Bar) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div data-tour="today-kpi-bar" className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Needs Action Today */}
         <Card
           variant="interactive"

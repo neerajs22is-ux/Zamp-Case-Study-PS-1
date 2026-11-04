@@ -164,7 +164,7 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ currentUser }) => 
       </div>
 
       {/* 4. Table */}
-      <Card className="overflow-hidden">
+      <Card data-tour="approvals-table" className="overflow-hidden">
         {loading && approvals.length === 0 ? (
           <LoadingState label="Loading dual-control queue..." className="py-16" />
         ) : filteredApprovals.length === 0 ? (

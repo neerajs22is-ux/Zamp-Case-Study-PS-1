@@ -13,8 +13,10 @@ import {
   X,
   ChevronRight,
   Wrench,
-  Sliders
+  Sliders,
+  HelpCircle
 } from 'lucide-react';
+import { useTour } from '../context/TourContext';
 import type { AuthenticatedUser, HealthResponse } from '../types';
 
 interface SidebarProps {
@@ -39,6 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenDevDrawer,
 }) => {
   const navigate = useNavigate();
+  const { openHelp } = useTour();
 
   // Role permissions based on server RBAC rules
   const isAuditor = user?.role === 'AUDITOR';
@@ -249,7 +252,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Sidebar Footer: Health, Dev Tools & User */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5 bg-slate-50/50 dark:bg-slate-950">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-950">
+          {/* AP Assistant & Help Entry */}
+          <button
+            type="button"
+            onClick={() => {
+              openHelp('screen');
+              if (window.innerWidth < 1024) onClose();
+            }}
+            className="w-full px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+          >
+            <div className="flex items-center gap-2 truncate">
+              <HelpCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+              <span className="truncate">AP Assistant & Help</span>
+            </div>
+            <span className="text-[10px] font-mono text-indigo-500 font-bold">?</span>
+          </button>
+
           {/* Health Pill Indicator */}
           <button
             type="button"

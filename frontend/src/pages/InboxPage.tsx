@@ -285,7 +285,7 @@ export const InboxPage: React.FC<InboxPageProps> = ({ onSelectInvoice }) => {
       )}
 
       {/* 2. Operational Filter Tabs (Flick AI Style) */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
+      <div data-tour="inbox-queue-tabs" className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 pt-1">
         <FilterTabs
           tabs={queueTabs}
           activeTab={activeQueueTab}

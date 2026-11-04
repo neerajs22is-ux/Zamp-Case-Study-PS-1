@@ -197,7 +197,7 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
       </div>
 
       {/* 3. Exceptions Table */}
-      <Card className="overflow-hidden">
+      <Card data-tour="exceptions-table" className="overflow-hidden">
         {loading && items.length === 0 ? (
           <LoadingState label="Loading exception queue..." className="py-16" />
         ) : filteredItems.length === 0 ? (

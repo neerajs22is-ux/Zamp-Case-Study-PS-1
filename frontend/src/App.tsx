@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { TourProvider } from './context/TourContext';
 import { AppShell } from './components/AppShell';
 import { AuthScreen } from './components/AuthScreen';
 import { DashboardPage } from './pages/DashboardPage';
@@ -170,7 +171,9 @@ export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <AppContent />
+        <TourProvider>
+          <AppContent />
+        </TourProvider>
       </BrowserRouter>
     </ThemeProvider>
   );

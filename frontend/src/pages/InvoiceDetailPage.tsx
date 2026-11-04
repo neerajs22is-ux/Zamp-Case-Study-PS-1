@@ -294,14 +294,16 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             </span>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setPolicyDrawerOpen(true)}
-            leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
-          >
-            {matchGates.filter((g: any) => g.status === 'PASS').length}/{matchGates.length} Gates
-          </Button>
+          <div data-tour="policy-gates-trigger">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPolicyDrawerOpen(true)}
+              leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+            >
+              {matchGates.filter((g: any) => g.status === 'PASS').length}/{matchGates.length} Gates
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -319,7 +321,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       )}
 
       {/* 2. Main 50/50 Workspace (Rossum Split Layout) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div data-tour="workspace-split" className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left Pane: Original Document Viewer (5 cols on lg) */}
         <div className="lg:col-span-5 space-y-2">
           <Card className="overflow-hidden flex flex-col h-[650px]">
@@ -479,7 +481,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
           {/* Tab Content 1: 4-Way Reconciliation Table */}
           {activeTab === 'reconciliation' && (
-            <div className="space-y-4">
+            <div data-tour="reconciliation-flow" className="space-y-4">
               <ProcurementVerificationFlow
                 invoice={invoice}
                 lines={invoice.lines || []}

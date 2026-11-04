@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
-import { Menu, Keyboard, Sparkles, Wrench } from 'lucide-react';
+import { Menu, Keyboard, Sparkles, Wrench, HelpCircle } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { HRShowcaseModal } from './HRShowcaseModal';
 import { DeveloperDrawer } from './DeveloperDrawer';
+import { WelcomeModal, GuidedTour, ContextualHelpDrawer } from './onboarding';
+import { useTour } from '../context/TourContext';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { api } from '../api/client';
 import type { AuthenticatedUser, HealthResponse } from '../types';
@@ -25,6 +27,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   children,
   onSwitchRole,
 }) => {
+  const { openHelp } = useTour();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showcaseOpen, setShowcaseOpen] = useState(false);
@@ -72,7 +75,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   // Register global shortcuts (? for help, g sequences for navigation)
   useKeyboardShortcuts({
-    onToggleShortcutsHelp: () => setShortcutsOpen((prev) => !prev),
+    onToggleShortcutsHelp: () => openHelp('faq'),
     onEscape: () => {
       setShortcutsOpen(false);
       setSidebarOpen(false);
@@ -204,6 +207,17 @@ export const AppShell: React.FC<AppShellProps> = ({
               <kbd className="font-mono text-[10px] font-semibold bg-white dark:bg-slate-800 px-1 py-0.2 rounded border border-slate-300 dark:border-slate-700">?</kbd>
             </button>
 
+            {/* Contextual Help Trigger Button */}
+            <button
+              onClick={() => openHelp('screen')}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs cursor-pointer"
+              title="Open AP Assistant & Contextual Help (?)"
+              aria-label="Open AP assistant and contextual help"
+            >
+              <HelpCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">Help</span>
+            </button>
+
             {/* High-Contrast Light / Dark Theme Switcher */}
             <ThemeToggle />
           </div>
@@ -239,6 +253,11 @@ export const AppShell: React.FC<AppShellProps> = ({
           onSwitchRole={onSwitchRole}
           onOpenShowcase={() => setShowcaseOpen(true)}
         />
+
+        {/* Onboarding & Assistant Overlays */}
+        <WelcomeModal />
+        <GuidedTour />
+        <ContextualHelpDrawer />
 
         {/* Global Footer */}
         <footer className="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
