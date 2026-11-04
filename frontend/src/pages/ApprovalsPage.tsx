@@ -1,28 +1,50 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  CheckCircle, 
-  ShieldAlert, 
   RefreshCw, 
-  AlertTriangle,
-  UserCheck,
-  Clock,
-  Layers,
-  ChevronRight
+  ChevronRight,
+  ShieldCheck,
+  CheckCircle2
 } from 'lucide-react';
 import { api } from '../api/client';
+import { 
+  PageHeader, 
+  Card, 
+  Button, 
+  Badge, 
+  FilterTabs, 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableRow, 
+  TableHead, 
+  TableCell, 
+  Modal, 
+  LoadingState, 
+  EmptyState,
+  ErrorState
+} from '../components/ui';
+import type { FilterTabItem } from '../components/ui';
 import type { AuthenticatedUser } from '../types';
 
 interface ApprovalsPageProps {
   currentUser?: AuthenticatedUser | null;
 }
 
+type ApprovalTab = 'pending' | 'approved' | 'all';
+
 export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ currentUser }) => {
   const navigate = useNavigate();
   const [approvals, setApprovals] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'pending' | 'all' | 'approved'>('pending');
+  const [activeTab, setActiveTab] = useState<ApprovalTab>('pending');
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Controller Dual Sign-off Modal State
+  const [selectedApproval, setSelectedApproval] = useState<any | null>(null);
+  const [controllerNote, setControllerNote] = useState<string>('Dual-approval authorized by Financial Controller.');
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState<boolean>(false);
+  const [approvalSuccess, setApprovalSuccess] = useState<string | null>(null);
 
   const isAuditor = currentUser?.role === 'AUDITOR';
   const isController = currentUser?.role === 'CONTROLLER' || currentUser?.role === 'SYSTEM_ADMIN';
@@ -56,254 +78,250 @@ export const ApprovalsPage: React.FC<ApprovalsPageProps> = ({ currentUser }) => 
   const filteredApprovals = approvals.filter((item) => {
     if (activeTab === 'pending') return item.status === 'PENDING_SECOND_APPROVAL';
     if (activeTab === 'approved') return item.status === 'APPROVED';
-    return true; // 'all'
+    return true;
   });
 
   const pendingCount = approvals.filter((a) => a.status === 'PENDING_SECOND_APPROVAL').length;
   const approvedCount = approvals.filter((a) => a.status === 'APPROVED').length;
 
+  const handleConfirmDualApproval = async () => {
+    if (!selectedApproval) return;
+    setIsSubmittingApproval(true);
+    try {
+      await api.executeAction(
+        selectedApproval.invoice_id || selectedApproval.id,
+        'APPROVE_AP_REVIEW',
+        controllerNote.trim() || 'Controller dual approval recorded.'
+      );
+      setApprovalSuccess(`Invoice ${selectedApproval.invoice_number || selectedApproval.id} authorized.`);
+      setSelectedApproval(null);
+      await fetchApprovals();
+    } catch (err: any) {
+      alert(`Approval failed: ${err.message}`);
+    } finally {
+      setIsSubmittingApproval(false);
+    }
+  };
+
+  const tabs: FilterTabItem<ApprovalTab>[] = [
+    { id: 'pending', label: 'Awaiting Controller Review', count: pendingCount, badgeTone: 'warning' },
+    { id: 'approved', label: 'Fully Cleared & Signed', count: approvedCount, badgeTone: 'success' },
+    { id: 'all', label: 'All High-Value Records', count: approvals.length },
+  ];
+
   return (
-    <div className="space-y-6">
-      {/* 1. Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Dual-Control Approvals Queue
-            </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-              {pendingCount} Awaiting Second Sign-off
-            </span>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
-            Invoices meeting or exceeding ₹5,00,000 threshold requiring independent Financial Controller sign-off.
-          </p>
-        </div>
-
-        <button
-          onClick={fetchApprovals}
-          disabled={loading}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs self-start"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </button>
-      </div>
-
-      {/* 2. Governance Policy Notice */}
-      <div className="rounded-xl border border-purple-200 dark:border-purple-900/60 bg-purple-50/60 dark:bg-purple-950/20 p-4 flex items-start gap-3 shadow-2xs">
-        <ShieldAlert className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
-        <div className="text-xs text-purple-900 dark:text-purple-200 space-y-1">
-          <p className="font-semibold text-sm">
-            Statutory Financial Control Invariant (Dual-Approval Policy)
-          </p>
-          <p className="text-purple-800 dark:text-purple-300 leading-relaxed">
-            Per company financial delegations, disbursements meeting or exceeding <strong>₹5,00,000</strong> require two independent sign-offs. The second approval must be rendered by a <strong>Financial Controller</strong> or <strong>System Admin</strong> distinct from the initial approver.
-          </p>
-          <p className="text-[11px] text-purple-700 dark:text-purple-400 font-medium pt-0.5">
-            Note: Review sign-off authorizes payment batch readiness; no bank funds transfer or ERP posting is executed.
-          </p>
-          {isAuditor && (
-            <p className="text-[11px] text-purple-800 dark:text-purple-300 font-semibold pt-0.5">
-              Read-only view: Auditor role can inspect approval queues but cannot submit sign-offs.
-            </p>
-          )}
-          {!isController && !isAuditor && (
-            <p className="text-[11px] text-purple-800 dark:text-purple-300 font-semibold pt-0.5">
-              Financial Controller or System Admin credentials required to submit second approval.
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* 3. Tab Bar */}
-      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-px overflow-x-auto whitespace-nowrap scrollbar-none">
-        <button
-          onClick={() => setActiveTab('pending')}
-          className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'pending'
-              ? 'border-purple-600 text-purple-700 dark:border-purple-400 dark:text-purple-300 bg-white dark:bg-slate-900'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <ShieldAlert className="w-3.5 h-3.5" />
-          <span>Awaiting Second Sign-off ({pendingCount})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('all')}
-          className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'all'
-              ? 'border-purple-600 text-purple-700 dark:border-purple-400 dark:text-purple-300 bg-white dark:bg-slate-900'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>All Dual-Control Invoices ({approvals.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('approved')}
-          className={`px-3 py-2 text-xs font-medium rounded-t-lg border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'approved'
-              ? 'border-purple-600 text-purple-700 dark:border-purple-400 dark:text-purple-300 bg-white dark:bg-slate-900'
-              : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-          }`}
-        >
-          <CheckCircle className="w-3.5 h-3.5" />
-          <span>Completed Dual Approvals ({approvedCount})</span>
-        </button>
-      </div>
-
-      {/* 4. Table / List */}
-      {loading ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center text-xs text-slate-500">
-          <RefreshCw className="w-6 h-6 mx-auto animate-spin mb-2 text-purple-600" />
-          Loading dual-approval records...
-        </div>
-      ) : error ? (
-        <div className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/20 p-6 text-center text-rose-800 dark:text-rose-300 text-xs">
-          <AlertTriangle className="w-6 h-6 mx-auto mb-2 text-rose-600" />
-          <p className="font-semibold text-sm">Failed to Load Approvals Queue</p>
-          <p className="mt-1">{error}</p>
-          <button
+    <div className="space-y-5">
+      {/* 1. Page Header */}
+      <PageHeader
+        title="Dual-Control Approvals Queue"
+        description="Statutory governance queue for invoices ≥ ₹5,00,000 requiring independent Controller verification."
+        badge={isAuditor ? <Badge tone="info" size="sm">Auditor Mode (Read-Only)</Badge> : undefined}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={fetchApprovals}
-            className="mt-3 px-3 py-1.5 rounded-lg bg-rose-600 text-white font-medium hover:bg-rose-700"
+            isLoading={loading}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
           >
-            Retry
+            Refresh
+          </Button>
+        }
+      />
+
+      {error && <ErrorState message={error} onRetry={fetchApprovals} />}
+
+      {/* Success Notification */}
+      {approvalSuccess && (
+        <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
+          <span>{approvalSuccess}</span>
+          <button onClick={() => setApprovalSuccess(null)} className="text-emerald-600 hover:text-emerald-800">
+            &times;
           </button>
         </div>
-      ) : filteredApprovals.length === 0 ? (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-12 text-center space-y-2">
-          <CheckCircle className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
-            {activeTab === 'pending' ? 'No Dual Approvals Pending' : 'No Records in this Tab'}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            {activeTab === 'pending'
-              ? 'All high-value invoices (≥ ₹5,00,000) have received secondary sign-off or are not yet submitted for second approval.'
-              : 'There are no approval records matching the selected tab filter.'}
+      )}
+
+      {/* 2. Governance Policy Notice */}
+      <div className="p-4 rounded-xl bg-purple-50/70 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 flex items-start gap-3">
+        <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+        <div className="text-xs text-purple-950 dark:text-purple-200 space-y-1">
+          <p className="font-semibold text-sm">
+            Statutory Financial Control (Dual-Approval Invariant)
+          </p>
+          <p className="text-purple-800 dark:text-purple-300/90 leading-relaxed">
+            Invoices equal to or exceeding ₹5,00,000 enforce anti-self-approval and strictly require two separate sign-offs: Step 1 (Primary AP Specialist review) and Step 2 (Financial Controller or Admin authorization).
           </p>
         </div>
-      ) : (
-        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-2xs">
+      </div>
+
+      {/* 3. Filter Tabs */}
+      <div className="flex items-center justify-between">
+        <FilterTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
+
+      {/* 4. Table */}
+      <Card className="overflow-hidden">
+        {loading && approvals.length === 0 ? (
+          <LoadingState label="Loading dual-control queue..." className="py-16" />
+        ) : filteredApprovals.length === 0 ? (
+          <EmptyState
+            title="Approvals queue is clear"
+            description="No invoices in this queue. All high-value bills have been authorized."
+            className="py-12 border-none bg-transparent"
+          />
+        ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[720px]">
-              <thead className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
-                <tr>
-                  <th className="px-4 py-3">Invoice & Supplier</th>
-                  <th className="px-4 py-3">PO Reference</th>
-                  <th className="px-4 py-3 text-right">Billed Amount</th>
-                  <th className="px-4 py-3">First Approval</th>
-                  <th className="px-4 py-3">Dual Status</th>
-                  <th className="px-4 py-3 text-right">Authorization</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <Table>
+              <TableHeader>
+                <TableRow isInteractive={false}>
+                  <TableHead>Invoice & Supplier</TableHead>
+                  <TableHead className="text-right">Billed Amount</TableHead>
+                  <TableHead>Primary Review Sign-Off</TableHead>
+                  <TableHead>Dual-Approval Status</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {filteredApprovals.map((item) => (
-                  <tr 
-                    key={item.id} 
-                    className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                  <TableRow
+                    key={item.id}
+                    onClick={() => navigate(`/invoices/${item.invoice_id || item.id}`)}
+                    className="group"
                   >
-                    {/* Invoice & Supplier */}
-                    <td className="px-4 py-3.5">
-                      <div className="font-mono font-bold text-slate-900 dark:text-white">
-                        {item.invoice_number || item.invoice_id}
+                    <TableCell>
+                      <div className="font-mono font-semibold text-slate-900 dark:text-white">
+                        {item.invoice_number || item.id}
                       </div>
-                      <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        {item.vendor_name || 'Unregistered Supplier'}
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        {item.vendor_name || 'Verified Supplier'}
                       </div>
-                      {item.vendor_gstin && (
-                        <div className="text-[10px] font-mono text-slate-400">
-                          {item.vendor_gstin}
-                        </div>
-                      )}
-                    </td>
+                    </TableCell>
 
-                    {/* PO Reference */}
-                    <td className="px-4 py-3.5">
-                      {item.po_reference ? (
-                        <code className="px-1.5 py-0.5 rounded font-mono text-[11px] bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                          {item.po_reference}
-                        </code>
-                      ) : (
-                        <span className="text-slate-400 italic">No PO ref</span>
-                      )}
-                    </td>
+                    <TableCell className="text-right font-mono font-semibold text-slate-900 dark:text-white tabular-nums">
+                      <div className="text-sm">{formatINR(item.total_amount)}</div>
+                      <Badge tone="purple" size="sm">≥ ₹5L Threshold</Badge>
+                    </TableCell>
 
-                    {/* Amount */}
-                    <td className="px-4 py-3.5 text-right">
-                      <div className="font-mono font-bold text-slate-900 dark:text-white tabular-nums text-sm">
-                        {formatINR(item.total_amount)}
+                    <TableCell>
+                      <div className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                        {item.first_approver_name || item.first_approver_id || 'AP Specialist'}
                       </div>
-                      <div className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">
-                        &ge; ₹5,00,000 threshold
+                      <div className="text-[11px] text-slate-400 font-mono">
+                        {item.first_approved_at ? new Date(item.first_approved_at).toLocaleDateString() : 'Initial Review Complete'}
                       </div>
-                    </td>
+                    </TableCell>
 
-                    {/* First Approval Info */}
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 font-medium text-slate-700 dark:text-slate-300">
-                        <UserCheck className="w-3.5 h-3.5 text-indigo-600" />
-                        <span>{item.first_approver_name || item.first_approver_id || 'AP Lead'}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        <span>{item.first_approved_at ? item.first_approved_at.substring(0, 16).replace('T', ' ') : 'Pending'}</span>
-                      </div>
-                    </td>
-
-                    {/* Status Chip */}
-                    <td className="px-4 py-3.5">
+                    <TableCell>
                       {item.status === 'APPROVED' ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                          <CheckCircle className="w-3 h-3" />
-                          Dual Approved
-                        </span>
+                        <Badge tone="success" size="sm" icon={<CheckCircle2 className="w-3.5 h-3.5" />}>
+                          Dual-Signed & Cleared
+                        </Badge>
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800 animate-pulse">
-                          <ShieldAlert className="w-3 h-3" />
-                          Awaiting Controller
-                        </span>
+                        <Badge tone="warning" size="sm" dot>
+                          Awaiting Controller Sign-Off
+                        </Badge>
                       )}
-                    </td>
+                    </TableCell>
 
-                    {/* Action / Authorization Column */}
-                    <td className="px-4 py-3.5 text-right">
-                      {item.can_approve ? (
-                        <button
-                          onClick={() => navigate(`/invoices/${item.invoice_id}?from=/approvals`)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold shadow-2xs transition-colors"
+                    <TableCell className="text-right">
+                      {item.status === 'PENDING_SECOND_APPROVAL' && isController ? (
+                        <Button
+                          variant="primary"
+                          size="xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedApproval(item);
+                            setControllerNote('Controller dual approval authorized.');
+                          }}
+                          leftIcon={<ShieldCheck className="w-3 h-3" />}
                         >
-                          <span>Review & Sign Off</span>
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
+                          Sign Off
+                        </Button>
                       ) : (
-                        <div className="inline-flex flex-col items-end gap-1">
-                          <button
-                            onClick={() => navigate(`/invoices/${item.invoice_id}?from=/approvals`)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 transition-colors"
-                          >
-                            <span>Inspect Record</span>
-                            <ChevronRight className="w-3 h-3" />
-                          </button>
-                          {item.cannot_approve_reason && (
-                            <span 
-                              className="text-[10px] text-slate-400 max-w-[200px] truncate"
-                              title={item.cannot_approve_reason}
-                            >
-                              {item.cannot_approve_reason}
-                            </span>
-                          )}
-                        </div>
+                        <Button
+                          variant="secondary"
+                          size="xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/invoices/${item.invoice_id || item.id}`);
+                          }}
+                          rightIcon={<ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />}
+                        >
+                          Review
+                        </Button>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-        </div>
+        )}
+      </Card>
+
+      {/* Lean Controller Approval Dialog (45 words) */}
+      {selectedApproval && (
+        <Modal
+          isOpen={Boolean(selectedApproval)}
+          onClose={() => setSelectedApproval(null)}
+          title={`Authorize Controller Dual Sign-Off`}
+          description={`Final AP review authorization for high-value invoice ${selectedApproval.invoice_number || selectedApproval.id}.`}
+          maxWidth="md"
+          footer={
+            <div className="flex items-center justify-end gap-2.5 w-full">
+              <Button variant="secondary" size="sm" onClick={() => setSelectedApproval(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConfirmDualApproval}
+                isLoading={isSubmittingApproval}
+                leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
+              >
+                Confirm Controller Sign-Off
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3.5 text-xs">
+            <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-1.5 font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-sans">Supplier:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedApproval.vendor_name || 'Vendor'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-sans">Total Amount:</span>
+                <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatINR(selectedApproval.total_amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-sans">Step 1 Specialist:</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-sans">{selectedApproval.first_approver_name || 'AP Specialist'}</span>
+              </div>
+            </div>
+
+            <p className="text-slate-600 dark:text-slate-400 text-[11px] leading-relaxed">
+              By confirming, you record secondary Controller authorization in the append-only audit trail. This clears the invoice for downstream treasury payment batching.
+            </p>
+
+            <div>
+              <label className="font-semibold text-slate-800 dark:text-slate-200 block mb-1">
+                Audit Note
+              </label>
+              <input
+                type="text"
+                value={controllerNote}
+                onChange={(e) => setControllerNote(e.target.value)}
+                placeholder="Controller sign-off justification..."
+                className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

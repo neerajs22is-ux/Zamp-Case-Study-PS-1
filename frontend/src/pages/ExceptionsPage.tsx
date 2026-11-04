@@ -1,18 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { 
-  AlertTriangle, 
-  Clock, 
   RefreshCw, 
-  Info,
-  Search,
-  X,
-  User,
-  ShieldAlert,
+  User, 
   ChevronRight,
-  CheckCircle,
-  AlertCircle
+  ShieldAlert
 } from 'lucide-react';
 import { api } from '../api/client';
+import { 
+  PageHeader, 
+  Card, 
+  Button, 
+  Badge, 
+  SearchInput, 
+  FilterTabs, 
+  Table, 
+  TableHeader, 
+  TableBody, 
+  TableRow, 
+  TableHead, 
+  TableCell, 
+  Modal, 
+  LoadingState, 
+  EmptyState 
+} from '../components/ui';
+import type { FilterTabItem } from '../components/ui';
 import type { ExceptionItem } from '../types';
 
 interface ExceptionsPageProps {
@@ -27,11 +38,13 @@ interface TeamMember {
   is_active: boolean;
 }
 
+type ExceptionTab = 'all' | 'critical' | 'high_exposure' | 'unassigned';
+
 export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice }) => {
   const [items, setItems] = useState<ExceptionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'all' | 'critical' | 'high_exposure' | 'unassigned'>('all');
+  const [activeTab, setActiveTab] = useState<ExceptionTab>('all');
   
   // Reassign Modal State
   const [reassignModalItem, setReassignModalItem] = useState<ExceptionItem | null>(null);
@@ -73,482 +86,278 @@ export const ExceptionsPage: React.FC<ExceptionsPageProps> = ({ onSelectInvoice 
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      maximumFractionDigits: 2,
+      maximumFractionDigits: 0,
     }).format(val);
   };
 
-  // Calculate relative days from now to deadline
-  const getDeadlineUrgency = (deadlineStr: string | null) => {
-    if (!deadlineStr) return { label: 'Standard Terms', days: null, urgency: 'normal' as const };
-    const deadline = new Date(deadlineStr);
-    const now = new Date();
-    const diffMs = deadline.getTime() - now.getTime();
-    const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-    if (days < 0) {
-      return { label: `Overdue by ${Math.abs(days)}d`, days, urgency: 'overdue' as const };
-    }
-    if (days <= 5) {
-      return { label: `Due in ${days}d`, days, urgency: 'critical' as const };
-    }
-    if (days <= 15) {
-      return { label: `Due in ${days}d`, days, urgency: 'warning' as const };
-    }
-    return { label: `Due in ${days}d`, days, urgency: 'normal' as const };
-  };
-
-  // Key metrics calculation
-  const totalExposure = useMemo(() => {
-    return items.reduce((sum, item) => sum + (item.exposure_amount_inr || 0), 0);
-  }, [items]);
-
-  const criticalCount = useMemo(() => {
-    return items.filter(item => {
-      const urgency = getDeadlineUrgency(item.msme_statutory_deadline).urgency;
-      return urgency === 'critical' || urgency === 'overdue';
-    }).length;
-  }, [items]);
-
-  const highExposureCount = useMemo(() => {
-    return items.filter(item => (item.exposure_amount_inr || 0) >= 25000).length;
-  }, [items]);
-
-  const unassignedCount = useMemo(() => {
-    return items.filter(item => !item.assigned_user_id).length;
-  }, [items]);
-
-  // Filtered Items
   const filteredItems = useMemo(() => {
-    return items.filter(item => {
-      // Tab filtering
-      if (activeTab === 'critical') {
-        const u = getDeadlineUrgency(item.msme_statutory_deadline).urgency;
-        if (u !== 'critical' && u !== 'overdue') return false;
-      } else if (activeTab === 'high_exposure') {
-        if ((item.exposure_amount_inr || 0) < 25000) return false;
-      } else if (activeTab === 'unassigned') {
-        if (item.assigned_user_id) return false;
-      }
+    return items.filter((item) => {
+      // Tab filter
+      if (activeTab === 'critical' && item.blocking_gate_number < 4) return false;
+      if (activeTab === 'high_exposure' && item.exposure_amount_inr < 500000) return false;
+      if (activeTab === 'unassigned' && item.assigned_user_id) return false;
 
-      // Search query filtering
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const matchesVendor = (item.vendor_name || '').toLowerCase().includes(q);
-        const matchesInv = (item.invoice_number || item.invoice_id || '').toLowerCase().includes(q);
-        const matchesGate = (item.blocking_gate_name || '').toLowerCase().includes(q) || 
-                            `gate ${item.blocking_gate_number}`.includes(q);
-        const matchesOwner = (item.assigned_user_id || '').toLowerCase().includes(q);
-        return matchesVendor || matchesInv || matchesGate || matchesOwner;
-      }
-
-      return true;
+      // Search filter
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase().trim();
+      return (
+        (item.invoice_number || '').toLowerCase().includes(q) ||
+        (item.invoice_id || '').toLowerCase().includes(q) ||
+        (item.vendor_name || '').toLowerCase().includes(q) ||
+        (item.blocking_gate_name || '').toLowerCase().includes(q) ||
+        (item.assigned_user_id || '').toLowerCase().includes(q)
+      );
     });
   }, [items, activeTab, searchQuery]);
 
-  // Handle reassign submit
-  const handleReassignSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!reassignModalItem || !selectedOwnerId || !reassignReason.trim()) return;
+  const handleOpenReassign = (e: React.MouseEvent, item: ExceptionItem) => {
+    e.stopPropagation();
+    setReassignModalItem(item);
+    setSelectedOwnerId(item.assigned_user_id || '');
+    setReassignReason('');
+    setReassignSuccessMsg(null);
+  };
 
+  const handleConfirmReassign = async () => {
+    if (!reassignModalItem || !selectedOwnerId) return;
     setReassignLoading(true);
     try {
       await api.reassignException(
         reassignModalItem.exception_id,
         selectedOwnerId,
-        reassignReason.trim()
+        reassignReason || 'Task routed for operational investigation.'
       );
-      setReassignSuccessMsg(`Exception successfully reassigned to ${selectedOwnerId}`);
+      setReassignSuccessMsg('Exception reassigned successfully.');
       setTimeout(() => {
-        setReassignSuccessMsg(null);
         setReassignModalItem(null);
-        setSelectedOwnerId('');
-        setReassignReason('');
         loadExceptions();
-      }, 1200);
+      }, 700);
     } catch (err: any) {
-      alert(`Failed to reassign exception: ${err?.message || 'Server error'}`);
+      alert(`Reassign failed: ${err.message}`);
     } finally {
       setReassignLoading(false);
     }
   };
 
+  const tabs: FilterTabItem<ExceptionTab>[] = [
+    { id: 'all', label: 'All Exceptions', count: items.length },
+    { 
+      id: 'critical', 
+      label: 'Core Discrepancies', 
+      count: items.filter((i) => i.blocking_gate_number >= 4).length,
+      badgeTone: 'error'
+    },
+    { 
+      id: 'high_exposure', 
+      label: 'High Exposure (≥ ₹5L)', 
+      count: items.filter((i) => i.exposure_amount_inr >= 500000).length,
+      badgeTone: 'warning'
+    },
+    { 
+      id: 'unassigned', 
+      label: 'Unassigned', 
+      count: items.filter((i) => !i.assigned_user_id).length,
+      badgeTone: 'neutral'
+    },
+  ];
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">
-              <AlertTriangle className="w-5 h-5" />
-            </span>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-              Exceptions Priority Queue
-            </h1>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Prioritized by legally verified MSME statutory deadline, then exposure amount. Governed by MSMED Act 2006.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
+    <div className="space-y-5">
+      {/* 1. Page Header */}
+      <PageHeader
+        title="Exception Triage Queue"
+        description="Invoices with quantity shortages, rate variances, missing receipts, or tax mismatches requiring resolution."
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={loadExceptions}
-            disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shadow-2xs"
+            isLoading={loading}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Queue
-          </button>
-        </div>
+            Refresh
+          </Button>
+        }
+      />
+
+      {/* 2. Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <FilterTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Search by invoice, vendor, issue..."
+          className="w-full sm:w-64"
+        />
       </div>
 
-      {/* Exposure & Urgency KPI Strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span>Total Blocked Exposure</span>
-            <ShieldAlert className="w-4 h-4 text-rose-500" />
-          </div>
-          <div className="mt-1 text-lg font-bold text-slate-900 dark:text-white font-mono tabular-nums">
-            {formatINR(totalExposure)}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Across {items.length} open exceptions</div>
-        </div>
-
-        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span>Critical MSME Deadlines</span>
-            <Clock className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="mt-1 text-lg font-bold text-amber-600 dark:text-amber-400 font-mono tabular-nums">
-            {criticalCount}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Less than 5 days remaining</div>
-        </div>
-
-        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span>High Exposure Items</span>
-            <AlertCircle className="w-4 h-4 text-indigo-500" />
-          </div>
-          <div className="mt-1 text-lg font-bold text-indigo-600 dark:text-indigo-400 font-mono tabular-nums">
-            {highExposureCount}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Exceeds ₹25,000 threshold</div>
-        </div>
-
-        <div className="p-3.5 rounded-xl bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 shadow-2xs">
-          <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 flex items-center justify-between">
-            <span>Unassigned Queue</span>
-            <User className="w-4 h-4 text-slate-400" />
-          </div>
-          <div className="mt-1 text-lg font-bold text-slate-800 dark:text-slate-200 font-mono tabular-nums">
-            {unassignedCount}
-          </div>
-          <div className="text-[10px] text-slate-500 mt-0.5">Requires ownership assignment</div>
-        </div>
-      </div>
-
-      {/* Statutory Sorting Rule Callout */}
-      <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-xl p-3 text-xs flex items-start gap-2.5">
-        <Info className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <div className="text-slate-700 dark:text-slate-300 space-y-0.5 leading-relaxed">
-          <span className="font-semibold text-slate-900 dark:text-slate-100">Statutory Urgency Invariant:</span> Snoozing or holding an exception never suppresses or shifts the statutory MSMED Act 45-day deadline. Penal interest compounds monthly at 3× RBI bank rate if settlement is delayed. All reassignments create an immutable audit record.
-        </div>
-      </div>
-
-      {/* Controls: Segmented Tabs & Instant Search */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-        {/* Segmented Filter Pills */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800/60 rounded-xl border border-slate-200/70 dark:border-slate-700/50 text-xs overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'all'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs border border-slate-200/60 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            All Exceptions <span className="ml-1 text-[10px] opacity-75 font-mono">({items.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('critical')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'critical'
-                ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 shadow-2xs border border-rose-200 dark:border-rose-900/50'
-                : 'text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300'
-            }`}
-          >
-            Critical MSME <span className="ml-1 text-[10px] opacity-75 font-mono">({criticalCount})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('high_exposure')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'high_exposure'
-                ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 shadow-2xs border border-indigo-200 dark:border-indigo-900/50'
-                : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300'
-            }`}
-          >
-            High Exposure <span className="ml-1 text-[10px] opacity-75 font-mono">({highExposureCount})</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('unassigned')}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all shrink-0 ${
-              activeTab === 'unassigned'
-                ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs border border-slate-200/60 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Unassigned <span className="ml-1 text-[10px] opacity-75 font-mono">({unassignedCount})</span>
-          </button>
-        </div>
-
-        {/* Real-time search */}
-        <div className="relative min-w-[240px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search vendor, invoice, gate..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-7 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 transition-all shadow-2xs"
+      {/* 3. Exceptions Table */}
+      <Card className="overflow-hidden">
+        {loading && items.length === 0 ? (
+          <LoadingState label="Loading exception queue..." className="py-16" />
+        ) : filteredItems.length === 0 ? (
+          <EmptyState
+            title="No exceptions in this queue"
+            description={searchQuery ? `No records matched "${searchQuery}".` : "All received bills have passed policy verification."}
+            className="py-12 border-none bg-transparent"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Exceptions Table */}
-      <div className="bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-2xs">
-        {filteredItems.length === 0 ? (
-          <div className="py-16 text-center text-slate-400 text-xs space-y-2">
-            <Clock className="w-8 h-8 text-slate-600 mx-auto" />
-            <div className="font-semibold text-slate-300">
-              {searchQuery ? 'No exceptions match your search criteria' : 'No unresolved exceptions in this view'}
-            </div>
-            <p className="text-slate-500 max-w-md mx-auto">
-              {searchQuery
-                ? 'Try broadening your search term or clearing the filter.'
-                : 'All supplier invoices in this category have passed deterministic policy gates.'}
-            </p>
-          </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[760px]">
-              <thead className="bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider sticky top-0 backdrop-blur-xs">
-                <tr>
-                  <th className="py-2.5 px-3">MSME Statutory Due</th>
-                  <th className="py-2.5 px-3">Exposure Held</th>
-                  <th className="py-2.5 px-3">Supplier & Invoice</th>
-                  <th className="py-2.5 px-3">Blocking Policy Gate</th>
-                  <th className="py-2.5 px-3">Assigned Owner</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {filteredItems.map((e) => {
-                  const deadlineInfo = getDeadlineUrgency(e.msme_statutory_deadline);
+            <Table>
+              <TableHeader>
+                <TableRow isInteractive={false}>
+                  <TableHead>Invoice & Supplier</TableHead>
+                  <TableHead>Blocking Policy Gate</TableHead>
+                  <TableHead className="text-right">Exposure Amount</TableHead>
+                  <TableHead>Statutory Deadline</TableHead>
+                  <TableHead>Assigned Owner</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredItems.map((item) => (
+                  <TableRow
+                    key={item.exception_id}
+                    onClick={() => onSelectInvoice(item.invoice_id)}
+                    className="group"
+                  >
+                    <TableCell>
+                      <div className="font-mono font-semibold text-slate-900 dark:text-white">
+                        {item.invoice_number || item.invoice_id}
+                      </div>
+                      <div className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
+                        {item.vendor_name || 'Vendor Unregistered'}
+                      </div>
+                    </TableCell>
 
-                  return (
-                    <tr 
-                      key={e.exception_id} 
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer"
-                      onClick={() => onSelectInvoice(e.invoice_id)}
-                    >
-                      <td className="py-3 px-3 font-mono text-[11px]">
-                        {e.msme_statutory_deadline ? (
-                          <div className="space-y-0.5">
-                            <span className="flex items-center gap-1.5 font-semibold text-slate-900 dark:text-slate-200">
-                              <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              {e.msme_statutory_deadline.substring(0, 10)}
-                            </span>
-                            <div>
-                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                deadlineInfo.urgency === 'critical' || deadlineInfo.urgency === 'overdue'
-                                  ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/60'
-                                  : deadlineInfo.urgency === 'warning'
-                                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60'
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                              }`}>
-                                {deadlineInfo.label}
-                              </span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="space-y-0.5">
-                            <span className="text-slate-400 dark:text-slate-500 font-mono">Non-MSME</span>
-                            <div className="text-[10px] text-slate-400">Standard Terms (30d)</div>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 font-mono text-slate-900 dark:text-slate-100 font-bold tabular-nums text-sm">
-                        {formatINR(e.exposure_amount_inr)}
-                      </td>
-                      <td className="py-3 px-3">
-                        <div className="font-medium text-slate-900 dark:text-slate-200">
-                          {e.vendor_name || 'Unidentified Supplier'}
-                        </div>
-                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                          Inv: {e.invoice_number || e.invoice_id}
-                        </div>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-500/20">
-                          <span className="font-bold">Gate #{e.blocking_gate_number}:</span> {e.blocking_gate_name}
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Badge tone="error" size="sm">
+                          Gate {item.blocking_gate_number}
+                        </Badge>
+                        <span className="font-medium text-slate-800 dark:text-slate-200 text-xs">
+                          {item.blocking_gate_name}
                         </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        {e.assigned_user_id ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] text-slate-700 dark:text-slate-300 font-medium">
-                            <User className="w-3 h-3 text-slate-400" />
-                            {e.assigned_user_id}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 border border-dashed border-amber-300 dark:border-amber-700">
-                            Unassigned
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-3 text-right" onClick={(ev) => ev.stopPropagation()}>
-                        <div className="inline-flex items-center gap-1.5">
-                          <button
-                            onClick={() => {
-                              setReassignModalItem(e);
-                              setSelectedOwnerId(e.assigned_user_id || (teamMembers[0]?.id || ''));
-                              setReassignReason('');
-                            }}
-                            title="Reassign owner with audit log"
-                            className="px-2 py-1 rounded-md text-[11px] font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-200 dark:border-slate-800"
-                          >
-                            Reassign
-                          </button>
-                          <button
-                            onClick={() => onSelectInvoice(e.invoice_id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 transition-colors"
-                          >
-                            Resolve <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
+                      </div>
+                    </TableCell>
+
+                    <TableCell className="text-right font-mono font-semibold text-slate-900 dark:text-white tabular-nums">
+                      {formatINR(item.exposure_amount_inr)}
+                    </TableCell>
+
+                    <TableCell>
+                      {item.msme_statutory_deadline ? (
+                        <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-mono">
+                          <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+                          <span>{new Date(item.msme_statutory_deadline).toLocaleDateString()}</span>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      ) : (
+                        <span className="text-slate-400 text-xs">Standard 30 Days</span>
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <button
+                        type="button"
+                        onClick={(e) => handleOpenReassign(e, item)}
+                        className="inline-flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium cursor-pointer"
+                        title="Click to reassign owner"
+                      >
+                        <User className="w-3.5 h-3.5" />
+                        <span>{item.assigned_user_id || 'Assign Owner'}</span>
+                      </button>
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      <Button
+                        variant="secondary"
+                        size="xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectInvoice(item.invoice_id);
+                        }}
+                        rightIcon={<ChevronRight className="w-3 h-3 transition-transform group-hover:translate-x-0.5" />}
+                      >
+                        Resolve
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Reassign Modal */}
       {reassignModalItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full shadow-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="p-1 rounded-md bg-indigo-500/10 text-indigo-500">
-                  <User className="w-4 h-4" />
-                </span>
-                <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-                  Reassign Exception Ownership
-                </h3>
-              </div>
-              <button
-                onClick={() => setReassignModalItem(null)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1"
+        <Modal
+          isOpen={Boolean(reassignModalItem)}
+          onClose={() => setReassignModalItem(null)}
+          title="Reassign Exception Ownership"
+          description={`Route invoice ${reassignModalItem.invoice_number || reassignModalItem.invoice_id} to an AP team member or buyer.`}
+          maxWidth="md"
+          footer={
+            <div className="flex items-center justify-end gap-2.5 w-full">
+              <Button variant="secondary" size="sm" onClick={() => setReassignModalItem(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleConfirmReassign}
+                isLoading={reassignLoading}
+                disabled={!selectedOwnerId}
               >
-                <X className="w-4 h-4" />
-              </button>
+                Confirm Assignment
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3 text-xs">
+            {reassignSuccessMsg && (
+              <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                {reassignSuccessMsg}
+              </div>
+            )}
+
+            <div>
+              <label className="font-semibold text-slate-800 dark:text-slate-200 block mb-1">
+                Select Team Member
+              </label>
+              <select
+                value={selectedOwnerId}
+                onChange={(e) => setSelectedOwnerId(e.target.value)}
+                className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              >
+                <option value="">-- Choose assignee --</option>
+                {teamMembers.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.full_name} ({m.email}) — {m.role}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {reassignSuccessMsg ? (
-              <div className="py-6 text-center space-y-2">
-                <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto" />
-                <div className="text-sm font-semibold text-slate-900 dark:text-white">
-                  {reassignSuccessMsg}
-                </div>
-              </div>
-            ) : (
-              <form onSubmit={handleReassignSubmit} className="space-y-3.5 text-xs">
-                {/* Context snapshot */}
-                <div className="bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-1">
-                  <div className="text-slate-500">Target Invoice:</div>
-                  <div className="font-mono font-bold text-slate-900 dark:text-white">
-                    {reassignModalItem.invoice_number || reassignModalItem.invoice_id} ({reassignModalItem.vendor_name})
-                  </div>
-                  <div className="text-slate-500 flex items-center justify-between text-[11px] pt-1">
-                    <span>Exposure at Risk:</span>
-                    <span className="font-mono font-bold text-slate-900 dark:text-white">
-                      {formatINR(reassignModalItem.exposure_amount_inr)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Team member selection */}
-                <div>
-                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Assign To Team Member:
-                  </label>
-                  <select
-                    value={selectedOwnerId}
-                    onChange={(e) => setSelectedOwnerId(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-hidden focus:ring-1 focus:ring-indigo-500 text-xs"
-                  >
-                    <option value="" disabled>Select team member...</option>
-                    {teamMembers.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.full_name} ({m.role.replace('_', ' ')}) - {m.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Audit Reason */}
-                <div>
-                  <label className="block font-medium text-slate-700 dark:text-slate-300 mb-1">
-                    Mandatory Audit Reassignment Reason:
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={reassignReason}
-                    onChange={(e) => setReassignReason(e.target.value)}
-                    placeholder="e.g. Reassigned to AP Lead for debit note vendor reconciliation..."
-                    required
-                    minLength={3}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-indigo-500 text-xs resize-none"
-                  />
-                  <div className="text-[10px] text-slate-400 mt-0.5">
-                    This reason will be recorded immutably in the compliance audit trail.
-                  </div>
-                </div>
-
-                {/* Buttons */}
-                <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setReassignModalItem(null)}
-                    disabled={reassignLoading}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={reassignLoading || !selectedOwnerId || reassignReason.trim().length < 3}
-                    className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition-colors disabled:opacity-50"
-                  >
-                    {reassignLoading ? 'Logging Reassignment...' : 'Confirm Reassignment'}
-                  </button>
-                </div>
-              </form>
-            )}
+            <div>
+              <label className="font-semibold text-slate-800 dark:text-slate-200 block mb-1">
+                Assignment Note
+              </label>
+              <textarea
+                rows={2}
+                value={reassignReason}
+                onChange={(e) => setReassignReason(e.target.value)}
+                placeholder="Reason for routing this discrepancy..."
+                className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

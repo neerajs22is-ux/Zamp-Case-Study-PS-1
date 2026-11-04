@@ -1,7 +1,8 @@
 import React from 'react';
 import { 
-  AlertTriangle, X, AlertOctagon, ShieldCheck
+  AlertTriangle, AlertOctagon, ShieldCheck
 } from 'lucide-react';
+import { Modal, Button, Badge } from './ui';
 
 export interface ActionConsequenceInfo {
   action: string;
@@ -21,47 +22,45 @@ export interface ActionConsequenceInfo {
 export const ACTION_CONSEQUENCES: Record<string, ActionConsequenceInfo> = {
   APPROVE_AP_REVIEW: {
     action: 'APPROVE_AP_REVIEW',
-    label: 'Approve Invoice (Internal Sign-Off)',
+    label: 'Approve Invoice',
     badgeColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
-    targetStage: 'INTERNAL_APPROVAL_COMPLETE (or ACTION_REQUIRED if dual-control active)',
+    targetStage: 'INTERNAL_APPROVAL_COMPLETE',
     targetSubstatus: 'None (or PENDING_SECOND_APPROVAL if >= threshold)',
     requiresSecondPerson: (totalAmount, threshold) => {
       if (totalAmount >= threshold) {
         return {
           required: true,
-          explanation: `Yes — Invoice total exceeds the ₹5,00,000 threshold. Approving now provides the initial review sign-off and flags the invoice for secondary review by a Financial Controller or System Admin.`,
+          explanation: `Invoice total exceeds ₹5,00,000. Approving now records primary review and routes to Financial Controller for dual sign-off.`,
         };
       }
       return {
         required: false,
-        explanation: 'No — Single approval is sufficient for invoices below ₹5,00,000. Completes internal review immediately.',
+        explanation: 'Single approval sufficient. Marks invoice ready for payment batching.',
       };
     },
-    whatHappens: 'Records verified AP review sign-off in the append-only audit trail and advances the invoice stage.',
-    whatHappensNext: 'If single approval: marked ready for external payment batching. If dual approval: moves to dedicated Approvals queue for secondary Controller sign-off.',
+    whatHappens: 'Records internal review approval in the immutable audit trail.',
+    whatHappensNext: 'Routes to external payment batching or secondary controller review.',
     whatItDoesNOTDo: [
-      'Does NOT execute payment or transfer bank funds.',
-      'Does NOT post entries to SAP S/4HANA or the General Ledger.',
-      'Does NOT automatically clear vendor liability in ERP.',
-      'CANNOT be executed if any policy validation check failed (overrides disabled).',
+      'Does NOT disburse funds from company bank accounts.',
+      'Does NOT post directly to the SAP General Ledger.',
+      'Cannot override hard policy verification failures.',
     ],
   },
   HOLD_PENDING_EVIDENCE: {
     action: 'HOLD_PENDING_EVIDENCE',
     label: 'Hold for Evidence',
     badgeColor: 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300',
-    targetStage: 'ACTION_REQUIRED',
+    targetStage: 'ACTION_REQUIRED (ON_HOLD)',
     targetSubstatus: 'ON_HOLD',
     requiresSecondPerson: () => ({
       required: false,
-      explanation: 'No — An AP clerk or lead can place an invoice on hold independently.',
+      explanation: 'AP reviewer can place an invoice on hold independently.',
     }),
-    whatHappens: 'Suspends processing without rejecting the invoice, keeping active exception records in IN_REVIEW status.',
-    whatHappensNext: 'The invoice remains visible in the Exceptions queue while the team collects missing PO, GRN, or QC evidence from warehouse or procurement.',
+    whatHappens: 'Suspends processing while warehouse or procurement evidence is collected.',
+    whatHappensNext: 'Invoice remains flagged in Exceptions queue for follow-up.',
     whatItDoesNOTDo: [
-      'Does NOT reject, void, or cancel the invoice.',
-      'Does NOT penalize vendor standing or send automated notices.',
-      'Does NOT remove the invoice from MSME statutory deadline tracking.',
+      'Does NOT reject or void the vendor invoice.',
+      'Does NOT remove from statutory MSME tracking.',
     ],
   },
   REQUEST_SUPPLIER_CORRECTION: {
@@ -72,13 +71,13 @@ export const ACTION_CONSEQUENCES: Record<string, ActionConsequenceInfo> = {
     targetSubstatus: 'SUPPLIER_CORRECTION_REQUESTED',
     requiresSecondPerson: () => ({
       required: false,
-      explanation: 'No — Can be initiated directly by the AP operator.',
+      explanation: 'Initiated directly by the AP operator.',
     }),
-    whatHappens: 'Flags the invoice internally as requiring supplier outreach for an amended tax invoice or credit note.',
-    whatHappensNext: 'AP clerk contacts the vendor with the exact discrepancy details (e.g. rate variance, missing PO reference).',
+    whatHappens: 'Flags invoice as requiring revised tax invoice or credit note from supplier.',
+    whatHappensNext: 'AP team contacts supplier citing the exact variance.',
     whatItDoesNOTDo: [
-      'Does NOT send an automated email or external message to the vendor in this workspace (no vendor email integration configured).',
-      'Does NOT void the invoice record until an amended replacement or credit note is received and processed.',
+      'Does NOT automatically dispatch external emails without review.',
+      'Does NOT void the bill until replacement is ingested.',
     ],
   },
   RAISE_DEBIT_NOTE: {
@@ -89,98 +88,85 @@ export const ACTION_CONSEQUENCES: Record<string, ActionConsequenceInfo> = {
     targetSubstatus: 'DEBIT_NOTE_PENDING',
     requiresSecondPerson: () => ({
       required: false,
-      explanation: 'No — Initiated by AP clerk; formal debit note posting handled by billing operations.',
+      explanation: 'Initiated by AP reviewer.',
     }),
-    whatHappens: 'Flags the invoice for commercial deduction due to unapproved rate markups or short-shipped quantities.',
-    whatHappensNext: 'Billing operations drafts a formal commercial debit note against the vendor account balance.',
+    whatHappens: 'Flags invoice for commercial deduction due to rate markup or physical shortage.',
+    whatHappensNext: 'Billing team issues debit note against vendor ledger balance.',
     whatItDoesNOTDo: [
-      'Does NOT automatically debit vendor sub-ledger in SAP.',
-      'Does NOT approve the remaining disputed balance.',
+      'Does NOT automatically post debits to ERP.',
+      'Does NOT approve disputed invoice amount.',
     ],
   },
-  ESCALATE: {
-    action: 'ESCALATE',
-    label: 'Escalate to Senior Stakeholder',
-    badgeColor: 'bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300',
-    targetStage: 'ACTION_REQUIRED',
-    targetSubstatus: 'ESCALATED',
+  QUARANTINE: {
+    action: 'QUARANTINE',
+    label: 'Set Aside (Quarantine)',
+    badgeColor: 'bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300',
+    targetStage: 'QUARANTINED',
+    targetSubstatus: 'QUARANTINED',
     requiresSecondPerson: () => ({
-      required: true,
-      explanation: 'Yes — Escalation reassigns the case to a Procurement Category Manager or Financial Controller for resolution.',
+      required: false,
+      explanation: 'Single operator quarantine permitted.',
     }),
-    whatHappens: 'Reassigns the invoice out of the standard AP queue to executive management.',
-    whatHappensNext: 'The designated manager reviews procurement contracts, evaluates commercial trade-offs, and provides written instructions.',
+    whatHappens: 'Quarantines non-payable documents, payment receipts, or corrupted scans.',
+    whatHappensNext: 'Isolates file from payment queues so false balances are not generated.',
     whatItDoesNOTDo: [
-      'Does NOT approve the invoice.',
-      'Does NOT override validation checks without authorized sign-off.',
+      'Does NOT permanently delete the original uploaded file.',
     ],
   },
   REJECT_INVOICE: {
     action: 'REJECT_INVOICE',
-    label: 'Reject Invoice Permanently',
+    label: 'Reject Invoice',
     badgeColor: 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300',
-    targetStage: 'ACTION_REQUIRED (Decision: REJECTED)',
-    targetSubstatus: 'None',
+    targetStage: 'REJECTED',
+    targetSubstatus: 'TERMINAL_REJECTION',
     requiresSecondPerson: () => ({
       required: false,
-      explanation: 'Restricted Action — Strictly requires AP Lead, Financial Controller, or System Admin role.',
+      explanation: 'AP reviewer terminal rejection.',
     }),
-    whatHappens: 'Permanently rejects and archives the invoice, closing all associated exception records with resolution notes.',
-    whatHappensNext: 'The invoice is moved to the Archived/Rejected registry. Re-submission requires a completely new invoice file.',
+    whatHappens: 'Marks invoice permanently rejected for commercial or tax non-compliance.',
+    whatHappensNext: 'Supplier must issue a completely new bill if transaction is valid.',
     whatItDoesNOTDo: [
-      'This action is PERMANENT and CANNOT be reversed or approved later.',
-      'Does NOT send an automated rejection email to the vendor in this workspace.',
+      'Cannot be undone automatically; re-opening requires administrative intervention.',
     ],
   },
 };
 
 interface ConsequenceAwareActionModalProps {
   isOpen: boolean;
-  action: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+  action: string;
   invoice: any;
+  hasFailedGates: boolean;
+  reason: string;
+  onReasonChange: (reason: string) => void;
+  isLoading?: boolean;
+  errorMessage?: string | null;
   policy: {
     dual_approval_threshold_inr: number;
     rate_tolerance_percent: number;
     rounding_tolerance_inr: number;
   };
-  reason: string;
-  onReasonChange: (val: string) => void;
-  reasonTemplates: string[];
-  isLoading: boolean;
-  errorMessage: string | null;
-  onConfirm: () => void;
-  onClose: () => void;
-  hasFailedGates: boolean;
 }
 
 export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalProps> = ({
   isOpen,
+  onClose,
+  onConfirm,
   action,
   invoice,
-  policy,
+  hasFailedGates,
   reason,
   onReasonChange,
-  reasonTemplates,
-  isLoading,
-  errorMessage,
-  onConfirm,
-  onClose,
-  hasFailedGates,
+  isLoading = false,
+  errorMessage = null,
+  policy,
 }) => {
-  if (!isOpen || !action) return null;
-
-  const formatINR = (val: number | null | undefined) => {
-    if (val === null || val === undefined) return '—';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 2,
-    }).format(val);
-  };
+  if (!isOpen) return null;
 
   const info = ACTION_CONSEQUENCES[action] || {
     action,
-    label: action,
+    label: action.replace(/_/g, ' '),
     badgeColor: 'bg-slate-100 text-slate-800',
     targetStage: 'Updated Stage',
     requiresSecondPerson: () => ({ required: false, explanation: 'Standard review permissions.' }),
@@ -190,217 +176,170 @@ export const ConsequenceAwareActionModal: React.FC<ConsequenceAwareActionModalPr
   };
 
   const totalAmount = invoice.total_amount || 0;
-  const secondPersonCheck = info.requiresSecondPerson(totalAmount, policy.dual_approval_threshold_inr);
   const isApproveBlocked = action === 'APPROVE_AP_REVIEW' && hasFailedGates;
   const isDualApproval = action === 'APPROVE_AP_REVIEW' && totalAmount >= policy.dual_approval_threshold_inr;
 
+  const formatINR = (val: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
+
+  const templates: Record<string, string[]> = {
+    APPROVE_AP_REVIEW: [
+      'Line quantities and rates reconciled against PO & GRN. Approved for payment batching.',
+      'Clean 3-way match verified. Approved for settlement.',
+    ],
+    HOLD_PENDING_EVIDENCE: [
+      'Awaiting physical GRN confirmation from warehouse.',
+      'Awaiting quality inspection acceptance certificate.',
+    ],
+    REQUEST_SUPPLIER_CORRECTION: [
+      'Invoice unit rate exceeds approved purchase order rate.',
+      'Billed quantity exceeds physically received units.',
+    ],
+    RAISE_DEBIT_NOTE: [
+      'Debit note initiated for 5 short-shipped units.',
+      'Rate discrepancy difference charged back to vendor.',
+    ],
+    QUARANTINE: [
+      'Document is a payment receipt, not a payable tax invoice.',
+      'Duplicate scan of previously processed bill.',
+    ],
+    REJECT_INVOICE: [
+      'Supplier GSTIN invalid or inactive on government portal.',
+      'Unauthorized purchase order reference.',
+    ],
+  };
+
+  const reasonTemplates = templates[action] || [];
+
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
-      onClick={onClose}
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+          <span>Confirm Action: {info.label}</span>
+        </div>
+      }
+      description="Review workflow outcome and record audit justification."
+      maxWidth="lg"
+      footer={
+        <div className="flex items-center justify-end gap-2.5 w-full">
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            variant={action === 'REJECT_INVOICE' ? 'danger' : 'primary'}
+            size="sm"
+            onClick={onConfirm}
+            isLoading={isLoading}
+            disabled={isApproveBlocked || reason.trim().length < 3}
+          >
+            Confirm {info.label}
+          </Button>
+        </div>
+      }
     >
-      <div 
-        className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[90vh] overflow-hidden"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="consequence-modal-title"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Modal Header */}
-        <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
+      <div className="space-y-4 text-xs">
+        {/* Failed-gate warning */}
+        {isApproveBlocked && (
+          <div className="p-3.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 text-rose-900 dark:text-rose-200 flex items-start gap-2.5">
+            <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div>
-              <div className="flex items-center gap-2">
-                <h2 id="consequence-modal-title" className="text-sm font-bold text-slate-900 dark:text-white">
-                  Confirm Action: {info.label}
-                </h2>
-                <code className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  {action}
-                </code>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Review workflow consequences and state transitions before executing.
+              <strong className="block font-bold">Approval Blocked by Policy Verification</strong>
+              <p className="mt-0.5 leading-relaxed text-[11px]">
+                This invoice has unresolved discrepancies. Overrides are disabled. Please choose an authorized action (Hold for Evidence, Request Supplier Correction, or Reject).
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-            aria-label="Close action modal"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+        )}
 
-        {/* Modal Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs">
-          {/* Failed-gate warning for approval attempt */}
-          {isApproveBlocked && (
-            <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-900 text-rose-950 dark:text-rose-200 flex items-start gap-2.5">
-              <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <strong className="block font-bold">Approval Blocked by Policy Verification</strong>
-                <p className="text-[11px] mt-0.5 leading-relaxed">
-                  This invoice failed 1 or more policy validation checks. Policy overrides are disabled. Approval cannot proceed. Please close this modal and choose an authorized triage action (Hold, Ask Supplier to Correct, Debit Note, Escalate, or Reject).
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Dual Control Step Progression Banner */}
-          {isDualApproval && (
-            <div className="p-3 rounded-lg bg-purple-50/70 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-purple-950 dark:text-purple-200">
-                <span className="flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <span>Dual-Control Governance (Threshold: {formatINR(policy.dual_approval_threshold_inr)})</span>
-                </span>
-                <span className="font-mono text-[10px] text-purple-700 dark:text-purple-300">
-                  Total: {formatINR(totalAmount)}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-[11px]">
-                <div className="flex-1 p-2 rounded bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700">
-                  <span className="font-bold text-purple-700 dark:text-purple-300 block text-[10px] uppercase">Step 1 (Now)</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-medium">Initial AP Lead Sign-Off</span>
-                </div>
-                <span className="text-purple-400 font-bold">&rarr;</span>
-                <div className="flex-1 p-2 rounded bg-purple-100/50 dark:bg-purple-900/30 border border-purple-200/60 dark:border-purple-800/60">
-                  <span className="font-bold text-purple-600 dark:text-purple-400 block text-[10px] uppercase">Step 2 (Next)</span>
-                  <span className="text-slate-700 dark:text-slate-300 font-medium">Financial Controller Review</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Consequence Breakdown - Typographic Layout */}
-          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3">
-            <h3 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Operational Consequence Breakdown
-            </h3>
-
-            <div className="space-y-2.5 text-[11px]">
-              <div className="pl-2.5 border-l-2 border-indigo-500">
-                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">1. What this does</span>
-                <p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
-                  {info.whatHappens}
-                </p>
-              </div>
-
-              <div className="pl-2.5 border-l-2 border-slate-300 dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">2. Resulting workflow state</span>
-                <code className="text-indigo-700 dark:text-indigo-300 font-mono text-[10px] bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded border border-indigo-200/60 dark:border-indigo-800/60 inline-block mt-0.5">
-                  Stage: {info.targetStage}
-                </code>
-              </div>
-
-              <div className="pl-2.5 border-l-2 border-slate-300 dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">3. Does this require another person?</span>
-                <p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
-                  {secondPersonCheck.explanation}
-                </p>
-              </div>
-
-              <div className="pl-2.5 border-l-2 border-slate-300 dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block font-sans text-[10px] uppercase">4. What happens next</span>
-                <p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">
-                  {info.whatHappensNext}
-                </p>
-              </div>
-            </div>
-
-            {/* Explicit "What It Does NOT Do" Panel */}
-            <div className="p-3 rounded-lg bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 text-amber-950 dark:text-amber-200 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-[11px] text-amber-900 dark:text-amber-300">
-                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                <span>Explicit Safety & Control Guarantees (What this does NOT do):</span>
-              </div>
-              <ul className="list-disc list-inside space-y-0.5 text-[10px] pl-1 opacity-90 leading-relaxed font-sans">
-                {info.whatItDoesNOTDo.map((item, idx) => (
-                  <li key={idx}>{item}</li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          {/* Operational Justification Input */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label htmlFor="action-reason" className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                Audit Justification Reason <span className="text-rose-500">*</span>
-              </label>
-              <span className="text-[10px] text-slate-400 font-mono">
-                {reason.length >= 3 ? 'Valid' : 'Min 3 chars required'}
+        {/* Dual-approval banner */}
+        {isDualApproval && (
+          <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800 space-y-1.5">
+            <div className="flex items-center justify-between font-semibold text-purple-900 dark:text-purple-200">
+              <span className="flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                <span>Dual-Approval Required (Amount: {formatINR(totalAmount)})</span>
               </span>
+              <Badge tone="purple" size="sm">Threshold: {formatINR(policy.dual_approval_threshold_inr)}</Badge>
             </div>
+            <p className="text-[11px] text-purple-800 dark:text-purple-300">
+              This approval serves as Step 1 (Primary Review). The invoice will route to the Financial Controller for final dual sign-off.
+            </p>
+          </div>
+        )}
 
-            {/* Quick pre-populated reason templates */}
-            {reasonTemplates.length > 0 && (
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-medium">Quick Templates:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {reasonTemplates.map((t, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => onReasonChange(t)}
-                      className="text-[10px] px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-left transition-colors truncate max-w-full"
-                    >
-                      "{t}"
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Action Summary Card */}
+        <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-2.5">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 font-medium">
+            <span>Resulting State:</span>
+            <Badge tone="neutral" size="sm">{info.targetStage}</Badge>
+          </div>
+          <div>
+            <span className="text-slate-500 dark:text-slate-400 block font-medium">Outcome:</span>
+            <p className="text-slate-800 dark:text-slate-200 mt-0.5 font-medium">{info.whatHappens}</p>
+          </div>
+          <div className="pt-2 border-t border-slate-200/60 dark:border-slate-750">
+            <span className="text-[11px] font-semibold text-amber-800 dark:text-amber-400 flex items-center gap-1 mb-1">
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>Boundary Guarantee:</span>
+            </span>
+            <ul className="list-disc list-inside text-[11px] text-slate-600 dark:text-slate-400 space-y-0.5">
+              {info.whatItDoesNOTDo.map((item, idx) => (
+                <li key={idx}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
-            <textarea
-              id="action-reason"
-              rows={3}
-              value={reason}
-              onChange={(e) => onReasonChange(e.target.value)}
-              placeholder="Explain the operational rationale for this decision (recorded permanently in the append-only audit trail)..."
-              className="w-full p-2.5 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-            />
+        {/* Audit Justification */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label htmlFor="action-reason" className="font-semibold text-slate-800 dark:text-slate-200">
+              Audit Note / Justification <span className="text-rose-500">*</span>
+            </label>
+            <span className="text-[10px] text-slate-400 font-mono">
+              {reason.length >= 3 ? 'Valid' : 'Min 3 chars'}
+            </span>
           </div>
 
-          {errorMessage && (
-            <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs">
-              {errorMessage}
+          {reasonTemplates.length > 0 && (
+            <div className="flex flex-wrap gap-1 mb-1">
+              {reasonTemplates.map((t, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => onReasonChange(t)}
+                  className="text-[10px] px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition-colors"
+                >
+                  "{t.slice(0, 45)}..."
+                </button>
+              ))}
             </div>
           )}
+
+          <textarea
+            id="action-reason"
+            rows={2}
+            value={reason}
+            onChange={(e) => onReasonChange(e.target.value)}
+            placeholder="Reason for this decision (recorded in the permanent audit trail)..."
+            className="w-full p-2 text-xs rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+          />
         </div>
 
-        {/* Modal Footer */}
-        <div className="p-3.5 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            Cancel
-          </button>
-
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading || reason.trim().length < 3 || isApproveBlocked}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold text-white shadow-xs transition-colors flex items-center gap-1.5 ${
-              isApproveBlocked
-                ? 'bg-slate-400 cursor-not-allowed opacity-60'
-                : action === 'REJECT_INVOICE'
-                ? 'bg-rose-600 hover:bg-rose-500'
-                : action === 'HOLD_PENDING_EVIDENCE'
-                ? 'bg-amber-600 hover:bg-amber-500'
-                : 'bg-indigo-600 hover:bg-indigo-500'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {isLoading ? 'Recording...' : `Confirm ${info.label}`}
-          </button>
-        </div>
+        {errorMessage && (
+          <div className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs">
+            {errorMessage}
+          </div>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 };

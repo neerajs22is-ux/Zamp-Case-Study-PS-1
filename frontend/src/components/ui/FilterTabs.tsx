@@ -5,7 +5,7 @@ export interface FilterTabItem<T extends string = string> {
   label: string;
   count?: number;
   icon?: React.ReactNode;
-  badgeTone?: 'neutral' | 'success' | 'warning' | 'error' | 'info';
+  badgeTone?: 'neutral' | 'success' | 'warning' | 'error' | 'info' | 'purple';
 }
 
 export interface FilterTabsProps<T extends string = string> {
