@@ -11,7 +11,9 @@ import {
   Building2,
   LogOut,
   X,
-  ChevronRight
+  ChevronRight,
+  Wrench,
+  Sliders
 } from 'lucide-react';
 import type { AuthenticatedUser, HealthResponse } from '../types';
 
@@ -23,6 +25,7 @@ interface SidebarProps {
   onClose: () => void;
   invoiceCount?: number;
   approvalCount?: number;
+  onOpenDevDrawer?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -33,6 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   invoiceCount,
   approvalCount,
+  onOpenDevDrawer,
 }) => {
   const navigate = useNavigate();
 
@@ -46,11 +50,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { to: '/today', label: 'Today', icon: LayoutDashboard },
     { to: '/invoices', label: 'Invoices', icon: FileText, badge: invoiceCount },
     ...(!isAuditor ? [{ to: '/approvals', label: 'Approvals', icon: CheckCircle2, badge: approvalCount }] : []),
-    { to: '/audit', label: 'Audit', icon: ShieldCheck },
+    { to: '/audit', label: 'Audit Trail', icon: ShieldCheck },
   ];
 
   const settingsItems = [
-    { to: '/setup', label: 'Setup Checklist', icon: CheckCircle2 },
+    { to: '/setup', label: 'Setup Guide', icon: Sliders },
     { to: '/settings/connections', label: 'Connections & Storage', icon: Link2 },
     { to: '/settings/reference-data', label: 'Procurement Records', icon: Database },
     ...(canAccessTeam ? [{ to: '/settings/team', label: 'Team & Access', icon: Users }] : []),
@@ -61,19 +65,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     switch (status) {
       case 'READY':
         return {
-          text: 'All systems normal',
+          text: 'Systems Operational',
           className: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/40 dark:border-emerald-800/50',
           dot: 'bg-emerald-500',
         };
       case 'SETUP_REQUIRED':
         return {
-          text: 'Setup required',
+          text: 'Setup Required',
           className: 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-400 dark:bg-sky-950/40 dark:border-sky-800/50',
           dot: 'bg-sky-500',
         };
       case 'BLOCKED':
         return {
-          text: 'Subsystem blocked',
+          text: 'Subsystem Blocked',
           className: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/40 dark:border-rose-800/50',
           dot: 'bg-rose-500',
         };
@@ -94,7 +98,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs lg:hidden transition-opacity"
           aria-hidden="true"
         />
       )}
@@ -119,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   AP Command Center
                 </span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400 tracking-wider uppercase font-medium">
-                  Autonomous Engine
+                  Financial Operations
                 </span>
               </div>
             </div>
@@ -152,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Primary Navigation List */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-          {/* Main Group */}
+          {/* Main Operations Group */}
           <div className="space-y-1">
             <div className="px-3 pb-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               Operations
@@ -191,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums border ${
                             item.label === 'Invoices'
                               ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
-                              : 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/80 dark:text-purple-300 dark:border-purple-800'
+                              : 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800'
                           }`}
                         >
                           {item.badge}
@@ -204,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             })}
           </div>
 
-          {/* Settings & Admin Group */}
+          {/* Settings & Reference Data Group */}
           <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-900">
             <div className="px-3 pb-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
               Management
@@ -244,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Sidebar Footer: Health, Onboarding & User */}
+        {/* Sidebar Footer: Health, Dev Tools & User */}
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2.5 bg-slate-50/50 dark:bg-slate-950">
           {/* Health Pill Indicator */}
           <button
@@ -262,11 +266,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <ChevronRight className="w-3.5 h-3.5 opacity-60 shrink-0" />
           </button>
 
+          {/* Discreet Developer Tools Button */}
+          {onOpenDevDrawer && (
+            <button
+              type="button"
+              onClick={onOpenDevDrawer}
+              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Wrench className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span className="truncate">Evaluator & Dev Tools</span>
+              </div>
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">Ctrl+Shift+D</span>
+            </button>
+          )}
+
           {/* User Profile Card */}
           {user && (
             <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-2xs">
               <div className="flex items-center gap-2 min-w-0">
-                <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-xs uppercase shrink-0">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs uppercase shrink-0">
                   {user.name ? user.name.slice(0, 2) : user.email.slice(0, 2)}
                 </div>
                 <div className="min-w-0">
@@ -283,7 +302,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <button
                   type="button"
                   onClick={onLogout}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-red-600 dark:text-slate-500 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                   aria-label="Sign out"
                   title="Sign out"
                 >

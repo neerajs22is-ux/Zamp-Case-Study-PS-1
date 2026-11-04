@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
-import { Menu, ShieldCheck, Keyboard, Sparkles, RotateCcw } from 'lucide-react';
+import { Menu, Keyboard, Sparkles, Wrench } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { ThemeToggle } from './ThemeToggle';
 import { KeyboardShortcutsModal } from './KeyboardShortcutsModal';
 import { HRShowcaseModal } from './HRShowcaseModal';
+import { DeveloperDrawer } from './DeveloperDrawer';
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts';
 import { api } from '../api/client';
 import type { AuthenticatedUser, HealthResponse } from '../types';
@@ -27,27 +28,9 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [showcaseOpen, setShowcaseOpen] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const [devDrawerOpen, setDevDrawerOpen] = useState(false);
   const [navCounts, setNavCounts] = useState<{ exceptions: number; approvals: number }>({ exceptions: 0, approvals: 0 });
   const location = useLocation();
-
-  const handleResetDemo = async () => {
-    if (isResetting) return;
-    const confirmed = window.confirm(
-      "Reset Evaluation Workspace?\n\nThis will restore all line item quantities and rates to synthetic baseline fixtures and re-evaluate policy gates. Audit trail is permanently preserved."
-    );
-    if (!confirmed) return;
-    try {
-      setIsResetting(true);
-      const res = await api.resetDemoState();
-      alert(`Success: ${res.message} (${res.re_evaluated_invoices_count} invoices reset)`);
-      window.location.reload();
-    } catch (err: any) {
-      alert(`Failed to reset demo: ${err.message}`);
-    } finally {
-      setIsResetting(false);
-    }
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -75,19 +58,32 @@ export const AppShell: React.FC<AppShellProps> = ({
     };
   }, [location.pathname]);
 
+  // Global key listener for Developer Drawer (Ctrl+Shift+D)
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setDevDrawerOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
+
   // Register global shortcuts (? for help, g sequences for navigation)
   useKeyboardShortcuts({
     onToggleShortcutsHelp: () => setShortcutsOpen((prev) => !prev),
     onEscape: () => {
       setShortcutsOpen(false);
       setSidebarOpen(false);
+      setDevDrawerOpen(false);
     },
   });
 
   // Determine current page title
   const getPageTitle = (pathname: string) => {
     if (pathname.startsWith('/today')) return 'Today';
-    if (pathname.startsWith('/setup')) return 'Workspace Setup';
+    if (pathname.startsWith('/setup')) return 'Setup Guide';
     if (pathname.startsWith('/invoices/')) return 'Invoice Review';
     if (pathname.startsWith('/invoices')) return 'Invoices';
     if (pathname.startsWith('/approvals')) return 'Approvals Queue';
@@ -111,32 +107,11 @@ export const AppShell: React.FC<AppShellProps> = ({
         onClose={() => setSidebarOpen(false)}
         invoiceCount={navCounts.exceptions}
         approvalCount={navCounts.approvals}
+        onOpenDevDrawer={isDevMode ? () => setDevDrawerOpen(true) : undefined}
       />
 
       {/* Main Content Column (offset by 64px on lg viewports for the fixed sidebar) */}
       <div className="lg:pl-64 flex flex-col flex-1 min-w-0">
-        {/* Stage A4 (OPP-12): Evaluation Mode Watermark & Reset Control Banner */}
-        <div className="bg-slate-900 text-slate-100 dark:bg-black dark:text-slate-200 border-b border-slate-800 px-4 sm:px-6 py-2 text-xs flex flex-wrap items-center justify-between gap-2 shadow-xs shrink-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bold uppercase tracking-wider text-[10px] sm:text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2 py-0.5 rounded shrink-0">
-              Evaluation Mode — Sample ERP Data
-            </span>
-            <span className="text-slate-300 dark:text-slate-400 text-[11px] truncate hidden md:inline">
-              Procurement and invoice records are evaluation fixtures and do not represent a live SAP connection.
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={handleResetDemo}
-            disabled={isResetting}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-medium border border-slate-700 transition-colors cursor-pointer shrink-0"
-            title="Reset evaluation invoices back to baseline fixtures"
-          >
-            <RotateCcw className={`w-3 h-3 ${isResetting ? 'animate-spin' : ''}`} />
-            <span>{isResetting ? 'Resetting...' : 'Reset Demo State'}</span>
-          </button>
-        </div>
-
         {/* Top Header Bar */}
         <header
           className="sticky top-0 z-30 h-14 border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/90 backdrop-blur-md shadow-2xs flex items-center justify-between px-4 sm:px-6 lg:px-8 transition-colors"
@@ -147,7 +122,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden"
+              className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900 lg:hidden cursor-pointer"
               aria-label="Open sidebar menu"
             >
               <Menu className="w-5 h-5" />
@@ -183,52 +158,45 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </div>
 
-          {/* Right Controls: Boundary Pill, Role Switcher (Dev), Theme Toggle & User Info */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Operational Boundary Badge (Directly Answers Question 10: What this application does NOT do) */}
+          {/* Right Controls: Operational Boundary, Showcase, Evaluator Tools, Shortcuts, Theme */}
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Operational Boundary Badge (Informs Non-Technical Buyers What the System Does & Does NOT Do) */}
             <div
-              className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-emerald-50/80 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 select-none"
+              className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-emerald-50/90 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/50 select-none"
               title="Autonomous AP Review: Verifies invoices against PO, GRN, and QC. Approvals represent internal review sign-off; bank disbursements and ERP General Ledger postings are strictly performed downstream by treasury."
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
               <span>AP Sign-Off Only • No Bank Disbursements</span>
             </div>
 
-            {/* HR Showcase Tour Launcher */}
+            {/* Evaluator Tools Quarantined Trigger Pill */}
+            {isDevMode && (
+              <button
+                type="button"
+                onClick={() => setDevDrawerOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
+                title="Open Evaluator & Developer Controls (Ctrl+Shift+D)"
+              >
+                <Wrench className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span className="hidden sm:inline">Evaluator Tools</span>
+              </button>
+            )}
+
+            {/* Interactive Showcase Tour Launcher */}
             <button
               onClick={() => setShowcaseOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs"
-              title="Open HR Showcase & Evaluation Scenarios Tour"
-              aria-label="Open HR Showcase scenarios tour"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors shadow-2xs cursor-pointer"
+              title="Open Evaluation Scenarios Tour"
+              aria-label="Open evaluation scenarios tour"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span className="hidden sm:inline">Showcase Tour</span>
             </button>
 
-            {/* Dev Mode Role Switcher */}
-            {isDevMode && onSwitchRole && user && (
-              <div className="hidden sm:flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
-                <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                <span className="text-slate-500 dark:text-slate-400 font-medium text-[11px]">Role:</span>
-                <select
-                  value={user.role || ''}
-                  onChange={(e) => onSwitchRole(e.target.value)}
-                  className="bg-transparent text-slate-800 dark:text-slate-200 text-xs font-semibold focus:outline-hidden cursor-pointer"
-                  aria-label="Switch Evaluation Role"
-                >
-                  <option value="AP_ASSOCIATE" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">AP Associate</option>
-                  <option value="AP_LEAD" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">AP Lead</option>
-                  <option value="CONTROLLER" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Financial Controller</option>
-                  <option value="AUDITOR" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">Auditor (Read-Only)</option>
-                  <option value="SYSTEM_ADMIN" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white">System Admin</option>
-                </select>
-              </div>
-            )}
-
             {/* Keyboard Shortcuts Trigger Button */}
             <button
               onClick={() => setShortcutsOpen(true)}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg transition-colors cursor-pointer"
               title="Keyboard Shortcuts (Press ?)"
               aria-label="Open keyboard shortcuts cheat sheet"
             >
@@ -262,12 +230,22 @@ export const AppShell: React.FC<AppShellProps> = ({
           onSwitchRole={onSwitchRole}
         />
 
+        {/* Developer & Evaluator Slide-Over Drawer */}
+        <DeveloperDrawer
+          isOpen={devDrawerOpen}
+          onClose={() => setDevDrawerOpen(false)}
+          user={user}
+          health={health}
+          onSwitchRole={onSwitchRole}
+          onOpenShowcase={() => setShowcaseOpen(true)}
+        />
+
         {/* Global Footer */}
-        <footer className="border-t border-slate-200 dark:border-slate-850 bg-white/50 dark:bg-slate-950/40 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
+        <footer className="border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-950/40 py-3 text-center text-xs text-slate-500 dark:text-slate-400">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
             <span>Autonomous AP Command Center &copy; 2026. Enterprise Financial Operations.</span>
             <span className="text-[11px] font-mono text-slate-400 dark:text-slate-600">
-              Environment: {isDevMode ? 'Local Dev / SME Eval' : 'Production'}
+              Environment: {isDevMode ? 'Local Dev / Evaluation Mode' : 'Production'}
             </span>
           </div>
         </footer>
