@@ -103,7 +103,7 @@ def create_pdf(
 def generate_all_fixtures():
     """Build all 5 JSON test fixtures and PDF invoices."""
     os.makedirs(FIXTURES_DIR, exist_ok=True)
-    today_str = str(date.today())
+    today_str = "2026-10-29"
 
     scenarios = [
         # HP-01: Happy Path
@@ -144,7 +144,7 @@ def generate_all_fixtures():
             "document_type": "DIGITAL_PDF",
             "confidence": 0.97,
         },
-        # EC-02: Duplicate Submission
+        # EC-02: Duplicate Submission (exact $3,250.00 matching seeded historical ERP invoice)
         {
             "id": "EC-02-Duplicate-Submission",
             "pdf_name": "EC-02-Duplicate-Submission.pdf",
@@ -155,11 +155,11 @@ def generate_all_fixtures():
             "invoice_date": today_str,
             "po_reference": "PO-1042",
             "lines": [
-                ("Enterprise API Compute Tier 3", 10.0, 500.00, 5000.00)
+                ("Enterprise API Compute Tier 3 (Partial)", 5.0, 600.00, 3000.00)
             ],
-            "subtotal": 5000.00,
-            "tax": 425.00,
-            "total": 5425.00,
+            "subtotal": 3000.00,
+            "tax": 250.00,
+            "total": 3250.00,
             "document_type": "DIGITAL_PDF",
             "confidence": 0.99,
         },

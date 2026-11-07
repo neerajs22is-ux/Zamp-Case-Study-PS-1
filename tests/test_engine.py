@@ -403,3 +403,40 @@ def test_gate4_cross_currency_mismatch(fresh_pipeline):
     assert "currency_mismatch" in audit.discrepancy_details
     assert audit.discrepancy_details["currency_mismatch"]["po_currency"] == "USD"
     assert audit.discrepancy_details["currency_mismatch"]["invoice_currency"] == "EUR"
+
+
+def test_all_five_pdf_scenarios_deterministic(fresh_pipeline):
+    """Verify that all 5 benchmark PDF invoices execute deterministically through the genuine pipeline."""
+    # 1. HP-01
+    hp_path = os.path.join(FIXTURES_DIR, "HP-01-Happy-Path.pdf")
+    audit_hp = fresh_pipeline.process(hp_path)
+    assert audit_hp.decision == DecisionState.AUTO_APPROVED
+    assert audit_hp.total_amount == 5425.00
+    assert audit_hp.erp_voucher_id is not None
+
+    # 2. EC-01
+    ec1_path = os.path.join(FIXTURES_DIR, "EC-01-Split-PO-Overrun.pdf")
+    audit_ec1 = fresh_pipeline.process(ec1_path)
+    assert audit_ec1.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "split_po_overrun" in audit_ec1.discrepancy_details
+    assert audit_ec1.discrepancy_details["split_po_overrun"]["deficit"] == 4500.00
+
+    # 3. EC-02
+    ec2_path = os.path.join(FIXTURES_DIR, "EC-02-Duplicate-Submission.pdf")
+    audit_ec2 = fresh_pipeline.process(ec2_path)
+    assert audit_ec2.decision == DecisionState.REJECTED
+    assert "duplicate" in audit_ec2.discrepancy_details
+    assert audit_ec2.discrepancy_details["duplicate"]["prior_batch_id"] == "BATCH-2026-10-17A"
+    assert audit_ec2.discrepancy_details["duplicate"]["prior_amount"] == 3250.00
+
+    # 4. EC-03
+    ec3_path = os.path.join(FIXTURES_DIR, "EC-03-Price-Spike-Variance.pdf")
+    audit_ec3 = fresh_pipeline.process(ec3_path)
+    assert audit_ec3.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "price_variance" in audit_ec3.discrepancy_details or "price_variances" in audit_ec3.discrepancy_details
+
+    # 5. EC-04
+    ec4_path = os.path.join(FIXTURES_DIR, "EC-04-Low-Res-Missing-PO.pdf")
+    audit_ec4 = fresh_pipeline.process(ec4_path)
+    assert audit_ec4.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert audit_ec4.document_type == DocumentType.SCANNED_IMAGE

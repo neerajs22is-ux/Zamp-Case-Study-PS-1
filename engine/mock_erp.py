@@ -32,9 +32,11 @@ def normalize_vendor_name(name: str) -> str:
     return cleaned.strip()
 
 
-def normalize_invoice_number(inv_num: str) -> str:
+def normalize_invoice_number(inv_num: Optional[str]) -> str:
     """Normalize invoice number by stripping non-alphanumerics and leading zeros."""
-    cleaned = re.sub(r"[^A-Za-z0-9]", "", inv_num).upper()
+    if not inv_num:
+        return ""
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", str(inv_num)).upper()
     return cleaned.lstrip("0")
 
 
@@ -191,7 +193,7 @@ class MockERPDatabase:
 
         # 3. Seeded Historical Invoices (to trigger Duplicate Rejection in EC-02)
         # Invoice INV-2026-089 was already processed 12 days ago
-        earlier_date = date.today() - timedelta(days=12)
+        earlier_date = date(2026, 10, 17)
         historical_invoice = HistoricalInvoiceRecord(
             invoice_id="HIST-INV-9102",
             vendor_id="VEND-001",
@@ -200,7 +202,7 @@ class MockERPDatabase:
             invoice_date=earlier_date,
             processed_date=earlier_date,
             sha256_hash=hashlib.sha256(b"VEND-001:INV-2026-089:3250.00").hexdigest(),
-            batch_id="BATCH-2026-10-12A",
+            batch_id="BATCH-2026-10-17A",
             status=DecisionState.AUTO_APPROVED,
         )
         self.historical_invoices.append(historical_invoice)
@@ -277,12 +279,11 @@ class MockERPDatabase:
         norm_inv = normalize_invoice_number(invoice_number)
 
         for record in self.historical_invoices:
-            # Check 1: Normalized invoice number match (strips dashes/spaces/leading zeros)
-            norm_rec = normalize_invoice_number(record.invoice_number)
-            if record.vendor_id == vendor_id and (
-                norm_rec == norm_inv or record.invoice_number.strip().upper() == invoice_number.strip().upper()
-            ):
-                return True, record, "EXACT_INVOICE_NUMBER"
+            # Check 1: Normalized invoice number match (requires non-empty invoice numbers)
+            if record.vendor_id == vendor_id and norm_inv and record.invoice_number:
+                norm_rec = normalize_invoice_number(record.invoice_number)
+                if norm_rec and (norm_rec == norm_inv or record.invoice_number.strip().upper() == invoice_number.strip().upper()):
+                    return True, record, "EXACT_INVOICE_NUMBER"
 
             # Check 2: Hash match
             if sha256_hash and record.sha256_hash == sha256_hash:

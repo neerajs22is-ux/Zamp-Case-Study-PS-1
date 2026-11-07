@@ -9,7 +9,6 @@ Usage:
 
 import sys
 import uvicorn
-import pytest
 
 # Ensure utf-8 encoding resilience on Windows cp1252 consoles
 if hasattr(sys.stdout, "reconfigure"):
@@ -20,6 +19,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 def main():
     if "--test" in sys.argv:
+        import pytest
         print("\n=======================================================")
         print("[*] Running Pytest Verification Suite before launch...")
         print("=======================================================\n")

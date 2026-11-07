@@ -391,13 +391,17 @@
     <div id="tab-history" class="space-y-6 hidden">
       
       <!-- Metrics KPI Bar -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
         <div class="glass-panel p-4 rounded-xl border border-slate-800">
           <p class="text-xs text-slate-400">Total Invoices Processed</p>
           <p id="kpi-total" class="text-2xl font-bold text-white mt-1">0</p>
         </div>
         <div class="glass-panel p-4 rounded-xl border border-slate-800">
-          <p class="text-xs text-slate-400">Auto-Approval Rate</p>
+          <p class="text-xs text-slate-400">Total Value Processed</p>
+          <p id="kpi-total-value" class="text-2xl font-bold text-blue-400 mt-1">$0.00</p>
+        </div>
+        <div class="glass-panel p-4 rounded-xl border border-slate-800">
+          <p class="text-xs text-slate-400">Straight-Through Rate</p>
           <p id="kpi-approval-rate" class="text-2xl font-bold text-emerald-400 mt-1">0.0%</p>
         </div>
         <div class="glass-panel p-4 rounded-xl border border-slate-800">
@@ -538,6 +542,24 @@
 
   <!-- JavaScript Client Logic -->
   <script>
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function formatCurrency(val, currency = 'USD') {
+      if (val === null || val === undefined || isNaN(Number(val))) return '-';
+      const num = Number(val);
+      const curr = (currency || 'USD').toUpperCase();
+      const sym = curr === 'INR' ? '₹' : curr === 'EUR' ? '€' : curr === 'GBP' ? '£' : '$';
+      return `${sym}${num.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    }
+
     let scenarios = [];
     let currentAudit = null;
 
@@ -738,7 +760,7 @@
       if (audit.decision === 'AUTO_APPROVED') {
         badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10';
         badge.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5"></i><span>AUTO APPROVED</span>';
-        subtext.textContent = 'Zero financial variance. Approved per AOP Policy & posted to ERP voucher ledger.';
+        subtext.textContent = 'Zero financial variance. Approved per AOP Policy & ERP AP voucher staged for batch disbursement.';
         voucherBadge.textContent = audit.erp_voucher_id || '';
       } else if (audit.decision === 'FLAGGED_HITL_REVIEW') {
         badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10';
@@ -770,7 +792,7 @@
 
       if (audit.decision === 'AUTO_APPROVED') {
         nextActionCard.className = 'mt-3 p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200 space-y-1';
-        nextActionText.innerHTML = '<strong>Automated Payment Queued:</strong> ERP Voucher posted to General Ledger. Invoice is automatically scheduled for release under Net 30 terms with zero manual touchpoints.';
+        nextActionText.innerHTML = '<strong>Payment Voucher Staged:</strong> ERP AP Voucher recorded and staged for batch disbursement under Net 30 terms. Financial review complete • Direct banking payment execution remains strictly decoupled for AP release authorization.';
       } else if (audit.decision === 'FLAGGED_HITL_REVIEW') {
         nextActionCard.className = 'mt-3 p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-1';
         nextActionText.innerHTML = '<strong>Action Required by AP Lead:</strong> Straight-through payment held. Routed to AP Lead worklist with mathematical discrepancy breakdown and a pre-drafted clarification email ready for 1-click dispatch.';
@@ -883,18 +905,18 @@
         const isVariance = l.status === 'PRICE_VARIANCE';
         html += `
           <tr class="${isVariance ? 'bg-amber-500/5' : ''}">
-            <td class="py-2 px-2">#${l.line_number}</td>
-            <td class="py-2 px-2 font-sans text-slate-200">${l.description}</td>
-            <td class="py-2 px-2 text-right">${l.billed_quantity}</td>
-            <td class="py-2 px-2 text-right">$${l.billed_unit_price.toFixed(2)}</td>
-            <td class="py-2 px-2 text-right text-slate-400">${l.contracted_unit_price ? '$' + l.contracted_unit_price.toFixed(2) : 'N/A'}</td>
+            <td class="py-2 px-2">#${escapeHtml(l.line_number)}</td>
+            <td class="py-2 px-2 font-sans text-slate-200">${escapeHtml(l.description)}</td>
+            <td class="py-2 px-2 text-right">${Number(l.billed_quantity || 0)}</td>
+            <td class="py-2 px-2 text-right">$${Number(l.billed_unit_price || 0).toFixed(2)}</td>
+            <td class="py-2 px-2 text-right text-slate-400">${l.contracted_unit_price !== null && l.contracted_unit_price !== undefined ? '$' + Number(l.contracted_unit_price).toFixed(2) : 'N/A'}</td>
             <td class="py-2 px-2 text-center ${isVariance ? 'text-amber-400 font-bold' : 'text-slate-400'}">${l.price_variance_pct > 0 ? '+' + l.price_variance_pct + '%' : '0.0%'}</td>
             <td class="py-2 px-2">
               <span class="px-2 py-0.5 rounded text-[10px] ${
                 l.status === 'MATCHED' ? 'bg-emerald-500/10 text-emerald-400' :
                 l.status === 'PRICE_VARIANCE' ? 'bg-amber-500/10 text-amber-400 font-bold' :
                 'bg-rose-500/10 text-rose-400'
-              }">${l.status}</span>
+              }">${escapeHtml(l.status)}</span>
             </td>
           </tr>
         `;
@@ -909,7 +931,8 @@
       const data = await res.json();
 
       document.getElementById('kpi-total').textContent = data.metrics.total_runs;
-      document.getElementById('kpi-approval-rate').textContent = `${data.metrics.auto_approval_rate_pct}%`;
+      document.getElementById('kpi-total-value').textContent = `$${Number(data.metrics.total_value_processed || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('kpi-approval-rate').textContent = `${data.metrics.straight_through_rate_pct !== undefined ? data.metrics.straight_through_rate_pct : data.metrics.auto_approval_rate_pct}%`;
       document.getElementById('kpi-exception-rate').textContent = `${data.metrics.exception_rate_pct}%`;
       document.getElementById('kpi-rejected').textContent = data.metrics.rejected;
 
@@ -923,19 +946,20 @@
       data.runs.forEach(r => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-900/40 transition cursor-pointer';
+        const formattedAmount = formatCurrency(r.total_amount, r.currency);
         tr.innerHTML = `
-          <td class="py-2.5 px-3 text-blue-400 font-bold">${r.run_id}</td>
-          <td class="py-2.5 px-3 text-slate-200">${r.invoice_number}</td>
-          <td class="py-2.5 px-3 font-sans text-slate-300">${r.vendor_name}</td>
-          <td class="py-2.5 px-3 text-amber-300/90">${r.po_number || 'N/A'}</td>
-          <td class="py-2.5 px-3 text-right text-emerald-400 font-bold">${r.reasons[0]?.includes('$') ? (r.reasons[0].match(/\\$[0-9,]+\\.[0-9]{2}/) || ['-'])[0] : '-'}</td>
-          <td class="py-2.5 px-3 text-center">${(r.overall_confidence * 100).toFixed(0)}%</td>
+          <td class="py-2.5 px-3 text-blue-400 font-bold">${escapeHtml(r.run_id)}</td>
+          <td class="py-2.5 px-3 text-slate-200">${escapeHtml(r.invoice_number)}</td>
+          <td class="py-2.5 px-3 font-sans text-slate-300">${escapeHtml(r.vendor_name)}</td>
+          <td class="py-2.5 px-3 text-amber-300/90">${escapeHtml(r.po_number || 'N/A')}</td>
+          <td class="py-2.5 px-3 text-right text-emerald-400 font-bold">${formattedAmount}</td>
+          <td class="py-2.5 px-3 text-center">${(Number(r.overall_confidence || 0) * 100).toFixed(0)}%</td>
           <td class="py-2.5 px-3">
             <span class="px-2 py-0.5 rounded text-[10px] font-medium ${
               r.decision === 'AUTO_APPROVED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
               r.decision === 'FLAGGED_HITL_REVIEW' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
               'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-            }">${r.decision}</span>
+            }">${escapeHtml(r.decision)}</span>
           </td>
           <td class="py-2.5 px-3 text-right text-slate-400">${r.total_latency_ms} ms</td>
         `;
@@ -956,11 +980,11 @@
       pos.forEach(p => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="py-2 px-3 font-bold text-amber-300">${p.po_number}</td>
-          <td class="py-2 px-3">$${p.authorized_amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-          <td class="py-2 px-3 text-slate-400">$${p.invoiced_amount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-          <td class="py-2 px-3 text-emerald-400 font-bold">$${p.remaining_balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
-          <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">${p.status}</span></td>
+          <td class="py-2 px-3 font-bold text-amber-300">${escapeHtml(p.po_number)}</td>
+          <td class="py-2 px-3">$${Number(p.authorized_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3 text-slate-400">$${Number(p.invoiced_amount || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3 text-emerald-400 font-bold">$${Number(p.remaining_balance || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300">${escapeHtml(p.status)}</span></td>
         `;
         posBody.appendChild(tr);
       });
@@ -970,10 +994,10 @@
       vendors.forEach(v => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td class="py-2 px-3 font-mono text-slate-400">${v.vendor_id}</td>
-          <td class="py-2 px-3 font-medium text-slate-200">${v.name}</td>
-          <td class="py-2 px-3 font-mono text-slate-400">${v.tax_id}</td>
-          <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] ${v.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${v.status}</span></td>
+          <td class="py-2 px-3 font-mono text-slate-400">${escapeHtml(v.vendor_id)}</td>
+          <td class="py-2 px-3 font-medium text-slate-200">${escapeHtml(v.name)}</td>
+          <td class="py-2 px-3 font-mono text-slate-400">${escapeHtml(v.tax_id)}</td>
+          <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] ${v.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">${escapeHtml(v.status)}</span></td>
         `;
         vendorsBody.appendChild(tr);
       });

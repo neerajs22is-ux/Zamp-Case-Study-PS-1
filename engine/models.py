@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 
 class DocumentType(str, Enum):
@@ -111,9 +111,10 @@ class PurchaseOrder(BaseModel):
     status: Literal["OPEN", "PARTIALLY_INVOICED", "CLOSED", "EXHAUSTED"] = "OPEN"
     line_items: List[POLineItem] = Field(default_factory=list)
 
+    @computed_field
     @property
     def remaining_balance(self) -> float:
-        return max(0.0, round(self.authorized_amount - self.invoiced_amount, 2))
+        return round(self.authorized_amount - self.invoiced_amount, 2)
 
 
 class VendorRecord(BaseModel):
@@ -167,6 +168,7 @@ class DecisionAudit(BaseModel):
     po_number: Optional[str] = None
     total_amount: Optional[float] = None
     currency: Optional[str] = "USD"
+    document_type: Optional[DocumentType] = None
     decision: DecisionState
     overall_confidence: float
     reasons: List[str]

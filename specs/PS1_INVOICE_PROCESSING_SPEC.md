@@ -62,7 +62,7 @@ Rather than an ungrounded chat interface, we deploy an **autonomous AP Digital E
 * **Extraction Schema (Typed Contract):**
   ```json
   {
-    "invoice_number": "INV-2026-089",
+    "invoice_number": "INV-2026-101",
     "invoice_date": "2026-10-15",
     "due_date": "2026-11-14",
     "vendor": {
@@ -159,8 +159,8 @@ To prove deliberate engineering judgment in the 5-minute Loom demo and interview
 | Scenario ID | Test Name | Simulated Real-World Input | Pipeline Behavior | Expected Output & Decision |
 | :--- | :--- | :--- | :--- | :--- |
 | **HP-01** | **Happy Path** | Clean PDF from *Apex Cloud Inc.* for **\$5,425.00** matching PO #1042. | All lines match; tax variance is \$0.00; remaining balance is \$10,000. | **`AUTO_APPROVED`**<br>Reasoning: *"Matched PO-1042 (Line 1: 10 units @ \$500.00). Total \$5,425.00 within budget (\$10,000 balance). Ready for ERP voucher."* |
-| **EC-01** | **Split PO Overrun** | Second invoice from *Apex Cloud Inc.* for **\$6,500.00** referencing PO #1042. | System recalls earlier \$5,425.00 payment. Remaining balance is only \$4,575.00. Current bill creates a **\$1,925.00 deficit**. | **`FLAGGED_HITL_REVIEW`**<br>Reasoning: *"PO-1042 budget exceeded by \$1,925.00 (\$11,925 cumulative vs \$10,000 cap). Routed to Procurement Manager for PO amendment."* |
-| **EC-02** | **Duplicate Submission** | Exact re-submission of *Apex Cloud Inc.* invoice #INV-2026-089 12 days later. | Hash/Invoice# collision detected against submitted ledger. | **`REJECTED`**<br>Reasoning: *"Duplicate submission detected. Invoice #INV-2026-089 was previously processed on 2026-10-15 (Batch #B-9182). Flagged to prevent double payment."* |
+| **EC-01** | **Split PO Overrun** | Second invoice from *Apex Cloud Inc.* for **\$6,500.00** referencing PO #1042-SPLIT. | System recalls earlier \$8,000.00 billed against \$10,000 authorized cap. Remaining balance is \$2,000.00. Current bill creates a **\$4,500.00 deficit** (\$14,500 cumulative). | **`FLAGGED_HITL_REVIEW`**<br>Reasoning: *"PO-1042-SPLIT budget exceeded by \$4,500.00 (\$14,500 cumulative vs \$10,000 cap, remaining balance was \$2,000.00). Routed to Procurement Manager for PO amendment."* |
+| **EC-02** | **Duplicate Submission** | Exact re-submission of *Apex Cloud Inc.* invoice #INV-2026-089 for **\$3,250.00** 12 days later. | Hash/Invoice# collision detected against historical general ledger. | **`REJECTED`**<br>Reasoning: *"Duplicate submission detected. Invoice #INV-2026-089 from 'Apex Cloud Technologies Inc.' was previously processed on 2026-10-17 for \$3,250.00 (Batch: BATCH-2026-10-17A, Ref: HIST-INV-9102). Current invoice for \$3,250.00 auto-rejected to prevent double payment."* |
 | **EC-03** | **Price Spike Variance** | Invoice from *Global Logistics Partners* billing **\$135.00/hr** instead of PO rate **\$100.00/hr** (35% increase). | Quantity matches (40 hrs), but unit price variance (\$35/hr, \$1,400 delta) exceeds the \$20 / 1.5% tolerance threshold. | **`FLAGGED_HITL_REVIEW`**<br>Reasoning: *"Unit price variance (+35.0%) exceeds authorized policy tolerance ($\pm 1.5\%$). Contracted rate: \$100.00; Billed: \$135.00. Action: Verify rate change addendum."* |
 | **EC-04** | **Low-Res Scan / Missing PO** | Distorted scanned receipt from *Valley Hardware* with smudged PO number and 62% OCR confidence. | Low confidence trigger (<75%); PO field missing; vendor is active. | **`FLAGGED_HITL_REVIEW`**<br>Reasoning: *"Low OCR confidence (62%) and missing PO reference. Extracted \$1,280.00. Pre-drafted clarification email generated for supplier."* |
 
@@ -186,7 +186,7 @@ The UI must satisfy the candidate guide mandate: *"an intuitive, well-designed i
 
 ### 5.2 Screen 2: Runs History Dashboard
 * **Metrics Header:**
-  - Total Processed (`5`) • Auto-Approval Rate (`20%`) • Exception Rate (`60%`) • Rejected (`20%`) • Total Value Processed (`$20,630.00`).
+  - Total Processed (`5`) • Auto-Approval Rate (`20%`) • Exception Rate (`60%`) • Rejected (`20%`) • Total Value Processed (`$21,855.00`).
 * **Runs Table:**
   - Columns: Timestamp, Invoice #, Vendor, Amount, PO Ref, Matching Result, Status, Action.
   - Clicking any row opens the full audit log modal showing the exact line-item comparison.
@@ -199,9 +199,9 @@ The UI must satisfy the candidate guide mandate: *"an intuitive, well-designed i
 * **0:00 – 0:45 | The Executive Problem & Framing:**  
   *"Hi, I'm Neeraj. At mid-size enterprises, AP teams waste hundreds of hours manually keying invoices and cross-checking spreadsheets. When a tired clerk works on a Friday afternoon, expensive errors happen. Here is an autonomous AP Digital Employee running an Agent Operating Procedure with a Plan-Execute-Validate loop."*
 * **0:45 – 2:00 | The Happy Path Run Live:**  
-  Ingest clean invoice `INV-2026-089`. Watch the live stepper transition across all 5 stages in ~1.8 seconds. Show the `AUTO_APPROVED` decision and explain why the tolerance policy passed.
+  Ingest clean invoice `INV-2026-101`. Watch the live stepper transition across all 5 stages in ~1.8 seconds. Show the `AUTO_APPROVED` decision and explain why the tolerance policy passed.
 * **2:00 – 3:30 | Running Edge Cases (The Real Judgment):**  
-  - Run **Split PO Overrun**: Show the system catching the \$1,925 budget deficit and routing to procurement.
+  - Run **Split PO Overrun**: Show the system catching the \$4,500 budget deficit and routing to procurement.
   - Run **Duplicate Submission**: Show instant rejection with prior batch reference.
   - Run **Price Spike**: Show line item highlighting the 35% unit cost jump.
 * **3:30 – 4:30 | The Operational Dashboard & Audit Trail:**  

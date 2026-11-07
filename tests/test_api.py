@@ -138,3 +138,62 @@ def test_upload_invoice_case_insensitive_extension():
     )
     assert res.status_code == 200
     assert res.json()["decision"] == "AUTO_APPROVED"
+
+
+def test_operator_action_idempotency_and_ledger_protection():
+    """C-04: Operator action idempotency, reject-after-approve guard, and real vendor_id resolution."""
+    client.post("/api/reset-data")
+    # 1. Run EC-01 which yields FLAGGED_HITL_REVIEW
+    res1 = client.post("/api/run-scenario/EC-01-Split-PO-Overrun")
+    assert res1.status_code == 200
+    run_id = res1.json()["run_id"]
+
+    # 2. First approval
+    res_app1 = client.post(
+        f"/api/invoices/{run_id}/action",
+        json={"action": "APPROVE", "notes": "Controller authorized budget overage"}
+    )
+    assert res_app1.status_code == 200
+    assert res_app1.json()["decision"] == "MANUALLY_APPROVED"
+
+    # Verify PO-1042-SPLIT invoiced amount was updated
+    res_pos = client.get("/api/erp/purchase-orders")
+    po_split = next(p for p in res_pos.json() if p["po_number"] == "PO-1042-SPLIT")
+    assert po_split["invoiced_amount"] == 14500.00
+    assert po_split["remaining_balance"] == -4500.00  # Negative deficit not clamped to 0
+
+    # 3. Second approval should be idempotent and NOT draw down PO a second time
+    res_app2 = client.post(
+        f"/api/invoices/{run_id}/action",
+        json={"action": "APPROVE", "notes": "Accidental duplicate click by operator"}
+    )
+    assert res_app2.status_code == 200
+    assert "already approved" in res_app2.json()["message"]
+
+    res_pos2 = client.get("/api/erp/purchase-orders")
+    po_split2 = next(p for p in res_pos2.json() if p["po_number"] == "PO-1042-SPLIT")
+    assert po_split2["invoiced_amount"] == 14500.00  # Stays 14500.00, not double-counted to 21000.00!
+
+    # 4. Attempt to REJECT after approval must be blocked
+    res_rej = client.post(
+        f"/api/invoices/{run_id}/action",
+        json={"action": "REJECT", "notes": "Trying to reverse approval"}
+    )
+    assert res_rej.status_code == 400
+    assert "Cannot reject an invoice that has already been approved" in res_rej.json()["detail"]
+
+
+def test_runs_history_metrics_total_value_and_straight_through_rate():
+    """C-06 / M-09: Total value processed and accurate straight-through approval calculation."""
+    client.post("/api/reset-data")
+    client.post("/api/run-scenario/HP-01-Happy-Path")  # $5,425.00 AUTO_APPROVED
+    client.post("/api/run-scenario/EC-01-Split-PO-Overrun")  # $6,500.00 FLAGGED_HITL_REVIEW
+
+    res = client.get("/api/runs")
+    assert res.status_code == 200
+    metrics = res.json()["metrics"]
+    assert metrics["total_runs"] == 2
+    assert metrics["auto_approved"] == 1
+    assert metrics["flagged_for_review"] == 1
+    assert metrics["straight_through_rate_pct"] == 50.0
+    assert metrics["total_value_processed"] == 11925.00

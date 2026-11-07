@@ -194,7 +194,10 @@ class InvoiceProcessingPipeline:
             "event": "STAGE_START",
             "stage": 4,
             "name": "4. AOP Policy & Tolerance Match",
-            "details": {"po_reference": invoice.po_reference, "tolerance_limit": "1.5%"},
+            "details": {
+                "po_reference": invoice.po_reference,
+                "tolerance_limit": f"{self.rule_engine.config.unit_price_variance_pct_threshold}%",
+            },
         }
         t3 = time.perf_counter()
         audit = self.rule_engine.evaluate(invoice, self.erp, stage_timings=stage_timings)
@@ -233,9 +236,9 @@ class InvoiceProcessingPipeline:
         if audit.decision == DecisionState.AUTO_APPROVED:
             stage_5_status = "SUCCESS"
             stage_5_details = {
-                "workflow_state": "POSTED_TO_ERP",
+                "workflow_state": "VOUCHER_GENERATED",
                 "voucher_id": audit.erp_voucher_id,
-                "action": "AUTOMATED_PAYMENT_SCHEDULED",
+                "action": "VOUCHER_STAGED_FOR_DISBURSEMENT",
             }
         elif audit.decision == DecisionState.FLAGGED_HITL_REVIEW:
             stage_5_status = "FLAGGED"
@@ -328,7 +331,9 @@ class InvoiceProcessingPipeline:
                 extracted_text += (page.extract_text() or "") + "\n"
 
             clean_text = extracted_text.strip()
-            if len(clean_text) < 50:
+            ocr_match = _OCR_CONFIDENCE_RE.search(clean_text)
+            is_simulated_scan = bool(re.search(r"SIMULATED\s+LOW-RES|SCAN(?:NED)?", clean_text, re.IGNORECASE))
+            if len(clean_text) < 50 or (ocr_match and int(ocr_match.group(1)) < 75) or is_simulated_scan:
                 # Scanned raster image or low-density text -> run local OCR Engine
                 try:
                     from engine.ocr_engine import OCREngine
@@ -540,6 +545,7 @@ class InvoiceProcessingPipeline:
             run_id=f"RUN-{uuid.uuid4().hex[:8].upper()}",
             invoice_number=None,
             vendor_name="UNKNOWN",
+            document_type=doc_type,
             decision=DecisionState.FLAGGED_HITL_REVIEW,
             overall_confidence=0.0,
             reasons=[

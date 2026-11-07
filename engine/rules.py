@@ -296,13 +296,15 @@ class AOPRuleEngine:
                 if dup_type in ("EXACT_INVOICE_NUMBER", "EXACT_HASH"):
                     reasons.append(
                         f"Duplicate submission detected. Invoice #{invoice.invoice_number} from '{vendor.name}' "
-                        f"for {format_currency(invoice.total_amount, curr)} was previously processed on {dup_record.processed_date} "
-                        f"(Batch: {dup_record.batch_id}, Ref: {dup_record.invoice_id}). Auto-rejected to prevent double payment."
+                        f"was previously processed on {dup_record.processed_date} for {format_currency(dup_record.amount, curr)} "
+                        f"(Batch: {dup_record.batch_id}, Ref: {dup_record.invoice_id}). Current invoice for {format_currency(invoice.total_amount, curr)} "
+                        "auto-rejected to prevent double payment."
                     )
                     discrepancies["duplicate"] = {
                         "prior_invoice_id": dup_record.invoice_id,
                         "prior_processed_date": str(dup_record.processed_date),
                         "prior_batch_id": dup_record.batch_id,
+                        "prior_amount": dup_record.amount,
                         "duplicate_type": dup_type,
                     }
                     return self._build_audit(
@@ -642,6 +644,7 @@ class AOPRuleEngine:
             po_number=invoice.po_reference or (po.po_number if po else None),
             total_amount=invoice.total_amount,
             currency=invoice.currency,
+            document_type=invoice.document_type,
             decision=decision,
             overall_confidence=overall_confidence,
             reasons=reasons,
@@ -730,6 +733,26 @@ class AOPRuleEngine:
                 vendor_bullets.append(
                     "Your invoice does not indicate an authorized Purchase Order reference. Please provide a valid PO number."
                 )
+            if "inferred_po" in discrepancies:
+                vendor_bullets.append(
+                    "An open Purchase Order was located by vendor record match, but explicit confirmation of the authorized PO number is requested."
+                )
+            if "possible_duplicate" in discrepancies:
+                vendor_bullets.append(
+                    "A recent transaction with a matching invoice amount was previously recorded. Please confirm if this is a distinct billing."
+                )
+            if "currency_mismatch" in discrepancies:
+                vendor_bullets.append(
+                    "Invoice billing currency does not match the contracted Purchase Order currency."
+                )
+            if "missing_invoice_number" in discrepancies:
+                vendor_bullets.append(
+                    "Invoice identifier is missing or unreadable on the submitted document. Please furnish a valid invoice number."
+                )
+            if "missing_invoice_date" in discrepancies:
+                vendor_bullets.append(
+                    "Invoice date is omitted or unreadable. Please provide the official billing date."
+                )
             if "arithmetic_mismatch" in discrepancies:
                 vendor_bullets.append(
                     "Invoice arithmetic check failed: Sum of line items or subtotal does not match the grand total."
@@ -741,10 +764,12 @@ class AOPRuleEngine:
 
         if not vendor_bullets:
             for r in reasons:
-                clean_r = re.sub(r"\(Batch: [^)]+\)", "", r)
+                clean_r = re.sub(r"\[[A-Za-z0-9 _-]+\]:?", "", r)
+                clean_r = re.sub(r"\(Batch: [^)]+\)", "", clean_r)
                 clean_r = re.sub(r"\(Ref: [^)]+\)", "", clean_r)
                 clean_r = clean_r.replace("Auto-rejected to prevent double payment.", "").strip()
-                vendor_bullets.append(clean_r)
+                if clean_r:
+                    vendor_bullets.append(clean_r)
 
         bullet_points = "\n".join(f"  • {b}" for b in vendor_bullets)
         if po:

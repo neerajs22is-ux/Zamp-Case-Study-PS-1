@@ -38,7 +38,7 @@ app = FastAPI(
 # Enable CORS for local Next.js / frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -230,13 +230,22 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
     audit = next((r for r in pipeline.run_history if r.run_id == run_id), None)
     if not audit:
         audit = next(
-            (r for r in pipeline.run_history if r.invoice_number == run_id or r.run_id.endswith(run_id)),
+            (r for r in pipeline.run_history if r.invoice_number == run_id),
             None,
         )
     if not audit:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found in audit history")
 
     if action_req.action == "APPROVE":
+        if audit.decision in (DecisionState.AUTO_APPROVED, DecisionState.MANUALLY_APPROVED):
+            # Idempotent response: already approved, avoid duplicate drawdown and ledger write
+            return {
+                "status": "SUCCESS",
+                "run_id": audit.run_id,
+                "decision": audit.decision.value,
+                "audit": audit.model_dump(mode="json"),
+                "message": "Invoice already approved; duplicate approval action ignored.",
+            }
         if audit.decision == DecisionState.REJECTED:
             raise HTTPException(
                 status_code=400,
@@ -251,6 +260,17 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
             "notes": note,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        # Resolve real vendor_id from PO or vendor directory
+        vendor_id = "VEND-UNKNOWN"
+        if audit.po_number:
+            po = erp_instance.get_po(audit.po_number)
+            if po and po.vendor_id:
+                vendor_id = po.vendor_id
+        if vendor_id == "VEND-UNKNOWN" and audit.vendor_name:
+            vend = erp_instance.get_vendor_by_name(audit.vendor_name)
+            if vend and vend.vendor_id:
+                vendor_id = vend.vendor_id
+
         # Financial consistency: record PO drawdown if PO exists, and record in historical ledger
         if audit.po_number:
             erp_instance.record_po_drawdown(audit.po_number, audit.total_amount or 0.0)
@@ -258,7 +278,7 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
         erp_instance.record_processed_invoice(
             HistoricalInvoiceRecord(
                 invoice_id=f"PROC-OVR-{uuid.uuid4().hex[:6].upper()}",
-                vendor_id=getattr(audit, "vendor_name", "UNKNOWN"),
+                vendor_id=vendor_id,
                 invoice_number=audit.invoice_number,
                 amount=audit.total_amount or 0.0,
                 invoice_date=today,
@@ -269,6 +289,11 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
             )
         )
     elif action_req.action == "REJECT":
+        if audit.decision in (DecisionState.AUTO_APPROVED, DecisionState.MANUALLY_APPROVED):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot reject an invoice that has already been approved and recorded in the ERP general ledger. A manual adjustment or credit memo is required.",
+            )
         audit.decision = DecisionState.REJECTED
         note = action_req.notes or "Rejected by human AP operator during exception review"
         audit.reasons.append(f"[OPERATOR REJECTED]: {note}")
@@ -327,6 +352,7 @@ async def get_run_history():
     total_approved = auto_app + manual_app
     flagged = sum(1 for r in runs if r["decision"] == DecisionState.FLAGGED_HITL_REVIEW.value)
     rejected = sum(1 for r in runs if r["decision"] == DecisionState.REJECTED.value)
+    total_value = sum(float(r.get("total_amount") or 0.0) for r in runs)
 
     return {
         "metrics": {
@@ -336,8 +362,11 @@ async def get_run_history():
             "total_approved": total_approved,
             "flagged_for_review": flagged,
             "rejected": rejected,
-            "auto_approval_rate_pct": round((total_approved / total * 100), 1) if total > 0 else 0.0,
+            "straight_through_rate_pct": round((auto_app / total * 100), 1) if total > 0 else 0.0,
+            "auto_approval_rate_pct": round((auto_app / total * 100), 1) if total > 0 else 0.0,
+            "total_approval_rate_pct": round((total_approved / total * 100), 1) if total > 0 else 0.0,
             "exception_rate_pct": round(((flagged + rejected) / total * 100), 1) if total > 0 else 0.0,
+            "total_value_processed": round(total_value, 2),
         },
         "runs": runs,
     }
