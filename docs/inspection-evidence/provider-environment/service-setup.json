@@ -1,0 +1,29 @@
+{
+  "project_id": "ppcmermepbdsfypzepcd",
+  "checks": [
+    {
+      "operation": "new-project auth readiness",
+      "http_status": 200
+    },
+    {
+      "operation": "create own private PDF-only 1MB bucket",
+      "http_status": 200
+    },
+    {
+      "operation": "create synthetic tenant a identity",
+      "http_status": 200
+    },
+    {
+      "operation": "real provider password sign-in tenant a",
+      "http_status": 200
+    },
+    {
+      "operation": "create synthetic tenant b identity",
+      "http_status": 200
+    },
+    {
+      "operation": "real provider password sign-in tenant b",
+      "http_status": 200
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "provider_execution": "STOPPED",
+  "reason": "User explicitly answered none for disposable workspace/project/bucket designation.",
+  "workspace": null,
+  "remote_reads": 0,
+  "remote_writes": 0,
+  "provider_calls": 0,
+  "servers_started": 0,
+  "browser_used": false,
+  "credentials_validated": false,
+  "config_presence_only": {
+    "DATABASE_URL": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "MIGRATION_DATABASE_URL": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "SUPABASE_URL": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "SUPABASE_SERVICE_ROLE_KEY": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "SUPABASE_JWT_SECRET": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "SUPABASE_ISSUER": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "MANTLE_API_KEY": {
+      "environment_present": false,
+      "dotenv_present": true
+    },
+    "PALMYRA_API_KEY": {
+      "environment_present": false,
+      "dotenv_present": false
+    }
+  }
+}

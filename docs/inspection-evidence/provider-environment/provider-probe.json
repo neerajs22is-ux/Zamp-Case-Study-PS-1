@@ -1,0 +1,8 @@
+{
+  "probe": "authenticated model-catalog GET only; no inference/input documents",
+  "provider_host": "bedrock-mantle.ap-south-1.api.aws",
+  "inference_calls": 0,
+  "http_status": 200,
+  "catalog_accessible": true,
+  "model_count": 41
+}

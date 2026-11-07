@@ -1,0 +1,4 @@
+Disposable PostgreSQL on loopback port 63079; no application server
+....                                                                     [100%]
+4 passed, 48 deselected, 51 warnings in 9.49s
+Stopped and removed owned disposable PostgreSQL cluster

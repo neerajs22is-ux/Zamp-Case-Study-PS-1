@@ -1,0 +1,27 @@
+{
+  "status": "PARTIAL_PROVIDER_IDENTITY_STORAGE_DATABASE_INTAKE_PASS_EXTRACTION_BLOCKED",
+  "requested_cases": 5,
+  "requests_exercised": 5,
+  "full_case_outcomes_verified": 1,
+  "full_case_outcomes_blocked": 4,
+  "real_pdf_uploads": 4,
+  "auth_isolation_checks": 11,
+  "inference_calls": 0,
+  "catalog_reads": 1,
+  "cloud_test_resources_remaining": 0,
+  "model_usage": null,
+  "billed_model_cost": null,
+  "sha256": {
+    "account-access.json": "4f83f8d7e4783925cdc242d21856006d550b0ca1e0db8b9fdccb96deaa0679ff",
+    "authenticated-subset-initial-setup-error.json": "9e4f405b3097ceddec5be4fb0bcc360bf41fd7f2ebf96086775a3853fe61afed",
+    "authenticated-subset-rejected-test-mode.json": "a00708a8dea920110d12ea8a0246de49b293668264fdb9dab575eb8b08dbb3f0",
+    "authenticated-subset.json": "b4e9a7e8c00e3a0d85a13052d188e6a7ec4e645d52b92f2e085944db4c9b647a",
+    "cleanup.json": "8140066794201d97c816d415c1198e5c4dbec930b3847c0b30eaeafc0fa597ab",
+    "database-connectivity.json": "c3fa9a193fbee625c8d09c7d61aea99d1224a6dbef0bfb7199c4e8ea5b2343f4",
+    "diff-check.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "final-resource-verification.json": "9997100fc802e0f7a8ca6e6fcd849cb46b70cff36d89c18f4658232f7780e150",
+    "provider-probe.json": "fb886bdb46252e0479366dcbb4189a2a1464f8cf595e9720148cdb6f29ac382d",
+    "service-setup.json": "5776ccfd7edc54a058b5646294678744d8c26b9163dda2b8e3dc6304adb90b4b",
+    "setup.json": "1360dac5a2cf95559c9f73bb250f901439f01d50907574fe5daf8515aabed97d"
+  }
+}

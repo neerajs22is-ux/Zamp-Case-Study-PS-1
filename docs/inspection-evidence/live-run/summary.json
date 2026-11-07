@@ -1,0 +1,41 @@
+{
+  "date": "2026-11-06",
+  "results": {
+    "broad": {
+      "passed": 329,
+      "skipped": 27,
+      "seconds": 18.84
+    },
+    "reverse": {
+      "passed": 329,
+      "skipped": 27,
+      "seconds": 17.54
+    },
+    "focused": {
+      "passed": 104,
+      "seconds": 8.59
+    },
+    "postgres_selection": {
+      "passed": 37,
+      "actual_postgres": 24,
+      "seconds": 28.88
+    },
+    "polling": {
+      "passed": 6
+    },
+    "build": "passed; chunk size warning",
+    "lint": "exit 0; 28 warnings"
+  },
+  "sha256": {
+    "broad-initial-collection-error.txt": "b0a9073d1e6777f58012b44a58fa35b83b2ffa022d969ca0d9baff12fab60e99",
+    "broad.txt": "9ff836685772bcc90dc74f7018b7312303c3778be8c0ebe96288b13d9d0911b5",
+    "build.txt": "934d51df6dcf1560877469b586bb08155f336369c6f2b5dcd269fc8786cf4c7a",
+    "diff-check.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "focused.txt": "b9d36c306c4e4f52831b7884015134c6f6abc42e0610e188fcd97ba20cdc6d1d",
+    "lint.txt": "521d3c072bd6e62f53d44a9fa2ab27e4121d2257166317274abbb89510ca2b20",
+    "polling.txt": "ad49826e2e26b712c4a88a9bc99c6df4edcc2abc2e0fe5e0f96c317910f22472",
+    "postgres.txt": "5a4f3efee61b3a860ca6814069b6bca114f0caa9edc5babfcac0ed86d6dab100",
+    "reverse.txt": "6d6207202f1592d59d860754e958bb4ae0b1a3d3b8a3c6d40b2bb5dd1e13b70b",
+    "ui-scan.json": "a5338d955b09046ec0b16f3a9625b7955c763aae07dc722e474e6078745f932f"
+  }
+}

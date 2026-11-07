@@ -1,0 +1,12 @@
+{
+  "purpose": "Verify project-only retention provisioning fix; no model calls",
+  "name": "ps1-acceptance-20261106-040e6a53-retention-check",
+  "inference_calls": 0,
+  "project_id": "proj_qwktc74xicasegzwirf2",
+  "update_http_status": 200,
+  "verified_data_retention": {
+    "mode": "none"
+  },
+  "archive_http_status": 200,
+  "archived": true
+}

@@ -1,0 +1,42 @@
+{
+  "date": "2026-11-06",
+  "results": {
+    "broad": {
+      "passed": 333,
+      "skipped": 36,
+      "seconds": 19.7
+    },
+    "reverse": {
+      "passed": 333,
+      "skipped": 36,
+      "seconds": 18.26
+    },
+    "focused": {
+      "passed": 90,
+      "skipped": 1,
+      "seconds": 6.62
+    },
+    "postgres_selection": {
+      "passed": 46,
+      "actual_postgres": 33,
+      "seconds": 69.9
+    },
+    "polling": {
+      "passed": 6
+    }
+  },
+  "baseline_regression": {
+    "test": "test_expired_lease_cannot_be_resurrected",
+    "result_before_fix": "failed: renewal returned True for an expired lease; captured in tool transcript",
+    "result_after_fix": "passed unchanged"
+  },
+  "sha256": {
+    "broad.txt": "948daa61acb01cee04d04e7a60b884b587c17af57ccc5729a5e716a212f51786",
+    "diff-check.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "focused.txt": "0e288e23bacfcbae26103db4b67b341f07ff32428e631da3728d23f012c4a8b9",
+    "polling.txt": "16eb7df42de5e237a2b49534f636788b3d611226d33c87edd04b3fea8b2f710e",
+    "postgres-initial.txt": "4007ce06e8fa9392854e5493b9850174022c2e21d5cf0f356ce43ec2895c2c67",
+    "postgres.txt": "a0b3609bebe460e46f3737b8bd59accf8d865ca0283e36eed46f3df2b8bea19b",
+    "reverse.txt": "4eed3f33cf8c9b55d0f4c7a26899274d9dfdeb512b39070ccb893559ddada8d6"
+  }
+}

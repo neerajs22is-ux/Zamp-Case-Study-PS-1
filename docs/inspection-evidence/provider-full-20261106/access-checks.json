@@ -1,0 +1,10 @@
+{
+  "iam_simulation": [
+    {
+      "resource": "default",
+      "decision": "implicitDeny"
+    }
+  ],
+  "owned_model_catalog_http_status": 200,
+  "configured_model_present": false
+}

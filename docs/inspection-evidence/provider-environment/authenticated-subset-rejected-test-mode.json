@@ -1,0 +1,29 @@
+{
+  "run_id": "ps1-acceptance-20261106-abb798f9",
+  "project_id": "ppcmermepbdsfypzepcd",
+  "started_at": "2026-11-06T17:17:14.175834+00:00",
+  "mode": "REAL_IDENTITY_STORAGE_DATABASE_ONLY_INFERENCE_BLOCKED",
+  "cases": [],
+  "checks": [
+    {
+      "operation": "real signed provider JWT + membership tenant a",
+      "status": "PASS"
+    },
+    {
+      "operation": "real signed provider JWT + membership tenant b",
+      "status": "PASS"
+    }
+  ],
+  "model_inference_calls": 0,
+  "model_usage": null,
+  "model_cost_usd": null,
+  "financial_actions_submitted": 0,
+  "runtime_role": {
+    "name": "ap_app_user",
+    "superuser": false,
+    "bypassrls": false
+  },
+  "status": "FAILED",
+  "failed_phase": "authenticated private uploads",
+  "failure_type": "ConnectError"
+}

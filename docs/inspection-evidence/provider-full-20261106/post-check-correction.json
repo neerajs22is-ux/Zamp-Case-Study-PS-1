@@ -1,0 +1,6 @@
+{
+  "initial_check": "require a source page for every persisted field",
+  "initial_result": "failed: 4 zero-valued optional IGST fields have no source_page",
+  "investigation": "grounding.locate skips optional zeros; persist only pages actually verified; all other persisted fields have source page 1",
+  "correction": "verify required/nonzero fields and retain explicit missing-page disclosure; no application behavior changed"
+}

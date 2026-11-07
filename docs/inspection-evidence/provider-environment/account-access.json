@@ -1,0 +1,19 @@
+{
+  "supabase_management_access": true,
+  "aws_profiles": [
+    {
+      "profile_index": 0,
+      "sts_exit_code": 255,
+      "session_expired": true,
+      "requires_aws_login": true
+    },
+    {
+      "profile_index": 1,
+      "sts_exit_code": 255,
+      "session_expired": true,
+      "requires_aws_login": true
+    }
+  ],
+  "browser_auth_attempted": false,
+  "extraction_credential_created": false
+}

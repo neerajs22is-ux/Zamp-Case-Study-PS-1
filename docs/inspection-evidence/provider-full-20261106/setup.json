@@ -1,0 +1,10 @@
+{
+  "run_id": "ps1-acceptance-20261106-040e6a53",
+  "status": "created",
+  "project_id": "swefzrbgkbrhydtjrxbh",
+  "mantle_project_id": "proj_otq67vwlewxzfizztrje",
+  "dedicated_iam_user": "ps1-acceptance-20261106-040e6a53",
+  "identity_verified": true,
+  "permission_expires_at": "2026-11-06T20:18:01Z",
+  "api_key_expiry_days": 1
+}

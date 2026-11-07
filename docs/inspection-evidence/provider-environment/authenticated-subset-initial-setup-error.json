@@ -1,0 +1,15 @@
+{
+  "run_id": "ps1-acceptance-20261106-abb798f9",
+  "project_id": "ppcmermepbdsfypzepcd",
+  "started_at": "2026-11-06T17:16:34.634842+00:00",
+  "mode": "REAL_IDENTITY_STORAGE_DATABASE_ONLY_INFERENCE_BLOCKED",
+  "cases": [],
+  "checks": [],
+  "model_inference_calls": 0,
+  "model_usage": null,
+  "model_cost_usd": null,
+  "financial_actions_submitted": 0,
+  "status": "FAILED",
+  "failed_phase": "migration",
+  "failure_type": "InsufficientPrivilege"
+}

@@ -1,0 +1,45 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "bedrock-mantle:CallWithBearerToken",
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-south-1"
+        },
+        "DateLessThan": {
+          "aws:CurrentTime": "2026-11-06T20:18:01Z"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-mantle:GetModel",
+        "bedrock-mantle:ListModels"
+      ],
+      "Resource": "arn:aws:bedrock-mantle:ap-south-1:305740358559:project/proj_otq67vwlewxzfizztrje",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "ap-south-1"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": "bedrock-mantle:CreateInference",
+      "Resource": "arn:aws:bedrock-mantle:ap-south-1:305740358559:project/proj_otq67vwlewxzfizztrje",
+      "Condition": {
+        "StringEquals": {
+          "bedrock-mantle:Model": "qwen.qwen3-235b-a22b-2507-v1:0",
+          "aws:RequestedRegion": "ap-south-1"
+        },
+        "DateLessThan": {
+          "aws:CurrentTime": "2026-11-06T20:18:01Z"
+        }
+      }
+    }
+  ]
+}

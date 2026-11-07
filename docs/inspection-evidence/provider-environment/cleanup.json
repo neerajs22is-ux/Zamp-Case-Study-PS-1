@@ -1,0 +1,21 @@
+{
+  "run_id": "ps1-acceptance-20261106-abb798f9",
+  "deleted_project_id": "ppcmermepbdsfypzepcd",
+  "delete_exit_code": 0,
+  "deleted_at": "2026-11-06T17:21:27.518439+00:00",
+  "verified_owned_label": true,
+  "existing_project_excluded": true,
+  "new_project_absent": true,
+  "previous_project_ids_unchanged": true,
+  "remaining_project_count": 1,
+  "local_log_deletion": {
+    "status": "automatic_approval_review_rejected",
+    "reason": "blocked by policy",
+    "retained": [
+      "scratch/ps1-acceptance-20261106-abb798f9/private-harness.log",
+      "scratch/ps1-acceptance-20261106-abb798f9/private-creation-response.txt"
+    ],
+    "access": "current-user restricted, git-ignored",
+    "credential_journal_secrets_removed": true
+  }
+}

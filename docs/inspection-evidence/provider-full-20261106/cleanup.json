@@ -1,0 +1,26 @@
+{
+  "run_id": "ps1-acceptance-20261106-040e6a53",
+  "mantle_project_id": "proj_otq67vwlewxzfizztrje",
+  "mantle_project_archived": true,
+  "iam_user_and_key_deleted": true,
+  "supabase_project_deleted": true,
+  "existing_project_ids_preserved": true,
+  "resource_status": "cleaned",
+  "iam_user_absence_verified": true,
+  "local_file_cleanup": {
+    "status": "automatic_approval_review_rejected",
+    "reason": "blocked by policy",
+    "files": [
+      "private-acceptance-1.log",
+      "private-cleanup.log",
+      "private-provision.log",
+      "private-credential-response.json"
+    ],
+    "owned_root": "scratch/ps1-acceptance-20261106-040e6a53",
+    "access": "current-user restricted, git-ignored",
+    "credentials_revoked": true,
+    "main_credential_journal_pruned": true
+  },
+  "retention_probe_project_archived": true,
+  "main_archived_metadata_verified": true
+}

@@ -1,0 +1,9 @@
+{
+  "run_id": "ps1-acceptance-20261106-abb798f9",
+  "attempt": 2,
+  "size": "omitted for free organization",
+  "exit_code": 0,
+  "previous_error": "Instance size cannot be specified for free plan organizations.",
+  "project_id": "ppcmermepbdsfypzepcd",
+  "status": "created"
+}

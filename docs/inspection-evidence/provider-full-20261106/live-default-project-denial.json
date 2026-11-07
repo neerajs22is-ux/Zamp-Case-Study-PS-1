@@ -1,0 +1,5 @@
+{
+  "operation": "new test credential GET models against default project",
+  "http_status": 403,
+  "denied": true
+}

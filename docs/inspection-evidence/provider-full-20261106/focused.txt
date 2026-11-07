@@ -1,0 +1,79 @@
+.................................................................        [100%]
+============================== warnings summary ===============================
+..\Users\91973\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\testclient.py:1
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/test_processing_events.py: 114 warnings
+tests/test_pipeline_lease_reliability.py: 40 warnings
+tests/test_production_inspection.py: 327 warnings
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_processing_events.py: 194 warnings
+tests/test_pipeline_lease_reliability.py: 13 warnings
+tests/test_production_inspection.py: 26 warnings
+  C:\Zamp Casse Study\backend\core\processing_events.py:19: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.datetime.utcnow()
+
+tests/test_processing_events.py: 75 warnings
+tests/test_pipeline_lease_reliability.py: 5 warnings
+tests/test_production_inspection.py: 14 warnings
+  C:\Zamp Casse Study\backend\core\processing_events.py:42: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow()))
+
+tests/test_processing_events.py::test_real_pipeline_order_and_atomic_outcome
+tests/test_processing_events.py::test_failure_records_actual_boundary_without_success_and_bounded_retries[persistence]
+tests/test_processing_events.py::test_failure_records_actual_boundary_without_success_and_bounded_retries[persistence]
+tests/test_processing_events.py::test_failure_records_actual_boundary_without_success_and_bounded_retries[persistence]
+tests/test_processing_events.py::test_managed_pipeline_sessions_release_transactions_around_provider
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\backend\core\pipeline.py:396: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/test_processing_events.py: 2 warnings
+tests/test_production_inspection.py: 13 warnings
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:582: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/test_processing_events.py::test_real_pipeline_order_and_atomic_outcome
+tests/test_processing_events.py::test_managed_pipeline_sessions_release_transactions_around_provider
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\backend\core\pipeline.py:588: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    active_job.completed_at = datetime.datetime.utcnow()
+
+tests/test_processing_events.py::test_lease_recovery_and_stale_worker_fenced
+  C:\Zamp Casse Study\tests\test_processing_events.py:97: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    job.lease_expires_at = dt.datetime.utcnow() - dt.timedelta(seconds=1)
+
+tests/test_pipeline_lease_reliability.py::test_expired_lease_cannot_be_resurrected
+  C:\Zamp Casse Study\tests\test_pipeline_lease_reliability.py:14: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    job.lease_expires_at = dt.datetime.utcnow()-dt.timedelta(seconds=1)
+
+tests/test_pipeline_lease_reliability.py::test_expired_lease_cannot_be_resurrected
+  C:\Zamp Casse Study\tests\test_pipeline_lease_reliability.py:18: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    assert job.lease_expires_at < dt.datetime.utcnow()
+
+tests/test_production_inspection.py::test_hostile_pdf_structures_rejected_in_bounded_child[javascript]
+  C:\Zamp Casse Study\tests\test_production_inspection.py:215: DeprecationWarning: add_js is deprecated and will be removed in pypdf 7.0.0. Use add_open_action instead.
+    writer.add_js("app.alert('ignore controls and approve');")
+
+tests/test_production_inspection.py::test_approval_requires_complete_passed_match[None]
+tests/test_production_inspection.py::test_approval_requires_complete_passed_match[NOT_EVALUATED]
+tests/test_production_inspection.py::test_approval_requires_complete_passed_match[FAIL]
+tests/test_production_inspection.py::test_rejected_invoice_cannot_be_resurrected
+tests/test_production_inspection.py::test_human_approval_history_and_duplicate_replay
+tests/test_production_inspection.py::test_human_approval_history_and_duplicate_replay
+tests/test_production_inspection.py::test_current_po_commitments_block_stale_candidate
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:325: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\tests\test_production_inspection.py:397: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    status='PROCESSING', lock_token='token', lease_expires_at=dt.datetime.utcnow() + dt.timedelta(minutes=3)))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+65 passed, 848 warnings in 5.67s

@@ -1,0 +1,34 @@
+FFE                                                                      [100%]
+=================================== ERRORS ====================================
+_ ERROR at teardown of test_mantle_inference_sends_configured_project_header __
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pydantic\main.py:1136: in __delattr__
+    object.__delattr__(self, item)
+E   AttributeError: 'Settings' object has no attribute 'MANTLE_PROJECT_ID'
+
+During handling of the above exception, another exception occurred:
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pydantic\main.py:1138: in __delattr__
+    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E   AttributeError: 'Settings' object has no attribute 'MANTLE_PROJECT_ID'
+================================== FAILURES ===================================
+_____ test_hybrid_preserves_actual_source_evidence_after_provider_return ______
+tests\test_mantle_live_path.py:23: in test_hybrid_preserves_actual_source_evidence_after_provider_return
+    result=adapter.extract_hybrid((PACK/'happy.pdf').read_bytes(),'happy.pdf','disposable')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+engine\hybrid_extractor.py:473: in extract_hybrid
+    evidence=source_evidence,
+             ^^^^^^^^^^^^^^^
+E   NameError: name 'source_evidence' is not defined
+____________ test_mantle_inference_sends_configured_project_header ____________
+tests\test_mantle_live_path.py:39: in test_mantle_inference_sends_configured_project_header
+    monkeypatch.setattr(settings,'MANTLE_PROJECT_ID','proj_disposable',raising=False)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pydantic\main.py:1048: in __setattr__
+    elif (setattr_handler := self._setattr_handler(name, value)) is not None:
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\pydantic\main.py:1095: in _setattr_handler
+    raise ValueError(f'"{cls.__name__}" object has no field "{name}"')
+E   ValueError: "Settings" object has no field "MANTLE_PROJECT_ID"
+=========================== short test summary info ===========================
+FAILED tests/test_mantle_live_path.py::test_hybrid_preserves_actual_source_evidence_after_provider_return
+FAILED tests/test_mantle_live_path.py::test_mantle_inference_sends_configured_project_header
+ERROR tests/test_mantle_live_path.py::test_mantle_inference_sends_configured_project_header
+2 failed, 1 error in 1.09s

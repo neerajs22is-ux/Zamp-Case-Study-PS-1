@@ -1,0 +1,23 @@
+fastapi 0.141.1 0 advisory entries 
+uvicorn 0.54.0 0 advisory entries 
+pydantic 2.13.4 0 advisory entries 
+pydantic-settings 2.14.2 0 advisory entries 
+pypdf 6.21.4 0 advisory entries 
+reportlab 5.0.1 0 advisory entries 
+pytest 9.0.3 0 advisory entries 
+pytest-asyncio 1.3.0 0 advisory entries 
+httpx 0.28.1 0 advisory entries 
+cryptography 50.0.2 0 advisory entries 
+sqlalchemy 2.0.45 0 advisory entries 
+alembic 1.20.1 0 advisory entries 
+python-jose 3.5.0 2 advisory entries 
+python-multipart 0.0.33 0 advisory entries 
+psycopg2-binary 2.9.11 0 advisory entries 
+psycopg 3.3.5 0 advisory entries 
+python-dateutil 2.9.0.post0 0 advisory entries 
+pypdfium2 5.14.0 0 advisory entries 
+pillow 13.0.0 0 advisory entries 
+pytesseract 0.3.13 0 advisory entries 
+pandas 3.0.5 0 advisory entries 
+starlette 1.7.0 0 advisory entries 
+C:\Zamp Casse Study\research\production_hardening_pypi_final.json

@@ -1,0 +1,24 @@
+{
+  "baseline.txt": "19 failed, 291 passed, 14 skipped, 1366 warnings, 10 errors in 30.88s",
+  "broad.txt": "320 passed, 26 skipped, 2156 warnings in 25.59s",
+  "reverse.txt": "320 passed, 26 skipped, 2156 warnings in 24.39s",
+  "focused.txt": "95 passed, 648 warnings in 11.33s",
+  "postgres.txt": "36 passed, 354 warnings in 34.23s",
+  "bundle_hygiene.txt": "1 passed in 0.67s",
+  "postgres_before_identity_fix.txt": "1 failed, 7 passed, 135 warnings in 17.16s",
+  "diff_check.txt": "see raw log",
+  "postgresql": "PostgreSQL 17.11 Windows x64 / MSVC 19.44.35228",
+  "postgresql_archive_sha256": "4B8DB0930C38F6EF845DB919551DEDDA3B6B845AEB0927B3D79A6E8E9E4537CF",
+  "real_postgresql_cases": 23,
+  "postgres_selection_supporting_sqlite_cases": 13,
+  "evidence_sha256": {
+    "baseline.txt": "784aa4c7c720593316bfc89a743f742061681d6e2eb343ab5aae89c4be7e51f1",
+    "broad.txt": "1b25721376661aabae9daae0dfbd496041fe6dcb95ac0a84ad873be9ecca31bf",
+    "bundle_hygiene.txt": "fbc152957b35a7a3a4725c17e32918f23f5bd96cce7574aa2d01ba5068369be2",
+    "diff_check.txt": "50fce51582a7202475189619b3ae850fdb86d2163cc8cc856d228268e123ab05",
+    "focused.txt": "1dedce3aea8be185e5ec7d70a8341286694c96a61bb95d3368f1b77983097cb6",
+    "postgres.txt": "511d7e2db7ae123911b4376fc60d0a7185bc5c211b436896c448917e4a6bb7c5",
+    "postgres_before_identity_fix.txt": "2ef8af0b3d18d32ae93e36b021bea2a6a3fbd7c03be0144538935e0e11c8fcb6",
+    "reverse.txt": "b30f31981fbcc345b37987398a830c92b9c3e423728392c57a7f379b8126a403"
+  }
+}

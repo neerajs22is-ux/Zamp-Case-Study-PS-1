@@ -1,0 +1,22 @@
+[
+  {
+    "package": "ecdsa",
+    "version": "0.19.2",
+    "id": "PYSEC-2026-1325",
+    "aliases": [
+      "CVE-2024-23342",
+      "GHSA-wj6h-64fc-37mp"
+    ],
+    "fix_versions": []
+  },
+  {
+    "package": "python-jose",
+    "version": "3.5.0",
+    "id": "PYSEC-2026-4298",
+    "aliases": [
+      "CVE-2026-85394",
+      "GHSA-3qf3-8w2g-rqmx"
+    ],
+    "fix_versions": []
+  }
+]

@@ -1,0 +1,246 @@
+Disposable PostgreSQL on loopback port 63925; no application server
+...F....                                                                 [100%]
+================================== FAILURES ===================================
+________ test_invitation_cannot_take_over_different_existing_identity _________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\psycopg\cursor.py:117: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.ForeignKeyViolation: insert or update on table "role_assignments" violates foreign key constraint "role_assignments_user_id_fkey"
+E   DETAIL:  Key is not present in table "users".
+
+The above exception was the direct cause of the following exception:
+tests\postgres\test_migrations_and_financial_concurrency.py:218: in test_invitation_cannot_take_over_different_existing_identity
+    response = pg_client.post('/api/v1/auth/invitations/accept', headers=headers('different-subject', 'lead@example.test'), json={'token':'disposable-token'})
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\httpx\_client.py:1144: in post
+    return self.request(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\testclient.py:463: in request
+    return super().request(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\testclient.py:360: in handle_request
+    raise exc
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\testclient.py:357: in handle_request
+    portal.call(self.app, scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\anyio\from_thread.py:334: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\anyio\from_thread.py:259: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\base.py:197: in __call__
+    response = await self.dispatch_func(request, call_next)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\main.py:71: in add_security_headers
+    response = await call_next(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\base.py:173: in call_next
+    raise app_exc from app_exc.__cause__ or app_exc.__context__
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\base.py:149: in coro
+    await self.app(scope, receive_or_disconnect, send_no_error)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\cors.py:91: in __call__
+    await self.simple_response(scope, receive, send, request_headers=headers)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\cors.py:149: in simple_response
+    await self.app(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\routing.py:676: in __call__
+    await self.middleware_stack(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:2734: in app
+    await route.handle(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:1780: in handle
+    await self.original_router.handle(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:2789: in handle
+    await included_router._handle_selected(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:1800: in _handle_selected
+    await original_route.handle(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:1279: in handle
+    await app(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:144: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:706: in app
+    raw_response = await run_endpoint_function(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\routing.py:354: in run_endpoint_function
+    return await run_in_threadpool(dependant.call, **values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\starlette\concurrency.py:34: in run_in_threadpool
+    return await anyio.to_thread.run_sync(func)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\anyio\to_thread.py:63: in run_sync
+    return await get_async_backend().run_sync_in_worker_thread(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\anyio\_backends\_asyncio.py:2518: in run_sync_in_worker_thread
+    return await future
+           ^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\anyio\_backends\_asyncio.py:1002: in run
+    result = context.run(func, *args)
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+backend\api\v1\auth.py:504: in accept_invitation
+    db.commit()
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2030: in commit
+    trans.commit(_to_root=True)
+<string>:2: in commit
+    ???
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:1311: in commit
+    self._prepare_impl()
+<string>:2: in _prepare_impl
+    ???
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\state_changes.py:137: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:1286: in _prepare_impl
+    self.session.flush()
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:4331: in flush
+    self._flush(objects)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:4466: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\util\langhelpers.py:224: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:4427: in _flush
+    flush_context.execute()
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\unitofwork.py:466: in execute
+    rec.execute(self)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\persistence.py:93: in save_obj
+    _emit_insert_statements(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\persistence.py:1048: in _emit_insert_statements
+    result = connection.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\psycopg\cursor.py:117: in execute
+    raise ex.with_traceback(None)
+E   sqlalchemy.exc.IntegrityError: (psycopg.errors.ForeignKeyViolation) insert or update on table "role_assignments" violates foreign key constraint "role_assignments_user_id_fkey"
+E   DETAIL:  Key is not present in table "users".
+E   [SQL: INSERT INTO role_assignments (id, org_id, user_id, role_name, granted_at) VALUES (%(id)s::VARCHAR, %(org_id)s::VARCHAR, %(user_id)s::VARCHAR, %(role_name)s::VARCHAR, %(granted_at)s::TIMESTAMP WITHOUT TIME ZONE)]
+E   [parameters: {'id': 'role_51806d1d8f4d', 'org_id': 'a', 'user_id': 'different-subject', 'role_name': 'AP_ASSOCIATE', 'granted_at': datetime.datetime(2026, 11, 6, 13, 4, 45, 750541)}]
+E   (Background on this error at: https://sqlalche.me/e/20/gkpj)
+---------------------------- Captured stderr setup ----------------------------
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> 001_initial_schema, 001 Initial Schema & Append-Only Audit Trigger
+INFO  [alembic.runtime.migration] Running upgrade 001_initial_schema -> 002_tenant_isolation_and_rls, 002 Tenant Isolation, Composite Constraints & PostgreSQL RLS
+INFO  [alembic.runtime.migration] Running upgrade 002_tenant_isolation_and_rls -> 003_stage2_auth_and_provisioning, 003 Stage 2 Auth, Invitations, Access Requests & RLS Bootstrap
+INFO  [alembic.runtime.migration] Running upgrade 003_stage2_auth_and_provisioning -> 004_stage4_gmail_ingestion, 004 Stage 4 Gmail OAuth and Ingestion Schema Migration
+INFO  [alembic.runtime.migration] Running upgrade 004_stage4_gmail_ingestion -> 005_stage5_gmail_pubsub, 005 Stage 5 Gmail PubSub Push, History Sync & OAuth Nonce Schema Migration
+INFO  [alembic.runtime.migration] Running upgrade 005_stage5_gmail_pubsub -> 006_stage51_mailbox_lock, 006 Stage 5.1 Mailbox Processing Lease & Lock Schema Migration
+INFO  [alembic.runtime.migration] Running upgrade 006_stage51_mailbox_lock -> 007_stage52_pubsub_recovery, 007 Stage 5.2 PubSub Event Retry Count and Last Attempted At Schema Migration
+INFO  [alembic.runtime.migration] Running upgrade 007_stage52_pubsub_recovery -> 008_phase1_durable_jobs, 008 Phase 1 Durable Jobs & Workflow
+INFO  [alembic.runtime.migration] Running upgrade 008_phase1_durable_jobs -> 009_phase_a_core, 009 Phase A Core Improvements
+INFO  [alembic.runtime.migration] Running upgrade 009_phase_a_core -> 010_identity_memberships, Bind verified identity subjects to tenant user records without rewriting history.
+INFO  [alembic.runtime.migration] Running upgrade 010_identity_memberships -> 011_require_assigned_roles, Require an explicit role for legacy identities; preserve users and audit actors.
+INFO  [alembic.runtime.migration] Running upgrade 011_require_assigned_roles -> 012_invitation_utc_expiry, Compare UTC-naive invitation expiry independently of PostgreSQL timezone.
+============================== warnings summary ===============================
+..\Users\91973\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\testclient.py:1
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/postgres/test_migrations_and_financial_concurrency.py: 8 warnings
+tests/phase_b/test_identity_memberships_postgres.py: 1 warning
+tests/phase_b/test_workspace_postgres.py: 1 warning
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\alembic\config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+tests/postgres/test_migrations_and_financial_concurrency.py: 88 warnings
+tests/phase_b/test_identity_memberships_postgres.py: 10 warnings
+tests/phase_b/test_workspace_postgres.py: 4 warnings
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_real_signed_identity_wrong_account_expiry_and_replay
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_real_signed_identity_wrong_account_expiry_and_replay
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_cannot_take_over_different_existing_identity
+  C:\Zamp Casse Study\tests\postgres\test_migrations_and_financial_concurrency.py:187: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    expires_at=dt.datetime.utcnow() + dt.timedelta(hours=-1 if expired else 1), status='PENDING'))
+
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_real_signed_identity_wrong_account_expiry_and_replay
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_real_signed_identity_wrong_account_expiry_and_replay
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_real_signed_identity_wrong_account_expiry_and_replay
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_real_signed_identity_wrong_account_expiry_and_replay
+tests/postgres/test_migrations_and_financial_concurrency.py::test_invitation_cannot_take_over_different_existing_identity
+tests/phase_b/test_workspace_postgres.py::test_invitation_accepted_under_rls_and_cannot_be_replayed
+tests/phase_b/test_workspace_postgres.py::test_invitation_accepted_under_rls_and_cannot_be_replayed
+tests/phase_b/test_workspace_postgres.py::test_invitation_accepted_under_rls_and_cannot_be_replayed
+  C:\Zamp Casse Study\backend\api\v1\auth.py:409: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_po_commitments_cannot_approve_beyond_balance
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_po_commitments_cannot_approve_beyond_balance
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_po_commitments_cannot_approve_beyond_balance
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_po_commitments_cannot_approve_beyond_balance
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_same_invoice_approval_is_idempotent
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_same_invoice_approval_is_idempotent
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:569: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_po_commitments_cannot_approve_beyond_balance
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_po_commitments_cannot_approve_beyond_balance
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_same_invoice_approval_is_idempotent
+tests/postgres/test_migrations_and_financial_concurrency.py::test_concurrent_same_invoice_approval_is_idempotent
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:312: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_b/test_workspace_postgres.py::test_invitation_accepted_under_rls_and_cannot_be_replayed
+  C:\Zamp Casse Study\tests\phase_b\test_workspace_postgres.py:24: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+1 failed, 7 passed, 135 warnings in 17.16s
+Stopped and removed owned disposable PostgreSQL cluster

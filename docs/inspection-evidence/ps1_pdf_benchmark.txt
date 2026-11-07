@@ -1,0 +1,5 @@
+HP-01-Happy-Path AUTO_APPROVED True 4.14
+EC-01-Split-PO-Overrun FLAGGED_HITL_REVIEW True 2.54
+EC-02-Duplicate-Submission REJECTED True 2.22
+EC-03-Price-Spike-Variance FLAGGED_HITL_REVIEW True 2.19
+EC-04-Low-Res-Missing-PO FLAGGED_HITL_REVIEW True 2.32

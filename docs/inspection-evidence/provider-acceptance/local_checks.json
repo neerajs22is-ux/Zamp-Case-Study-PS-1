@@ -1,0 +1,58 @@
+{
+  "mode": "READ_ONLY_LOCAL_PREPARATION_CHECKS_NOT_PROVIDER_ACCEPTANCE",
+  "checks": [
+    {
+      "case": "happy",
+      "check": "supplied ground-truth schema, source occurrence, arithmetic and local SHA-256 only",
+      "passed": true,
+      "verified_ground_truth_fields": 16,
+      "unverified_fields": [],
+      "elapsed_ms": 4.788,
+      "acceptance_observed": null
+    },
+    {
+      "case": "identical_duplicate",
+      "check": "exact duplicate input references the happy PDF bytes",
+      "passed": true,
+      "acceptance_observed": null
+    },
+    {
+      "case": "price_variance",
+      "check": "supplied ground-truth schema, source occurrence, arithmetic and local SHA-256 only",
+      "passed": true,
+      "verified_ground_truth_fields": 16,
+      "unverified_fields": [],
+      "elapsed_ms": 3.766,
+      "acceptance_observed": null
+    },
+    {
+      "case": "missing_qc",
+      "check": "supplied ground-truth schema, source occurrence, arithmetic and local SHA-256 only",
+      "passed": true,
+      "verified_ground_truth_fields": 16,
+      "unverified_fields": [],
+      "elapsed_ms": 4.026,
+      "acceptance_observed": null
+    },
+    {
+      "case": "payment_receipt",
+      "check": "supplied ground-truth schema, source occurrence, arithmetic and local SHA-256 only",
+      "passed": true,
+      "verified_ground_truth_fields": 16,
+      "unverified_fields": [],
+      "elapsed_ms": 4.566,
+      "acceptance_observed": null
+    },
+    {
+      "case": "synthetic_procurement",
+      "check": "single-page reference PDF and local SHA-256",
+      "passed": true
+    }
+  ],
+  "provider_latency_ms": null,
+  "provider_tokens": null,
+  "provider_cost_usd": null,
+  "tenant_isolation_live_test": "NOT_RUN",
+  "external_requests": 0,
+  "pdf_render_review": "All five one-page renders visually inspected; no observed clipping/overlap. Poppler emitted Symbol/ArialUnicode font notices; rendered fixture text remained legible."
+}

@@ -1,0 +1,22 @@
+{
+  "baseline_tests.txt": "25 failed, 239 passed, 14 skipped, 940 warnings, 10 errors in 12.77s",
+  "baseline_adversarial.txt": "16 failed, 6 passed, 128 warnings in 1.71s",
+  "final_tests.txt": "19 failed, 291 passed, 14 skipped, 1366 warnings, 10 errors in 19.49s",
+  "focused_checks.txt": "95 passed, 648 warnings in 7.92s",
+  "baseline_lint_warnings": 28,
+  "final_lint_warnings": 28,
+  "evidence_sha256": {
+    "baseline_adversarial.txt": "13be9de4bbb70e9a1d884fd50842265532f0fdb59c7cc981e105c717fc6811e7",
+    "baseline_build.txt": "06d20e61f64c194f99d87983680eccc08cb725f792cbf3451fc3121729bc0ec3",
+    "baseline_lint.txt": "bd72ffca8131c9f52adcdc5dcbda0546dcc81c13c60e2165b5e26fac73f8f99a",
+    "baseline_tests.txt": "01edec6ad3be64dda476136864b5e0a37871232db834858856040af37dd1a40f",
+    "dependency_versions_final.txt": "f70fa0cf34a94fe07d48d5bf7ef574453ef66627c651dad86a80cc0ca179a4a8",
+    "final_build.txt": "31ddd1c5c661b643f26df045fe4550c73194291867002b0518fb27f6c690c6de",
+    "final_lint.txt": "809f57c0ed2128aa765de0c7efd4a0b651611fd6203b49af8375e6d655b1430c",
+    "final_tests.txt": "e8b13175427c2c0b5b1caa99326383cdf9a132e4439603804ddd381145496fdf",
+    "focused_checks.txt": "fc704066150ff454065eb76d65261e0e1a5a4ac3d3a99b8b49ad0cc6e0b65764",
+    "ps1_pdf_benchmark.json": "8ca0c7fa6cb328791d0675a5f22c09400c6dcdb476890227e3252bc6a3cb7fb8",
+    "ps1_pdf_benchmark.txt": "e8845be22ab46db559703cce14840431a3a4dfe430e42dafad33a49e570e06c4",
+    "ui_detector.json": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+  }
+}

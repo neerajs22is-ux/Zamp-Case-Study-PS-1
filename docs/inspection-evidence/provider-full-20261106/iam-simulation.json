@@ -1,0 +1,32 @@
+[
+  {
+    "test": "configured_model",
+    "project": "owned",
+    "decision": "allowed"
+  },
+  {
+    "test": "configured_model",
+    "project": "default",
+    "decision": "implicitDeny"
+  },
+  {
+    "test": "other_model",
+    "project": "owned",
+    "decision": "implicitDeny"
+  },
+  {
+    "test": "other_model",
+    "project": "default",
+    "decision": "implicitDeny"
+  },
+  {
+    "test": "other_region",
+    "project": "owned",
+    "decision": "implicitDeny"
+  },
+  {
+    "test": "other_region",
+    "project": "default",
+    "decision": "implicitDeny"
+  }
+]

@@ -1,0 +1,45 @@
+...........................................s.............sssssssss...... [ 18%]
+....................................................................s... [ 37%]
+...........s.....................s.........................s............ [ 55%]
+.........................ssssssssssssssssssssssssssss................... [ 74%]
+........................................................................ [ 92%]
+.............................                                            [100%]
+=========================== short test summary info ===========================
+SKIPPED [1] tests\phase_b\test_identity_memberships_postgres.py:22: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:437: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:445: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:453: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:465: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:473: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:481: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:489: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:497: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:511: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage5_gmail_pubsub.py:890: Live Google Cloud Pub/Sub tests require LIVE_GMAIL_TESTS=1 and real GCP credentials.
+SKIPPED [1] tests\phase_b\test_stage6_backup_recovery.py:662: Live Supabase backup & restoration test BLOCKED: Dedicated Supabase project credentials (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) not configured in local environment.
+SKIPPED [1] tests\phase_b\test_stage7_cloudrun_deployment.py:408: Docker daemon is not running on host. Live image build is BLOCKED.
+SKIPPED [1] tests\phase_b\test_workspace_postgres.py:18: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:57: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:66: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:80: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:112: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:129: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:250: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:337: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:405: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:424: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:436: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [3] tests\postgres\test_migrations_and_financial_concurrency.py:449: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:470: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:495: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:525: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:567: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:592: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [2] tests\postgres\test_pipeline_lease_reliability_postgres.py:78: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [3] tests\postgres\test_pipeline_lease_reliability_postgres.py:111: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:160: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:184: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:195: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:231: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_processing_events_postgres.py:16: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+347 passed, 42 skipped, 2813 warnings in 27.45s

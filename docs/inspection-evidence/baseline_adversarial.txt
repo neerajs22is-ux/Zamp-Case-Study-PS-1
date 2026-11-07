@@ -1,0 +1,371 @@
+FFFF.FFFF.FFF.F...FFFF                                                   [100%]
+================================== FAILURES ===================================
+_ test_amount_grounding_rejects_integer_and_substring_collisions[123.99-Invoice INV-100 PO-100 Supplier ID 912345] _
+
+total = 123.99, text = 'Invoice INV-100 PO-100 Supplier ID 912345'
+
+    @pytest.mark.parametrize('total,text', [(123.99, 'Invoice INV-100 PO-100 Supplier ID 912345'), (123.99, 'Invoice INV-100 Total 123.00')])
+    def test_amount_grounding_rejects_integer_and_substring_collisions(total, text):
+        ext = MantleInvoiceExtraction(supplier_name='Acme', invoice_number='INV-100', grand_total=total)
+        passed, fields, _ = verify_extracted_evidence(ext, [(1, text)])
+>       assert not passed and 'grand_total' in fields
+E       assert (not True)
+
+tests\test_production_inspection.py:88: AssertionError
+_ test_amount_grounding_rejects_integer_and_substring_collisions[123.99-Invoice INV-100 Total 123.00] _
+
+total = 123.99, text = 'Invoice INV-100 Total 123.00'
+
+    @pytest.mark.parametrize('total,text', [(123.99, 'Invoice INV-100 PO-100 Supplier ID 912345'), (123.99, 'Invoice INV-100 Total 123.00')])
+    def test_amount_grounding_rejects_integer_and_substring_collisions(total, text):
+        ext = MantleInvoiceExtraction(supplier_name='Acme', invoice_number='INV-100', grand_total=total)
+        passed, fields, _ = verify_extracted_evidence(ext, [(1, text)])
+>       assert not passed and 'grand_total' in fields
+E       assert (not True)
+
+tests\test_production_inspection.py:88: AssertionError
+_______ test_evidence_uses_real_page_and_resets_model_self_attestation ________
+
+    def test_evidence_uses_real_page_and_resets_model_self_attestation():
+        ext = MantleInvoiceExtraction(supplier_name='Acme', invoice_number='INV-100', grand_total=118,
+            po_reference='PO-100', evidence={'po_reference': {'field_name': 'po_reference', 'extracted_value': 'PO-100', 'is_verified': True}})
+        passed, fields, evidence = verify_extracted_evidence(ext, [(4, 'Invoice INV-100 Acme total 118.00')])
+        assert not passed and 'po_reference' in fields
+>       assert not evidence['po_reference'].is_verified
+E       AssertionError: assert not True
+E        +  where True = FieldEvidence(field_name='po_reference', extracted_value='PO-100', page_number=1, raw_snippet=None, is_verified=True).is_verified
+
+tests\test_production_inspection.py:96: AssertionError
+___________ test_model_financial_output_rejects_nonfinite[Infinity] ___________
+
+value = 'Infinity'
+
+    @pytest.mark.parametrize('value', ['Infinity', 'NaN', float('inf')])
+    def test_model_financial_output_rejects_nonfinite(value):
+>       with pytest.raises(ValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'pydantic_core._pydantic_core.ValidationError'>
+
+tests\test_production_inspection.py:102: Failed
+_____________ test_model_financial_output_rejects_nonfinite[inf] ______________
+
+value = inf
+
+    @pytest.mark.parametrize('value', ['Infinity', 'NaN', float('inf')])
+    def test_model_financial_output_rejects_nonfinite(value):
+>       with pytest.raises(ValidationError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'pydantic_core._pydantic_core.ValidationError'>
+
+tests\test_production_inspection.py:102: Failed
+________________ test_wrong_tax_type_blocks_math_valid_result _________________
+
+    def test_wrong_tax_type_blocks_math_valid_result():
+        ext = MantleInvoiceExtraction(supplier_name='Acme', supplier_gstin='29ABCDE1234F1Z5',
+            place_of_supply='Karnataka', taxable_value=100, igst_amount=18, total_tax_amount=18, grand_total=118)
+        result = IndianAPRuleEngine().verify_tax_arithmetic(ext)
+>       assert not result.is_valid
+E       AssertionError: assert not True
+E        +  where True = TaxArithmeticResult(is_valid=True, calculated_tax=18.0, calculated_grand_total=118.0, tax_discrepancy=0.0, total_discrepancy=0.0, tax_type_valid=False, notes=['Intrastate transaction (Karnataka) should have CGST+SGST, not IGST.']).is_valid
+
+tests\test_production_inspection.py:110: AssertionError
+_____________ test_approval_requires_complete_passed_match[None] ______________
+
+db = <sqlalchemy.orm.session.Session object at 0x00000212001BD9A0>
+actor = AuthenticatedUser(id='lead', auth_subject=None, identity_issuer=None, email='lead@example.test', name='Lead', role=<Us...=None, is_provisioned=True, is_owner=False, workspace_selection_required=False, available_orgs=[], legal_entity_ids=[])
+status = None
+
+    @pytest.mark.parametrize('status', [None, 'NOT_EVALUATED', 'FAIL'])
+    def test_approval_requires_complete_passed_match(db, actor, status):
+        invoice(db)
+        if status:
+            db.add(MatchRun(id='mr', org_id='a', invoice_id='inv', policy_version='test', overall_result='PASS'))
+            for n in range(1, 8):
+                db.add(MatchGateCheck(id=f'g{n}', org_id='a', match_run_id='mr', gate_number=n,
+                    gate_name=f'Gate {n}', status=status if n == 2 else 'PASS'))
+            db.commit()
+>       with pytest.raises(HTTPException) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'fastapi.exceptions.HTTPException'>
+
+tests\test_production_inspection.py:122: Failed
+_________ test_approval_requires_complete_passed_match[NOT_EVALUATED] _________
+
+db = <sqlalchemy.orm.session.Session object at 0x000002127E99BEC0>
+actor = AuthenticatedUser(id='lead', auth_subject=None, identity_issuer=None, email='lead@example.test', name='Lead', role=<Us...=None, is_provisioned=True, is_owner=False, workspace_selection_required=False, available_orgs=[], legal_entity_ids=[])
+status = 'NOT_EVALUATED'
+
+    @pytest.mark.parametrize('status', [None, 'NOT_EVALUATED', 'FAIL'])
+    def test_approval_requires_complete_passed_match(db, actor, status):
+        invoice(db)
+        if status:
+            db.add(MatchRun(id='mr', org_id='a', invoice_id='inv', policy_version='test', overall_result='PASS'))
+            for n in range(1, 8):
+                db.add(MatchGateCheck(id=f'g{n}', org_id='a', match_run_id='mr', gate_number=n,
+                    gate_name=f'Gate {n}', status=status if n == 2 else 'PASS'))
+            db.commit()
+>       with pytest.raises(HTTPException) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'fastapi.exceptions.HTTPException'>
+
+tests\test_production_inspection.py:122: Failed
+_________________ test_rejected_invoice_cannot_be_resurrected _________________
+
+db = <sqlalchemy.orm.session.Session object at 0x00000212007C5160>
+actor = AuthenticatedUser(id='lead', auth_subject=None, identity_issuer=None, email='lead@example.test', name='Lead', role=<Us...=None, is_provisioned=True, is_owner=False, workspace_selection_required=False, available_orgs=[], legal_entity_ids=[])
+
+    def test_rejected_invoice_cannot_be_resurrected(db, actor):
+        invoice(db, stage='REJECTED', decision='REJECTED')
+>       with pytest.raises(HTTPException):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'fastapi.exceptions.HTTPException'>
+
+tests\test_production_inspection.py:129: Failed
+______________ test_upload_without_database_never_writes_storage ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021240A8C140>
+actor = AuthenticatedUser(id='lead', auth_subject=None, identity_issuer=None, email='lead@example.test', name='Lead', role=<Us...=None, is_provisioned=True, is_owner=False, workspace_selection_required=False, available_orgs=[], legal_entity_ids=[])
+
+    def test_upload_without_database_never_writes_storage(monkeypatch, actor):
+        storage = MagicMock()
+        monkeypatch.setattr(documents, 'storage_adapter', storage)
+>       with pytest.raises(HTTPException) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'fastapi.exceptions.HTTPException'>
+
+tests\test_production_inspection.py:136: Failed
+___________________ test_preview_detects_storage_tampering ____________________
+
+db = <sqlalchemy.orm.session.Session object at 0x0000021240B9FBC0>
+actor = AuthenticatedUser(id='lead', auth_subject=None, identity_issuer=None, email='lead@example.test', name='Lead', role=<Us...=None, is_provisioned=True, is_owner=False, workspace_selection_required=False, available_orgs=[], legal_entity_ids=[])
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021240B9CB60>
+
+    def test_preview_detects_storage_tampering(db, actor, monkeypatch):
+        content = pdf_bytes()
+        db.add(Document(id='doc', org_id='a', filename='invoice.pdf', mime_type='application/pdf',
+            file_size_bytes=len(content), sha256_hash=hashlib.sha256(content).hexdigest(), storage_provider='test', storage_key='test'))
+        db.commit()
+        monkeypatch.setattr(documents, 'storage_adapter', SimpleNamespace(get_file=lambda key: b'%PDF-tampered'))
+>       with pytest.raises(HTTPException) as exc:
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'fastapi.exceptions.HTTPException'>
+
+tests\test_production_inspection.py:148: Failed
+_________________ test_tenant_source_record_matching[overrun] _________________
+
+db = <sqlalchemy.orm.session.Session object at 0x0000021240B8F980>
+scenario = 'overrun'
+
+    @pytest.mark.parametrize('scenario', ['clean', 'overrun', 'price', 'duplicate', 'other_tenant', 'receipt_qty', 'vendor'])
+    def test_tenant_source_record_matching(db, scenario):
+        inv = invoice(db)
+        reference_data(db, org='b' if scenario == 'other_tenant' else 'a')
+        qty, rate = (1, 135) if scenario == 'price' else (1, 100)
+        db.add(InvoiceLine(id='line', org_id='a', invoice_id='inv', line_number=1,
+            description='Widget', billed_quantity=qty, billed_unit_rate=rate, billed_line_total=qty * rate))
+        if scenario == 'overrun':
+            db.get(WorkOrderSnapshot, 'po').remaining_balance = 50
+        if scenario == 'duplicate':
+            invoice(db, id='prior')
+        if scenario == 'receipt_qty':
+            db.get(GoodsReceiptLineSnapshot, 'grnl').accepted_quantity = 0
+        if scenario == 'vendor':
+            db.get(VendorGSTIN, 'vg').status = 'INACTIVE'
+        db.commit()
+        result = invoices.reevaluate_match_gates(db, inv, 'a')
+>       assert (result.overall_result == 'PASS') == (scenario == 'clean')
+E       AssertionError: assert ('PASS' == 'PASS'
+E         
+E           PASS) == ('overrun' == 'clean'
+E         
+E         - clean
+E         + overrun)
+
+tests\test_production_inspection.py:170: AssertionError
+_______________ test_tenant_source_record_matching[receipt_qty] _______________
+
+db = <sqlalchemy.orm.session.Session object at 0x0000021240BF2EA0>
+scenario = 'receipt_qty'
+
+    @pytest.mark.parametrize('scenario', ['clean', 'overrun', 'price', 'duplicate', 'other_tenant', 'receipt_qty', 'vendor'])
+    def test_tenant_source_record_matching(db, scenario):
+        inv = invoice(db)
+        reference_data(db, org='b' if scenario == 'other_tenant' else 'a')
+        qty, rate = (1, 135) if scenario == 'price' else (1, 100)
+        db.add(InvoiceLine(id='line', org_id='a', invoice_id='inv', line_number=1,
+            description='Widget', billed_quantity=qty, billed_unit_rate=rate, billed_line_total=qty * rate))
+        if scenario == 'overrun':
+            db.get(WorkOrderSnapshot, 'po').remaining_balance = 50
+        if scenario == 'duplicate':
+            invoice(db, id='prior')
+        if scenario == 'receipt_qty':
+            db.get(GoodsReceiptLineSnapshot, 'grnl').accepted_quantity = 0
+        if scenario == 'vendor':
+            db.get(VendorGSTIN, 'vg').status = 'INACTIVE'
+        db.commit()
+        result = invoices.reevaluate_match_gates(db, inv, 'a')
+>       assert (result.overall_result == 'PASS') == (scenario == 'clean')
+E       AssertionError: assert ('PASS' == 'PASS'
+E         
+E           PASS) == ('receipt_qty' == 'clean'
+E         
+E         - clean
+E         + receipt_qty)
+
+tests\test_production_inspection.py:170: AssertionError
+_________________ test_tenant_source_record_matching[vendor] __________________
+
+db = <sqlalchemy.orm.session.Session object at 0x0000021240AD9FA0>
+scenario = 'vendor'
+
+    @pytest.mark.parametrize('scenario', ['clean', 'overrun', 'price', 'duplicate', 'other_tenant', 'receipt_qty', 'vendor'])
+    def test_tenant_source_record_matching(db, scenario):
+        inv = invoice(db)
+        reference_data(db, org='b' if scenario == 'other_tenant' else 'a')
+        qty, rate = (1, 135) if scenario == 'price' else (1, 100)
+        db.add(InvoiceLine(id='line', org_id='a', invoice_id='inv', line_number=1,
+            description='Widget', billed_quantity=qty, billed_unit_rate=rate, billed_line_total=qty * rate))
+        if scenario == 'overrun':
+            db.get(WorkOrderSnapshot, 'po').remaining_balance = 50
+        if scenario == 'duplicate':
+            invoice(db, id='prior')
+        if scenario == 'receipt_qty':
+            db.get(GoodsReceiptLineSnapshot, 'grnl').accepted_quantity = 0
+        if scenario == 'vendor':
+            db.get(VendorGSTIN, 'vg').status = 'INACTIVE'
+        db.commit()
+        result = invoices.reevaluate_match_gates(db, inv, 'a')
+>       assert (result.overall_result == 'PASS') == (scenario == 'clean')
+E       AssertionError: assert ('PASS' == 'PASS'
+E         
+E           PASS) == ('vendor' == 'clean'
+E         
+E         - clean
+E         + vendor)
+
+tests\test_production_inspection.py:170: AssertionError
+____ test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True] ____
+
+db = <sqlalchemy.orm.session.Session object at 0x0000021240BF1250>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021240C76E70>
+recommendation = 'REJECTED', grounded = True
+
+    @pytest.mark.parametrize('recommendation,grounded', [('REJECTED', True), ('FLAGGED_HITL_REVIEW', False)])
+    def test_pipeline_preserves_rejection_and_ungrounded_state(db, monkeypatch, recommendation, grounded):
+        inv = invoice(db, stage='RECEIVED', decision='NEEDS_REVIEW')
+        reference_data(db)
+        content = pdf_bytes()
+        db.add(Document(id='doc', org_id='a', invoice_id='inv', filename='invoice.pdf', mime_type='application/pdf',
+            file_size_bytes=len(content), sha256_hash=hashlib.sha256(content).hexdigest(), storage_provider='test', storage_key='test'))
+        db.add(IngestionJob(id='job', org_id='a', document_id='doc', idempotency_key='test', source_channel='MANUAL_UPLOAD',
+            status='PROCESSING', lock_token='token', lease_expires_at=dt.datetime.utcnow() + dt.timedelta(minutes=3)))
+        db.commit()
+        result = HybridProcessingResult(document_id='doc', filename='invoice.pdf', sha256_hash=hashlib.sha256(content).hexdigest(),
+            document_type='PAYMENT_RECEIPT' if recommendation == 'REJECTED' else 'INVOICE', is_payable_invoice=recommendation != 'REJECTED',
+            supplier_name='Acme', supplier_gstin='29ABCDE1234F1Z5', invoice_number='INV-100', invoice_date='2026-10-01',
+            po_reference='PO-100', currency='INR', taxable_value=100, cgst_amount=9, sgst_amount=9, igst_amount=0,
+            total_tax_amount=18, grand_total=118, line_items=[dict(description='Widget', quantity=1, unit_price=100, total_amount=100)],
+            grounding_tripwire_passed=grounded, unverified_fields=[] if grounded else ['grand_total'],
+            tax_arithmetic=TaxArithmeticResult(True, 18, 118, 0, 0, True),
+            three_way_match=ThreeWayMatchResult(True, True, True, True, True, True, match_status='MATCH_CANDIDATE'),
+            duplicate_check=DuplicateCheckResult(False), final_decision=recommendation,
+            decision_reasons=['Not payable' if recommendation == 'REJECTED' else 'Ungrounded total'], audit_notes='test', pipeline_mode='hybrid')
+        monkeypatch.setattr(pipeline, 'storage_adapter', SimpleNamespace(get_file=lambda key: content))
+        extractor = SimpleNamespace(extract_hybrid=lambda **kw: result)
+        outcome = pipeline.execute_document_pipeline('job', 'token', db, extractor)
+        assert outcome['status'] == 'COMPLETED'
+>       assert inv.decision != 'MATCH_CANDIDATE'
+E       AssertionError: assert 'MATCH_CANDIDATE' != 'MATCH_CANDIDATE'
+E        +  where 'MATCH_CANDIDATE' = <backend.models.domain.Invoice object at 0x0000021240C779B0>.decision
+
+tests\test_production_inspection.py:197: AssertionError
+------------------------------ Captured log call ------------------------------
+INFO     ap_pipeline:pipeline.py:467 Pipeline successfully completed for job job (Invoice: inv)
+_ test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False] _
+
+db = <sqlalchemy.orm.session.Session object at 0x0000021240CD0BF0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021240CAB3B0>
+recommendation = 'FLAGGED_HITL_REVIEW', grounded = False
+
+    @pytest.mark.parametrize('recommendation,grounded', [('REJECTED', True), ('FLAGGED_HITL_REVIEW', False)])
+    def test_pipeline_preserves_rejection_and_ungrounded_state(db, monkeypatch, recommendation, grounded):
+        inv = invoice(db, stage='RECEIVED', decision='NEEDS_REVIEW')
+        reference_data(db)
+        content = pdf_bytes()
+        db.add(Document(id='doc', org_id='a', invoice_id='inv', filename='invoice.pdf', mime_type='application/pdf',
+            file_size_bytes=len(content), sha256_hash=hashlib.sha256(content).hexdigest(), storage_provider='test', storage_key='test'))
+        db.add(IngestionJob(id='job', org_id='a', document_id='doc', idempotency_key='test', source_channel='MANUAL_UPLOAD',
+            status='PROCESSING', lock_token='token', lease_expires_at=dt.datetime.utcnow() + dt.timedelta(minutes=3)))
+        db.commit()
+        result = HybridProcessingResult(document_id='doc', filename='invoice.pdf', sha256_hash=hashlib.sha256(content).hexdigest(),
+            document_type='PAYMENT_RECEIPT' if recommendation == 'REJECTED' else 'INVOICE', is_payable_invoice=recommendation != 'REJECTED',
+            supplier_name='Acme', supplier_gstin='29ABCDE1234F1Z5', invoice_number='INV-100', invoice_date='2026-10-01',
+            po_reference='PO-100', currency='INR', taxable_value=100, cgst_amount=9, sgst_amount=9, igst_amount=0,
+            total_tax_amount=18, grand_total=118, line_items=[dict(description='Widget', quantity=1, unit_price=100, total_amount=100)],
+            grounding_tripwire_passed=grounded, unverified_fields=[] if grounded else ['grand_total'],
+            tax_arithmetic=TaxArithmeticResult(True, 18, 118, 0, 0, True),
+            three_way_match=ThreeWayMatchResult(True, True, True, True, True, True, match_status='MATCH_CANDIDATE'),
+            duplicate_check=DuplicateCheckResult(False), final_decision=recommendation,
+            decision_reasons=['Not payable' if recommendation == 'REJECTED' else 'Ungrounded total'], audit_notes='test', pipeline_mode='hybrid')
+        monkeypatch.setattr(pipeline, 'storage_adapter', SimpleNamespace(get_file=lambda key: content))
+        extractor = SimpleNamespace(extract_hybrid=lambda **kw: result)
+        outcome = pipeline.execute_document_pipeline('job', 'token', db, extractor)
+        assert outcome['status'] == 'COMPLETED'
+>       assert inv.decision != 'MATCH_CANDIDATE'
+E       AssertionError: assert 'MATCH_CANDIDATE' != 'MATCH_CANDIDATE'
+E        +  where 'MATCH_CANDIDATE' = <backend.models.domain.Invoice object at 0x0000021240CA80E0>.decision
+
+tests\test_production_inspection.py:197: AssertionError
+------------------------------ Captured log call ------------------------------
+INFO     ap_pipeline:pipeline.py:467 Pipeline successfully completed for job job (Invoice: inv)
+============================== warnings summary ===============================
+tests/test_production_inspection.py: 113 warnings
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/test_production_inspection.py::test_approval_requires_complete_passed_match[None]
+tests/test_production_inspection.py::test_approval_requires_complete_passed_match[NOT_EVALUATED]
+tests/test_production_inspection.py::test_approval_requires_complete_passed_match[FAIL]
+tests/test_production_inspection.py::test_rejected_invoice_cannot_be_resurrected
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:309: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/test_production_inspection.py::test_tenant_source_record_matching[clean]
+tests/test_production_inspection.py::test_tenant_source_record_matching[overrun]
+tests/test_production_inspection.py::test_tenant_source_record_matching[price]
+tests/test_production_inspection.py::test_tenant_source_record_matching[duplicate]
+tests/test_production_inspection.py::test_tenant_source_record_matching[other_tenant]
+tests/test_production_inspection.py::test_tenant_source_record_matching[receipt_qty]
+tests/test_production_inspection.py::test_tenant_source_record_matching[vendor]
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:559: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\tests\test_production_inspection.py:181: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    status='PROCESSING', lock_token='token', lease_expires_at=dt.datetime.utcnow() + dt.timedelta(minutes=3)))
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\backend\core\pipeline.py:256: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_production_inspection.py::test_amount_grounding_rejects_integer_and_substring_collisions[123.99-Invoice INV-100 PO-100 Supplier ID 912345]
+FAILED tests/test_production_inspection.py::test_amount_grounding_rejects_integer_and_substring_collisions[123.99-Invoice INV-100 Total 123.00]
+FAILED tests/test_production_inspection.py::test_evidence_uses_real_page_and_resets_model_self_attestation
+FAILED tests/test_production_inspection.py::test_model_financial_output_rejects_nonfinite[Infinity]
+FAILED tests/test_production_inspection.py::test_model_financial_output_rejects_nonfinite[inf]
+FAILED tests/test_production_inspection.py::test_wrong_tax_type_blocks_math_valid_result
+FAILED tests/test_production_inspection.py::test_approval_requires_complete_passed_match[None]
+FAILED tests/test_production_inspection.py::test_approval_requires_complete_passed_match[NOT_EVALUATED]
+FAILED tests/test_production_inspection.py::test_rejected_invoice_cannot_be_resurrected
+FAILED tests/test_production_inspection.py::test_upload_without_database_never_writes_storage
+FAILED tests/test_production_inspection.py::test_preview_detects_storage_tampering
+FAILED tests/test_production_inspection.py::test_tenant_source_record_matching[overrun]
+FAILED tests/test_production_inspection.py::test_tenant_source_record_matching[receipt_qty]
+FAILED tests/test_production_inspection.py::test_tenant_source_record_matching[vendor]
+FAILED tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+FAILED tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+16 failed, 6 passed, 128 warnings in 1.71s

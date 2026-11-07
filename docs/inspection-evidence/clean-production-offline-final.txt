@@ -1,0 +1,50 @@
+C:\Zamp Casse Study\scratch\clean-production-final-3a7f2d8c\Lib\site-packages\pytest_asyncio\plugin.py:300: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the "fixture" caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to "function" scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+...........................................s.............sssssssss...... [ 18%]
+....................................................................s... [ 36%]
+..............s.....................s.........................s......... [ 54%]
+............................sssssssssssssssssssssssssssss............... [ 72%]
+........................................................................ [ 91%]
+...................................                                      [100%]
+=========================== short test summary info ===========================
+SKIPPED [1] tests\phase_b\test_identity_memberships_postgres.py:22: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:437: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:445: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:453: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:465: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:473: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:481: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:489: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:497: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:511: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\phase_b\test_stage5_gmail_pubsub.py:890: Live Google Cloud Pub/Sub tests require LIVE_GMAIL_TESTS=1 and real GCP credentials.
+SKIPPED [1] tests\phase_b\test_stage6_backup_recovery.py:692: Live Supabase backup & restoration test BLOCKED: Dedicated Supabase project credentials (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) not configured in local environment.
+SKIPPED [1] tests\phase_b\test_stage7_cloudrun_deployment.py:408: Docker daemon is not running on host. Live image build is BLOCKED.
+SKIPPED [1] tests\phase_b\test_workspace_postgres.py:18: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:57: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:66: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:82: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:102: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:135: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:152: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:276: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:363: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:431: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:450: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:462: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [3] tests\postgres\test_migrations_and_financial_concurrency.py:475: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:496: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:521: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:551: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:593: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_migrations_and_financial_concurrency.py:618: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [2] tests\postgres\test_pipeline_lease_reliability_postgres.py:78: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [3] tests\postgres\test_pipeline_lease_reliability_postgres.py:111: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:160: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:184: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:195: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_pipeline_lease_reliability_postgres.py:231: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+SKIPPED [1] tests\postgres\test_processing_events_postgres.py:16: Run scripts/inspect_postgres.py for an owned disposable PostgreSQL cluster
+352 passed, 43 skipped, 2824 warnings in 31.17s

@@ -36,11 +36,12 @@ logs/
 # Scratch and transient local evaluation work
 scratch/
 graphify-out/
-output/
-# Local inspection captures can contain host paths or disposable-provider metadata.
-docs/inspection-evidence/
-docs/PROVIDER_ENVIRONMENT_ACCEPTANCE.md
-docs/PS1_LIVE_ACCEPTANCE_RESULTS.md
+
+# Auxiliary tools removed from repository
+.agents/
+.vibe-wise/
+competitor_research/
+skills-lock.json
 # Generated local dependency-audit snapshots; curated findings live in docs.
 research/production_hardening_*.json
 # Supabase CLI local state; an older tracked file may still show local changes.

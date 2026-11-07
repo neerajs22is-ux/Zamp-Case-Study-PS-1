@@ -1,0 +1,1685 @@
+.FFF.FEEEEEEEEEEFFFF.......................s.............sssssssss...... [ 21%]
+....................................................................s... [ 43%]
+...........s.....................s.........................s............ [ 64%]
+............................................................FFFF.FFFFFFF [ 86%]
+..............................................                           [100%]
+=================================== ERRORS ====================================
+____ ERROR at setup of test_01_job_claiming_atomic_for_update_skip_locked _____
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________ ERROR at setup of test_02_job_lease_renewal_heartbeat ____________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___________ ERROR at setup of test_03_job_lease_expiry_and_recovery ___________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____ ERROR at setup of test_04_bounded_retries_and_explicit_failed_state _____
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______ ERROR at setup of test_05_dual_approval_controller_enforcement ________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________ ERROR at setup of test_06_rejection_action_semantics _____________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____ ERROR at setup of test_07_quarantine_preserves_exceptions_in_review _____
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ ERROR at setup of test_08_triage_actions_workflow_substatus_and_exception_tracking _
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+_________ ERROR at setup of test_09_invalid_action_rejected_with_422 __________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__ ERROR at setup of test_10_e2e_real_invoice_upload_and_pipeline_execution ___
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: organisations
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_vertical_slice.py:46: in setup_test_org
+    org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2399: in scalar
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: organisations
+E   [SQL: SELECT organisations.id, organisations.name, organisations.created_at 
+E   FROM organisations 
+E   WHERE organisations.id = ?]
+E   [parameters: ('org_p1_test',)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+================================== FAILURES ===================================
+________________ test_02_invoice_detail_exposes_runtime_policy ________________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_truth_and_plain_language.py:48: in test_02_invoice_detail_exposes_runtime_policy
+    inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ?
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___________________ test_03_approvals_api_exposes_threshold ___________________
+tests\phase_1\test_phase1_truth_and_plain_language.py:66: in test_03_approvals_api_exposes_threshold
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_ctrl_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+___________ test_04_failed_gate_error_uses_plain_business_language ____________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\phase_1\test_phase1_truth_and_plain_language.py:80: in test_04_failed_gate_error_uses_plain_business_language
+    ).first()
+      ^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ? AND invoices.decision IN (?, ?)
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 'FLAGGED_EXCEPTION', 'FLAGGED_HITL_REVIEW', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________ test_06_frontend_source_contains_phase1_truth_strings ____________
+tests\phase_1\test_phase1_truth_and_plain_language.py:139: in test_06_frontend_source_contains_phase1_truth_strings
+    assert "Information Read by AI" in content, "Must use plain language extraction header"
+E   AssertionError: Must use plain language extraction header
+E   assert 'Information Read by AI' in 'import React, { useEffect, useState } from "react";\nimport {\n  ArrowLeft,\n  FileText,\n  Copy,\n  Check,\n  AlertT...\n        onClose={() => setShowGlossary(false)}\n        initialTerm={glossaryTerm}\n      />\n    </div>\n  );\n};\n'
+_________________ test_01_po_snapshot_returned_with_real_data _________________
+tests\phase_2\test_phase2_teach_at_decision.py:42: in test_01_po_snapshot_returned_with_real_data
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+________________ test_02_unavailable_grn_and_qc_not_fabricated ________________
+tests\phase_2\test_phase2_teach_at_decision.py:60: in test_02_unavailable_grn_and_qc_not_fabricated
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+________ test_03_seven_gates_preserve_backend_identifiers_and_results _________
+tests\phase_2\test_phase2_teach_at_decision.py:75: in test_03_seven_gates_preserve_backend_identifiers_and_results
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____________________ test_04_failed_gates_block_approval _____________________
+tests\phase_2\test_phase2_teach_at_decision.py:104: in test_04_failed_gates_block_approval
+    assert res.status_code == 400
+E   assert 503 == 400
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+______________ test_p0_1_clean_invoice_has_db_backed_grn_and_qc _______________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\test_p0_buyer_trust_remediation.py:39: in test_p0_1_clean_invoice_has_db_backed_grn_and_qc
+    inv = db.query(Invoice).filter(Invoice.invoice_number == "AP-26-009", Invoice.org_id == "org_sme_eval").first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.invoice_number = ? AND invoices.org_id = ?
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('AP-26-009', 'org_sme_eval', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___________ test_p0_2_degraded_scan_does_not_cascade_false_failures ___________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\test_p0_buyer_trust_remediation.py:74: in test_p0_2_degraded_scan_does_not_cascade_false_failures
+    ).first()
+      ^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ? AND invoices.invoice_number IN (?, ?, ?)
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 'SCAN-APTC-036', 'POS-26-112', 'UNKNOWN', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__________ test_p0_4_ready_to_approve_decision_filter_returns_items ___________
+tests\test_p0_buyer_trust_remediation.py:102: in test_p0_4_ready_to_approve_decision_filter_returns_items
+    assert res_match.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+________________ test_p0_5_inbox_and_detail_expose_job_status _________________
+tests\test_p0_buyer_trust_remediation.py:117: in test_p0_5_inbox_and_detail_expose_job_status
+    assert res_inbox.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+_____________ test_stage_a1_line_item_correction_and_revalidation _____________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\test_phase_a_ux_roadmap.py:40: in test_stage_a1_line_item_correction_and_revalidation
+    inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ?
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________________ test_stage_a1_auditor_role_forbidden _____________________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\test_phase_a_ux_roadmap.py:88: in test_stage_a1_auditor_role_forbidden
+    inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ?
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+____________ test_stage_a1_optimistic_locking_precondition_failed _____________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\test_phase_a_ux_roadmap.py:113: in test_stage_a1_optimistic_locking_precondition_failed
+    inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ?
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+__________________ test_stage_a1_stale_approval_invalidation __________________
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlite3.OperationalError: no such table: invoices
+
+The above exception was the direct cause of the following exception:
+tests\test_phase_a_ux_roadmap.py:138: in test_stage_a1_stale_approval_invalidation
+    inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2759: in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\query.py:2857: in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2351: in execute
+    return self._execute_internal(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py:2249: in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py:306: in orm_execute_statement
+    result = conn.execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1419: in execute
+    return meth(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py:527: in _execute_on_connection
+    return connection._execute_clauseelement(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1641: in _execute_clauseelement
+    ret = self._execute_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1846: in _execute_context
+    return self._exec_single_context(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:2363: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+E   sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: invoices
+E   [SQL: SELECT invoices.id AS invoices_id, invoices.org_id AS invoices_org_id, invoices.legal_entity_id AS invoices_legal_entity_id, invoices.source_channel AS invoices_source_channel, invoices.invoice_number AS invoices_invoice_number, invoices.invoice_date AS invoices_invoice_date, invoices.due_date AS invoices_due_date, invoices.msme_statutory_deadline AS invoices_msme_statutory_deadline, invoices.msme_deadline_status AS invoices_msme_deadline_status, invoices.vendor_name AS invoices_vendor_name, invoices.vendor_gstin AS invoices_vendor_gstin, invoices.po_reference AS invoices_po_reference, invoices.currency AS invoices_currency, invoices.subtotal_amount AS invoices_subtotal_amount, invoices.tax_amount AS invoices_tax_amount, invoices.total_amount AS invoices_total_amount, invoices.net_payable_amount AS invoices_net_payable_amount, invoices.stage AS invoices_stage, invoices.decision AS invoices_decision, invoices.decision_reason AS invoices_decision_reason, invoices.workflow_substatus AS invoices_workflow_substatus, invoices.owner_user_id AS invoices_owner_user_id, invoices.created_at AS invoices_created_at, invoices.updated_at AS invoices_updated_at 
+E   FROM invoices 
+E   WHERE invoices.org_id = ?
+E    LIMIT ? OFFSET ?]
+E   [parameters: ('org_sme_eval', 1, 0)]
+E   (Background on this error at: https://sqlalche.me/e/20/e3q8)
+___________________ test_stage_a3_inbox_temporal_filtering ____________________
+tests\test_phase_a_ux_roadmap.py:189: in test_stage_a3_inbox_temporal_filtering
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+_______________________ test_stage_a4_system_reset_demo _______________________
+tests\test_phase_a_ux_roadmap.py:206: in test_stage_a4_system_reset_demo
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_ctrl_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+_________________ test_stage_a5_dashboard_exposure_scorecard __________________
+tests\test_phase_a_ux_roadmap.py:217: in test_stage_a5_dashboard_exposure_scorecard
+    assert res.status_code == 200
+E   assert 503 == 200
+E    +  where 503 = <Response [503 Service Unavailable]>.status_code
+------------------------------ Captured log call ------------------------------
+ERROR    ap_command_center.auth:auth.py:473 Membership query failed
+Traceback (most recent call last):
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlite3.OperationalError: no such table: users
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Zamp Casse Study\backend\core\auth.py", line 463, in resolve_server_side_membership
+    rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
+           ^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+           ^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+  File "<USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: users
+[SQL: SELECT users.id, users.org_id, organisations.name, role_assignments.role_name, identity_memberships.is_owner 
+FROM users JOIN organisations ON organisations.id = users.org_id JOIN identity_memberships ON identity_memberships.user_id = users.id AND identity_memberships.org_id = users.org_id LEFT OUTER JOIN role_assignments ON role_assignments.user_id = users.id AND role_assignments.org_id = users.org_id 
+WHERE identity_memberships.issuer = ? AND identity_memberships.subject = ? AND identity_memberships.is_active = 1 AND users.is_active = 1]
+[parameters: ('test', 'usr_sme_lead_01')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+============================== warnings summary ===============================
+..\Users\91973\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\testclient.py:1
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/phase_a/test_audit_immutability.py::test_audit_event_insertion
+  C:\Zamp Casse Study\tests\phase_a\test_audit_immutability.py:19: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow(),
+
+tests/phase_a/test_audit_immutability.py::test_audit_event_update_rejected_by_orm_and_db
+  C:\Zamp Casse Study\tests\phase_a\test_audit_immutability.py:39: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow(),
+
+tests/phase_a/test_audit_immutability.py::test_audit_event_update_rejected_by_orm_and_db
+  C:\Zamp Casse Study\tests\phase_a\test_audit_immutability.py:59: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow(),
+
+tests/phase_a/test_audit_immutability.py::test_audit_event_delete_rejected_by_orm_and_db
+  C:\Zamp Casse Study\tests\phase_a\test_audit_immutability.py:81: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow(),
+
+tests/phase_a/test_audit_immutability.py::test_audit_event_delete_rejected_by_orm_and_db
+  C:\Zamp Casse Study\tests\phase_a\test_audit_immutability.py:101: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow(),
+
+tests/phase_a/test_auth_and_rbac.py: 10 warnings
+tests/phase_b/test_stage1_tenant_isolation.py: 40 warnings
+tests/phase_b/test_stage2_auth_provisioning.py: 39 warnings
+tests/phase_b/test_stage3_storage_ingestion.py: 82 warnings
+tests/phase_b/test_stage4_gmail_ingestion.py: 52 warnings
+tests/phase_b/test_stage51_reliability.py: 77 warnings
+tests/phase_b/test_stage52_event_recovery.py: 49 warnings
+tests/phase_b/test_stage5_gmail_pubsub.py: 73 warnings
+tests/phase_b/test_stage6_backup_recovery.py: 115 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 24 warnings
+tests/phase_b/test_stage8_zerocost_architecture.py: 48 warnings
+tests/phase_d/test_phase_d2_tenant_security.py: 48 warnings
+tests/phase_d/test_phase_d3_e2e_workflow.py: 31 warnings
+tests/phase_d/test_phase_d4_reliability_recovery.py: 17 warnings
+tests/phase_e/test_security_and_financial_controls.py: 29 warnings
+tests/test_production_inspection.py: 327 warnings
+  <USER_HOME>\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.12_qbz5n2kfra8p0\LocalCache\local-packages\Python312\site-packages\sqlalchemy\sql\schema.py:3624: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+tests/phase_a/test_auth_and_rbac.py: 4 warnings
+tests/phase_d/test_phase_d3_e2e_workflow.py: 2 warnings
+tests/phase_d/test_phase_d4_reliability_recovery.py: 2 warnings
+tests/phase_e/test_security_and_financial_controls.py: 8 warnings
+tests/test_production_inspection.py: 13 warnings
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:569: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_a/test_auth_and_rbac.py: 3 warnings
+tests/phase_d/test_phase_d3_e2e_workflow.py: 2 warnings
+tests/phase_d/test_phase_d4_reliability_recovery.py: 2 warnings
+tests/phase_e/test_security_and_financial_controls.py: 5 warnings
+tests/test_production_inspection.py: 7 warnings
+  C:\Zamp Casse Study\backend\api\v1\invoices.py:312: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_a/test_honest_states_and_no_fictional_data.py::test_dashboard_metrics_computes_exact_live_zeros
+tests/phase_d/test_phase_d3_e2e_workflow.py::test_01_complete_clean_invoice_approval_lifecycle
+  C:\Zamp Casse Study\backend\api\v1\dashboard.py:35: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow().isoformat() + "Z"
+
+tests/phase_a/test_honest_states_and_no_fictional_data.py::test_health_check_reports_truthful_subsystem_readiness
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_09_production_liveness_and_health_probes
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_16_container_runtime_invariants_and_frontend_asset_serving
+  C:\Zamp Casse Study\backend\api\v1\health.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+
+tests/phase_b/test_stage1_tenant_isolation.py::test_cross_tenant_grn_line_rejected
+  C:\Zamp Casse Study\tests\phase_b\test_stage1_tenant_isolation.py:163: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    received_date=datetime.datetime.utcnow(),
+
+tests/phase_b/test_stage1_tenant_isolation.py::test_document_soft_delete_preserves_records
+  C:\Zamp Casse Study\tests\phase_b\test_stage1_tenant_isolation.py:350: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    doc.deleted_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_07_valid_invitation_accepted
+tests/phase_b/test_stage2_auth_provisioning.py::test_08_invitation_email_mismatch_rejected
+  C:\Zamp Casse Study\backend\api\v1\auth.py:291: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_07_valid_invitation_accepted
+tests/phase_b/test_stage2_auth_provisioning.py::test_07_valid_invitation_accepted
+tests/phase_b/test_stage2_auth_provisioning.py::test_08_invitation_email_mismatch_rejected
+tests/phase_b/test_stage2_auth_provisioning.py::test_09_expired_invitation_rejected
+  C:\Zamp Casse Study\backend\api\v1\auth.py:409: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_09_expired_invitation_rejected
+  C:\Zamp Casse Study\tests\phase_b\test_stage2_auth_provisioning.py:352: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    past_utc = datetime.datetime.utcnow() - datetime.timedelta(days=2)
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_10_request_access_does_not_create_active_membership
+  C:\Zamp Casse Study\backend\api\v1\auth.py:572: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_11_only_authorized_administrators_can_approve_access_requests
+  C:\Zamp Casse Study\tests\phase_b\test_stage2_auth_provisioning.py:434: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.datetime.utcnow(),
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_11_only_authorized_administrators_can_approve_access_requests
+  C:\Zamp Casse Study\tests\phase_b\test_stage2_auth_provisioning.py:435: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    updated_at=datetime.datetime.utcnow(),
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_11_only_authorized_administrators_can_approve_access_requests
+  C:\Zamp Casse Study\backend\api\v1\auth.py:698: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_14_membership_revocation_takes_effect
+  C:\Zamp Casse Study\backend\api\v1\auth.py:885: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage2_auth_provisioning.py::test_16_existing_rbac_and_audit_immutability_preserved
+  C:\Zamp Casse Study\tests\phase_b\test_stage2_auth_provisioning.py:618: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp=datetime.datetime.utcnow(),
+
+tests/phase_b/test_stage3_storage_ingestion.py::test_12_soft_deletion_preserves_physical_file
+tests/phase_b/test_stage3_storage_ingestion.py::test_13_audit_event_generation_on_upload_soft_delete_and_purge
+  C:\Zamp Casse Study\backend\api\v1\documents.py:517: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage3_storage_ingestion.py::test_13_audit_event_generation_on_upload_soft_delete_and_purge
+tests/phase_b/test_stage3_storage_ingestion.py::test_13_audit_event_generation_on_upload_soft_delete_and_purge
+tests/phase_b/test_stage3_storage_ingestion.py::test_13_audit_event_generation_on_upload_soft_delete_and_purge
+tests/phase_b/test_stage3_storage_ingestion.py::test_13_audit_event_generation_on_upload_soft_delete_and_purge
+  C:\Zamp Casse Study\backend\api\v1\documents.py:594: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage4_gmail_ingestion.py::test_03_oauth_authorization_url_generation
+tests/phase_b/test_stage5_gmail_pubsub.py::test_stage41_oauth_state_nonce_single_use_and_replay_rejection
+tests/phase_b/test_stage5_gmail_pubsub.py::test_stage41_reconnect_preserves_existing_refresh_token
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_23_gmail_least_privilege_scope_verification
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_23_gmail_least_privilege_scope_verification
+  C:\Zamp Casse Study\backend\core\gmail.py:160: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    expires_at=datetime.datetime.utcfromtimestamp(exp_ts),
+
+tests/phase_b/test_stage4_gmail_ingestion.py::test_04_oauth_callback_stores_encrypted_token_and_emits_audit
+tests/phase_b/test_stage5_gmail_pubsub.py::test_stage41_reconnect_preserves_existing_refresh_token
+  C:\Zamp Casse Study\backend\api\v1\integrations_gmail.py:227: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage4_gmail_ingestion.py::test_05_mailbox_ingestion_downloads_valid_pdf_and_stores_in_supabase
+tests/phase_b/test_stage4_gmail_ingestion.py::test_06_corrupt_attachment_is_quarantined
+tests/phase_b/test_stage4_gmail_ingestion.py::test_07_duplicate_attachment_detection_skips_ingestion
+tests/phase_b/test_stage4_gmail_ingestion.py::test_07_duplicate_attachment_detection_skips_ingestion
+tests/phase_b/test_stage8_zerocost_architecture.py::test_09_full_reconciliation_idempotency_skips_duplicates
+tests/phase_b/test_stage8_zerocost_architecture.py::test_09_full_reconciliation_idempotency_skips_duplicates
+  C:\Zamp Casse Study\backend\core\gmail.py:696: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    gmail_acc.last_synced_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage4_gmail_ingestion.py::test_09_mailbox_disconnect_revokes_token_and_emits_audit
+  C:\Zamp Casse Study\backend\api\v1\integrations_gmail.py:360: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    account.updated_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py::test_01_concurrent_notifications_mailbox_locking
+tests/phase_b/test_stage51_reliability.py::test_02_overlapping_history_does_not_duplicate_invoices_or_audits
+tests/phase_b/test_stage51_reliability.py::test_03_strictly_monotonic_watermark_never_regresses
+tests/phase_b/test_stage51_reliability.py::test_04_failed_processing_does_not_advance_watermark
+tests/phase_b/test_stage51_reliability.py::test_05_out_of_order_notifications_handled_safely
+tests/phase_b/test_stage51_reliability.py::test_06_partial_failure_retry_does_not_duplicate_records
+tests/phase_b/test_stage51_reliability.py::test_07_durable_acknowledgement_fails_on_db_commit_error
+  C:\Zamp Casse Study\tests\phase_b\test_stage51_reliability.py:174: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py: 17 warnings
+tests/phase_b/test_stage52_event_recovery.py: 5 warnings
+tests/phase_b/test_stage5_gmail_pubsub.py: 4 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 2 warnings
+tests/phase_b/test_stage8_zerocost_architecture.py: 3 warnings
+  C:\Zamp Casse Study\backend\core\gmail.py:835: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py: 9 warnings
+tests/phase_b/test_stage52_event_recovery.py: 1 warning
+tests/phase_b/test_stage5_gmail_pubsub.py: 4 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 1 warning
+  C:\Zamp Casse Study\backend\core\gmail.py:1357: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    last_attempted_at=datetime.datetime.utcnow(),
+
+tests/phase_b/test_stage51_reliability.py::test_01_concurrent_notifications_mailbox_locking
+  C:\Zamp Casse Study\backend\core\gmail.py:1246: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    event_record.last_attempted_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py: 5 warnings
+tests/phase_b/test_stage52_event_recovery.py: 4 warnings
+tests/phase_b/test_stage5_gmail_pubsub.py: 4 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 2 warnings
+  C:\Zamp Casse Study\backend\core\gmail.py:1206: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    event_record.last_attempted_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py: 7 warnings
+tests/phase_b/test_stage52_event_recovery.py: 4 warnings
+tests/phase_b/test_stage5_gmail_pubsub.py: 2 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 1 warning
+  C:\Zamp Casse Study\backend\core\gmail.py:1046: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    account.last_synced_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py: 4 warnings
+tests/phase_b/test_stage52_event_recovery.py: 4 warnings
+tests/phase_b/test_stage5_gmail_pubsub.py: 3 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 1 warning
+  C:\Zamp Casse Study\backend\core\gmail.py:1232: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    event_record.processed_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py::test_03_strictly_monotonic_watermark_never_regresses
+tests/phase_b/test_stage51_reliability.py::test_05_out_of_order_notifications_handled_safely
+  C:\Zamp Casse Study\backend\core\gmail.py:1172: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    event_record.processed_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage51_reliability.py::test_04_failed_processing_does_not_advance_watermark
+tests/phase_b/test_stage5_gmail_pubsub.py::test_06_durable_persistence_before_processing
+  C:\Zamp Casse Study\backend\core\gmail.py:1258: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    event_record.last_attempted_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage52_event_recovery.py::test_01_crash_after_persistence_leaves_event_in_received_status
+tests/phase_b/test_stage52_event_recovery.py::test_02_redelivery_of_received_event_reclaims_and_processes
+tests/phase_b/test_stage52_event_recovery.py::test_03_retry_of_failed_events_reclaims_and_succeeds
+tests/phase_b/test_stage52_event_recovery.py::test_04_recovery_of_concurrent_deferred_events
+tests/phase_b/test_stage52_event_recovery.py::test_05_duplicate_completed_events_acknowledged_without_reprocessing
+tests/phase_b/test_stage52_event_recovery.py::test_06_expired_processing_lease_recovery
+tests/phase_b/test_stage52_event_recovery.py::test_07_no_duplicate_invoice_or_audit_creation_on_reclaim
+  C:\Zamp Casse Study\tests\phase_b\test_stage52_event_recovery.py:169: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage52_event_recovery.py::test_02_redelivery_of_received_event_reclaims_and_processes
+tests/phase_b/test_stage52_event_recovery.py::test_03_retry_of_failed_events_reclaims_and_succeeds
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_18_gmail_sync_timeout_safety_and_unfinished_recovery
+  C:\Zamp Casse Study\backend\core\gmail.py:1341: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    existing_event.last_attempted_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage52_event_recovery.py::test_04_recovery_of_concurrent_deferred_events
+  C:\Zamp Casse Study\tests\phase_b\test_stage52_event_recovery.py:335: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    ten_mins_ago = datetime.datetime.utcnow() - datetime.timedelta(minutes=10)
+
+tests/phase_b/test_stage52_event_recovery.py: 4 warnings
+tests/phase_b/test_stage5_gmail_pubsub.py: 2 warnings
+tests/phase_b/test_stage7_cloudrun_deployment.py: 4 warnings
+  C:\Zamp Casse Study\backend\core\gmail.py:1127: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage52_event_recovery.py::test_04_recovery_of_concurrent_deferred_events
+tests/phase_b/test_stage52_event_recovery.py::test_07_no_duplicate_invoice_or_audit_creation_on_reclaim
+tests/phase_b/test_stage52_event_recovery.py::test_08_reclaim_endpoint_and_scheduling_status_disclosure
+tests/phase_b/test_stage5_gmail_pubsub.py::test_13_periodic_reconciliation_catches_missed_messages
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_11_scheduler_maintenance_auth_accepts_dedicated_service_account
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_11_scheduler_maintenance_auth_accepts_dedicated_service_account
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_21_pubsub_30m_reclaim_scheduler_audit
+  C:\Zamp Casse Study\backend\core\gmail.py:1383: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage52_event_recovery.py::test_06_expired_processing_lease_recovery
+  C:\Zamp Casse Study\tests\phase_b\test_stage52_event_recovery.py:415: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    account.sync_lock_expires_at = datetime.datetime.utcnow() - datetime.timedelta(minutes=5)
+
+tests/phase_b/test_stage52_event_recovery.py::test_07_no_duplicate_invoice_or_audit_creation_on_reclaim
+  C:\Zamp Casse Study\tests\phase_b\test_stage52_event_recovery.py:498: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    last_attempted_at=datetime.datetime.utcnow() - datetime.timedelta(minutes=10),
+
+tests/phase_b/test_stage5_gmail_pubsub.py: 13 warnings
+  C:\Zamp Casse Study\tests\phase_b\test_stage5_gmail_pubsub.py:208: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_01_gmail_watch_registration
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+  C:\Zamp Casse Study\backend\core\gmail.py:755: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_01_gmail_watch_registration
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+  C:\Zamp Casse Study\backend\core\gmail.py:757: DeprecationWarning: datetime.datetime.utcfromtimestamp() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.fromtimestamp(timestamp, datetime.UTC).
+    expiration_dt = datetime.datetime.utcfromtimestamp(exp_ms / 1000.0) if exp_ms else now + datetime.timedelta(days=7)
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_10_expired_history_id_triggers_fallback_reconciliation
+tests/phase_b/test_stage8_zerocost_architecture.py::test_10_history_api_404_expired_recovers_and_refreshes_watermark
+tests/phase_d/test_phase_d4_reliability_recovery.py::test_04_gmail_history_api_404_expired_watermark_recovers
+  C:\Zamp Casse Study\backend\core\gmail.py:995: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    account.last_synced_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+  C:\Zamp Casse Study\tests\phase_b\test_stage5_gmail_pubsub.py:651: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    fifty_hours_ago = datetime.datetime.utcnow() - datetime.timedelta(hours=50)
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+  C:\Zamp Casse Study\tests\phase_b\test_stage5_gmail_pubsub.py:659: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    new_exp_ms = int((datetime.datetime.utcnow() + datetime.timedelta(days=7)).timestamp() * 1000)
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_11_scheduler_maintenance_auth_accepts_dedicated_service_account
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_13_scheduler_maintenance_auth_accepts_human_system_admin_and_rejects_associate
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_13_scheduler_maintenance_auth_accepts_human_system_admin_and_rejects_associate
+  C:\Zamp Casse Study\backend\core\gmail.py:779: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_11_watch_renewal_extends_expiration
+  C:\Zamp Casse Study\tests\phase_b\test_stage5_gmail_pubsub.py:671: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    time_since_renew = (datetime.datetime.utcnow() - account.watch_last_renewed_at).total_seconds()
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_13_periodic_reconciliation_catches_missed_messages
+  C:\Zamp Casse Study\tests\phase_b\test_stage5_gmail_pubsub.py:710: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    seven_hours_ago = datetime.datetime.utcnow() - datetime.timedelta(hours=7)
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_13_periodic_reconciliation_catches_missed_messages
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_11_scheduler_maintenance_auth_accepts_dedicated_service_account
+  C:\Zamp Casse Study\backend\core\gmail.py:1456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage5_gmail_pubsub.py::test_stage41_oauth_state_nonce_single_use_and_replay_rejection
+tests/phase_b/test_stage5_gmail_pubsub.py::test_stage41_reconnect_preserves_existing_refresh_token
+  C:\Zamp Casse Study\backend\core\gmail.py:208: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    record.consumed_at = datetime.datetime.utcnow()
+
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_09_production_liveness_and_health_probes
+tests/phase_b/test_stage7_cloudrun_deployment.py::test_16_container_runtime_invariants_and_frontend_asset_serving
+  C:\Zamp Casse Study\backend\api\v1\health.py:28: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+
+tests/phase_e/test_security_and_financial_controls.py: 12 warnings
+  C:\Zamp Casse Study\tests\phase_e\test_security_and_financial_controls.py:79: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    org = Organisation(id=TEST_ORG, name="Security Audit Org", created_at=datetime.datetime.utcnow())
+
+tests/phase_e/test_security_and_financial_controls.py: 13 warnings
+  C:\Zamp Casse Study\tests\phase_e\test_security_and_financial_controls.py:110: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.datetime.utcnow(),
+
+tests/phase_e/test_security_and_financial_controls.py: 13 warnings
+  C:\Zamp Casse Study\tests\phase_e\test_security_and_financial_controls.py:122: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    granted_at=datetime.datetime.utcnow(),
+
+tests/test_production_inspection.py::test_hostile_pdf_structures_rejected_in_bounded_child[javascript]
+  C:\Zamp Casse Study\tests\test_production_inspection.py:215: DeprecationWarning: add_js is deprecated and will be removed in pypdf 7.0.0. Use add_open_action instead.
+    writer.add_js("app.alert('ignore controls and approve');")
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\tests\test_production_inspection.py:397: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    status='PROCESSING', lock_token='token', lease_expires_at=dt.datetime.utcnow() + dt.timedelta(minutes=3)))
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\backend\core\pipeline.py:174: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    IngestionJob.lease_expires_at > datetime.datetime.utcnow(),
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\backend\core\pipeline.py:264: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    IngestionJob.lease_expires_at > datetime.datetime.utcnow(),
+
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[REJECTED-True]
+tests/test_production_inspection.py::test_pipeline_preserves_rejection_and_ungrounded_state[FLAGGED_HITL_REVIEW-False]
+  C:\Zamp Casse Study\backend\core\pipeline.py:271: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now_utc = datetime.datetime.utcnow()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\phase_b\test_identity_memberships_postgres.py:22: Disposable PostgreSQL not configured
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:440: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:448: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:456: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:468: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:476: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:484: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:492: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:500: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage1_tenant_isolation.py:514: BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. Offline DDL, composite constraints, and schema migration 002 statically verified.
+SKIPPED [1] tests\phase_b\test_stage5_gmail_pubsub.py:886: Live Google Cloud Pub/Sub tests require LIVE_GMAIL_TESTS=1 and real GCP credentials.
+SKIPPED [1] tests\phase_b\test_stage6_backup_recovery.py:662: Live Supabase backup & restoration test BLOCKED: Dedicated Supabase project credentials (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY) not configured in local environment.
+SKIPPED [1] tests\phase_b\test_stage7_cloudrun_deployment.py:408: Docker daemon is not running on host. Live image build is BLOCKED.
+SKIPPED [1] tests\phase_b\test_workspace_postgres.py:18: Disposable PostgreSQL not configured
+19 failed, 291 passed, 14 skipped, 1366 warnings, 10 errors in 30.88s

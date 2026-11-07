@@ -1,0 +1,14 @@
+✔ full snapshot reconnect replaces data, backs off and stops on completion (3.0291ms)
+✔ pending request never overlaps, cleanup aborts and ignores late response (0.4492ms)
+✔ access failure 401 clears state and stops reconnecting (0.3293ms)
+✔ access failure 403 clears state and stops reconnecting (0.5072ms)
+✔ access failure 404 clears state and stops reconnecting (0.3207ms)
+✔ hung request aborts after timeout and retries (0.4533ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 88.1508

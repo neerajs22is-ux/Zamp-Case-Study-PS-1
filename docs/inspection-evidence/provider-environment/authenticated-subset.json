@@ -1,0 +1,189 @@
+{
+  "run_id": "ps1-acceptance-20261106-abb798f9",
+  "project_id": "ppcmermepbdsfypzepcd",
+  "started_at": "2026-11-06T17:18:42.878763+00:00",
+  "mode": "REAL_IDENTITY_STORAGE_DATABASE_ONLY_INFERENCE_BLOCKED",
+  "cases": [
+    {
+      "case": "happy",
+      "upload_http_status": 200,
+      "upload_ms": 1514.87,
+      "invoice_id": "inv_f45bf7db715a",
+      "document_id": "doc_a9d3d09d295d",
+      "sha256": "a810980b01dd300c42e3a3215c92a6ddb6b1d51e045c99f59bc7bf2901724ac7",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3309.63,
+      "persisted_events": [
+        {
+          "id": "evt_95f7ae11d6b4",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: happy.pdf",
+          "timestamp": "2026-11-06T17:18:55.850198Z",
+          "outcome": null
+        }
+      ],
+      "observed": "QUEUED_INTAKE_ONLY",
+      "expected_matched": null,
+      "blocker": "Isolated extraction credential cannot be provisioned with expired AWS sessions."
+    },
+    {
+      "case": "identical_duplicate",
+      "upload_http_status": 409,
+      "upload_ms": 491.84,
+      "observed": "DUPLICATE_DETECTED",
+      "expected_matched": true,
+      "new_job_count": 0,
+      "additional_model_calls": 0
+    },
+    {
+      "case": "price_variance",
+      "upload_http_status": 200,
+      "upload_ms": 1541.88,
+      "invoice_id": "inv_bf3d36a2991c",
+      "document_id": "doc_62641d4e131b",
+      "sha256": "7939cb3aeb7a96182ef0983191e331fd66991c5a91038c0c70b279de6287dbad",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3252.63,
+      "persisted_events": [
+        {
+          "id": "evt_74b8446f0493",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: price_variance.pdf",
+          "timestamp": "2026-11-06T17:19:01.710858Z",
+          "outcome": null
+        }
+      ],
+      "observed": "QUEUED_INTAKE_ONLY",
+      "expected_matched": null,
+      "blocker": "Isolated extraction credential cannot be provisioned with expired AWS sessions."
+    },
+    {
+      "case": "missing_qc",
+      "upload_http_status": 200,
+      "upload_ms": 1431.8,
+      "invoice_id": "inv_d000053b2199",
+      "document_id": "doc_c4dbc9005c9a",
+      "sha256": "41139146d459c8125f90897571b877102e1e421c39824f2ff6f815dee5a12399",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3343.55,
+      "persisted_events": [
+        {
+          "id": "evt_d288ca6c433b",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: missing_qc.pdf",
+          "timestamp": "2026-11-06T17:19:06.667588Z",
+          "outcome": null
+        }
+      ],
+      "observed": "QUEUED_INTAKE_ONLY",
+      "expected_matched": null,
+      "blocker": "Isolated extraction credential cannot be provisioned with expired AWS sessions."
+    },
+    {
+      "case": "payment_receipt",
+      "upload_http_status": 200,
+      "upload_ms": 1491.27,
+      "invoice_id": "inv_13ee22043f44",
+      "document_id": "doc_f2209a946503",
+      "sha256": "5d8ee30b4f0975adf7618850eb321333691790cb471160a6ed9fd8fa9743c9f7",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3359.98,
+      "persisted_events": [
+        {
+          "id": "evt_e28c4d052f4a",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: payment_receipt.pdf",
+          "timestamp": "2026-11-06T17:19:11.850776Z",
+          "outcome": null
+        }
+      ],
+      "observed": "QUEUED_INTAKE_ONLY",
+      "expected_matched": null,
+      "blocker": "Isolated extraction credential cannot be provisioned with expired AWS sessions."
+    }
+  ],
+  "checks": [
+    {
+      "operation": "real signed provider JWT + membership tenant a",
+      "status": "PASS"
+    },
+    {
+      "operation": "real signed provider JWT + membership tenant b",
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/invoices/inv_f45bf7db715a",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/invoices/inv_f45bf7db715a/processing",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_a9d3d09d295d",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_a9d3d09d295d/download",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_a9d3d09d295d/preview",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_a9d3d09d295d/signed-url",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "operation": "anonymous run access denial",
+      "http_status": 401,
+      "status": "PASS"
+    },
+    {
+      "operation": "forged workspace header denial",
+      "http_status": 403,
+      "status": "PASS"
+    },
+    {
+      "operation": "non-bypass PostgreSQL tenant B cannot read tenant A invoice/documents",
+      "status": "PASS"
+    }
+  ],
+  "model_inference_calls": 0,
+  "model_usage": null,
+  "model_cost_usd": null,
+  "financial_actions_submitted": 0,
+  "storage_adapter": "SupabaseStorageAdapter",
+  "application_environment": "staging",
+  "runtime_role": {
+    "name": "ap_app_user",
+    "superuser": false,
+    "bypassrls": false
+  },
+  "status": "PARTIAL_IDENTITY_STORAGE_INTAKE_PASS_EXTRACTION_BLOCKED",
+  "source_records_seeded": true,
+  "finished_at": "2026-11-06T17:19:17.774038+00:00"
+}

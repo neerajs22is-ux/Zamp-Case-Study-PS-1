@@ -1,0 +1,24 @@
+{
+  "project_id": "ppcmermepbdsfypzepcd",
+  "postgresql_version": "17.11",
+  "migration_head": "012_invitation_utc_expiry",
+  "documents_count": 4,
+  "invoices_count": 4,
+  "ingestion_jobs_count": 4,
+  "audit_events_count": 4,
+  "extraction_runs_count": 0,
+  "match_runs_count": 0,
+  "approval_requests_count": 0,
+  "invoice_states": [
+    [
+      "RECEIVED",
+      "NEEDS_REVIEW",
+      4
+    ]
+  ],
+  "provider_jwt_algorithms": [
+    "ES256"
+  ],
+  "bucket_private": true,
+  "bucket_id": "ps1-acceptance-abb798f9"
+}

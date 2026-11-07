@@ -1,0 +1,61 @@
+{
+  "status": "PASS_FIVE_PREPARED_CASES",
+  "case_count": 5,
+  "actual_generation_requests": 4,
+  "provider_http_statuses": [
+    200,
+    200,
+    200,
+    200
+  ],
+  "reported_usage": {
+    "prompt_tokens": 2164,
+    "completion_tokens": 1179,
+    "total_tokens": 3343
+  },
+  "configured_rate_cost_estimate_usd": 0.004128,
+  "billed_cost_usd": null,
+  "acceptance_retention_mode": "inherit",
+  "retention_provisioning_fix_verified_separately": true,
+  "regressions": {
+    "broad": {
+      "passed": 335,
+      "skipped": 36,
+      "seconds": 31.22
+    },
+    "reverse": {
+      "passed": 335,
+      "skipped": 36,
+      "seconds": 18.76
+    },
+    "focused": {
+      "passed": 65,
+      "seconds": 5.67
+    },
+    "postgres_selection": {
+      "passed": 46,
+      "seconds": 67.49
+    }
+  },
+  "cloud_cleanup": "Supabase deleted; IAM user/key/policy deleted; main and retention-probe Mantle projects archived",
+  "local_cleanup": "4 owned scratch files retained after automatic policy rejection; access-restricted and git-ignored; credential revoked",
+  "sha256": {
+    "acceptance-attempt-1.json": "3c24ddfe003760ad67989c40d8684904e9ef699995dd3f8966ae8bcc55b5a321",
+    "access-checks.json": "5de99ae30d0bb6f2a311befc4aa3627af0e7683af0a77ea0096a31a06d1ec6fa",
+    "archival-verification.json": "b63029e8ee541c628835e817f20a7e3bcac1c796b78869e3e78b1cd8a04f4634",
+    "broad.txt": "7697b04466316a591f9d622dc29ad3a245cc6e305dee83e8b6da23d497f8da34",
+    "cleanup.json": "c70941d16590f45b2881e5a3b285c500a64173c108f065fc9a40fc2b497ae8f8",
+    "diff-check.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "extraction-policy.json": "65dca63f6997ac2d87b9139b5e948e5cad507afc0bd8524e4057006bc55c49f1",
+    "focused.txt": "0eaa0a0dff9b0221faf91df96a2914ab1878571550f098f9c3c9f5372d445d09",
+    "iam-simulation.json": "518199476639e8e0b4d75dd3592898b4fd583ddbba250f591c310f34e5c63a4b",
+    "live-default-project-denial.json": "cb8c8a972f2cb53e1ef3e0e110a4867ed634f134759bacfeff93ae6b61efd416",
+    "ownership.json": "b0632b7110248d9d21459c1a3678b4cda02dcf1c2eb3a0fb0b7b0cd96b9ee074",
+    "post-check-correction.json": "142e070c18b29ef6bae3127595a8374890affc3ff77e88f9bf8305b568705ec2",
+    "postgres.txt": "99ed7f17827f627f98e1230eed423be228a81510b5313affd3c257313ea6ab4b",
+    "retention-fix-verification.json": "d6261a0361ae89706729fc2d790de5e769de6d51d042c098047d25e7bed7a5bc",
+    "reverse.txt": "b9cd3f05ff9ea98aefcb73473291b84acf5802103c987e4544ec1ad4f3e68609",
+    "setup.json": "7f94923e743b39cdba2235126f955918a36c45016fbf696cb0833abf994513be",
+    "unit-baseline.txt": "69424543cec4e65c72535ea6d92e405b3c0946a864ae5680e42df303ed1d9f9f"
+  }
+}

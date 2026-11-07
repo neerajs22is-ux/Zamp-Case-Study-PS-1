@@ -1,0 +1,9 @@
+{
+  "operation": "read only newly-owned archived project metadata via signed provisioning identity",
+  "http_status": 200,
+  "project_id": "proj_otq67vwlewxzfizztrje",
+  "status": "archived",
+  "data_retention": {
+    "mode": "inherit"
+  }
+}

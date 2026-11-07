@@ -1,0 +1,1733 @@
+{
+  "run_id": "ps1-acceptance-20261106-040e6a53",
+  "project_id": "swefzrbgkbrhydtjrxbh",
+  "started_at": "2026-11-06T18:25:40.660464+00:00",
+  "mode": "REAL_AUTHENTICATED_PROVIDER_PIPELINE",
+  "cases": [
+    {
+      "case": "happy",
+      "upload_http_status": 200,
+      "upload_ms": 1739.41,
+      "invoice_id": "inv_bf29aa00cda4",
+      "document_id": "doc_7545a1244df3",
+      "sha256": "a810980b01dd300c42e3a3215c92a6ddb6b1d51e045c99f59bc7bf2901724ac7",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3282.43,
+      "persisted_events": [
+        {
+          "id": "evt_ea685e68d6e0",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: happy.pdf",
+          "timestamp": "2026-11-06T18:25:53.552979Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_61b7e6daab80",
+          "sequence": 2,
+          "attempt": 1,
+          "stage": "RUN",
+          "status": "STARTED",
+          "message": "Worker claimed this processing attempt.",
+          "timestamp": "2026-11-06T18:26:16.315659Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_bf0b9d878ec4",
+          "sequence": 3,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "STARTED",
+          "message": "Reading the stored document and verifying its digest.",
+          "timestamp": "2026-11-06T18:26:16.868703Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_6e71b7506515",
+          "sequence": 4,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "SUCCEEDED",
+          "message": "Stored document digest verified.",
+          "timestamp": "2026-11-06T18:26:18.250823Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_5cb7659513de",
+          "sequence": 5,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "STARTED",
+          "message": "Running document extraction, grounding and validation.",
+          "timestamp": "2026-11-06T18:26:18.518961Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_5433ce42f62f",
+          "sequence": 6,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "SUCCEEDED",
+          "message": "Extraction adapter returned; financial acceptance is evaluated separately.",
+          "timestamp": "2026-11-06T18:26:21.682082Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_84b38c72e5e3",
+          "sequence": 7,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "STARTED",
+          "message": "Evaluating tenant source records and persisting the processing outcome.",
+          "timestamp": "2026-11-06T18:26:21.952475Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_fca84a2c6b7e",
+          "sequence": 8,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "SUCCEEDED",
+          "message": "Deterministic checks and processing outcome committed together.",
+          "timestamp": "2026-11-06T18:26:22.723816Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_5f69aad40a0f",
+          "sequence": 9,
+          "attempt": 1,
+          "stage": "OUTCOME",
+          "status": "RECORDED",
+          "message": "All 7 deterministic policy gates passed. Ready for approval.",
+          "timestamp": "2026-11-06T18:26:22.827995Z",
+          "outcome": {
+            "stage": "PENDING_APPROVAL",
+            "decision": "MATCH_CANDIDATE",
+            "reason": "All 7 deterministic policy gates passed. Ready for approval."
+          }
+        }
+      ],
+      "observed": "MATCH_CANDIDATE",
+      "expected_matched": true,
+      "processing_wall_ms": 7511.21,
+      "poll_observations": [
+        {
+          "status": "PROCESSING",
+          "event_count": 2,
+          "last_stage": "RUN",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 4,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "SUCCEEDED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 6,
+          "last_stage": "EXTRACTION",
+          "last_status": "SUCCEEDED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 7,
+          "last_stage": "MATCHING",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "COMPLETED",
+          "event_count": 9,
+          "last_stage": "OUTCOME",
+          "last_status": "RECORDED"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "stage": "PENDING_APPROVAL",
+      "gates": [
+        {
+          "number": 1,
+          "status": "PASS",
+          "notes": "Active tenant supplier tax registration found."
+        },
+        {
+          "number": 2,
+          "status": "PASS",
+          "notes": "PO Ref: ACCEPT-PO-HAPPY"
+        },
+        {
+          "number": 3,
+          "status": "PASS",
+          "notes": "GRN matched in ERP receipts: GRN-happy"
+        },
+        {
+          "number": 4,
+          "status": "PASS",
+          "notes": "QC inspection accepted: certificate #ACCEPT-QC-0"
+        },
+        {
+          "number": 5,
+          "status": "PASS",
+          "notes": "Calculated: \u20b9118.00 vs Billed: \u20b9118.00 (Discrepancy: \u20b90.00)"
+        },
+        {
+          "number": 6,
+          "status": "PASS",
+          "notes": "All 1 line(s) within \u00b11.50% rate (Max variance: +0.00%) and 0.00% quantity tolerance."
+        },
+        {
+          "number": 7,
+          "status": "PASS",
+          "notes": "0 previous vouchers found"
+        }
+      ],
+      "recorded_outcome_verified": true,
+      "intake_to_outcome_event_interval_ms": 29275.02
+    },
+    {
+      "case": "identical_duplicate",
+      "upload_http_status": 409,
+      "upload_ms": 632.43,
+      "observed": "DUPLICATE_DETECTED",
+      "expected_matched": true,
+      "new_job_count": 0,
+      "additional_model_calls": 0
+    },
+    {
+      "case": "price_variance",
+      "upload_http_status": 200,
+      "upload_ms": 1628.18,
+      "invoice_id": "inv_7fdf58b4adcc",
+      "document_id": "doc_ee90caf782e1",
+      "sha256": "7939cb3aeb7a96182ef0983191e331fd66991c5a91038c0c70b279de6287dbad",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3059.75,
+      "persisted_events": [
+        {
+          "id": "evt_d8838ad6a4e0",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: price_variance.pdf",
+          "timestamp": "2026-11-06T18:25:59.582026Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_fbb8bd579ea9",
+          "sequence": 2,
+          "attempt": 1,
+          "stage": "RUN",
+          "status": "STARTED",
+          "message": "Worker claimed this processing attempt.",
+          "timestamp": "2026-11-06T18:26:24.311221Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_556d5b67b00b",
+          "sequence": 3,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "STARTED",
+          "message": "Reading the stored document and verifying its digest.",
+          "timestamp": "2026-11-06T18:26:24.721338Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_59af27308312",
+          "sequence": 4,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "SUCCEEDED",
+          "message": "Stored document digest verified.",
+          "timestamp": "2026-11-06T18:26:26.121177Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_7e843fd90d28",
+          "sequence": 5,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "STARTED",
+          "message": "Running document extraction, grounding and validation.",
+          "timestamp": "2026-11-06T18:26:26.391305Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_21bfbe2e8a31",
+          "sequence": 6,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "SUCCEEDED",
+          "message": "Extraction adapter returned; financial acceptance is evaluated separately.",
+          "timestamp": "2026-11-06T18:26:29.912788Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_6dc66661380f",
+          "sequence": 7,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "STARTED",
+          "message": "Evaluating tenant source records and persisting the processing outcome.",
+          "timestamp": "2026-11-06T18:26:30.183941Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_a63c0ae69748",
+          "sequence": 8,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "SUCCEEDED",
+          "message": "Deterministic checks and processing outcome committed together.",
+          "timestamp": "2026-11-06T18:26:30.867619Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_04b7f3e624d4",
+          "sequence": 9,
+          "attempt": 1,
+          "stage": "OUTCOME",
+          "status": "RECORDED",
+          "message": "Gate 6 (PO Price & Quantity Tolerance) failed: Line #1 rate variance +20.00% exceeds \u00b11.50% (Billed \u20b9120.00 vs PO \u20b9100.00)",
+          "timestamp": "2026-11-06T18:26:30.988019Z",
+          "outcome": {
+            "stage": "ACTION_REQUIRED",
+            "decision": "FLAGGED_EXCEPTION",
+            "reason": "Gate 6 (PO Price & Quantity Tolerance) failed: Line #1 rate variance +20.00% exceeds \u00b11.50% (Billed \u20b9120.00 vs PO \u20b9100.00)"
+          }
+        }
+      ],
+      "observed": "FLAGGED_EXCEPTION",
+      "expected_matched": true,
+      "processing_wall_ms": 7506.43,
+      "poll_observations": [
+        {
+          "status": "QUEUED",
+          "event_count": 1,
+          "last_stage": "INTAKE",
+          "last_status": "QUEUED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 7,
+          "last_stage": "MATCHING",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 7,
+          "last_stage": "MATCHING",
+          "last_status": "STARTED"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "stage": "ACTION_REQUIRED",
+      "gates": [
+        {
+          "number": 1,
+          "status": "PASS",
+          "notes": "Active tenant supplier tax registration found."
+        },
+        {
+          "number": 2,
+          "status": "PASS",
+          "notes": "PO Ref: ACCEPT-PO-PRICE"
+        },
+        {
+          "number": 3,
+          "status": "PASS",
+          "notes": "GRN matched in ERP receipts: GRN-price_variance"
+        },
+        {
+          "number": 4,
+          "status": "PASS",
+          "notes": "QC inspection accepted: certificate #ACCEPT-QC-1"
+        },
+        {
+          "number": 5,
+          "status": "PASS",
+          "notes": "Calculated: \u20b9141.60 vs Billed: \u20b9141.60 (Discrepancy: \u20b90.00)"
+        },
+        {
+          "number": 6,
+          "status": "FAIL",
+          "notes": "Line #1 rate variance +20.00% exceeds \u00b11.50% (Billed \u20b9120.00 vs PO \u20b9100.00)"
+        },
+        {
+          "number": 7,
+          "status": "PASS",
+          "notes": "0 previous vouchers found"
+        }
+      ],
+      "recorded_outcome_verified": true,
+      "intake_to_outcome_event_interval_ms": 31405.99
+    },
+    {
+      "case": "missing_qc",
+      "upload_http_status": 200,
+      "upload_ms": 1588.03,
+      "invoice_id": "inv_5622c6d93f15",
+      "document_id": "doc_6befb7068dde",
+      "sha256": "41139146d459c8125f90897571b877102e1e421c39824f2ff6f815dee5a12399",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3583.92,
+      "persisted_events": [
+        {
+          "id": "evt_dc053776e9c2",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: missing_qc.pdf",
+          "timestamp": "2026-11-06T18:26:04.510321Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_b56c55eaf125",
+          "sequence": 2,
+          "attempt": 1,
+          "stage": "RUN",
+          "status": "STARTED",
+          "message": "Worker claimed this processing attempt.",
+          "timestamp": "2026-11-06T18:26:32.307434Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_7e0b74b110b7",
+          "sequence": 3,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "STARTED",
+          "message": "Reading the stored document and verifying its digest.",
+          "timestamp": "2026-11-06T18:26:32.698840Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_86f300b1708a",
+          "sequence": 4,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "SUCCEEDED",
+          "message": "Stored document digest verified.",
+          "timestamp": "2026-11-06T18:26:34.015745Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_bb2be324aab2",
+          "sequence": 5,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "STARTED",
+          "message": "Running document extraction, grounding and validation.",
+          "timestamp": "2026-11-06T18:26:34.285359Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_7ff165cc9ded",
+          "sequence": 6,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "SUCCEEDED",
+          "message": "Extraction adapter returned; financial acceptance is evaluated separately.",
+          "timestamp": "2026-11-06T18:26:37.453271Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_eebc6b1fe1ce",
+          "sequence": 7,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "STARTED",
+          "message": "Evaluating tenant source records and persisting the processing outcome.",
+          "timestamp": "2026-11-06T18:26:37.737708Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_22f23a8ede59",
+          "sequence": 8,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "SUCCEEDED",
+          "message": "Deterministic checks and processing outcome committed together.",
+          "timestamp": "2026-11-06T18:26:38.410602Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_056c66df3515",
+          "sequence": 9,
+          "attempt": 1,
+          "stage": "OUTCOME",
+          "status": "RECORDED",
+          "message": "Gate 4 (QC Inspection Accepted) failed: No Quality Control (QC) inspection certificate found.",
+          "timestamp": "2026-11-06T18:26:38.532425Z",
+          "outcome": {
+            "stage": "ACTION_REQUIRED",
+            "decision": "FLAGGED_EXCEPTION",
+            "reason": "Gate 4 (QC Inspection Accepted) failed: No Quality Control (QC) inspection certificate found."
+          }
+        }
+      ],
+      "observed": "FLAGGED_EXCEPTION",
+      "expected_matched": true,
+      "processing_wall_ms": 7551.54,
+      "poll_observations": [
+        {
+          "status": "QUEUED",
+          "event_count": 1,
+          "last_stage": "INTAKE",
+          "last_status": "QUEUED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 7,
+          "last_stage": "MATCHING",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 7,
+          "last_stage": "MATCHING",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "COMPLETED",
+          "event_count": 9,
+          "last_stage": "OUTCOME",
+          "last_status": "RECORDED"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "stage": "ACTION_REQUIRED",
+      "gates": [
+        {
+          "number": 1,
+          "status": "PASS",
+          "notes": "Active tenant supplier tax registration found."
+        },
+        {
+          "number": 2,
+          "status": "PASS",
+          "notes": "PO Ref: ACCEPT-PO-QC"
+        },
+        {
+          "number": 3,
+          "status": "PASS",
+          "notes": "GRN matched in ERP receipts: GRN-missing_qc"
+        },
+        {
+          "number": 4,
+          "status": "FAIL",
+          "notes": "No Quality Control (QC) inspection certificate found."
+        },
+        {
+          "number": 5,
+          "status": "PASS",
+          "notes": "Calculated: \u20b9118.00 vs Billed: \u20b9118.00 (Discrepancy: \u20b90.00)"
+        },
+        {
+          "number": 6,
+          "status": "PASS",
+          "notes": "All 1 line(s) within \u00b11.50% rate (Max variance: +0.00%) and 0.00% quantity tolerance."
+        },
+        {
+          "number": 7,
+          "status": "PASS",
+          "notes": "0 previous vouchers found"
+        }
+      ],
+      "recorded_outcome_verified": true,
+      "intake_to_outcome_event_interval_ms": 34022.1
+    },
+    {
+      "case": "payment_receipt",
+      "upload_http_status": 200,
+      "upload_ms": 2086.83,
+      "invoice_id": "inv_331fc8e5e0b5",
+      "document_id": "doc_138286176904",
+      "sha256": "5d8ee30b4f0975adf7618850eb321333691790cb471160a6ed9fd8fa9743c9f7",
+      "integrity_verified": true,
+      "private_unsigned_http_status": 400,
+      "readback_checks_ms": 3252.63,
+      "persisted_events": [
+        {
+          "id": "evt_a00b812f1e41",
+          "sequence": 1,
+          "attempt": 0,
+          "stage": "INTAKE",
+          "status": "QUEUED",
+          "message": "Authenticated document upload: payment_receipt.pdf",
+          "timestamp": "2026-11-06T18:26:10.421159Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_bf478a7dc9fb",
+          "sequence": 2,
+          "attempt": 1,
+          "stage": "RUN",
+          "status": "STARTED",
+          "message": "Worker claimed this processing attempt.",
+          "timestamp": "2026-11-06T18:26:40.348780Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_5d5a8b659979",
+          "sequence": 3,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "STARTED",
+          "message": "Reading the stored document and verifying its digest.",
+          "timestamp": "2026-11-06T18:26:40.768328Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_21ae174e59e5",
+          "sequence": 4,
+          "attempt": 1,
+          "stage": "DOCUMENT_READ",
+          "status": "SUCCEEDED",
+          "message": "Stored document digest verified.",
+          "timestamp": "2026-11-06T18:26:42.144357Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_4609689b8bdb",
+          "sequence": 5,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "STARTED",
+          "message": "Running document extraction, grounding and validation.",
+          "timestamp": "2026-11-06T18:26:42.417115Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_f93e9cd85fd8",
+          "sequence": 6,
+          "attempt": 1,
+          "stage": "EXTRACTION",
+          "status": "SUCCEEDED",
+          "message": "Extraction adapter returned; financial acceptance is evaluated separately.",
+          "timestamp": "2026-11-06T18:26:46.315980Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_9c0c7536707c",
+          "sequence": 7,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "STARTED",
+          "message": "Evaluating tenant source records and persisting the processing outcome.",
+          "timestamp": "2026-11-06T18:26:46.592149Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_96aec9184a4e",
+          "sequence": 8,
+          "attempt": 1,
+          "stage": "MATCHING",
+          "status": "SUCCEEDED",
+          "message": "Deterministic checks and processing outcome committed together.",
+          "timestamp": "2026-11-06T18:26:47.353156Z",
+          "outcome": null
+        },
+        {
+          "id": "evt_7c8530bb0b16",
+          "sequence": 9,
+          "attempt": 1,
+          "stage": "OUTCOME",
+          "status": "RECORDED",
+          "message": "Document classified as 'PAYMENT_RECEIPT'; not a payable invoice.",
+          "timestamp": "2026-11-06T18:26:47.493153Z",
+          "outcome": {
+            "stage": "REJECTED",
+            "decision": "REJECTED",
+            "reason": "Document classified as 'PAYMENT_RECEIPT'; not a payable invoice."
+          }
+        }
+      ],
+      "observed": "REJECTED",
+      "expected_matched": true,
+      "processing_wall_ms": 8385.34,
+      "poll_observations": [
+        {
+          "status": "QUEUED",
+          "event_count": 1,
+          "last_stage": "INTAKE",
+          "last_status": "QUEUED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 3,
+          "last_stage": "DOCUMENT_READ",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 5,
+          "last_stage": "EXTRACTION",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 6,
+          "last_stage": "EXTRACTION",
+          "last_status": "SUCCEEDED"
+        },
+        {
+          "status": "PROCESSING",
+          "event_count": 7,
+          "last_stage": "MATCHING",
+          "last_status": "STARTED"
+        },
+        {
+          "status": "COMPLETED",
+          "event_count": 9,
+          "last_stage": "OUTCOME",
+          "last_status": "RECORDED"
+        }
+      ],
+      "job_status": "COMPLETED",
+      "stage": "REJECTED",
+      "gates": [
+        {
+          "number": 1,
+          "status": "PASS",
+          "notes": "Active tenant supplier tax registration found."
+        },
+        {
+          "number": 2,
+          "status": "PASS",
+          "notes": "PO Ref: ACCEPT-PO-RECEIPT"
+        },
+        {
+          "number": 3,
+          "status": "PASS",
+          "notes": "GRN matched in ERP receipts: GRN-payment_receipt"
+        },
+        {
+          "number": 4,
+          "status": "PASS",
+          "notes": "QC inspection accepted: certificate #ACCEPT-QC-3"
+        },
+        {
+          "number": 5,
+          "status": "PASS",
+          "notes": "Calculated: \u20b9118.00 vs Billed: \u20b9118.00 (Discrepancy: \u20b90.00)"
+        },
+        {
+          "number": 6,
+          "status": "PASS",
+          "notes": "All 1 line(s) within \u00b11.50% rate (Max variance: +0.00%) and 0.00% quantity tolerance."
+        },
+        {
+          "number": 7,
+          "status": "PASS",
+          "notes": "0 previous vouchers found"
+        },
+        {
+          "number": 8,
+          "status": "FAIL",
+          "notes": "Document classified as 'PAYMENT_RECEIPT'; not a payable invoice."
+        }
+      ],
+      "recorded_outcome_verified": true,
+      "intake_to_outcome_event_interval_ms": 37071.99
+    }
+  ],
+  "checks": [
+    {
+      "operation": "real signed provider JWT + membership tenant a",
+      "status": "PASS"
+    },
+    {
+      "operation": "real signed provider JWT + membership tenant b",
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/invoices/inv_bf29aa00cda4",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/invoices/inv_bf29aa00cda4/processing",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_7545a1244df3",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_7545a1244df3/download",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_7545a1244df3/preview",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "endpoint": "/api/v1/documents/doc_7545a1244df3/signed-url",
+      "cross_tenant_http_status": 404,
+      "status": "PASS"
+    },
+    {
+      "operation": "anonymous run access denial",
+      "http_status": 401,
+      "status": "PASS"
+    },
+    {
+      "operation": "forged workspace header denial",
+      "http_status": 403,
+      "status": "PASS"
+    },
+    {
+      "operation": "non-bypass PostgreSQL tenant B cannot read tenant A invoice/documents",
+      "status": "PASS"
+    }
+  ],
+  "model_inference_calls": 4,
+  "model_usage": null,
+  "model_cost_usd": null,
+  "financial_actions_submitted": 0,
+  "provider_requests": [
+    {
+      "case": "happy",
+      "http_status": 200,
+      "latency_ms": 2337.37,
+      "usage": {
+        "completion_tokens": 288,
+        "prompt_tokens": 535,
+        "total_tokens": 823
+      },
+      "returned_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "requested_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "project_id": "proj_otq67vwlewxzfizztrje",
+      "error_code": null
+    },
+    {
+      "case": "price_variance",
+      "http_status": 200,
+      "latency_ms": 2736.3,
+      "usage": {
+        "completion_tokens": 291,
+        "prompt_tokens": 536,
+        "total_tokens": 827
+      },
+      "returned_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "requested_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "project_id": "proj_otq67vwlewxzfizztrje",
+      "error_code": null
+    },
+    {
+      "case": "missing_qc",
+      "http_status": 200,
+      "latency_ms": 2363.56,
+      "usage": {
+        "completion_tokens": 291,
+        "prompt_tokens": 535,
+        "total_tokens": 826
+      },
+      "returned_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "requested_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "project_id": "proj_otq67vwlewxzfizztrje",
+      "error_code": null
+    },
+    {
+      "case": "payment_receipt",
+      "http_status": 200,
+      "latency_ms": 3094.11,
+      "usage": {
+        "completion_tokens": 309,
+        "prompt_tokens": 558,
+        "total_tokens": 867
+      },
+      "returned_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "requested_model": "qwen.qwen3-235b-a22b-2507-v1:0",
+      "project_id": "proj_otq67vwlewxzfizztrje",
+      "error_code": null
+    }
+  ],
+  "actual_extractions": [
+    {
+      "case": "happy",
+      "document_id": "doc_7545a1244df3",
+      "document_type": "INVOICE",
+      "is_payable_invoice": true,
+      "grounding_tripwire_passed": true,
+      "unverified_fields": [],
+      "tax_valid": true,
+      "invoice_number": "ACCEPT-HAPPY",
+      "supplier_name": "PS1 Synthetic Services",
+      "supplier_gstin": "29ABCDE1234F1Z5",
+      "po_reference": "ACCEPT-PO-HAPPY",
+      "grand_total": 118.0,
+      "taxable_value": 100.0,
+      "total_tax_amount": 18.0,
+      "line_items": [
+        {
+          "item_description": "Acceptance review service",
+          "hsn_sac": null,
+          "quantity": 1.0,
+          "unit": null,
+          "unit_price": 100.0,
+          "taxable_amount": 100.0,
+          "cgst_rate": 0.0,
+          "cgst_amount": 0.0,
+          "sgst_rate": 0.0,
+          "sgst_amount": 0.0,
+          "igst_rate": 0.0,
+          "igst_amount": 0.0,
+          "total_amount": 118.0
+        }
+      ],
+      "evidence": {
+        "invoice_number": {
+          "field_name": "invoice_number",
+          "extracted_value": "ACCEPT-HAPPY",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-HAPPY",
+          "is_verified": true
+        },
+        "supplier_name": {
+          "field_name": "supplier_name",
+          "extracted_value": "PS1 Synthetic Services",
+          "page_number": 1,
+          "raw_snippet": "PS1 Synthetic Services",
+          "is_verified": true
+        },
+        "invoice_date": {
+          "field_name": "invoice_date",
+          "extracted_value": "2026-11-06",
+          "page_number": 1,
+          "raw_snippet": "2026-11-06",
+          "is_verified": true
+        },
+        "supplier_gstin": {
+          "field_name": "supplier_gstin",
+          "extracted_value": "29ABCDE1234F1Z5",
+          "page_number": 1,
+          "raw_snippet": "29ABCDE1234F1Z5",
+          "is_verified": true
+        },
+        "po_reference": {
+          "field_name": "po_reference",
+          "extracted_value": "ACCEPT-PO-HAPPY",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-PO-HAPPY",
+          "is_verified": true
+        },
+        "place_of_supply": {
+          "field_name": "place_of_supply",
+          "extracted_value": "Karnataka",
+          "page_number": 1,
+          "raw_snippet": "Karnataka",
+          "is_verified": true
+        },
+        "taxable_value": {
+          "field_name": "taxable_value",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "cgst_amount": {
+          "field_name": "cgst_amount",
+          "extracted_value": "9.0",
+          "page_number": 1,
+          "raw_snippet": "9.00",
+          "is_verified": true
+        },
+        "sgst_amount": {
+          "field_name": "sgst_amount",
+          "extracted_value": "9.0",
+          "page_number": 1,
+          "raw_snippet": "9.00",
+          "is_verified": true
+        },
+        "total_tax_amount": {
+          "field_name": "total_tax_amount",
+          "extracted_value": "18.0",
+          "page_number": 1,
+          "raw_snippet": "18.00",
+          "is_verified": true
+        },
+        "grand_total": {
+          "field_name": "grand_total",
+          "extracted_value": "118.0",
+          "page_number": 1,
+          "raw_snippet": "118.00",
+          "is_verified": true
+        },
+        "line_items.0.item_description": {
+          "field_name": "line_items.0.item_description",
+          "extracted_value": "Acceptance review service",
+          "page_number": 1,
+          "raw_snippet": "Acceptance review service",
+          "is_verified": true
+        },
+        "line_items.0.quantity": {
+          "field_name": "line_items.0.quantity",
+          "extracted_value": "1.0",
+          "page_number": 1,
+          "raw_snippet": "1",
+          "is_verified": true
+        },
+        "line_items.0.unit_price": {
+          "field_name": "line_items.0.unit_price",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "line_items.0.taxable_amount": {
+          "field_name": "line_items.0.taxable_amount",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "line_items.0.total_amount": {
+          "field_name": "line_items.0.total_amount",
+          "extracted_value": "118.0",
+          "page_number": 1,
+          "raw_snippet": "118.00",
+          "is_verified": true
+        }
+      }
+    },
+    {
+      "case": "price_variance",
+      "document_id": "doc_ee90caf782e1",
+      "document_type": "INVOICE",
+      "is_payable_invoice": true,
+      "grounding_tripwire_passed": true,
+      "unverified_fields": [],
+      "tax_valid": true,
+      "invoice_number": "ACCEPT-PRICE",
+      "supplier_name": "PS1 Synthetic Services",
+      "supplier_gstin": "29ABCDE1234F1Z5",
+      "po_reference": "ACCEPT-PO-PRICE",
+      "grand_total": 141.6,
+      "taxable_value": 120.0,
+      "total_tax_amount": 21.6,
+      "line_items": [
+        {
+          "item_description": "Acceptance review service",
+          "hsn_sac": null,
+          "quantity": 1.0,
+          "unit": null,
+          "unit_price": 120.0,
+          "taxable_amount": 120.0,
+          "cgst_rate": 0.0,
+          "cgst_amount": 0.0,
+          "sgst_rate": 0.0,
+          "sgst_amount": 0.0,
+          "igst_rate": 0.0,
+          "igst_amount": 0.0,
+          "total_amount": 141.6
+        }
+      ],
+      "evidence": {
+        "invoice_number": {
+          "field_name": "invoice_number",
+          "extracted_value": "ACCEPT-PRICE",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-PRICE",
+          "is_verified": true
+        },
+        "supplier_name": {
+          "field_name": "supplier_name",
+          "extracted_value": "PS1 Synthetic Services",
+          "page_number": 1,
+          "raw_snippet": "PS1 Synthetic Services",
+          "is_verified": true
+        },
+        "invoice_date": {
+          "field_name": "invoice_date",
+          "extracted_value": "2026-11-06",
+          "page_number": 1,
+          "raw_snippet": "2026-11-06",
+          "is_verified": true
+        },
+        "supplier_gstin": {
+          "field_name": "supplier_gstin",
+          "extracted_value": "29ABCDE1234F1Z5",
+          "page_number": 1,
+          "raw_snippet": "29ABCDE1234F1Z5",
+          "is_verified": true
+        },
+        "po_reference": {
+          "field_name": "po_reference",
+          "extracted_value": "ACCEPT-PO-PRICE",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-PO-PRICE",
+          "is_verified": true
+        },
+        "place_of_supply": {
+          "field_name": "place_of_supply",
+          "extracted_value": "Karnataka",
+          "page_number": 1,
+          "raw_snippet": "Karnataka",
+          "is_verified": true
+        },
+        "taxable_value": {
+          "field_name": "taxable_value",
+          "extracted_value": "120.0",
+          "page_number": 1,
+          "raw_snippet": "120.00",
+          "is_verified": true
+        },
+        "cgst_amount": {
+          "field_name": "cgst_amount",
+          "extracted_value": "10.8",
+          "page_number": 1,
+          "raw_snippet": "10.80",
+          "is_verified": true
+        },
+        "sgst_amount": {
+          "field_name": "sgst_amount",
+          "extracted_value": "10.8",
+          "page_number": 1,
+          "raw_snippet": "10.80",
+          "is_verified": true
+        },
+        "total_tax_amount": {
+          "field_name": "total_tax_amount",
+          "extracted_value": "21.6",
+          "page_number": 1,
+          "raw_snippet": "21.60",
+          "is_verified": true
+        },
+        "grand_total": {
+          "field_name": "grand_total",
+          "extracted_value": "141.6",
+          "page_number": 1,
+          "raw_snippet": "141.60",
+          "is_verified": true
+        },
+        "line_items.0.item_description": {
+          "field_name": "line_items.0.item_description",
+          "extracted_value": "Acceptance review service",
+          "page_number": 1,
+          "raw_snippet": "Acceptance review service",
+          "is_verified": true
+        },
+        "line_items.0.quantity": {
+          "field_name": "line_items.0.quantity",
+          "extracted_value": "1.0",
+          "page_number": 1,
+          "raw_snippet": "1",
+          "is_verified": true
+        },
+        "line_items.0.unit_price": {
+          "field_name": "line_items.0.unit_price",
+          "extracted_value": "120.0",
+          "page_number": 1,
+          "raw_snippet": "120.00",
+          "is_verified": true
+        },
+        "line_items.0.taxable_amount": {
+          "field_name": "line_items.0.taxable_amount",
+          "extracted_value": "120.0",
+          "page_number": 1,
+          "raw_snippet": "120.00",
+          "is_verified": true
+        },
+        "line_items.0.total_amount": {
+          "field_name": "line_items.0.total_amount",
+          "extracted_value": "141.6",
+          "page_number": 1,
+          "raw_snippet": "141.60",
+          "is_verified": true
+        }
+      }
+    },
+    {
+      "case": "missing_qc",
+      "document_id": "doc_6befb7068dde",
+      "document_type": "INVOICE",
+      "is_payable_invoice": true,
+      "grounding_tripwire_passed": true,
+      "unverified_fields": [],
+      "tax_valid": true,
+      "invoice_number": "ACCEPT-QC",
+      "supplier_name": "PS1 Synthetic Services",
+      "supplier_gstin": "29ABCDE1234F1Z5",
+      "po_reference": "ACCEPT-PO-QC",
+      "grand_total": 118.0,
+      "taxable_value": 100.0,
+      "total_tax_amount": 18.0,
+      "line_items": [
+        {
+          "item_description": "Acceptance review service",
+          "hsn_sac": null,
+          "quantity": 1.0,
+          "unit": null,
+          "unit_price": 100.0,
+          "taxable_amount": 100.0,
+          "cgst_rate": 0.0,
+          "cgst_amount": 0.0,
+          "sgst_rate": 0.0,
+          "sgst_amount": 0.0,
+          "igst_rate": 0.0,
+          "igst_amount": 0.0,
+          "total_amount": 118.0
+        }
+      ],
+      "evidence": {
+        "invoice_number": {
+          "field_name": "invoice_number",
+          "extracted_value": "ACCEPT-QC",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-QC",
+          "is_verified": true
+        },
+        "supplier_name": {
+          "field_name": "supplier_name",
+          "extracted_value": "PS1 Synthetic Services",
+          "page_number": 1,
+          "raw_snippet": "PS1 Synthetic Services",
+          "is_verified": true
+        },
+        "invoice_date": {
+          "field_name": "invoice_date",
+          "extracted_value": "2026-11-06",
+          "page_number": 1,
+          "raw_snippet": "2026-11-06",
+          "is_verified": true
+        },
+        "supplier_gstin": {
+          "field_name": "supplier_gstin",
+          "extracted_value": "29ABCDE1234F1Z5",
+          "page_number": 1,
+          "raw_snippet": "29ABCDE1234F1Z5",
+          "is_verified": true
+        },
+        "po_reference": {
+          "field_name": "po_reference",
+          "extracted_value": "ACCEPT-PO-QC",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-PO-QC",
+          "is_verified": true
+        },
+        "place_of_supply": {
+          "field_name": "place_of_supply",
+          "extracted_value": "Karnataka",
+          "page_number": 1,
+          "raw_snippet": "Karnataka",
+          "is_verified": true
+        },
+        "taxable_value": {
+          "field_name": "taxable_value",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "cgst_amount": {
+          "field_name": "cgst_amount",
+          "extracted_value": "9.0",
+          "page_number": 1,
+          "raw_snippet": "9.00",
+          "is_verified": true
+        },
+        "sgst_amount": {
+          "field_name": "sgst_amount",
+          "extracted_value": "9.0",
+          "page_number": 1,
+          "raw_snippet": "9.00",
+          "is_verified": true
+        },
+        "total_tax_amount": {
+          "field_name": "total_tax_amount",
+          "extracted_value": "18.0",
+          "page_number": 1,
+          "raw_snippet": "18.00",
+          "is_verified": true
+        },
+        "grand_total": {
+          "field_name": "grand_total",
+          "extracted_value": "118.0",
+          "page_number": 1,
+          "raw_snippet": "118.00",
+          "is_verified": true
+        },
+        "line_items.0.item_description": {
+          "field_name": "line_items.0.item_description",
+          "extracted_value": "Acceptance review service",
+          "page_number": 1,
+          "raw_snippet": "Acceptance review service",
+          "is_verified": true
+        },
+        "line_items.0.quantity": {
+          "field_name": "line_items.0.quantity",
+          "extracted_value": "1.0",
+          "page_number": 1,
+          "raw_snippet": "1",
+          "is_verified": true
+        },
+        "line_items.0.unit_price": {
+          "field_name": "line_items.0.unit_price",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "line_items.0.taxable_amount": {
+          "field_name": "line_items.0.taxable_amount",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "line_items.0.total_amount": {
+          "field_name": "line_items.0.total_amount",
+          "extracted_value": "118.0",
+          "page_number": 1,
+          "raw_snippet": "118.00",
+          "is_verified": true
+        }
+      }
+    },
+    {
+      "case": "payment_receipt",
+      "document_id": "doc_138286176904",
+      "document_type": "PAYMENT_RECEIPT",
+      "is_payable_invoice": false,
+      "grounding_tripwire_passed": true,
+      "unverified_fields": [],
+      "tax_valid": true,
+      "invoice_number": "ACCEPT-RECEIPT",
+      "supplier_name": "PS1 Synthetic Services",
+      "supplier_gstin": "29ABCDE1234F1Z5",
+      "po_reference": "ACCEPT-PO-RECEIPT",
+      "grand_total": 118.0,
+      "taxable_value": 100.0,
+      "total_tax_amount": 18.0,
+      "line_items": [
+        {
+          "item_description": "Acceptance review service",
+          "hsn_sac": null,
+          "quantity": 1.0,
+          "unit": null,
+          "unit_price": 100.0,
+          "taxable_amount": 100.0,
+          "cgst_rate": 0.0,
+          "cgst_amount": 0.0,
+          "sgst_rate": 0.0,
+          "sgst_amount": 0.0,
+          "igst_rate": 0.0,
+          "igst_amount": 0.0,
+          "total_amount": 118.0
+        }
+      ],
+      "evidence": {
+        "invoice_number": {
+          "field_name": "invoice_number",
+          "extracted_value": "ACCEPT-RECEIPT",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-RECEIPT",
+          "is_verified": true
+        },
+        "supplier_name": {
+          "field_name": "supplier_name",
+          "extracted_value": "PS1 Synthetic Services",
+          "page_number": 1,
+          "raw_snippet": "PS1 Synthetic Services",
+          "is_verified": true
+        },
+        "invoice_date": {
+          "field_name": "invoice_date",
+          "extracted_value": "2026-11-06",
+          "page_number": 1,
+          "raw_snippet": "2026-11-06",
+          "is_verified": true
+        },
+        "supplier_gstin": {
+          "field_name": "supplier_gstin",
+          "extracted_value": "29ABCDE1234F1Z5",
+          "page_number": 1,
+          "raw_snippet": "29ABCDE1234F1Z5",
+          "is_verified": true
+        },
+        "po_reference": {
+          "field_name": "po_reference",
+          "extracted_value": "ACCEPT-PO-RECEIPT",
+          "page_number": 1,
+          "raw_snippet": "ACCEPT-PO-RECEIPT",
+          "is_verified": true
+        },
+        "place_of_supply": {
+          "field_name": "place_of_supply",
+          "extracted_value": "Karnataka",
+          "page_number": 1,
+          "raw_snippet": "Karnataka",
+          "is_verified": true
+        },
+        "taxable_value": {
+          "field_name": "taxable_value",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "cgst_amount": {
+          "field_name": "cgst_amount",
+          "extracted_value": "9.0",
+          "page_number": 1,
+          "raw_snippet": "9.00",
+          "is_verified": true
+        },
+        "sgst_amount": {
+          "field_name": "sgst_amount",
+          "extracted_value": "9.0",
+          "page_number": 1,
+          "raw_snippet": "9.00",
+          "is_verified": true
+        },
+        "total_tax_amount": {
+          "field_name": "total_tax_amount",
+          "extracted_value": "18.0",
+          "page_number": 1,
+          "raw_snippet": "18.00",
+          "is_verified": true
+        },
+        "grand_total": {
+          "field_name": "grand_total",
+          "extracted_value": "118.0",
+          "page_number": 1,
+          "raw_snippet": "118.00",
+          "is_verified": true
+        },
+        "line_items.0.item_description": {
+          "field_name": "line_items.0.item_description",
+          "extracted_value": "Acceptance review service",
+          "page_number": 1,
+          "raw_snippet": "Acceptance review service",
+          "is_verified": true
+        },
+        "line_items.0.quantity": {
+          "field_name": "line_items.0.quantity",
+          "extracted_value": "1.0",
+          "page_number": 1,
+          "raw_snippet": "1",
+          "is_verified": true
+        },
+        "line_items.0.unit_price": {
+          "field_name": "line_items.0.unit_price",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "line_items.0.taxable_amount": {
+          "field_name": "line_items.0.taxable_amount",
+          "extracted_value": "100.0",
+          "page_number": 1,
+          "raw_snippet": "100.00",
+          "is_verified": true
+        },
+        "line_items.0.total_amount": {
+          "field_name": "line_items.0.total_amount",
+          "extracted_value": "118.0",
+          "page_number": 1,
+          "raw_snippet": "118.00",
+          "is_verified": true
+        }
+      }
+    }
+  ],
+  "storage_adapter": "SupabaseStorageAdapter",
+  "application_environment": "staging",
+  "runtime_role": {
+    "name": "ap_app_user",
+    "superuser": false,
+    "bypassrls": false
+  },
+  "status": "PASS",
+  "source_records_seeded": true,
+  "finished_at": "2026-11-06T18:26:48.756523+00:00",
+  "verification": {
+    "extractions": [
+      {
+        "case": "happy",
+        "extracted_values_match_predefined_source": true,
+        "grounded_fields": 16,
+        "source_page": 1
+      },
+      {
+        "case": "price_variance",
+        "extracted_values_match_predefined_source": true,
+        "grounded_fields": 16,
+        "source_page": 1
+      },
+      {
+        "case": "missing_qc",
+        "extracted_values_match_predefined_source": true,
+        "grounded_fields": 16,
+        "source_page": 1
+      },
+      {
+        "case": "payment_receipt",
+        "extracted_values_match_predefined_source": true,
+        "grounded_fields": 16,
+        "source_page": 1
+      }
+    ],
+    "counts": {
+      "invoices": 4,
+      "documents": 4,
+      "ingestion_jobs": 4,
+      "extraction_runs": 4,
+      "match_runs": 4,
+      "match_gate_checks": 29,
+      "audit_events": 40,
+      "approval_requests": 0
+    },
+    "states": [
+      [
+        "ACTION_REQUIRED",
+        "FLAGGED_EXCEPTION",
+        2
+      ],
+      [
+        "PENDING_APPROVAL",
+        "MATCH_CANDIDATE",
+        1
+      ],
+      [
+        "REJECTED",
+        "REJECTED",
+        1
+      ]
+    ],
+    "postgres_version": "17.11",
+    "extracted_fields": {
+      "total": 44,
+      "source_page_present": 40,
+      "confidence_scores_present": 0,
+      "optional_zero_igst_source_page_absent": 4
+    },
+    "reported_usage_totals": {
+      "prompt_tokens": 2164,
+      "completion_tokens": 1179,
+      "total_tokens": 3343
+    },
+    "configured_rate_cost_estimate_usd": 0.004128,
+    "billed_cost_usd": null,
+    "cost_basis": "Configured client rates, not billing data; usage is provider-reported",
+    "event_intervals_include_deliberate_queue_and_fixture_readback_time": true
+  }
+}

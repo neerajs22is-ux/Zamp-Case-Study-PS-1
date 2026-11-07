@@ -1,0 +1,26 @@
+FFF                                                                      [100%]
+================================== FAILURES ===================================
+_____ test_foreign_currency_exception_is_visible_but_not_reported_as_inr ______
+tests\test_operations_boundaries.py:14: in test_foreign_currency_exception_is_visible_but_not_reported_as_inr
+    assert item['exposure_amount_inr'] is None and item['currency']=='USD'
+E   assert (100.0 is None)
+___________ test_backup_failure_does_not_expose_internal_exception ____________
+tests\test_operations_boundaries.py:28: in test_backup_failure_does_not_expose_internal_exception
+    assert exc.value.status_code==500 and 'sensitive internal diagnostic' not in exc.value.detail
+E   AssertionError: assert (500 == 500 and 'sensitive i...l diagnostic' not in 'Unexpected ...l diagnostic'
+E    +  where 500 = HTTPException(status_code=500, detail='Unexpected error during backup execution: sensitive internal diagnostic').status_code
+E    +    where HTTPException(status_code=500, detail='Unexpected error during backup execution: sensitive internal diagnostic') = <ExceptionInfo HTTPException(status_code=500, detail='Unexpected error during backup execution: sensitive internal diagnostic') tblen=2>.value
+E     
+E     'sensitive internal diagnostic' is contained here:
+E       Unexpected error during backup execution: sensitive internal diagnostic)
+______________ test_logout_does_not_claim_server_side_revocation ______________
+tests\test_operations_boundaries.py:33: in test_logout_does_not_claim_server_side_revocation
+    assert 'not revoked' in logout()['message'].lower()
+E   AssertionError: assert 'not revoked' in 'session terminated.'
+E    +  where 'session terminated.' = <built-in method lower of str object at 0x000001B4290F3F70>()
+E    +    where <built-in method lower of str object at 0x000001B4290F3F70> = 'Session terminated.'.lower
+=========================== short test summary info ===========================
+FAILED tests/test_operations_boundaries.py::test_foreign_currency_exception_is_visible_but_not_reported_as_inr
+FAILED tests/test_operations_boundaries.py::test_backup_failure_does_not_expose_internal_exception
+FAILED tests/test_operations_boundaries.py::test_logout_does_not_claim_server_side_revocation
+3 failed, 8 warnings in 1.43s
