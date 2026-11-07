@@ -137,6 +137,7 @@ def test_authenticated_snapshot_legacy_and_cross_tenant_denial(db, api_client):
 
 
 def test_authenticated_upload_records_intake_and_real_actor(db, api_client, monkeypatch):
+    monkeypatch.setenv("ENABLE_BACKGROUND_PIPELINE", "false")
     monkeypatch.setattr(documents, 'storage_adapter', SimpleNamespace(save_file=lambda **kw: {
         'storage_provider':'test', 'storage_key':kw['storage_key']}))
     response = api_client.post('/api/v1/documents/upload',headers=token(),files={'file':('invoice.pdf',pdf_bytes(),'application/pdf')})
@@ -144,8 +145,10 @@ def test_authenticated_upload_records_intake_and_real_actor(db, api_client, monk
     inv_id = response.json()['invoice_id']
     snapshot = api_client.get(f'/api/v1/invoices/{inv_id}/processing',headers=token()).json()
     assert [(e['stage'],e['status'],e['attempt']) for e in snapshot['jobs'][0]['events']] == [('INTAKE','QUEUED',0)]
-    audit = db.scalar(select(AuditEvent).where(AuditEvent.invoice_id == inv_id))
-    assert (audit.actor_id,audit.actor_role,audit.action) == ('lead','AP_LEAD','DOCUMENT_UPLOADED')
+    audits = db.scalars(select(AuditEvent).where(AuditEvent.invoice_id == inv_id)).all()
+    upload_audit = next((a for a in audits if a.action == 'DOCUMENT_UPLOADED'), None)
+    assert upload_audit is not None
+    assert (upload_audit.actor_id, upload_audit.actor_role, upload_audit.action) == ('lead', 'AP_LEAD', 'DOCUMENT_UPLOADED')
 
 
 def test_managed_pipeline_sessions_release_transactions_around_provider(disposable_app_db, monkeypatch):

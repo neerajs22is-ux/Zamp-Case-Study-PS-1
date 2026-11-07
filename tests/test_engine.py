@@ -11,10 +11,11 @@ Tests:
 
 import json
 import os
+from datetime import date
 import pytest
 
 from engine.mock_erp import MockERPDatabase
-from engine.models import DecisionState, LineMatchStatus
+from engine.models import DecisionState, Invoice, InvoiceLineItem, LineMatchStatus, VendorInfo
 from engine.pipeline import InvoiceProcessingPipeline
 
 
@@ -121,3 +122,181 @@ def test_pdf_binary_ingestion_end_to_end(fresh_pipeline):
     assert audit.decision == DecisionState.AUTO_APPROVED
     assert len(audit.line_match_results) == 1
     assert len(audit.stage_timings) >= 4
+
+
+# ---------------------------------------------------------------------------
+# Additional Deterministic Regression Tests for Engine Hardening (Items 37-38)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize(
+    "fixture_name,expected_decision",
+    [
+        ("HP-01-Happy-Path.json", DecisionState.AUTO_APPROVED),
+        ("EC-01-Split-PO-Overrun.json", DecisionState.FLAGGED_HITL_REVIEW),
+        ("EC-02-Duplicate-Submission.json", DecisionState.REJECTED),
+        ("EC-03-Price-Spike-Variance.json", DecisionState.FLAGGED_HITL_REVIEW),
+        ("EC-04-Low-Res-Missing-PO.json", DecisionState.FLAGGED_HITL_REVIEW),
+    ],
+)
+def test_all_five_ps1_scenarios_deterministic(fresh_pipeline, fixture_name, expected_decision):
+    """Item 38: Parametrised test proving exact deterministic decision outcomes across all 5 PS-1 scenarios."""
+    data = load_fixture(fixture_name)
+    audit = fresh_pipeline.process(data)
+    assert audit.decision == expected_decision
+
+
+def test_tax_id_mismatch_strictly_rejected(fresh_pipeline):
+    """Item 1: Wrong tax ID + right vendor name must REJECT and never fall through to name lookup."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["vendor"]["tax_id"] = "US-EIN-99-9999999"  # Deliberately invalid tax ID
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.REJECTED
+    assert "tax_id_mismatch" in audit.discrepancy_details
+    assert audit.discrepancy_details["tax_id_mismatch"]["provided_tax_id"] == "US-EIN-99-9999999"
+    assert "Tax ID" in audit.reasons[0]
+
+
+def test_short_vendor_name_rejected_or_held(fresh_pipeline):
+    """Item 2: Vendor name 'A' with omitted tax ID must not match Apex Cloud Technologies."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["vendor"]["name"] = "A"
+    data["vendor"]["tax_id"] = None
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "vendor_unapproved" in audit.discrepancy_details
+    assert "Unapproved or unknown vendor: 'A'" in audit.reasons[0]
+
+
+def test_arithmetic_subtotal_mismatch_flagged(fresh_pipeline):
+    """Item 3 & 16: Total 9999 on lines summing to 5000 must be FLAGGED for arithmetic mismatch."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    # Line total is 5000, but stated subtotal is 9999
+    data["subtotal"] = 9999.00
+    data["total_amount"] = 10424.00
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "subtotal_mismatch" in audit.discrepancy_details
+    assert "Subtotal mismatch" in audit.reasons[0]
+
+
+def test_arithmetic_line_math_mismatch_flagged(fresh_pipeline):
+    """Item 3: Quantity * unit_price != stated line total must be FLAGGED."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    # 10.0 * 500.0 = 5000.0, but stated total is 6000.0
+    data["line_items"][0]["total"] = 6000.0
+    data["subtotal"] = 6000.0
+    data["total_amount"] = 6425.0
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "line_math_mismatch" in audit.discrepancy_details
+
+
+def test_arithmetic_tax_rounding_tolerance_exceeded(fresh_pipeline):
+    """Item 16: Grand total difference exceeding policy tax rounding tolerance (default $5.00) is FLAGGED."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    # Subtotal 5000 + Tax 425 = 5425, stated total is 5450 (diff $25 > $5.00)
+    data["total_amount"] = 5450.00
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "grand_total_mismatch" in audit.discrepancy_details
+
+
+def test_reformatted_duplicate_invoice_number_detected(fresh_pipeline):
+    """Item 8: Near-duplicate invoice number (dashes/spaces stripped) is caught as duplicate."""
+    # First submit the original
+    data1 = load_fixture("HP-01-Happy-Path.json")
+    audit1 = fresh_pipeline.process(data1)
+    assert audit1.decision == DecisionState.AUTO_APPROVED
+
+    # Now submit reformatted invoice number INV2026101 without dashes
+    data2 = load_fixture("HP-01-Happy-Path.json")
+    data2["invoice_number"] = "INV2026101"
+    audit2 = fresh_pipeline.process(data2)
+
+    assert audit2.decision == DecisionState.REJECTED
+    assert "duplicate" in audit2.discrepancy_details
+
+
+def test_unmatched_line_on_single_line_po_does_not_fallback(fresh_pipeline):
+    """Item 9: Single-line PO must not match completely unrelated invoice line description."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["line_items"][0]["description"] = "Executive Office Furniture and Desk Chairs"
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "unmatched_line" in audit.discrepancy_details
+    assert audit.line_results[0].status == LineMatchStatus.UNMATCHED
+
+
+def test_inferred_po_requires_hitl_review(fresh_pipeline):
+    """Item 10: Inferred PO when PO reference is missing must NOT auto-approve."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["po_reference"] = None  # Vendor VEND-001 has open PO-1042
+    # Reset ERP to have only 1 open PO for VEND-001
+    fresh_pipeline.erp.purchase_orders.pop("PO-1042-SPLIT", None)
+
+    audit = fresh_pipeline.process(data)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "inferred_po" in audit.discrepancy_details
+    assert audit.discrepancy_details["inferred_po"] == "PO-1042"
+
+
+def test_bank_details_mismatch_held_for_fraud_review(fresh_pipeline):
+    """Item 21: Bank account mismatch against vendor master must trigger compliance HOLD."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    # Registered account is 123456789012, provided account is fraudulent redirection
+    data["vendor"]["bank_account_number"] = "99998888777766"
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "bank_details_mismatch" in audit.discrepancy_details
+    assert audit.discrepancy_details["bank_details_mismatch"]["registered_account_last4"] == "9012"
+
+
+def test_line_item_quantity_aggregation(fresh_pipeline):
+    """Item 17: Multiple invoice lines hitting the same PO line must aggregate quantities."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    # PO-1042 has authorized 20.0 units. Split into two invoice lines of 12.0 each (total 24.0 > 20.0)
+    data["line_items"] = [
+        {
+            "line_number": 1,
+            "description": "Enterprise API Compute Tier 3",
+            "quantity": 12.0,
+            "unit_price": 500.0,
+            "total": 6000.0,
+        },
+        {
+            "line_number": 2,
+            "description": "Enterprise API Compute Tier 3",
+            "quantity": 12.0,
+            "unit_price": 500.0,
+            "total": 6000.0,
+        },
+    ]
+    data["subtotal"] = 12000.0
+    data["total_amount"] = 12000.0
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "qty_exceeded" in audit.discrepancy_details
+
+
+def test_currency_formatting_inr_supported(fresh_pipeline):
+    """Item 11: Currency INR is formatted with ₹ symbol and not hardcoded $."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["currency"] = "INR"
+    # Create price spike
+    data["line_items"][0]["unit_price"] = 700.0
+    data["line_items"][0]["total"] = 7000.0
+    data["subtotal"] = 7000.0
+    data["total_amount"] = 7425.0
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert audit.vendor_email_draft is not None
+    assert "₹" in audit.vendor_email_draft

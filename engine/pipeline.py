@@ -112,9 +112,9 @@ class InvoiceProcessingPipeline:
         # -------------------------------------------------------------
         t2 = time.perf_counter()
         vendor = None
-        if invoice.vendor.tax_id:
+        if invoice.vendor.tax_id and invoice.vendor.tax_id.strip():
             vendor = self.erp.get_vendor_by_tax_id(invoice.vendor.tax_id)
-        if not vendor:
+        else:
             vendor = self.erp.get_vendor_by_name(invoice.vendor.name)
         po = self.erp.get_po(invoice.po_reference) if invoice.po_reference else None
 
@@ -241,6 +241,13 @@ class InvoiceProcessingPipeline:
                 vendor_name = l
                 break
 
+        # Extract Tax ID & Bank Remittance Details
+        tax_id_match = re.search(r"Tax\s*ID[:\s]*([A-Z0-9\-_]+)", text, re.IGNORECASE)
+        tax_id = tax_id_match.group(1) if tax_id_match else None
+
+        bank_match = re.search(r"(?:Bank\s*Account|Account\s*#|Remit\s*Account)[:\s]*([A-Z0-9\-]+)", text, re.IGNORECASE)
+        bank_account = bank_match.group(1) if bank_match else None
+
         # Extract labeled amounts (Subtotal / Tax / Grand Total) and the line-item table
         amounts = self._parse_labeled_amounts(lines)
         subtotal_val = amounts.get("subtotal")
@@ -269,7 +276,7 @@ class InvoiceProcessingPipeline:
         return Invoice(
             invoice_number=invoice_number,
             invoice_date=inv_date,
-            vendor=VendorInfo(name=vendor_name),
+            vendor=VendorInfo(name=vendor_name, tax_id=tax_id, bank_account_number=bank_account),
             po_reference=po_reference,
             line_items=line_items,
             subtotal=subtotal_val,

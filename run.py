@@ -1,9 +1,10 @@
-"""Root launcher for AP Command Center.
+"""Root launcher for Zamp AP Digital Employee & AP Command Center.
 
 Usage:
-  python run.py            # Starts the AP Command Center FastAPI app on http://127.0.0.1:8001
-  python run.py --legacy   # Starts the legacy standalone mock engine on http://127.0.0.1:8001
-  python run.py --test     # Runs the pytest suite first, then starts the server
+  python run.py               # Starts the PS-1 AP Digital Employee on http://127.0.0.1:8001 (Recommended, zero credentials)
+  python run.py --enterprise  # Starts the Multi-Tenant Enterprise Command Center on http://127.0.0.1:8001
+  python run.py --legacy      # Alias for PS-1 AP Digital Employee
+  python run.py --test        # Runs verification test suite before starting server
 """
 
 import sys
@@ -28,10 +29,24 @@ def main():
             sys.exit(exit_code)
         print("\n[+] Verification tests passed!\n")
 
-    if "--legacy" in sys.argv:
+    if "--enterprise" in sys.argv:
         print("""
 =============================================================================
-   [ZAMP AI SOLUTIONS ANALYST] - PS-1 STANDALONE ENGINE (LEGACY)
+   [AP COMMAND CENTER] - ENTERPRISE MULTI-TENANT ARCHITECTURE
+   FastAPI application with PostgreSQL RLS, Supabase Auth, and React UI
+=============================================================================
+   * Command Center UI:     http://127.0.0.1:8001
+   * API Docs (Swagger UI): http://127.0.0.1:8001/docs
+   * System Health:         http://127.0.0.1:8001/api/v1/health
+   * Invoices Inbox:        http://127.0.0.1:8001/api/v1/inbox
+   * Operational Approvals: http://127.0.0.1:8001/api/v1/approvals
+=============================================================================
+        """)
+        uvicorn.run("backend.main:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
+    else:
+        print("""
+=============================================================================
+   [ZAMP AI SOLUTIONS ASSOCIATE] - PS-1 AP DIGITAL EMPLOYEE
    Pace Autonomous Workflow Engine & Live Execution Server
 =============================================================================
    * Interactive UI:        http://127.0.0.1:8001
@@ -43,20 +58,6 @@ def main():
 =============================================================================
         """)
         uvicorn.run("engine.server:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
-    else:
-        print("""
-=============================================================================
-   [AP COMMAND CENTER] - AP REVIEW PROTOTYPE
-   FastAPI application with workspace controls and React UI
-=============================================================================
-   * Command Center UI:     http://127.0.0.1:8001
-   * API Docs (Swagger UI): http://127.0.0.1:8001/docs
-   * System Health:         http://127.0.0.1:8001/api/v1/health
-   * Invoices Inbox:        http://127.0.0.1:8001/api/v1/inbox
-   * Operational Approvals: http://127.0.0.1:8001/api/v1/approvals
-=============================================================================
-        """)
-        uvicorn.run("backend.main:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ invoice ledgers to simulate NetSuite / SAP systems-of-record.
 from __future__ import annotations
 
 import hashlib
+import re
 from datetime import date, timedelta
 from typing import Dict, List, Optional, Tuple
 
@@ -17,6 +18,24 @@ from engine.models import (
     PurchaseOrder,
     VendorRecord,
 )
+
+
+def normalize_vendor_name(name: str) -> str:
+    """Normalize vendor name by lowercasing, stripping entity suffixes and punctuation."""
+    cleaned = name.lower().strip()
+    cleaned = re.sub(
+        r"\b(inc|incorporated|llc|ltd|limited|corp|corporation|pvt|private|co|company)\b",
+        "",
+        cleaned,
+    )
+    cleaned = re.sub(r"[^a-z0-9]", "", cleaned)
+    return cleaned.strip()
+
+
+def normalize_invoice_number(inv_num: str) -> str:
+    """Normalize invoice number by stripping non-alphanumerics and leading zeros."""
+    cleaned = re.sub(r"[^A-Za-z0-9]", "", inv_num).upper()
+    return cleaned.lstrip("0")
 
 
 class MockERPDatabase:
@@ -38,6 +57,8 @@ class MockERPDatabase:
             status="ACTIVE",
             payment_terms="Net 30",
             contact_email="ap-billing@apexcloud.io",
+            bank_account_number="123456789012",
+            bank_routing_number="021000021",
         )
         v2 = VendorRecord(
             vendor_id="VEND-002",
@@ -46,6 +67,8 @@ class MockERPDatabase:
             status="ACTIVE",
             payment_terms="Net 15",
             contact_email="invoices@globallogistics.com",
+            bank_account_number="987654321098",
+            bank_routing_number="121000358",
         )
         v3 = VendorRecord(
             vendor_id="VEND-003",
@@ -54,6 +77,8 @@ class MockERPDatabase:
             status="ACTIVE",
             payment_terms="Net 30",
             contact_email="accounts@valleytools.com",
+            bank_account_number="456789012345",
+            bank_routing_number="071000288",
         )
         v_suspended = VendorRecord(
             vendor_id="VEND-999",
@@ -118,7 +143,7 @@ class MockERPDatabase:
             po_number="PO-2090",
             vendor_id="VEND-002",
             vendor_name="Global Logistics Partners LLC",
-            authorized_amount=5000.00,
+            authorized_amount=10000.00,
             invoiced_amount=0.00,
             status="OPEN",
             line_items=[
@@ -126,9 +151,9 @@ class MockERPDatabase:
                     line_number=1,
                     item_code="LOG-DEDICATED-HR",
                     description="Dedicated Freight Coordination",
-                    authorized_quantity=50.0,
+                    authorized_quantity=100.0,
                     contracted_unit_price=100.00,
-                    total_amount=5000.00,
+                    total_amount=10000.00,
                     invoiced_quantity=0.0,
                     invoiced_amount=0.0,
                 )
@@ -168,6 +193,7 @@ class MockERPDatabase:
             vendor_id="VEND-001",
             invoice_number="INV-2026-089",
             amount=5425.00,
+            invoice_date=earlier_date,
             processed_date=earlier_date,
             sha256_hash=hashlib.sha256(b"VEND-001:INV-2026-089:5425.00").hexdigest(),
             batch_id="BATCH-2026-10-12A",
@@ -177,11 +203,32 @@ class MockERPDatabase:
 
     # Vendor Lookup Methods
     def get_vendor_by_name(self, name: str) -> Optional[VendorRecord]:
-        """Fuzzy/normalized search for vendor by name."""
-        clean_target = name.strip().lower()
+        """Normalized search for vendor by name with minimum length threshold to prevent substring collisions."""
+        clean_target = normalize_vendor_name(name)
+        # Require at least 3 normalized characters to prevent false positives (e.g. single letter "A")
+        if len(clean_target) < 3:
+            return None
+
+        # 1. Exact normalized match
         for v in self.vendors.values():
-            if clean_target in v.name.lower() or v.name.lower() in clean_target:
+            if normalize_vendor_name(v.name) == clean_target:
                 return v
+
+        # 2. Token overlap similarity for multi-word company names
+        raw_tokens = set(re.findall(r"[a-z0-9]+", name.lower()))
+        stop_words = {"inc", "incorporated", "llc", "ltd", "limited", "corp", "corporation", "pvt", "private", "co", "company", "and", "the"}
+        tokens = {t for t in raw_tokens if t not in stop_words and len(t) >= 3}
+        if len(tokens) >= 2:
+            for v in self.vendors.values():
+                v_tokens = {
+                    t for t in re.findall(r"[a-z0-9]+", v.name.lower())
+                    if t not in stop_words and len(t) >= 3
+                }
+                if v_tokens:
+                    jaccard = len(tokens.intersection(v_tokens)) / len(tokens.union(v_tokens))
+                    if jaccard >= 0.75:
+                        return v
+
         return None
 
     def get_vendor_by_tax_id(self, tax_id: str) -> Optional[VendorRecord]:
@@ -215,33 +262,35 @@ class MockERPDatabase:
         sha256_hash: Optional[str] = None,
         invoice_date: Optional[date] = None,
         window_days: int = 0,
-    ) -> Tuple[bool, Optional[HistoricalInvoiceRecord]]:
+    ) -> Tuple[bool, Optional[HistoricalInvoiceRecord], str]:
         """Check if an invoice has already been submitted or paid.
 
         Matches on:
-        1. Exact vendor_id + invoice_number collision.
-        2. Exact sha256_hash collision.
-        3. Same vendor_id + amount within the duplicate window (same bill resubmitted under a typo).
+        1. Exact vendor_id + normalized invoice_number collision (EXACT_INVOICE_NUMBER).
+        2. Exact sha256_hash collision (EXACT_HASH).
+        3. Same vendor_id + amount within the duplicate window using invoice dates (FUZZY_AMOUNT_DATE).
         """
+        norm_inv = normalize_invoice_number(invoice_number)
+
         for record in self.historical_invoices:
-            # Check 1: Invoice number match
-            if record.vendor_id == vendor_id and record.invoice_number.upper() == invoice_number.strip().upper():
-                return True, record
+            # Check 1: Normalized invoice number match (strips dashes/spaces/leading zeros)
+            norm_rec = normalize_invoice_number(record.invoice_number)
+            if record.vendor_id == vendor_id and (
+                norm_rec == norm_inv or record.invoice_number.strip().upper() == invoice_number.strip().upper()
+            ):
+                return True, record, "EXACT_INVOICE_NUMBER"
 
             # Check 2: Hash match
             if sha256_hash and record.sha256_hash == sha256_hash:
-                return True, record
+                return True, record, "EXACT_HASH"
 
-            # Check 3: Same vendor + amount inside the duplicate window
-            if (
-                record.vendor_id == vendor_id
-                and abs(record.amount - amount) < 0.01
-                and invoice_date
-                and abs((record.processed_date - invoice_date).days) <= window_days
-            ):
-                return True, record
+            # Check 3: Same vendor + amount inside the duplicate window using invoice dates
+            if record.vendor_id == vendor_id and abs(record.amount - amount) < 0.01:
+                ref_date = record.invoice_date or record.processed_date
+                if invoice_date and abs((ref_date - invoice_date).days) <= window_days:
+                    return True, record, "FUZZY_AMOUNT_DATE"
 
-        return False, None
+        return False, None, "NONE"
 
     def record_processed_invoice(self, record: HistoricalInvoiceRecord) -> None:
         """Add a processed invoice to the historical ledger."""

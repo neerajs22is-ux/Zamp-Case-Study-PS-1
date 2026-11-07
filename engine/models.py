@@ -40,13 +40,7 @@ class InvoiceLineItem(BaseModel):
 
     @model_validator(mode="after")
     def validate_line_math(self) -> InvoiceLineItem:
-        calculated_total = round(self.quantity * self.unit_price, 2)
-        if abs(calculated_total - round(self.total, 2)) > 0.05:
-            # Allow minor cent rounding, but flag discrepancies
-            raise ValueError(
-                f"Line {self.line_number} calculation mismatch: "
-                f"{self.quantity} * {self.unit_price} = {calculated_total}, but line total is {self.total}"
-            )
+        # Note: Math discrepancies are caught and flagged by Gate 0 of the AOP Rules Engine
         return self
 
 
@@ -55,6 +49,8 @@ class VendorInfo(BaseModel):
     tax_id: Optional[str] = Field(None, description="Tax Identification Number (EIN, GSTIN, VAT)")
     remit_address: Optional[str] = Field(None, description="Billing/remittance address")
     contact_email: Optional[str] = Field(None, description="Vendor accounts receivable email")
+    bank_account_number: Optional[str] = Field(None, description="Bank remittance account number")
+    bank_routing_number: Optional[str] = Field(None, description="Bank routing/IFSC code")
 
 
 class Invoice(BaseModel):
@@ -81,19 +77,7 @@ class Invoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_totals(self) -> Invoice:
-        if self.line_items:
-            sum_lines = round(sum(item.total for item in self.line_items), 2)
-            if abs(sum_lines - round(self.subtotal, 2)) > 0.05:
-                raise ValueError(
-                    f"Invoice subtotal mismatch: sum of line items ({sum_lines}) "
-                    f"does not match subtotal ({self.subtotal})"
-                )
-        calculated_grand_total = round(self.subtotal + self.tax_amount, 2)
-        if abs(calculated_grand_total - round(self.total_amount, 2)) > 0.05:
-            raise ValueError(
-                f"Invoice grand total mismatch: subtotal ({self.subtotal}) + tax ({self.tax_amount}) = "
-                f"{calculated_grand_total}, but total_amount is {self.total_amount}"
-            )
+        # Note: Math discrepancies are caught and flagged by Gate 0 of the AOP Rules Engine
         return self
 
 
@@ -137,6 +121,8 @@ class VendorRecord(BaseModel):
     status: Literal["ACTIVE", "SUSPENDED", "UNAPPROVED"] = "ACTIVE"
     payment_terms: str = "Net 30"
     contact_email: str
+    bank_account_number: Optional[str] = None
+    bank_routing_number: Optional[str] = None
 
 
 class HistoricalInvoiceRecord(BaseModel):
@@ -144,6 +130,7 @@ class HistoricalInvoiceRecord(BaseModel):
     vendor_id: str
     invoice_number: str
     amount: float
+    invoice_date: Optional[date] = None
     processed_date: date
     sha256_hash: str
     batch_id: str

@@ -127,6 +127,11 @@
               <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-blue-400"></i>
               <span>Upload Custom PDF</span>
             </button>
+
+            <button id="reset-btn" onclick="resetDemoData()" class="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-xs font-medium flex items-center space-x-1.5 transition" title="Restore ERP database & metrics to factory demo baseline">
+              <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-400"></i>
+              <span>Reset Demo Data</span>
+            </button>
           </div>
         </div>
 
@@ -283,6 +288,15 @@
                 <ul id="reasons-list" class="text-xs text-slate-300 space-y-1.5 list-disc list-inside">
                   <li class="text-slate-500 italic">No run executed yet.</li>
                 </ul>
+              </div>
+
+              <!-- What Happens Next (Plain-English Decision Card) -->
+              <div id="next-action-card" class="mt-3 p-3.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200 hidden space-y-1">
+                <div class="font-semibold flex items-center space-x-1.5 text-blue-300">
+                  <i data-lucide="arrow-right-circle" class="w-4 h-4 text-blue-400"></i>
+                  <span>What Happens Next</span>
+                </div>
+                <p id="next-action-text" class="text-[11px] text-blue-200/90 leading-relaxed"></p>
               </div>
 
               <!-- Discrepancy Breakdown Box (Conditional) -->
@@ -700,6 +714,22 @@
         reasonsList.appendChild(li);
       });
 
+      // Render What Happens Next (Item 25)
+      const nextActionCard = document.getElementById('next-action-card');
+      const nextActionText = document.getElementById('next-action-text');
+      nextActionCard.classList.remove('hidden');
+
+      if (audit.decision === 'AUTO_APPROVED') {
+        nextActionCard.className = 'mt-3 p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-200 space-y-1';
+        nextActionText.innerHTML = '<strong>Automated Payment Queued:</strong> ERP Voucher posted to General Ledger. Invoice is automatically scheduled for release under Net 30 terms with zero manual touchpoints.';
+      } else if (audit.decision === 'FLAGGED_HITL_REVIEW') {
+        nextActionCard.className = 'mt-3 p-3.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 space-y-1';
+        nextActionText.innerHTML = '<strong>Action Required by AP Lead:</strong> Straight-through payment held. Routed to AP Lead worklist with mathematical discrepancy breakdown and a pre-drafted clarification email ready for 1-click dispatch.';
+      } else {
+        nextActionCard.className = 'mt-3 p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-200 space-y-1';
+        nextActionText.innerHTML = '<strong>Payment Fenced:</strong> Transaction terminated to prevent duplicate disbursement or compliance breach. Formal rejection notice is drafted and ready for vendor notification.';
+      }
+
       // Render Discrepancies
       const discCard = document.getElementById('discrepancy-card');
       if (Object.keys(audit.discrepancy_details).length > 0) {
@@ -721,6 +751,18 @@
       // Render Extracted Line Items Table
       renderLineItemsTable(audit);
       lucide.createIcons();
+    }
+
+    async function resetDemoData() {
+      try {
+        const resp = await fetch('/api/reset-data', { method: 'POST' });
+        const res = await resp.json();
+        alert(res.message || 'Demo data and ERP database reset to baseline.');
+        loadRunsHistory();
+        loadERPData();
+      } catch (err) {
+        console.error('Reset failed:', err);
+      }
     }
 
     function renderLineItemsTable(audit) {

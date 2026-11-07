@@ -1,14 +1,14 @@
 # Functional Specification & Process Blueprint: PS-1 Invoice Processing Digital Employee
 
 > **Document Type:** End-to-End Operational Architecture & Process Blueprint  
-> **Case Study:** Zamp AI Solutions Analyst — Problem Statement 1 (Finance / AP)  
-> **Status:** Drafted on Paper — Pending Review & Confirmation  
-> **Author:** Neeraj Shivkumar (Founder's Office / FDE Candidate)  
+> **Case Study:** Zamp AI Solutions Associate — Problem Statement 1 (Finance / AP)  
+> **Status:** Final Candidate Specification  
+> **Author:** Neeraj Shivkumar (AI Solutions Associate Candidate)  
 > **Date:** October 2026  
 
 ---
 
-## 1. Executive Problem Framing (The FDE Perspective)
+## 1. Executive Problem Framing (AI Solutions Associate Perspective)
 
 ### 1.1 The Operational Bottleneck
 Mid-size and enterprise companies receive hundreds of vendor invoices monthly across multiple channels (PDF email attachments, vendor portals, paper scans). Accounts Payable (AP) clerks spend hours manually:
@@ -206,7 +206,7 @@ The UI must satisfy the candidate guide mandate: *"an intuitive, well-designed i
   - Run **Price Spike**: Show line item highlighting the 35% unit cost jump.
 * **3:30 – 4:30 | The Operational Dashboard & Audit Trail:**  
   Switch to the Dashboard view. Highlight cumulative processing metrics, exception rates, and the 1-click vendor email generator for unblocking AP bottlenecks.
-* **4:30 – 5:00 | FDE Wrap-Up & Production Readiness:**  
+* **4:30 – 5:00 | Solutions Wrap-Up & Production Readiness:**  
   Explain the zero-hallucination boundary (deterministic math + LLM extraction) and how AOP policies can be updated by non-technical controllers without code changes.
 
 ---

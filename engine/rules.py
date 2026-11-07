@@ -1,12 +1,13 @@
 """Agent Operating Procedure (AOP) Policy and Rules Engine for Zamp PS-1.
 
 Implements deterministic financial matching logic, tolerance thresholds,
-duplicate detection, and automated human-in-the-loop exception packaging.
+duplicate detection, arithmetic validation, and automated human-in-the-loop exception packaging.
 """
 
 from __future__ import annotations
 
 import hashlib
+import re
 import uuid
 from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,6 +26,20 @@ from engine.models import (
 )
 
 
+def format_currency(amount: float, currency: str = "USD") -> str:
+    """Format an amount with the appropriate currency symbol or prefix."""
+    c = (currency or "USD").upper().strip()
+    if c == "USD":
+        return f"${amount:,.2f}"
+    elif c == "INR":
+        return f"₹{amount:,.2f}"
+    elif c == "EUR":
+        return f"€{amount:,.2f}"
+    elif c == "GBP":
+        return f"£{amount:,.2f}"
+    return f"{c} {amount:,.2f}"
+
+
 class AOPPolicyConfig:
     """Enterprise policy thresholds defined in the Agent Operating Procedure (AOP).
 
@@ -38,8 +53,6 @@ class AOPPolicyConfig:
         unit_price_variance_amount_threshold: float = 20.00,
         tax_rounding_tolerance_threshold: float = 5.00,
         low_confidence_threshold: float = 0.75,
-        # Amount-only duplicate matches require the same invoice date (0-day window):
-        # recurring invoices from one vendor legitimately share amounts.
         duplicate_window_days: int = 0,
     ) -> None:
         self.unit_price_variance_pct_threshold = unit_price_variance_pct_threshold
@@ -68,9 +81,70 @@ class AOPRuleEngine:
         line_results: List[LineMatchResult] = []
         overall_confidence = invoice.confidence_scores.get("overall", 1.0)
         po_reference = invoice.po_reference
+        curr = invoice.currency or "USD"
 
         # -------------------------------------------------------------
-        # Gate 1: Extraction Confidence & Document Integrity Check
+        # Gate 0: Deterministic Arithmetic Invariant Gate
+        # -------------------------------------------------------------
+        has_arithmetic_mismatch = False
+
+        # 0a. Line math: quantity × unit_price = line_total
+        if invoice.line_items:
+            for item in invoice.line_items:
+                calc_line_total = round(item.quantity * item.unit_price, 2)
+                stated_line_total = round(item.total, 2)
+                if abs(calc_line_total - stated_line_total) > 0.01:
+                    has_arithmetic_mismatch = True
+                    reasons.append(
+                        f"Line {item.line_number} calculation mismatch: {item.quantity} × "
+                        f"{format_currency(item.unit_price, curr)} = {format_currency(calc_line_total, curr)}, "
+                        f"but line total is stated as {format_currency(stated_line_total, curr)}."
+                    )
+                    discrepancies.setdefault("line_math_mismatch", []).append({
+                        "line_number": item.line_number,
+                        "calculated": calc_line_total,
+                        "stated": stated_line_total,
+                    })
+
+            # 0b. Subtotal: sum(line totals) == subtotal
+            sum_line_totals = round(sum(item.total for item in invoice.line_items), 2)
+            stated_subtotal = round(invoice.subtotal, 2)
+            if abs(sum_line_totals - stated_subtotal) > 0.01:
+                has_arithmetic_mismatch = True
+                reasons.append(
+                    f"Subtotal mismatch: Sum of line items ({format_currency(sum_line_totals, curr)}) "
+                    f"does not match stated invoice subtotal ({format_currency(stated_subtotal, curr)})."
+                )
+                discrepancies["subtotal_mismatch"] = {
+                    "sum_of_lines": sum_line_totals,
+                    "stated_subtotal": stated_subtotal,
+                    "difference": round(sum_line_totals - stated_subtotal, 2),
+                }
+
+        # 0c. Grand Total: subtotal + tax == total (within tax_rounding_tolerance_threshold)
+        calc_grand_total = round(invoice.subtotal + invoice.tax_amount, 2)
+        stated_grand_total = round(invoice.total_amount, 2)
+        tax_diff = round(abs(calc_grand_total - stated_grand_total), 2)
+        if tax_diff > self.config.tax_rounding_tolerance_threshold:
+            has_arithmetic_mismatch = True
+            reasons.append(
+                f"Grand total calculation mismatch: Subtotal ({format_currency(invoice.subtotal, curr)}) + "
+                f"Tax ({format_currency(invoice.tax_amount, curr)}) = {format_currency(calc_grand_total, curr)}, "
+                f"which differs from stated grand total ({format_currency(stated_grand_total, curr)}) by "
+                f"{format_currency(tax_diff, curr)} (exceeds policy tax rounding tolerance of {format_currency(self.config.tax_rounding_tolerance_threshold, curr)})."
+            )
+            discrepancies["grand_total_mismatch"] = {
+                "calculated_total": calc_grand_total,
+                "stated_total": stated_grand_total,
+                "difference": tax_diff,
+                "tolerance_threshold": self.config.tax_rounding_tolerance_threshold,
+            }
+
+        if has_arithmetic_mismatch:
+            discrepancies["arithmetic_mismatch"] = True
+
+        # -------------------------------------------------------------
+        # Gate 1: Extraction Confidence & Date Integrity Check
         # -------------------------------------------------------------
         if overall_confidence < self.config.low_confidence_threshold:
             reasons.append(
@@ -83,25 +157,69 @@ class AOPRuleEngine:
                 "document_type": invoice.document_type.value,
             }
 
+        today = date.today()
+        if invoice.invoice_date > today:
+            reasons.append(
+                f"Future-dated invoice detected: Invoice date ({invoice.invoice_date}) is in the future. "
+                "Held for verification."
+            )
+            discrepancies["future_dated_invoice"] = str(invoice.invoice_date)
+        elif (today - invoice.invoice_date).days > 365:
+            reasons.append(
+                f"Stale invoice detected: Invoice date ({invoice.invoice_date}) is older than 365 days. "
+                "Held for accounting review."
+            )
+            discrepancies["stale_invoice"] = str(invoice.invoice_date)
+
         # -------------------------------------------------------------
-        # Gate 2: Vendor Verification
+        # Gate 2: Vendor Verification & Tax ID Precedence
         # -------------------------------------------------------------
         vendor: Optional[VendorRecord] = None
-        if invoice.vendor.tax_id:
+        tax_id_provided = bool(invoice.vendor.tax_id and invoice.vendor.tax_id.strip())
+
+        if tax_id_provided:
             vendor = erp.get_vendor_by_tax_id(invoice.vendor.tax_id)
-        if not vendor:
+            if not vendor:
+                # STRICT AUDIT RULE: Tax ID was provided, but is NOT found in ERP Master.
+                # Never fall through to name lookup if tax ID mismatched.
+                reasons.append(
+                    f"Vendor Tax ID mismatch: Tax ID '{invoice.vendor.tax_id}' provided on invoice "
+                    f"does not match any approved record in ERP Vendor Master for '{invoice.vendor.name}'."
+                )
+                discrepancies["tax_id_mismatch"] = {
+                    "provided_tax_id": invoice.vendor.tax_id,
+                    "vendor_name": invoice.vendor.name,
+                }
+                return self._build_audit(
+                    run_id=run_id,
+                    invoice=invoice,
+                    decision=DecisionState.REJECTED,
+                    overall_confidence=overall_confidence,
+                    reasons=reasons,
+                    discrepancies=discrepancies,
+                    line_results=line_results,
+                    stage_timings=stage_timings or [],
+                )
+        else:
+            # Tax ID not provided: Attempt normalized name match
             vendor = erp.get_vendor_by_name(invoice.vendor.name)
+            if vendor:
+                reasons.append(
+                    f"Vendor matched by name '{vendor.name}' only (Tax ID omitted on invoice). "
+                    "Flagged for human confirmation."
+                )
+                discrepancies["vendor_tax_id_omitted"] = True
 
         if not vendor:
             reasons.append(
                 f"Unapproved or unknown vendor: '{invoice.vendor.name}' (Tax ID: {invoice.vendor.tax_id or 'N/A'}). "
-                "Vendor record does not exist in ERP Vendor Master."
+                "Vendor record does not exist in ERP Vendor Master; requires supplier onboarding."
             )
             discrepancies["vendor_unapproved"] = invoice.vendor.name
             return self._build_audit(
                 run_id=run_id,
                 invoice=invoice,
-                decision=DecisionState.REJECTED,
+                decision=DecisionState.FLAGGED_HITL_REVIEW,
                 overall_confidence=overall_confidence,
                 reasons=reasons,
                 discrepancies=discrepancies,
@@ -126,6 +244,21 @@ class AOPRuleEngine:
                 stage_timings=stage_timings or [],
             )
 
+        # Remittance / Bank Account Fraud Validation (Item 21)
+        if invoice.vendor.bank_account_number and vendor.bank_account_number:
+            inv_bank = re.sub(r"[^A-Za-z0-9]", "", invoice.vendor.bank_account_number)
+            erp_bank = re.sub(r"[^A-Za-z0-9]", "", vendor.bank_account_number)
+            if inv_bank != erp_bank:
+                reasons.append(
+                    f"Bank Account Mismatch: Remittance account '{invoice.vendor.bank_account_number}' "
+                    f"does not match registered vendor bank account (ending in ...{erp_bank[-4:]}). "
+                    "Payment held for fraud prevention verification."
+                )
+                discrepancies["bank_details_mismatch"] = {
+                    "provided_account": invoice.vendor.bank_account_number,
+                    "registered_account_last4": erp_bank[-4:],
+                }
+
         # -------------------------------------------------------------
         # Gate 3: Duplicate Submission Check
         # -------------------------------------------------------------
@@ -133,7 +266,7 @@ class AOPRuleEngine:
             f"{vendor.vendor_id}:{invoice.invoice_number}:{invoice.total_amount:.2f}".encode("utf-8")
         ).hexdigest()
 
-        is_dup, dup_record = erp.check_duplicate(
+        is_dup, dup_record, dup_type = erp.check_duplicate(
             vendor_id=vendor.vendor_id,
             invoice_number=invoice.invoice_number,
             amount=invoice.total_amount,
@@ -143,26 +276,41 @@ class AOPRuleEngine:
         )
 
         if is_dup and dup_record:
-            reasons.append(
-                f"Duplicate submission detected. Invoice #{invoice.invoice_number} from '{vendor.name}' "
-                f"for ${invoice.total_amount:,.2f} was previously processed on {dup_record.processed_date} "
-                f"(Batch: {dup_record.batch_id}, Ref: {dup_record.invoice_id}). Auto-rejected to prevent double payment."
-            )
-            discrepancies["duplicate"] = {
-                "prior_invoice_id": dup_record.invoice_id,
-                "prior_processed_date": str(dup_record.processed_date),
-                "prior_batch_id": dup_record.batch_id,
-            }
-            return self._build_audit(
-                run_id=run_id,
-                invoice=invoice,
-                decision=DecisionState.REJECTED,
-                overall_confidence=overall_confidence,
-                reasons=reasons,
-                discrepancies=discrepancies,
-                line_results=line_results,
-                stage_timings=stage_timings or [],
-            )
+            if dup_type in ("EXACT_INVOICE_NUMBER", "EXACT_HASH"):
+                reasons.append(
+                    f"Duplicate submission detected. Invoice #{invoice.invoice_number} from '{vendor.name}' "
+                    f"for {format_currency(invoice.total_amount, curr)} was previously processed on {dup_record.processed_date} "
+                    f"(Batch: {dup_record.batch_id}, Ref: {dup_record.invoice_id}). Auto-rejected to prevent double payment."
+                )
+                discrepancies["duplicate"] = {
+                    "prior_invoice_id": dup_record.invoice_id,
+                    "prior_processed_date": str(dup_record.processed_date),
+                    "prior_batch_id": dup_record.batch_id,
+                    "duplicate_type": dup_type,
+                }
+                return self._build_audit(
+                    run_id=run_id,
+                    invoice=invoice,
+                    decision=DecisionState.REJECTED,
+                    overall_confidence=overall_confidence,
+                    reasons=reasons,
+                    discrepancies=discrepancies,
+                    line_results=line_results,
+                    stage_timings=stage_timings or [],
+                )
+            else:
+                # Fuzzy near-duplicate (same vendor + exact amount within window)
+                reasons.append(
+                    f"Possible duplicate submission detected: Invoice for {format_currency(invoice.total_amount, curr)} "
+                    f"matches prior invoice #{dup_record.invoice_number} from '{vendor.name}' within duplicate window. "
+                    "Held for human review."
+                )
+                discrepancies["possible_duplicate"] = {
+                    "prior_invoice_id": dup_record.invoice_id,
+                    "prior_invoice_number": dup_record.invoice_number,
+                    "prior_processed_date": str(dup_record.processed_date),
+                    "duplicate_type": dup_type,
+                }
 
         # -------------------------------------------------------------
         # Gate 4: PO Lookup & Split-PO Budget Allocation Check
@@ -179,8 +327,10 @@ class AOPRuleEngine:
                 po_reference = po.po_number
                 reasons.append(
                     f"PO reference was omitted on invoice, but automatically inferred unique active PO #{po.po_number} "
-                    f"for vendor '{vendor.name}'."
+                    f"for vendor '{vendor.name}'. Flagged for human confirmation."
                 )
+                # Incur a discrepancy so that inferred PO invoices do NOT auto-approve silently
+                discrepancies["inferred_po"] = po.po_number
             else:
                 reasons.append(
                     f"Missing Purchase Order reference. Vendor '{vendor.name}' has {len(open_pos)} active POs. "
@@ -200,9 +350,9 @@ class AOPRuleEngine:
                 overrun = round(invoice.total_amount - po.remaining_balance, 2)
                 cumulative_total = round(po.invoiced_amount + invoice.total_amount, 2)
                 reasons.append(
-                    f"PO Budget Overrun on #{po.po_number}: Billed amount (${invoice.total_amount:,.2f}) "
-                    f"exceeds remaining balance (${po.remaining_balance:,.2f}) by ${overrun:,.2f}. "
-                    f"(Total cumulative billing would be ${cumulative_total:,.2f} vs authorized cap of ${po.authorized_amount:,.2f})."
+                    f"PO Budget Overrun on #{po.po_number}: Billed amount ({format_currency(invoice.total_amount, curr)}) "
+                    f"exceeds remaining balance ({format_currency(po.remaining_balance, curr)}) by {format_currency(overrun, curr)}. "
+                    f"(Total cumulative billing would be {format_currency(cumulative_total, curr)} vs authorized cap of {format_currency(po.authorized_amount, curr)})."
                 )
                 discrepancies["split_po_overrun"] = {
                     "po_number": po.po_number,
@@ -227,8 +377,14 @@ class AOPRuleEngine:
             }
 
         if po and invoice.line_items:
-            has_price_variance = False
-            has_qty_exceeded = False
+            # Aggregate billed quantity per matched PO line to prevent multi-line circumvention (Item 17)
+            billed_qty_by_po_line: Dict[int, float] = {}
+            for inv_line in invoice.line_items:
+                matched_line = self._find_matching_po_line(inv_line.description, po.line_items)
+                if matched_line:
+                    billed_qty_by_po_line[matched_line.line_number] = round(
+                        billed_qty_by_po_line.get(matched_line.line_number, 0.0) + inv_line.quantity, 2
+                    )
 
             for inv_line in invoice.line_items:
                 matched_po_line = self._find_matching_po_line(inv_line.description, po.line_items)
@@ -255,17 +411,21 @@ class AOPRuleEngine:
                     discrepancies["unmatched_line"] = inv_line.line_number
                     continue
 
-                # Check quantity
-                qty_diff = round(inv_line.quantity - matched_po_line.remaining_quantity, 2)
+                # Check aggregated quantity against PO remaining quantity
+                total_billed_qty = billed_qty_by_po_line.get(matched_po_line.line_number, inv_line.quantity)
+                qty_diff = round(total_billed_qty - matched_po_line.remaining_quantity, 2)
                 if qty_diff > 0:
-                    has_qty_exceeded = True
-                    notes = f"Quantity ({inv_line.quantity}) exceeds PO remaining quantity ({matched_po_line.remaining_quantity})."
+                    notes = (
+                        f"Aggregated billed quantity ({total_billed_qty}) exceeds PO remaining quantity "
+                        f"({matched_po_line.remaining_quantity})."
+                    )
                     line_status = LineMatchStatus.QTY_EXCEEDED
                     reasons.append(f"Line {inv_line.line_number}: {notes}")
                     discrepancies.setdefault("qty_exceeded", []).append(
                         {
                             "line_number": inv_line.line_number,
                             "billed_quantity": inv_line.quantity,
+                            "total_billed_for_po_line": total_billed_qty,
                             "remaining_quantity": matched_po_line.remaining_quantity,
                         }
                     )
@@ -279,18 +439,16 @@ class AOPRuleEngine:
                 price_variance_pct = round((price_diff / contracted_price) * 100, 2) if contracted_price > 0 else 0.0
 
                 if price_diff > 0:
-                    # Policy tolerance: variance is absorbed only while inside BOTH limits
                     exceeds_pct = price_variance_pct > self.config.unit_price_variance_pct_threshold
                     exceeds_amt = price_diff > self.config.unit_price_variance_amount_threshold
 
                     if exceeds_pct or exceeds_amt:
-                        has_price_variance = True
                         line_status = LineMatchStatus.PRICE_VARIANCE
                         notes = (
-                            f"Price spike: Billed unit price ${inv_line.unit_price:,.2f} exceeds contracted rate "
-                            f"${contracted_price:,.2f} by +{price_variance_pct}% (+${price_diff:,.2f}/unit), "
+                            f"Price spike: Billed unit price {format_currency(inv_line.unit_price, curr)} exceeds contracted rate "
+                            f"{format_currency(contracted_price, curr)} by +{price_variance_pct}% (+{format_currency(price_diff, curr)}/unit), "
                             f"exceeding policy tolerance (allowed: ≤{self.config.unit_price_variance_pct_threshold}% "
-                            f"and ≤${self.config.unit_price_variance_amount_threshold:,.2f} per unit)."
+                            f"and ≤{format_currency(self.config.unit_price_variance_amount_threshold, curr)} per unit)."
                         )
                         reasons.append(f"Line {inv_line.line_number}: {notes}")
                         discrepancies["price_variance"] = {
@@ -329,7 +487,7 @@ class AOPRuleEngine:
             voucher_id = f"VCHR-{uuid.uuid4().hex[:6].upper()}"
             reasons.append(
                 f"All AOP checks passed. Vendor '{vendor.name}' verified active. "
-                f"Line items and total (${invoice.total_amount:,.2f}) matched PO #{po.po_number if po else 'N/A'} "
+                f"Line items and total ({format_currency(invoice.total_amount, curr)}) matched PO #{po.po_number if po else 'N/A'} "
                 f"within allowable variance. Generated ERP Voucher #{voucher_id} for automated payment."
             )
             # Record drawdown in mock ERP and append to the historical ledger
@@ -349,9 +507,10 @@ class AOPRuleEngine:
                     vendor_id=vendor.vendor_id,
                     invoice_number=invoice.invoice_number,
                     amount=invoice.total_amount,
-                    processed_date=date.today(),
+                    invoice_date=invoice.invoice_date,
+                    processed_date=today,
                     sha256_hash=invoice_hash,
-                    batch_id=f"BATCH-{date.today().isoformat()}",
+                    batch_id=f"BATCH-{today.isoformat()}",
                     status=DecisionState.AUTO_APPROVED,
                 )
             )
@@ -374,22 +533,20 @@ class AOPRuleEngine:
         )
 
     def _find_matching_po_line(self, description: str, po_lines: List[Any]) -> Optional[Any]:
-        """Match invoice line item to PO line item using token containment."""
+        """Match invoice line item to PO line item using semantic tokens."""
         clean_desc = description.strip().lower()
         for po_line in po_lines:
             po_desc = po_line.description.strip().lower()
             po_code = po_line.item_code.strip().lower()
             if po_desc in clean_desc or clean_desc in po_desc or po_code in clean_desc:
                 return po_line
-            # Token overlap check
+            # Token overlap check (require at least 2 common tokens)
             desc_tokens = set(clean_desc.split())
             po_tokens = set(po_desc.split())
             overlap = desc_tokens.intersection(po_tokens)
             if len(overlap) >= 2:
                 return po_line
-        # Fallback to single line PO if available
-        if len(po_lines) == 1:
-            return po_lines[0]
+        # Strict matching: do not match arbitrary lines on single-line POs
         return None
 
     def _build_audit(
@@ -443,27 +600,98 @@ class AOPRuleEngine:
         discrepancies: Dict[str, Any],
         po: Optional[PurchaseOrder],
     ) -> str:
-        """Auto-draft professional enterprise email for human approver to send with 1 click."""
+        """Auto-draft professional enterprise email for human approver to dispatch with 1 click."""
         recipient = vendor.contact_email if vendor else (invoice.vendor.contact_email or "accounts@vendor.com")
         vendor_name = vendor.name if vendor else invoice.vendor.name
+        curr = invoice.currency or "USD"
 
-        if decision == DecisionState.REJECTED:
+        # Construct vendor-facing reasons stripped of internal IDs and ERP internals
+        vendor_bullets: List[str] = []
+
+        if "duplicate" in discrepancies:
+            dup = discrepancies["duplicate"]
+            subject = f"REJECTED: Invoice #{invoice.invoice_number} (Duplicate Submission) from {vendor_name}"
+            greeting = f"Dear Accounts Receivable Team at {vendor_name},"
+            action_line = (
+                f"Our systems show that Invoice #{invoice.invoice_number} in the amount of "
+                f"{format_currency(invoice.total_amount, curr)} was previously processed on {dup.get('prior_processed_date', 'a prior date')}. "
+                "No action is required from your team unless this was intended as an amended billing."
+            )
+            vendor_bullets.append(
+                f"Invoice #{invoice.invoice_number} was already approved and registered for payment on {dup.get('prior_processed_date', 'earlier')}."
+            )
+        elif "tax_id_mismatch" in discrepancies:
+            subject = f"REJECTED: Tax ID Verification Mismatch on Invoice #{invoice.invoice_number}"
+            greeting = f"Dear {vendor_name} Finance Team,"
+            action_line = "Your invoice could not be verified due to a statutory tax identification discrepancy:"
+            vendor_bullets.append(
+                f"Tax ID '{discrepancies['tax_id_mismatch'].get('provided_tax_id')}' stated on invoice does not match "
+                "our registered Vendor Master tax record. Please submit a corrected invoice with your official Tax ID."
+            )
+        elif "vendor_unapproved" in discrepancies:
+            subject = f"Onboarding Required: Invoice #{invoice.invoice_number} from {vendor_name}"
+            greeting = f"Dear Accounts Payable Contact at {vendor_name},"
+            action_line = "We received your invoice, but your organization is not yet onboarded in our ERP Vendor Master:"
+            vendor_bullets.append(
+                f"Vendor '{invoice.vendor.name}' requires formal onboarding before payments can be authorized. "
+                "Please contact our vendor onboarding team to complete supplier registration."
+            )
+        elif decision == DecisionState.REJECTED:
             subject = f"REJECTED: Invoice #{invoice.invoice_number} from {vendor_name}"
             greeting = f"Dear Accounts Receivable Team at {vendor_name},"
-            action_line = "Please review the issues noted below and submit a corrected invoice for re-processing."
+            action_line = "Please review the issues noted below and submit a corrected invoice for re-processing:"
         else:
             subject = f"Action Required: Clarification for Invoice #{invoice.invoice_number} ({vendor_name})"
             greeting = f"Dear {vendor_name} Finance Team,"
             action_line = "Your invoice is currently on hold pending confirmation of the following item(s):"
 
-        bullet_points = "\n".join(f"  • {r}" for r in reasons)
+        # Populate specific bullets if not already set above
+        if not vendor_bullets:
+            if "bank_details_mismatch" in discrepancies:
+                vendor_bullets.append(
+                    "Remittance bank details on invoice differ from registered vendor bank details on file. "
+                    "For security compliance, please verify banking instructions via our supplier portal."
+                )
+            if "split_po_overrun" in discrepancies:
+                over = discrepancies["split_po_overrun"]
+                vendor_bullets.append(
+                    f"Billed amount ({format_currency(invoice.total_amount, curr)}) exceeds authorized PO balance "
+                    f"by {format_currency(over.get('deficit', 0.0), curr)}. An authorized PO amendment is needed."
+                )
+            if "price_variance" in discrepancies:
+                pv = discrepancies["price_variance"]
+                vendor_bullets.append(
+                    f"Line {pv.get('line_number', 1)} unit price of {format_currency(pv.get('billed_unit_price', 0.0), curr)} "
+                    f"exceeds contracted rate ({format_currency(pv.get('contracted_unit_price', 0.0), curr)}) on PO #{po.po_number if po else 'N/A'}."
+                )
+            if "missing_po" in discrepancies:
+                vendor_bullets.append(
+                    "Your invoice does not indicate an authorized Purchase Order reference. Please provide a valid PO number."
+                )
+            if "arithmetic_mismatch" in discrepancies:
+                vendor_bullets.append(
+                    "Invoice arithmetic check failed: Sum of line items or subtotal does not match the grand total."
+                )
+            if "low_confidence" in discrepancies:
+                vendor_bullets.append(
+                    "Document scan quality was insufficient for automated processing. A high-resolution digital copy is requested."
+                )
+
+        if not vendor_bullets:
+            for r in reasons:
+                clean_r = re.sub(r"\(Batch: [^)]+\)", "", r)
+                clean_r = re.sub(r"\(Ref: [^)]+\)", "", clean_r)
+                clean_r = clean_r.replace("Auto-rejected to prevent double payment.", "").strip()
+                vendor_bullets.append(clean_r)
+
+        bullet_points = "\n".join(f"  • {b}" for b in vendor_bullets)
 
         return f"""To: {recipient}
 Subject: {subject}
 
 {greeting}
 
-We are processing Invoice #{invoice.invoice_number} (dated {invoice.invoice_date}) in the amount of ${invoice.total_amount:,.2f} submitted to our Accounts Payable department.
+We are processing Invoice #{invoice.invoice_number} (dated {invoice.invoice_date}) in the amount of {format_currency(invoice.total_amount, curr)} submitted to our Accounts Payable department.
 
 {action_line}
 
@@ -472,9 +700,10 @@ We are processing Invoice #{invoice.invoice_number} (dated {invoice.invoice_date
 To expedite approval and release of payment:
   1. Reply to this email with reference to PO #{po.po_number if po else 'N/A'}.
   2. If a rate addendum or contract revision applies, please attach the authorized documentation.
-  3. For technical questions, reach our AP desk at accounts-payable@company.com.
+  3. For onboarding or invoice inquiries, reach our AP operations desk at ap-operations@company.internal.
 
 Sincerely,
-Accounts Payable Automation Desk
-Founder's Office Operations
+Accounts Payable Operations Team
+Finance Shared Services Desk
+Contact: ap-operations@company.internal
 """

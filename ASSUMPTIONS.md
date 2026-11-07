@@ -1,45 +1,45 @@
-# AP Command Center — Unverified Configuration Requirements & Assumptions
+# Accounts Payable (AP) Digital Employee — Case Study Operating Assumptions
 
-**Document Status:** Pending Customer / Authorised Owner Confirmation  
-**Governing Standard:** Production Truth Rules (No Unverified Defaults)
-
-The following operational and business parameters cannot be assumed or invented. Until authoritative configuration is supplied by the customer's designated owners (e.g., Zetwerk Finance, Tax, Procurement, and IT Security teams), these items are classified as **UNVERIFIED CONFIGURATION REQUIREMENTS** and remain in a setup-blocked or unconfigured state.
+This document outlines the core business rules, operational constraints, and technical assumptions governing the Zamp Problem Statement 1 (PS-1) AP Digital Employee. These assumptions reflect realistic enterprise finance workflows while maintaining a deterministic evaluation framework.
 
 ---
 
-## 1. Mailbox & Email Ingestion Configuration
-- **Mailbox Address:** Not configured (e.g., candidate `ap.invoices@zetwerk.com` or `ap-inward@zetwerk.com` requires formal IT security sign-off).
-- **Mailbox Owner / Service Account:** Subject to Google Workspace / Microsoft 365 delegation approval.
-- **Allowed Ingestion Domains / Inbound Whitelists:** Must be specified by corporate IT security.
-- **Attachment Filtering Criteria:** Inline signature image threshold and non-PDF attachment policy must be defined by AP operations.
+### 1. Currency & Precision
+Invoices specify an explicit ISO currency code (USD in the standalone PS-1 demo, INR in enterprise deployment). All line item calculations, tax validations, and PO matches operate within the same currency. Cross-currency invoices require an authorized FX rate table and are routed to manual review.
 
-## 2. Legal Entities, Plant Locations & ERP Company Codes
-- **Legal Entity Master:** Customer-specific entity IDs, registered names, and operating states must be imported from ERP.
-- **GSTINs:** Exact registered GSTINs per operating state must be provisioned (example placeholder `29AAACZ1234F1Z5` is strictly unverified).
-- **ERP Company Codes & Plants:** SAP S/4HANA company code (e.g., `1000`) and plant codes must be mapped to corporate tax registrations.
+### 2. Deterministic Arithmetic Gate (Gate 0)
+Before PO matching occurs, invoice mathematics must balance:
+- **Line Total:** `abs(quantity * unit_price - line_total) <= 0.01`
+- **Subtotal:** `abs(sum(line_totals) - subtotal) <= 0.01`
+- **Grand Total:** `abs(subtotal + tax_amount - total_amount) <= tax_rounding_tolerance_threshold` (default: $5.00 / ₹5.00)
 
-## 3. SAP S/4HANA Tenant & API Integration
-- **Tenant Endpoint / Hostname:** SAP S/4HANA OData / RFC endpoint URL.
-- **Authentication Method:** OAuth 2.0 / Client Credentials / Mutual TLS.
-- **Service Account & Read-Only Scopes:** Exact authorization scopes for PO, GRN, Quality Certificate, Rate Contract, and Payment tables.
-- **Sync Freshness SLA:** Maximum acceptable staleness for cached ERP snapshots before an exception gate evaluates to `UNKNOWN`.
+Any mathematical discrepancy halts straight-through processing and routes the invoice to Human-in-the-Loop (`FLAGGED_HITL_REVIEW`).
 
-## 4. Statutory Tax & MSME Policies (Indian Jurisdiction)
-- **Customer Finance / Legal Tax Interpretation:**
-  - Written confirmation of effective-dated tax provisions applicable to the customer's entities.
-  - Confirmation of Income-tax Act, 2025 commencement provisions (e.g., Section 37(2)(g) vs legacy Section 43B(h)) for relevant financial years.
-  - Approved Section 194Q TDS / Section 206C(1H) TCS thresholds, payee classifications, and exemptions.
-- **MSMED Act 2006 Rule Interpretation:**
-  - Standard policy on date of deemed acceptance (Section 2(b)) and handling of day-of-objection logs.
-  - Section 16 penal interest rate schedule and compound calculation method approved by corporate legal.
-  - Enterprise classification criteria (Micro and Small vs Medium enterprises).
+### 3. Vendor Identification & Tax ID Precedence
+Tax ID (EIN, GSTIN, VAT) is the authoritative vendor key. If a Tax ID is present on the invoice, it is strictly validated against the ERP Vendor Master. A Tax ID mismatch triggers an immediate HOLD/REJECT and **never** falls back to fuzzy name matching.
 
-## 5. Approval Matrix & Financial Thresholds
-- **Dual-Approval Monetary Threshold:** Customer policy defining the exact amount requiring two distinct approvers (e.g., ₹5,00,000 is an unconfirmed default).
-- **Authority Matrix:** Role-to-entity and role-to-amount authorization limits for AP Associates, AP Leads, Controllers, and Category Managers.
-- **Matching Tolerances:** Exact acceptable variance percentages and absolute amounts for unit rates, line totals, and tax rounding.
+### 4. Normalized Vendor Name Matching
+When Tax ID is absent, vendor matching utilizes normalized alphanumeric token matching (stripping suffixes like *Inc*, *LLC*, *Ltd*, *Pvt*, punctuation, and whitespace) with a minimum length threshold (≥ 3 characters). If no match or multiple ambiguous matches are found, the invoice is held for vendor onboarding.
 
-## 6. Retention, Security & Deletion Policy
-- **Document Retention Schedule:** Statutory retention period for invoice originals and extraction logs (e.g., 8 years under Indian Companies Act / GST Act).
-- **Data Residency:** Storage region requirements (e.g., AWS `ap-south-1` / GCP `asia-south1` in Mumbai/Delhi).
-- **Malware Scanning Provider:** Customer-mandated scanning engine (ClamAV / AWS GuardDuty / VirusTotal API).
+### 5. PO Reference Inference Policy
+When an invoice omits a PO reference, the system inspects open POs for the verified vendor:
+- If **exactly one** open PO exists, the PO is inferred, but straight-through approval is disabled (`FLAGGED_HITL_REVIEW` with an `inferred_po` flag).
+- If **zero or multiple** open POs exist, the invoice is held for PO assignment (`missing_po`).
+
+### 6. Strict 2-Way Line Matching
+Invoice line items match PO lines using item code or description token containment (minimum 2 overlapping semantic tokens). Unmatched lines are flagged as unapproved items (`unmatched_line`), preventing arbitrary line substitution even on single-line POs.
+
+### 7. Multi-Line Quantity Aggregation
+When an invoice contains multiple line items mapped to the same underlying PO line item, billed quantities are aggregated before evaluating against the PO line's remaining authorized quantity.
+
+### 8. Cumulative Split-PO Budget Enforcement
+Approved invoices draw down PO balances in real-time. Invoices with amounts exceeding the remaining authorized balance trigger a budget overrun exception (`split_po_overrun`), preserving the audit trail for cumulative commitments.
+
+### 9. Multi-Tier Duplicate Detection
+Duplicate detection operates across three tiers:
+1. **Normalized Key:** Normalized invoice number (stripping delimiters and leading zeros) + vendor ID.
+2. **Cryptographic Integrity:** Exact SHA-256 payload/text hash match.
+3. **Fuzzy Temporal Window:** Same vendor + exact amount within a configurable date window (default 30 days) using invoice issue dates.
+
+### 10. Remittance & Bank Account Validation
+If bank remittance account numbers or routing details are present on the invoice, they are verified against the bank details in the ERP Vendor Master. Any discrepancy triggers an immediate security HOLD (`bank_details_mismatch`) to protect against invoice redirection fraud.

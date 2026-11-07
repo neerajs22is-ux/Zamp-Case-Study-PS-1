@@ -64,11 +64,12 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-- **Total Test Items:** 256
-- **Passed:** 244
-- **Skipped:** 12 (Stage 1 cross-tenant RLS live tests requiring root PostgreSQL superuser bypass permissions, and Stage 5 live Pub/Sub network probes)
+- **Total Test Items Collected:** 420
+- **Passed:** 377
+- **Skipped:** 43 (PostgreSQL-specific isolation fixtures, live Gmail Pub/Sub network probes)
 - **Failed:** 0
-- **Execution Time:** ~20 seconds
+- **Standalone PS-1 Engine Suite:** 22 passed, 0 failed in 0.26s (`tests/test_engine.py`)
+- **Execution Time:** ~44 seconds
 - **Frontend Build:** `npm run build` in `frontend/` completes with 0 errors and 0 warnings.
 
 ---

@@ -28,7 +28,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURES_DIR = os.path.join(BASE_DIR, "fixtures", "data")
 
 app = FastAPI(
-    title="Zamp AI Solutions Analyst — PS-1 Digital Employee API",
+    title="Zamp AI Solutions Associate — PS-1 Digital Employee API",
     description="Autonomous Invoice Processing & 2-Way/3-Way Matching Engine with AOP Tolerance Validation",
     version="1.0.0",
 )
@@ -242,3 +242,60 @@ async def get_purchase_orders():
 async def get_vendors():
     """Inspect ERP vendor directory."""
     return [v.model_dump() for v in erp_instance.vendors.values()]
+
+@app.post("/api/reset-data")
+async def reset_demo_data():
+    """Restore mock ERP and pipeline run history to seeded demo baseline."""
+    erp_instance.reset()
+    pipeline.run_history.clear()
+    return {"status": "success", "message": "ERP database and run history reset to factory demo baseline"}
+
+
+@app.post("/api/run-sequence")
+async def run_sequence_demo():
+    """Execute the sequential split-PO drawdown demo (Item 19).
+    
+    1. First invoice (HP-01, $5,425) draws down PO-1042 authorized budget ($10,000 -> $4,575).
+    2. Second invoice ($5,000) evaluates against the remaining $4,575 balance, flagging a budget overrun.
+    """
+    erp_instance.reset()
+    hp_path = os.path.join(FIXTURES_DIR, "HP-01-Happy-Path.json")
+    with open(hp_path, "r", encoding="utf-8") as f:
+        inv1 = json.load(f)
+    audit1 = pipeline.process(inv1, filename="HP-01-Happy-Path.json")
+    po_balance_after_inv1 = erp_instance.get_po("PO-1042").remaining_balance
+
+    inv2 = dict(inv1)
+    inv2["invoice_number"] = "INV-2026-102-SEQ"
+    inv2["invoice_date"] = "2026-10-30"
+    inv2["total_amount"] = 5000.00
+    inv2["subtotal"] = 5000.00
+    inv2["tax_amount"] = 0.00
+    inv2["line_items"] = [{
+        "line_number": 1,
+        "description": "Enterprise API Compute Tier 3",
+        "quantity": 10.0,
+        "unit_price": 500.0,
+        "total": 5000.0,
+    }]
+    audit2 = pipeline.process(inv2, filename="INV-2026-102-SEQ.json")
+
+    return {
+        "status": "success",
+        "step_1": {
+            "invoice_number": audit1.invoice_number,
+            "amount": inv1["total_amount"],
+            "decision": audit1.decision.value,
+            "po_number": "PO-1042",
+            "authorized_budget": 10000.00,
+            "remaining_balance_after_drawdown": po_balance_after_inv1,
+        },
+        "step_2": {
+            "invoice_number": audit2.invoice_number,
+            "amount": inv2["total_amount"],
+            "decision": audit2.decision.value,
+            "remaining_po_balance": po_balance_after_inv1,
+            "deficit": round(inv2["total_amount"] - po_balance_after_inv1, 2),
+            "reasons": audit2.reasons,
+        }
+    }
