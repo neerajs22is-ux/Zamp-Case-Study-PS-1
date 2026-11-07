@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import datetime
 from decimal import Decimal
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -360,6 +361,11 @@ def execute_invoice_action(
     if payload.action in ("APPROVE_AP_REVIEW", "APPROVE_UNDISPUTED"):
         if inv.stage in ("REJECTED", "QUARANTINED") or inv.decision in ("REJECTED", "QUARANTINED"):
             raise HTTPException(status_code=409, detail="Rejected or quarantined invoices cannot be approved.")
+        if inv.workflow_substatus == "ON_HOLD":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot approve invoice while it is ON_HOLD pending evidence. The hold must be resolved first.",
+            )
         # Strictly prevent approval if any deterministic match gate check failed (D-04 override deferred)
         match_run = db.scalar(
             select(MatchRun)
@@ -433,18 +439,27 @@ def execute_invoice_action(
                 )
 
         if is_high_value:
-            if not approval_req:
+            is_new_cycle = not approval_req or approval_req.status in ("RESET_TO_BASELINE", "REVOKED", "CANCELLED") or not approval_req.first_approver_id
+            if is_new_cycle:
                 # Step 1 of Dual Approval
-                approval_req = ApprovalRequest(
-                    id=f"app_{uuid.uuid4().hex[:12]}",
-                    org_id=inv.org_id,
-                    invoice_id=inv.id,
-                    requires_dual_approval=True,
-                    first_approver_id=current_user.id,
-                    first_approved_at=now_utc,
-                    status="PENDING_SECOND_APPROVAL",
-                )
-                db.add(approval_req)
+                if not approval_req:
+                    approval_req = ApprovalRequest(
+                        id=f"app_{uuid.uuid4().hex[:12]}",
+                        org_id=inv.org_id,
+                        invoice_id=inv.id,
+                        requires_dual_approval=True,
+                        first_approver_id=current_user.id,
+                        first_approved_at=now_utc,
+                        status="PENDING_SECOND_APPROVAL",
+                    )
+                    db.add(approval_req)
+                else:
+                    approval_req.status = "PENDING_SECOND_APPROVAL"
+                    approval_req.first_approver_id = current_user.id
+                    approval_req.first_approved_at = now_utc
+                    approval_req.second_approver_id = None
+                    approval_req.second_approved_at = None
+
                 inv.stage = "ACTION_REQUIRED"
                 inv.workflow_substatus = "PENDING_SECOND_APPROVAL"
                 inv.decision_reason = f"High-value invoice ({invoice_total:.2f} INR >= threshold). First approval granted by {current_user.name}. Awaiting secondary Controller review."
@@ -452,7 +467,17 @@ def execute_invoice_action(
                     exc.status = "IN_REVIEW"
                     exc.resolution_notes = f"First approval granted by {current_user.name}. Awaiting Controller sign-off."
             else:
-                # Step 2 of Dual Approval: Enforce CONTROLLER / SYSTEM_ADMIN role
+                # Step 2 of Dual Approval: Enforce state, distinct approver, and CONTROLLER / SYSTEM_ADMIN role
+                if approval_req.status != "PENDING_SECOND_APPROVAL":
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Cannot grant second approval: approval request is in '{approval_req.status}' state, expected 'PENDING_SECOND_APPROVAL'.",
+                    )
+                if not approval_req.first_approver_id:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Dual control violation: First approval has not been established.",
+                    )
                 if approval_req.first_approver_id == current_user.id:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
@@ -492,7 +517,7 @@ def execute_invoice_action(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only AP Lead, Financial Controller, or System Admin can reject an invoice.",
             )
-        inv.stage = "ACTION_REQUIRED"
+        inv.stage = "REJECTED"
         inv.decision = "REJECTED"
         inv.workflow_substatus = None
         inv.decision_reason = f"Rejected: {payload.reason}"
@@ -575,6 +600,40 @@ def execute_invoice_action(
         "decision_reason": inv.decision_reason,
         "audit_event_id": audit.id,
     }
+
+
+def resolve_po_line(
+    line: InvoiceLine,
+    wo_lines: list[WorkOrderLineSnapshot],
+) -> Optional[WorkOrderLineSnapshot]:
+    """Resolves an invoice line to an authoritative PO line unambiguously.
+
+    Prioritizes:
+    1. Exact line number AND normalized description match.
+    2. Exact line number match if no duplicate line numbers exist in PO.
+    3. Exact normalized description match if exactly one PO line matches that description.
+    Never uses positional indexing fallback.
+    """
+    line_desc = (line.description or "").strip().casefold()
+
+    # Priority 1: Exact line number AND normalized description
+    for wol in wo_lines:
+        wol_desc = (wol.description or "").strip().casefold()
+        if wol.line_number == line.line_number and wol_desc and line_desc and wol_desc == line_desc:
+            return wol
+
+    # Priority 2: Exact line number if unique
+    by_num = [wol for wol in wo_lines if wol.line_number == line.line_number]
+    if len(by_num) == 1:
+        return by_num[0]
+
+    # Priority 3: Exact description if unique
+    if line_desc:
+        by_desc = [wol for wol in wo_lines if (wol.description or "").strip().casefold() == line_desc]
+        if len(by_desc) == 1:
+            return by_desc[0]
+
+    return None
 
 
 def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
@@ -677,13 +736,7 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
         tolerances_breached = []
         max_variance = 0.0
         for idx, l in enumerate(lines):
-            matching_wo_line = None
-            for wol in wo_lines:
-                if wol.line_number == l.line_number or (wol.description and l.description and wol.description.lower().strip() == l.description.lower().strip()):
-                    matching_wo_line = wol
-                    break
-            if not matching_wo_line and idx < len(wo_lines):
-                matching_wo_line = wo_lines[idx]
+            matching_wo_line = resolve_po_line(l, wo_lines)
 
             if not matching_wo_line:
                 tolerances_breached.append(f"Line #{l.line_number} has no corresponding PO line.")
@@ -709,12 +762,10 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
         # invoice line the entire authorized/received quantity independently.
         billed_by_po = {}
         for line in lines:
-            candidates = [w for w in wo_lines if w.line_number == line.line_number and
-                w.description.strip().casefold() == line.description.strip().casefold()]
-            if not candidates:
+            wol = resolve_po_line(line, wo_lines)
+            if not wol:
                 tolerances_breached.append(f"Line #{line.line_number} has no unambiguous PO identity match.")
                 continue
-            wol = candidates[0]
             billed_by_po[wol.line_number] = billed_by_po.get(wol.line_number, Decimal("0")) + Decimal(str(line.billed_quantity))
             if Decimal(str(wol.contracted_unit_rate)) <= 0:
                 tolerances_breached.append("PO rate is missing or non-positive.")
@@ -731,12 +782,11 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
             Invoice.org_id == org_id, Invoice.po_reference == inv.po_reference, Invoice.id != inv.id,
             (Invoice.stage == "INTERNAL_APPROVAL_COMPLETE") | (Invoice.workflow_substatus == "PENDING_SECOND_APPROVAL"))).all()
         for previous, line in prior:
-            candidates = [w for w in wo_lines if w.line_number == line.line_number and
-                (w.description or '').strip().casefold() == (line.description or '').strip().casefold()]
-            if len(candidates) != 1:
+            wol = resolve_po_line(line, wo_lines)
+            if not wol:
                 tolerances_breached.append("Previously committed invoice lines cannot be mapped reliably to this PO.")
                 continue
-            number = candidates[0].line_number
+            number = wol.line_number
             billed_by_po[number] = billed_by_po.get(number, Decimal("0")) + Decimal(str(line.billed_quantity))
         prior_without_lines = db.scalar(select(func.count(Invoice.id)).where(
             Invoice.org_id == org_id, Invoice.po_reference == inv.po_reference, Invoice.id != inv.id,
@@ -773,15 +823,21 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
             g6_status = "PASS"
             g6_notes = f"All {len(lines)} line(s) within ±{settings.RATE_TOLERANCE_PERCENT:.2f}% rate (Max variance: {max_variance:+.2f}%) and 0.00% quantity tolerance."
 
-    # Gate 7: Duplicate Invoice Check
-    dup_count = db.scalar(
-        select(func.count(Invoice.id)).where(
-            Invoice.org_id == org_id,
-            Invoice.vendor_gstin == inv.vendor_gstin,
-            Invoice.invoice_number == inv.invoice_number,
-            Invoice.id != inv.id,
+    # Gate 7: Duplicate Invoice Check (Normalized for whitespace & separators per F32)
+    clean_inv_num = re.sub(r"[^A-Z0-9]", "", (inv.invoice_number or "").upper()) if inv.invoice_number else ""
+    dup_query = select(func.count(Invoice.id)).where(
+        Invoice.org_id == org_id,
+        Invoice.vendor_gstin == inv.vendor_gstin,
+        Invoice.id != inv.id,
+    )
+    if clean_inv_num and clean_inv_num not in ("UNKNOWN", "INVUNKNOWN"):
+        dup_query = dup_query.where(
+            (Invoice.invoice_number == inv.invoice_number)
+            | (func.replace(func.replace(func.replace(func.upper(Invoice.invoice_number), "-", ""), "/", ""), " ", "") == clean_inv_num)
         )
-    ) or 0
+    else:
+        dup_query = dup_query.where(Invoice.invoice_number == inv.invoice_number)
+    dup_count = db.scalar(dup_query) or 0
     valid_identity = bool(inv.invoice_number and inv.invoice_number.upper() not in ("UNKNOWN", "INV-UNKNOWN"))
     g7_status = "PASS" if dup_count == 0 and valid_identity else "FAIL"
     g7_notes = f"{dup_count} previous vouchers found" if valid_identity else "Invoice number is missing or unverified."

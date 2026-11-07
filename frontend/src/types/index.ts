@@ -217,3 +217,74 @@ export type UploadLifecycleStatus =
   | 'Duplicate detected'
   | 'Access denied';
 
+
+export interface ExtractedFieldItem {
+  field_name: string;
+  value: string | null;
+  confidence: number | null;
+  source_page?: number | null;
+  bounding_box?: any;
+}
+
+export interface InvoiceLineItem {
+  id: string;
+  line_number: number;
+  description: string;
+  billed_quantity: number;
+  billed_unit_rate: number;
+  billed_line_total: number;
+  is_corrected: boolean;
+  line_version: number;
+}
+
+export interface MatchGateItem {
+  gate_number: number;
+  gate_name: string;
+  status: 'PASS' | 'FAIL' | 'NOT_EVALUATED';
+  evidence_notes?: string | null;
+  checked_at?: string | null;
+}
+
+export interface InvoiceDetailInvoice extends InvoiceItem {
+  subtotal?: number | null;
+  subtotal_amount?: number | null;
+  tax_amount?: number | null;
+  net_payable?: number | null;
+  net_payable_amount?: number | null;
+  workflow_substatus?: string | null;
+  invoice_date?: string | null;
+  lines?: any[];
+}
+
+export interface InvoiceDetailData {
+  invoice: InvoiceDetailInvoice;
+  document?: {
+    document_id: string;
+    filename: string;
+    mime_type: string;
+    size_bytes: number;
+    sha256: string;
+    sha256_hash?: string;
+    preview_url?: string | null;
+  } | null;
+  extracted_fields?: ExtractedFieldItem[];
+  lines?: InvoiceLineItem[];
+  po_snapshot?: any;
+  match_gates?: MatchGateItem[];
+  exceptions?: ExceptionItem[];
+  approval?: {
+    requires_dual_approval: boolean;
+    threshold_inr: number;
+    status: string;
+    first_approver_id?: string | null;
+    second_approver_id?: string | null;
+  } | null;
+  timeline?: any[];
+  audit_events?: any[];
+  audit_trail?: AuditEventItem[];
+  policy?: {
+    rate_tolerance_percent: number;
+    dual_approval_threshold_inr: number;
+    rounding_tolerance_inr?: number;
+  };
+}

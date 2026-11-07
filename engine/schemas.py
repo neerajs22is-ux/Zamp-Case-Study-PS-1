@@ -47,6 +47,8 @@ class ExtractedLineItem(BaseModel):
     igst_rate: float = Field(default=0.0, ge=0)
     igst_amount: float = Field(default=0.0, ge=0)
     total_amount: float = Field(default=0.0, ge=0)
+    line_arithmetic_valid: bool = Field(default=True, description="Whether quantity * unit_price matches taxable_amount within tolerance")
+    line_discrepancy: float = Field(default=0.0, description="Difference between calc_taxable and reported taxable_amount")
 
     @model_validator(mode="before")
     @classmethod
@@ -92,10 +94,13 @@ class ExtractedLineItem(BaseModel):
     @model_validator(mode="after")
     def validate_line_arithmetic(self) -> ExtractedLineItem:
         calc_taxable = round(self.quantity * self.unit_price, 2)
-        # Allow 0.50 tolerance for rounding differences in unit rate
-        if abs(calc_taxable - round(self.taxable_amount, 2)) > 1.0:
-            # We preserve the reported taxable_amount but record in discrepancy if needed
-            pass
+        diff = round(abs(calc_taxable - round(self.taxable_amount, 2)), 2)
+        if diff > 1.0:
+            self.line_arithmetic_valid = False
+            self.line_discrepancy = diff
+        else:
+            self.line_arithmetic_valid = True
+            self.line_discrepancy = 0.0
         return self
 
 

@@ -52,6 +52,15 @@ def list_invoices(
     if decision:
         if decision in ("AUTO_APPROVED", "MATCH_CANDIDATE", "READY"):
             stmt = stmt.where(Invoice.decision.in_(["MATCH_CANDIDATE", "AUTO_APPROVED"]))
+        elif decision in ("HOLD_PENDING_EVIDENCE", "ON_HOLD", "WAITING"):
+            stmt = stmt.where(
+                or_(
+                    Invoice.decision == "HOLD_PENDING_EVIDENCE",
+                    Invoice.workflow_substatus == "ON_HOLD",
+                    Invoice.stage == "QUARANTINED",
+                    Invoice.decision == "QUARANTINED",
+                )
+            )
         else:
             stmt = stmt.where(Invoice.decision == decision)
     if vendor:

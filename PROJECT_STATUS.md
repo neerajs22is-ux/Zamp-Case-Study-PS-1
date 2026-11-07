@@ -64,13 +64,14 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-- **Total Test Items Collected:** 420
-- **Passed:** 377
+- **Total Test Items Collected:** 426
+- **Passed:** 383
 - **Skipped:** 43 (PostgreSQL-specific isolation fixtures, live Gmail Pub/Sub network probes)
 - **Failed:** 0
 - **Standalone PS-1 Engine Suite:** 22 passed, 0 failed in 0.26s (`tests/test_engine.py`)
-- **Execution Time:** ~44 seconds
-- **Frontend Build:** `npm run build` in `frontend/` completes with 0 errors and 0 warnings.
+- **Audit Invariants & Approval Safety Suite:** 6 passed, 0 failed in 1.82s (`tests/test_audit_invariants_and_safety.py`)
+- **Execution Time:** ~38 seconds
+- **Frontend Build:** `npm run build` in `frontend/` completes with 0 errors.
 
 ---
 

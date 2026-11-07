@@ -104,6 +104,12 @@ class IndianAPRuleEngine:
         if not is_math_valid:
             notes.append(f"Arithmetic mismatch: Taxable ({inv.taxable_value}) + Tax ({calc_tax}) = {calc_gt}, reported grand total {inv.grand_total}")
 
+        # Line-item arithmetic check
+        for li in inv.line_items:
+            if getattr(li, "line_arithmetic_valid", True) is False:
+                is_math_valid = False
+                notes.append(f"Line arithmetic mismatch for '{li.item_description}': qty ({li.quantity}) * unit price ({li.unit_price}) differs from taxable amount ({li.taxable_amount}) by ?{getattr(li, 'line_discrepancy', 0.0):.2f}")
+
         # Intrastate vs Interstate rules
         tax_type_valid = True
         if inv.place_of_supply and "karnataka" in inv.place_of_supply.lower():

@@ -52,9 +52,10 @@ class DuplicateDetector:
         self.audit_log: List[Dict[str, Any]] = []
 
     def make_commercial_key(self, supplier_gstin: Optional[str], supplier_name: str, invoice_number: str) -> str:
-        """Constructs an invariant commercial identifier key."""
-        sup_id = (supplier_gstin or supplier_name).strip().upper()
-        inv_num = invoice_number.strip().upper()
+        """Constructs an invariant commercial identifier key with whitespace/separator normalization."""
+        import re
+        sup_id = re.sub(r"[^A-Z0-9]", "", (supplier_gstin or supplier_name).upper())
+        inv_num = re.sub(r"[^A-Z0-9]", "", invoice_number.upper())
         return f"{sup_id}::{inv_num}"
 
     def check_duplicate(

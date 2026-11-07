@@ -522,13 +522,24 @@ def execute_document_pipeline(
             inv.invoice_date = None
         persist_db.flush()
         match_run = reevaluate_match_gates(persist_db, inv, org_id)
-        rejection = not processing_result.is_payable_invoice or processing_result.final_decision == "REJECTED"
+        is_scanned_or_review = (
+            processing_result.document_type == "SCANNED_IMAGE"
+            or processing_result.final_decision == "FLAGGED_HITL_REVIEW"
+            or processing_result.extraction_status in ("NOT_EVALUATED", "DEGRADED_SCAN")
+        )
+        rejection = (
+            not is_scanned_or_review
+            and (not processing_result.is_payable_invoice or processing_result.final_decision == "REJECTED")
+        )
         extraction_blocked = (
-            rejection or not processing_result.grounding_tripwire_passed
+            rejection
+            or is_scanned_or_review
+            or not processing_result.grounding_tripwire_passed
             or not processing_result.tax_arithmetic.is_valid
             or processing_result.currency != "INR"
             or processing_result.document_type not in ("INVOICE", "DEBIT_NOTE")
             or getattr(processing_result, "extraction_requires_review", False)
+            or processing_result.final_decision != "MATCH_CANDIDATE"
         )
         if extraction_blocked:
             persist_db.add(MatchGateCheck(id=f"mg_{match_run.id}_8", org_id=org_id,
@@ -564,9 +575,9 @@ def execute_document_pipeline(
                 else:
                     gnum, gname, gnotes = failed_gate
                     inv.stage = "ACTION_REQUIRED"
-                    if not processing_result.grounding_tripwire_passed or processing_result.extraction_status == "DEGRADED_SCAN":
+                    if not processing_result.grounding_tripwire_passed or processing_result.extraction_status in ("DEGRADED_SCAN", "NOT_EVALUATED") or is_scanned_or_review:
                         inv.decision = "FLAGGED_HITL_REVIEW"
-                        inv.decision_reason = "Degraded scan quality / ungrounded values detected. Human review required."
+                        inv.decision_reason = "; ".join(processing_result.decision_reasons) or "Degraded scan quality / ungrounded values detected. Human review required."
                     else:
                         inv.decision = "FLAGGED_EXCEPTION"
                         inv.decision_reason = f"Gate {gnum} ({gname}) failed: {gnotes}"

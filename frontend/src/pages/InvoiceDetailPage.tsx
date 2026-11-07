@@ -36,7 +36,7 @@ import {
   LoadingState,
   ErrorState,
 } from "../components/ui";
-import type { AuthenticatedUser } from "../types";
+import type { AuthenticatedUser, InvoiceDetailData, MatchGateItem } from "../types";
 
 interface InvoiceDetailPageProps {
   invoiceId: string;
@@ -51,7 +51,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   onBack,
   currentUser,
 }) => {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<InvoiceDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [correctionRefreshRequired, setCorrectionRefreshRequired] =
@@ -151,7 +151,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     }
 
     const checks = data?.match_gates || [];
-    const hasFailedGate = checks.length < 7 || checks.some((g: any) => g.status !== "PASS");
+    const hasFailedGate = checks.length < 7 || checks.some((g: MatchGateItem) => g.status !== "PASS");
     if (selectedAction === "APPROVE_AP_REVIEW" && hasFailedGate) {
       setActionError(
         "Approval blocked: this invoice failed policy validation checks. Please resolve discrepancies first.",
@@ -197,7 +197,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     return new Intl.NumberFormat("en-IN", {
       style: "currency",
       currency: "INR",
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(val);
   };
 
@@ -238,7 +239,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     );
   }
 
-  const invoice = data?.invoice || {};
+  const invoice = (data?.invoice || {}) as InvoiceDetailData['invoice'];
   const matchGates = Array.isArray(data?.match_gates) ? data.match_gates : [];
   const poSnapshot = data?.po_snapshot || null;
   const auditEvents = data?.timeline ?? data?.audit_events ?? [];
@@ -602,14 +603,14 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             </div>
 
             {/* Document Fingerprint Footer */}
-            {(data?.document?.sha256 || data?.document?.sha256_hash) && (
+            {Boolean(data?.document && (data.document.sha256 || data.document.sha256_hash)) && (
               <div className="review-document-hash p-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400">
                 <span
                   className="truncate max-w-[200px]"
-                  title={data.document.sha256 || data.document.sha256_hash}
+                  title={(data?.document?.sha256 || data?.document?.sha256_hash) ?? ""}
                 >
                   SHA:{" "}
-                  {(data.document.sha256 || data.document.sha256_hash).slice(
+                  {((data?.document?.sha256 || data?.document?.sha256_hash) ?? "").slice(
                     0,
                     16,
                   )}
@@ -619,7 +620,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                   type="button"
                   onClick={() =>
                     handleCopySha(
-                      data.document.sha256 || data.document.sha256_hash,
+                      (data?.document?.sha256 || data?.document?.sha256_hash) ?? "",
                     )
                   }
                   className="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"

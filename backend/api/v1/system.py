@@ -93,6 +93,7 @@ def reset_demo_state(
             approval_req.second_approver_id = None
             approval_req.second_approved_at = None
 
+        inv.workflow_substatus = None
         inv.updated_at = now_utc
         # Re-run policy gates
         reevaluate_match_gates(db, inv, current_user.org_id)
