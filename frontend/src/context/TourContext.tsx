@@ -1,5 +1,15 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { api } from "../api/client";
+import type { AuthenticatedUser } from "../types";
+import { onboardingStorageKey } from "../utils/onboardingStorage";
 
 export interface TourStep {
   step: number;
@@ -10,106 +20,100 @@ export interface TourStep {
   summary: string;
   details: string;
   badge: string;
-  badgeTone?: 'neutral' | 'success' | 'warning' | 'error' | 'info' | 'purple';
+  badgeTone?: "neutral" | "success" | "warning" | "error" | "info" | "purple";
   tip?: string;
 }
 
-export const TOUR_STEPS: TourStep[] = [
+const BASE_STEPS: Omit<TourStep, "step" | "totalSteps">[] = [
   {
-    step: 1,
-    totalSteps: 8,
-    route: '/today',
+    route: "/today",
     targetSelector: '[data-tour="today-kpi-bar"]',
-    title: "Today's AP Operations Pulse",
-    summary: 'High-level operational overview of pending invoices and financial exposure.',
-    details: 'The Daily Triad organizes your workload into three key metrics: invoices needing immediate attention, verified bills cleared and ready for sign-off, and your touchless automation rate. It also tracks statutory MSME liability so you never miss a mandatory 45-day payment window.',
-    badge: 'Operational Pulse',
-    badgeTone: 'info',
-    tip: 'Click any KPI card to jump directly to the pre-filtered invoice queue.',
+    title: "Today",
+    summary: "Start with the current workload.",
+    details:
+      "See invoices received, intake jobs, open issue records and completed internal sign-offs. These figures describe different datasets. Below, open an invoice for evidence or browse recent audit events.",
+    badge: "Overview",
   },
   {
-    step: 2,
-    totalSteps: 8,
-    route: '/invoices',
+    route: "/invoices",
     targetSelector: '[data-tour="inbox-queue-tabs"]',
-    title: 'Invoice Inbox & Work Queues',
-    summary: 'Pre-filtered operational queues for managing invoice processing.',
-    details: 'Invoices are organized into focused queues: Needs Attention (blocked by discrepancies), Ready for Approval (passed 3-way match), Waiting on Evidence (missing PO or GRN), and Approved. You can filter by Indian Fiscal Year (FY) and calendar month, or upload new invoice PDFs using drag-and-drop.',
-    badge: 'Work Queues',
-    badgeTone: 'purple',
-    tip: 'Use the pre-filtered tabs instead of complex manual search queries to find pending work fast.',
+    title: "Invoice inbox",
+    summary: "Find invoices by queue.",
+    details:
+      "Use the existing queue tabs, period filters and search. Open an invoice to review its evidence.",
+    badge: "Invoices",
   },
   {
-    step: 3,
-    totalSteps: 8,
-    route: '/invoices/inv_d76401c096d0',
-    targetSelector: '[data-tour="workspace-split"]',
-    title: '50/50 Invoice Review Workspace',
-    summary: 'Side-by-side verification comparing original document against extracted records.',
-    details: 'The left pane displays the original invoice document with pan, zoom, and cryptographic SHA-256 fingerprint verification. The right pane displays structured vendor information, GSTIN, invoice dates, and the authoritative review verdict.',
-    badge: 'Review Workspace',
-    badgeTone: 'info',
-    tip: 'The compact verdict strip above the line items summarizes the match outcome in 48px without obscuring data.',
-  },
-  {
-    step: 4,
-    totalSteps: 8,
-    route: '/invoices/inv_d76401c096d0',
+    route: "/invoices/:available",
     targetSelector: '[data-tour="policy-gates-trigger"]',
-    title: '7 Deterministic Policy Gates',
-    summary: 'Automated governance checks evaluated against supplier invoice, PO, GRN, and QC.',
-    details: 'Checks include Vendor Onboarding, GSTIN Match, Mathematical Summation, Duplicate Detection, 3-Way Match, Price & Quantity Tolerances, and Statutory MSME Due Dates. Each gate clearly shows Passed, Failed, Unavailable, or Not Checked with supporting proof.',
-    badge: 'Policy Governance',
-    badgeTone: 'success',
-    tip: 'Click the "Gates" button in the top toolbar anytime to open the full progressive disclosure policy drawer.',
+    title: "Review an invoice",
+    summary: "Inspect available evidence.",
+    details:
+      "This is an existing invoice in your workspace, not a protected practice copy. Inspect the document, checks and variances. The tour does not submit decisions.",
+    badge: "Review",
   },
   {
-    step: 5,
-    totalSteps: 8,
-    route: '/invoices/inv_d76401c096d0',
-    targetSelector: '[data-tour="reconciliation-flow"]',
-    title: 'Line-by-Line 4-Way Reconciliation',
-    summary: 'Direct comparison of Invoice items against PO, Goods Receipt (GRN), and Quality Check (QC).',
-    details: 'Every billed item is matched against physical receipt and purchase orders. A strict 0.00% quantity shortage tolerance is enforced, while unit prices allow up to ±1.50% variance for statutory fuel or commodity adjustments. Operators can correct OCR misreads with mandatory audit reasons.',
-    badge: '4-Way Match',
-    badgeTone: 'info',
-    tip: 'Discrepancies automatically display recommended debit notes or supplier correction actions.',
-  },
-  {
-    step: 6,
-    totalSteps: 8,
-    route: '/exceptions',
+    route: "/exceptions",
     targetSelector: '[data-tour="exceptions-table"]',
-    title: 'Exception Triage & Resolution',
-    summary: 'Prioritized queue for invoices blocked by quantity shortages or rate variances.',
-    details: 'When an invoice fails automated checks, it enters the Exceptions Triage queue. Invoices are prioritized by discrepancy severity and statutory MSME deadlines. AP Leads can assign discrepancies to specific buyers or AP specialists for investigation.',
-    badge: 'Exception Triage',
-    badgeTone: 'warning',
-    tip: 'Statutory MSME invoices highlight days remaining to prevent compound interest non-compliance penalties.',
+    title: "Exceptions",
+    summary: "Investigate issues.",
+    details:
+      "An exception is an issue record, not an invoice count. Review its recorded exposure and owner; authorized roles can reassign it. Open the invoice to investigate.",
+    badge: "Exceptions",
   },
   {
-    step: 7,
-    totalSteps: 8,
-    route: '/approvals',
+    route: "/approvals",
     targetSelector: '[data-tour="approvals-table"]',
-    title: 'High-Value Dual Governance (≥ ₹5,00,000)',
-    summary: 'Statutory two-person authorization workflow enforcing separation of duties.',
-    details: 'Invoices exceeding ₹5,00,000 require two independent sign-offs: Step 1 (Primary AP Specialist review) and Step 2 (Financial Controller authorization). Anti-self-approval is strictly enforced. Internal AP approval records sign-off; bank disbursements are handled downstream by treasury.',
-    badge: 'Dual Control',
-    badgeTone: 'purple',
-    tip: 'AP approval confirms invoice validity; it does NOT directly trigger bank disbursements.',
+    title: "Approvals",
+    summary: "Understand independent sign-off.",
+    details:
+      "Review eligibility and any blocking reason. Internal sign-off does not make a bank payment.",
+    badge: "Approvals",
   },
   {
-    step: 8,
-    totalSteps: 8,
-    route: '/audit',
+    route: "/audit",
     targetSelector: '[data-tour="audit-table"]',
-    title: 'Immutable Cryptographic Audit Trail',
-    summary: 'Permanent append-only ledger tracking every action, correction, and state change.',
-    details: 'Every automated verification, line item correction, review approval, and user authorization is permanently recorded with timestamps, actor IDs, roles, and correlation hashes. Invoices can be audited anytime, and compliance teams can export complete CSV reports with one click.',
-    badge: 'Audit & Provenance',
-    badgeTone: 'success',
-    tip: 'Click "Details" on any audit row to inspect the cryptographic correlation ID and state transition diff.',
+    title: "Audit trail",
+    summary: "Trace recorded activity.",
+    details:
+      "Search the latest requested events and open Details for available reasons, references and state changes. This view requests up to 100 events.",
+    badge: "Audit",
+  },
+  {
+    route: "/settings/connections",
+    targetSelector: '[data-tour="connections"]',
+    title: "Connections",
+    summary: "Check service status.",
+    details:
+      "See available integration status and actions. A snapshot or configured service does not necessarily mean live synchronization.",
+    badge: "Connections",
+  },
+  {
+    route: "/settings/reference-data",
+    targetSelector: '[data-tour="reference-records"]',
+    title: "Procurement records",
+    summary: "Inspect reference data.",
+    details:
+      "Review the source and provenance of the supplier, order, receipt and inspection records used for matching.",
+    badge: "Records",
+  },
+  {
+    route: "/settings/team",
+    targetSelector: '[data-tour="team-access"]',
+    title: "Team and access",
+    summary: "Review access.",
+    details:
+      "Available team and access actions depend on your role. No access changes are made during this tour.",
+    badge: "Team",
+  },
+  {
+    route: "/setup",
+    targetSelector: '[data-tour="setup"]',
+    title: "Setup guide",
+    summary: "Return to setup anytime.",
+    details:
+      "Work through the optional setup steps at your own pace. The contextual help menu can restart this tour.",
+    badge: "Setup",
   },
 ];
 
@@ -122,8 +126,10 @@ interface TourContextType {
 
   // Interactive Tour
   isTourActive: boolean;
+  isTourPreparing: boolean;
   currentStepIndex: number;
   currentStep: TourStep;
+  steps: TourStep[];
   totalSteps: number;
   startTour: (fromStep?: number) => void;
   nextStep: () => void;
@@ -135,15 +141,55 @@ interface TourContextType {
 
   // Contextual Help Drawer
   isHelpOpen: boolean;
-  openHelp: (tab?: 'screen' | 'overview' | 'glossary' | 'faq') => void;
+  openHelp: (tab?: "screen" | "overview" | "glossary" | "faq") => void;
   closeHelp: () => void;
-  activeHelpTab: 'screen' | 'overview' | 'glossary' | 'faq';
-  setActiveHelpTab: (tab: 'screen' | 'overview' | 'glossary' | 'faq') => void;
+  activeHelpTab: "screen" | "overview" | "glossary" | "faq";
+  setActiveHelpTab: (tab: "screen" | "overview" | "glossary" | "faq") => void;
 }
 
 const TourContext = createContext<TourContextType | undefined>(undefined);
 
-export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const TourProvider: React.FC<{
+  children: React.ReactNode;
+  currentUser: AuthenticatedUser;
+}> = ({ children, currentUser }) => {
+  const lookupSequence = useRef(0);
+  // Invalidate outstanding lookups on account change or unmount.
+  useEffect(
+    () => () => {
+      lookupSequence.current += 1;
+    },
+    [currentUser.id, currentUser.org_id],
+  );
+
+  const makeSteps = useCallback(
+    (
+      invoiceId: string | null,
+      status: "loading" | "available" | "empty" | "error",
+    ): TourStep[] =>
+      BASE_STEPS.filter((step) => {
+        if (step.route === "/invoices/:available") return Boolean(invoiceId);
+        if (step.route === "/approvals") return currentUser.role !== "AUDITOR";
+        if (step.route === "/settings/team")
+          return ["AP_LEAD", "CONTROLLER", "SYSTEM_ADMIN"].includes(
+            currentUser.role || "",
+          );
+        return true;
+      }).map((step, index, all) => ({
+        ...step,
+        details:
+          step.route === "/today" && status !== "available"
+            ? `${step.details} ${status === "empty" ? "No invoice was found on the first inbox page, so the review step is omitted." : status === "error" ? "The inbox could not be checked, so the review step is omitted. Restart the tour to retry." : "Checking for an invoice before the tour continues."}`
+            : step.details,
+        route:
+          step.route === "/invoices/:available"
+            ? `/invoices/${invoiceId}`
+            : step.route,
+        step: index + 1,
+        totalSteps: all.length,
+      })),
+    [currentUser.role],
+  );
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -152,17 +198,34 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Tour state
   const [isTourActive, setIsTourActive] = useState<boolean>(false);
+  const [isTourPreparing, setIsTourPreparing] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [tourSteps, setTourSteps] = useState<TourStep[]>([]);
+  const steps = isTourActive ? tourSteps : makeSteps(null, "loading");
 
   // Help drawer state
   const [isHelpOpen, setIsHelpOpen] = useState<boolean>(false);
-  const [activeHelpTab, setActiveHelpTab] = useState<'screen' | 'overview' | 'glossary' | 'faq'>('screen');
+  const [activeHelpTab, setActiveHelpTab] = useState<
+    "screen" | "overview" | "glossary" | "faq"
+  >("screen");
 
   // Check initial visit on mount
   useEffect(() => {
     try {
-      const welcomeDismissed = localStorage.getItem('ap_onboarding_welcome_dismissed');
-      const tourCompleted = localStorage.getItem('ap_onboarding_tour_completed');
+      const welcomeDismissed = localStorage.getItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "welcome_dismissed",
+        ),
+      );
+      const tourCompleted = localStorage.getItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "tour_completed",
+        ),
+      );
       if (!welcomeDismissed && !tourCompleted) {
         // Small delay so the page loads cleanly first
         const timer = setTimeout(() => {
@@ -173,97 +236,173 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // Ignore localStorage restrictions
     }
-  }, []);
+  }, [currentUser.id, currentUser.org_id]);
 
   const openWelcome = useCallback(() => setIsWelcomeOpen(true), []);
   const closeWelcome = useCallback(() => setIsWelcomeOpen(false), []);
   const dismissWelcomeForever = useCallback(() => {
     setIsWelcomeOpen(false);
     try {
-      localStorage.setItem('ap_onboarding_welcome_dismissed', 'true');
+      localStorage.setItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "welcome_dismissed",
+        ),
+        "true",
+      );
     } catch {
       // Ignore
     }
-  }, []);
+  }, [currentUser.id, currentUser.org_id]);
 
-  const currentStep = TOUR_STEPS[currentStepIndex] || TOUR_STEPS[0];
-  const totalSteps = TOUR_STEPS.length;
+  const currentStep = steps[currentStepIndex] || steps[0];
+  const totalSteps = steps.length;
 
-  const startTour = useCallback((fromStep: number = 0) => {
-    setIsWelcomeOpen(false);
-    setIsHelpOpen(false);
-    setCurrentStepIndex(fromStep);
-    setIsTourActive(true);
-    
-    // Navigate to step route if needed
-    const target = TOUR_STEPS[fromStep];
-    if (target && location.pathname !== target.route) {
-      navigate(target.route);
-    }
-  }, [location.pathname, navigate]);
+  const startTour = useCallback(
+    (fromStep: number = 0) => {
+      const request = ++lookupSequence.current;
+      const preparingSteps = makeSteps(null, "loading");
+      setIsWelcomeOpen(false);
+      setIsHelpOpen(false);
+      setCurrentStepIndex(0);
+      setTourSteps(preparingSteps);
+      setIsTourPreparing(true);
+      setIsTourActive(true);
+      if (location.pathname !== preparingSteps[0].route)
+        navigate(preparingSteps[0].route);
+
+      api
+        .getInbox({ page: 1 })
+        .then((res) => {
+          if (res.message || !Array.isArray(res.items))
+            throw new Error("Inbox unavailable");
+          const id = res.items?.[0]?.id || null;
+          return makeSteps(id, id ? "available" : "empty");
+        })
+        .catch(() => makeSteps(null, "error"))
+        .then((resolvedSteps) => {
+          if (request !== lookupSequence.current) return;
+          const index = Math.max(
+            0,
+            Math.min(fromStep, resolvedSteps.length - 1),
+          );
+          setTourSteps(resolvedSteps);
+          setCurrentStepIndex(index);
+          setIsTourPreparing(false);
+          if (index !== 0) navigate(resolvedSteps[index].route);
+        });
+    },
+    [location.pathname, navigate, makeSteps],
+  );
 
   const finishTour = useCallback(() => {
+    lookupSequence.current += 1;
+    setIsTourPreparing(false);
     setIsTourActive(false);
     try {
-      localStorage.setItem('ap_onboarding_tour_completed', 'true');
-      localStorage.setItem('ap_onboarding_welcome_dismissed', 'true');
+      localStorage.setItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "tour_completed",
+        ),
+        "true",
+      );
+      localStorage.setItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "welcome_dismissed",
+        ),
+        "true",
+      );
     } catch {
       // Ignore
     }
-  }, []);
+  }, [currentUser.id, currentUser.org_id]);
 
   const skipTour = useCallback(() => {
+    lookupSequence.current += 1;
+    setIsTourPreparing(false);
     setIsTourActive(false);
     try {
-      localStorage.setItem('ap_onboarding_tour_completed', 'true');
-      localStorage.setItem('ap_onboarding_welcome_dismissed', 'true');
+      localStorage.setItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "tour_completed",
+        ),
+        "true",
+      );
+      localStorage.setItem(
+        onboardingStorageKey(
+          currentUser.id,
+          currentUser.org_id || "",
+          "welcome_dismissed",
+        ),
+        "true",
+      );
     } catch {
       // Ignore
     }
-  }, []);
+  }, [currentUser.id, currentUser.org_id]);
 
   const nextStep = useCallback(() => {
     if (currentStepIndex < totalSteps - 1) {
       const nextIdx = currentStepIndex + 1;
       setCurrentStepIndex(nextIdx);
-      const nextTarget = TOUR_STEPS[nextIdx];
+      const nextTarget = steps[nextIdx];
       if (nextTarget && location.pathname !== nextTarget.route) {
         navigate(nextTarget.route);
       }
     } else {
       finishTour();
     }
-  }, [currentStepIndex, totalSteps, location.pathname, navigate, finishTour]);
+  }, [
+    currentStepIndex,
+    totalSteps,
+    location.pathname,
+    navigate,
+    finishTour,
+    steps,
+  ]);
 
   const prevStep = useCallback(() => {
     if (currentStepIndex > 0) {
       const prevIdx = currentStepIndex - 1;
       setCurrentStepIndex(prevIdx);
-      const prevTarget = TOUR_STEPS[prevIdx];
+      const prevTarget = steps[prevIdx];
       if (prevTarget && location.pathname !== prevTarget.route) {
         navigate(prevTarget.route);
       }
     }
-  }, [currentStepIndex, location.pathname, navigate]);
+  }, [currentStepIndex, location.pathname, navigate, steps]);
 
-  const goToStep = useCallback((stepIndex: number) => {
-    if (stepIndex >= 0 && stepIndex < totalSteps) {
-      setCurrentStepIndex(stepIndex);
-      const target = TOUR_STEPS[stepIndex];
-      if (target && location.pathname !== target.route) {
-        navigate(target.route);
+  const goToStep = useCallback(
+    (stepIndex: number) => {
+      if (stepIndex >= 0 && stepIndex < totalSteps) {
+        setCurrentStepIndex(stepIndex);
+        const target = steps[stepIndex];
+        if (target && location.pathname !== target.route) {
+          navigate(target.route);
+        }
       }
-    }
-  }, [totalSteps, location.pathname, navigate]);
+    },
+    [totalSteps, location.pathname, navigate, steps],
+  );
 
   const restartTour = useCallback(() => {
     startTour(0);
   }, [startTour]);
 
-  const openHelp = useCallback((tab: 'screen' | 'overview' | 'glossary' | 'faq' = 'screen') => {
-    setActiveHelpTab(tab);
-    setIsHelpOpen(true);
-  }, []);
+  const openHelp = useCallback(
+    (tab: "screen" | "overview" | "glossary" | "faq" = "screen") => {
+      setActiveHelpTab(tab);
+      setIsHelpOpen(true);
+    },
+    [],
+  );
 
   const closeHelp = useCallback(() => setIsHelpOpen(false), []);
 
@@ -275,8 +414,10 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
         closeWelcome,
         dismissWelcomeForever,
         isTourActive,
+        isTourPreparing,
         currentStepIndex,
         currentStep,
+        steps,
         totalSteps,
         startTour,
         nextStep,
@@ -300,7 +441,7 @@ export const TourProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useTour = (): TourContextType => {
   const context = useContext(TourContext);
   if (!context) {
-    throw new Error('useTour must be used within a TourProvider');
+    throw new Error("useTour must be used within a TourProvider");
   }
   return context;
 };

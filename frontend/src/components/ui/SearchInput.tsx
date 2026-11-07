@@ -1,7 +1,8 @@
-import React from 'react';
-import { Search, X } from 'lucide-react';
+import React from "react";
+import { Search, X } from "lucide-react";
 
-export interface SearchInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+export interface SearchInputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   value: string;
   onChange: (value: string) => void;
   onClear?: () => void;
@@ -13,15 +14,17 @@ export const SearchInput: React.FC<SearchInputProps> = ({
   value,
   onChange,
   onClear,
-  placeholder = 'Search...',
-  className = '',
+  placeholder = "Search...",
+  className = "",
   ...props
 }) => {
   return (
-    <div className={`relative flex items-center ${className}`}>
+    <div className={`ui-search relative flex items-center ${className}`}>
       <Search className="w-4 h-4 text-slate-400 absolute left-3 pointer-events-none" />
       <input
-        type="text"
+        type="search"
+        aria-label="Search records"
+        autoComplete="off"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -32,7 +35,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
         <button
           type="button"
           onClick={() => {
-            onChange('');
+            onChange("");
             onClear?.();
           }}
           className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 absolute right-2 rounded transition-colors"

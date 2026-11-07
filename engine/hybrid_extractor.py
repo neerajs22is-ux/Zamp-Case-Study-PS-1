@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
 
 import pypdf
+from engine.pdf_safety import extract_pdf_pages
 
 from backend.core.config import settings
 from engine.duplicate_detector import DuplicateCheckResult, DuplicateDetector
@@ -78,6 +79,8 @@ class HybridProcessingResult:
     output_tokens: int = 0
     latency_ms: float = 0.0
     estimated_cost_usd: float = 0.0
+    extraction_requires_review: bool = False
+    evidence: Dict[str, FieldEvidence] = field(default_factory=dict)
 
 
 class HybridAPExtractor:
@@ -95,12 +98,7 @@ class HybridAPExtractor:
 
     def _extract_pages_text(self, pdf_bytes: bytes) -> List[Tuple[int, str]]:
         """Extracts text per page preserving page boundaries."""
-        reader = pypdf.PdfReader(io.BytesIO(pdf_bytes))
-        pages_text: List[Tuple[int, str]] = []
-        for idx, page in enumerate(reader.pages):
-            text = page.extract_text() or ""
-            pages_text.append((idx + 1, text))
-        return pages_text
+        return extract_pdf_pages(pdf_bytes)
 
     def extract_deterministic(
         self,
@@ -245,7 +243,7 @@ class HybridAPExtractor:
         )
 
         # Grounding & Verification
-        tripwire_passed, unverified, _ = verify_extracted_evidence(extraction, pages)
+        tripwire_passed, unverified, source_evidence = verify_extracted_evidence(extraction, pages)
         tax_res = self.rules.verify_tax_arithmetic(extraction)
         match_res = self.rules.verify_three_way_match(extraction)
 
@@ -372,7 +370,7 @@ class HybridAPExtractor:
             raise RuntimeError(f"Live Mantle inference failed on {document_id} ({filename}): {exc}") from exc
 
         # Run Grounding Tripwires on Mantle Extraction
-        tripwire_passed, unverified, _ = verify_extracted_evidence(extraction, pages)
+        tripwire_passed, unverified, source_evidence = verify_extracted_evidence(extraction, pages)
         extraction.tripwire_passed = tripwire_passed
         extraction.unverified_fields = unverified
 
@@ -472,4 +470,6 @@ class HybridAPExtractor:
             output_tokens=extraction.output_tokens,
             latency_ms=latency,
             estimated_cost_usd=extraction.estimated_cost_usd,
+            evidence=source_evidence,
+            extraction_requires_review=is_e_invoice or is_rcm or is_mixed_gst or is_foreign,
         )

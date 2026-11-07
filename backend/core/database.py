@@ -22,6 +22,8 @@ Base = declarative_base()
 
 def get_engine():
     db_url = settings.DATABASE_URL
+    if db_url and db_url.startswith("postgres://"):
+        db_url = "postgresql://" + db_url[len("postgres://"):]
     if not db_url:
         if settings.APP_ENV == AppEnv.TEST:
             db_url = "sqlite:///:memory:"
@@ -46,8 +48,6 @@ def get_engine():
     # Setting prepare_threshold=None for psycopg v3 disables client-side prepared statement caching cleanly.
     pg_connect_args = {}
     if "psycopg" in db_url and "psycopg2" not in db_url:
-        pg_connect_args["prepare_threshold"] = None
-    elif db_url.startswith("postgresql://") or db_url.startswith("postgresql+psycopg://"):
         pg_connect_args["prepare_threshold"] = None
 
     return create_engine(
@@ -104,7 +104,8 @@ def set_tenant_context(session: Session, org_id: str) -> None:
                 {"org_id": clean_org_id}
             )
     except Exception as exc:
-        logger.debug(f"Could not set database tenant context: {exc}")
+        logger.exception("Could not set database tenant context")
+        raise RuntimeError("Database tenant context could not be established") from exc
 
 
 @event.listens_for(Session, "after_begin")

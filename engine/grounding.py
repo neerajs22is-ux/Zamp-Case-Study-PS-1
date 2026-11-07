@@ -36,81 +36,58 @@ def verify_extracted_evidence(
     extraction: MantleInvoiceExtraction,
     pages_text: List[Tuple[int, str]],
 ) -> Tuple[bool, List[str], Dict[str, FieldEvidence]]:
-    """Runs deterministic grounding tripwires across all extracted entities.
-    
-    Returns:
-        (all_passed, unverified_fields, updated_evidence_dict)
+    """Verify source occurrence, never model self-attestation or a guessed page.
+
+    Occurrence is necessary evidence, not proof of semantic correctness. Ambiguous
+    layouts and unsupported formats fail to human review rather than inventing data.
     """
+    from decimal import Decimal, InvalidOperation
     unverified: List[str] = []
-    evidence_dict: Dict[str, FieldEvidence] = dict(extraction.evidence)
+    evidence: Dict[str, FieldEvidence] = {}
 
-    # Combine all pages with line indexing
-    full_text_lower = " ".join([text.lower() for _, text in pages_text])
-    normalized_full_text = re.sub(r"[\s,₹$]+", " ", full_text_lower)
+    def locate(name, value, numeric=False, required=True):
+        if not required and (value is None or value == 0):
+            return
+        rendered = str(value or '').strip()
+        found = None
+        if rendered and rendered.upper() not in ('UNKNOWN', 'INV-UNKNOWN', '1970-01-01'):
+            for page, text in pages_text:
+                if numeric:
+                    # Keep the full signed numeric token, including all decimals.
+                    # Removing punctuation from an entire page merges unrelated data.
+                    for match in re.finditer(r'(?<![\w.])[+-]?\d+(?:,\d+)*(?:\.\d+)?(?![\w.])', text):
+                        try:
+                            if Decimal(match.group().replace(',', '')) == Decimal(rendered):
+                                found = (page, match.group())
+                                break
+                        except InvalidOperation:
+                            pass
+                else:
+                    match = re.search(r'(?<!\w)' + re.escape(rendered) + r'(?!\w)', text, re.IGNORECASE)
+                    if match:
+                        found = (page, match.group())
+                if found:
+                    break
+        if not found:
+            unverified.append(name)
+        evidence[name] = FieldEvidence(field_name=name, extracted_value=rendered,
+            page_number=found[0] if found else 1,
+            raw_snippet=found[1] if found else None, is_verified=bool(found))
 
-    # 1. Invoice Number Verification
-    inv_num_clean = extraction.invoice_number.strip().lower()
-    if inv_num_clean and inv_num_clean not in full_text_lower:
-        unverified.append("invoice_number")
-        if "invoice_number" in evidence_dict:
-            evidence_dict["invoice_number"].is_verified = False
-    else:
-        if "invoice_number" not in evidence_dict:
-            evidence_dict["invoice_number"] = FieldEvidence(
-                field_name="invoice_number",
-                extracted_value=extraction.invoice_number,
-                page_number=1,
-                is_verified=True
-            )
-        else:
-            evidence_dict["invoice_number"].is_verified = True
-
-    # 2. Supplier GSTIN Verification (if provided)
-    if extraction.supplier_gstin:
-        gstin_clean = extraction.supplier_gstin.strip().lower()
-        if gstin_clean not in full_text_lower:
-            unverified.append("supplier_gstin")
-        else:
-            if "supplier_gstin" in evidence_dict:
-                evidence_dict["supplier_gstin"].is_verified = True
-
-    # 3. PO Reference Verification (if provided)
-    if extraction.po_reference:
-        po_clean = extraction.po_reference.strip().lower()
-        if po_clean not in full_text_lower:
-            unverified.append("po_reference")
-        else:
-            if "po_reference" in evidence_dict:
-                evidence_dict["po_reference"].is_verified = True
-
-    # 4. Grand Total Verification
-    # Check variations: 26,196.00, 26196.00, 26,196, 26196
-    gt_val = extraction.grand_total
-    gt_str_cents = f"{gt_val:,.2f}".lower()
-    gt_str_nocoma = f"{gt_val:.2f}".lower()
-    gt_str_int = f"{int(gt_val):,}".lower()
-    gt_str_raw = str(int(gt_val))
-
-    matched_gt = False
-    for candidate in [gt_str_cents, gt_str_nocoma, gt_str_int, gt_str_raw]:
-        if candidate in full_text_lower or candidate in normalized_full_text:
-            matched_gt = True
-            break
-
-    if not matched_gt:
-        unverified.append("grand_total")
-        if "grand_total" in evidence_dict:
-            evidence_dict["grand_total"].is_verified = False
-    else:
-        if "grand_total" not in evidence_dict:
-            evidence_dict["grand_total"] = FieldEvidence(
-                field_name="grand_total",
-                extracted_value=str(gt_val),
-                page_number=1,
-                is_verified=True
-            )
-        else:
-            evidence_dict["grand_total"].is_verified = True
-
-    all_passed = len(unverified) == 0
-    return all_passed, unverified, evidence_dict
+    for name in ('invoice_number', 'supplier_name', 'invoice_date'):
+        locate(name, getattr(extraction, name))
+    for name in ('supplier_gstin', 'po_reference', 'buyer_gstin', 'place_of_supply'):
+        value = getattr(extraction, name)
+        if value:
+            locate(name, value)
+    for name in ('taxable_value', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax_amount'):
+        locate(name, getattr(extraction, name), numeric=True, required=False)
+    # Grand total is always required and must match a complete numeric token.
+    locate('grand_total', extraction.grand_total, numeric=True)
+    if not extraction.line_items:
+        unverified.append('line_items')
+    for idx, line in enumerate(extraction.line_items):
+        locate(f'line_items.{idx}.item_description', line.item_description)
+        for name in ('quantity', 'unit_price', 'taxable_amount', 'total_amount'):
+            locate(f'line_items.{idx}.{name}', getattr(line, name), numeric=True)
+    return not unverified, unverified, evidence

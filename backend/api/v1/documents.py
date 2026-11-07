@@ -19,13 +19,14 @@ import logging
 import os
 import uuid
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote
 
 from fastapi import (
     APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Response, UploadFile, status
 )
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from backend.core.auth import (
@@ -37,11 +38,13 @@ from backend.core.storage import (
     build_tenant_storage_path, storage_adapter
 )
 from backend.models.domain import (
-    ApprovalRequest, AuditEvent, Document, IngestionJob, Invoice
+    ApprovalRequest, AuditEvent, Document, IngestionJob, Invoice, Organisation
 )
 from backend.core.pipeline import (
     claim_ingestion_job, recover_expired_jobs, process_document_pipeline_background
 )
+from engine.pdf_safety import InvalidPDF, extract_pdf_pages
+from backend.core.processing_events import append_checkpoint
 
 logger = logging.getLogger("ap_command_center.documents")
 
@@ -74,13 +77,20 @@ async def upload_document(
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
     """Authenticated tenant document upload with full integrity & isolation guarantees."""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected; document was not queued.")
     # 1. MIME & Filename Check
     filename = file.filename or "unknown.pdf"
+    filename = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    if len(filename) > 200 or any(ord(c) < 32 or ord(c) == 127 for c in filename):
+        raise HTTPException(status_code=400, detail="Invalid document filename.")
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file format: Only PDF documents are supported for ingestion.",
         )
+    if file.content_type and file.content_type not in ("application/pdf", "application/octet-stream"):
+        raise HTTPException(status_code=400, detail="Unsupported document content type.")
 
     # 2. Read bytes in chunks with hard memory limit
     CHUNK_SIZE = 1024 * 1024  # 1 MB
@@ -115,11 +125,22 @@ async def upload_document(
             detail="Corrupted file: Invalid PDF header signature.",
         )
 
+    try:
+        # Upload is async; keep bounded parser work off the ASGI event loop.
+        from starlette.concurrency import run_in_threadpool
+        await run_in_threadpool(extract_pdf_pages, content)
+    except InvalidPDF as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     # 4. SHA-256 calculation
     sha256_hash = hashlib.sha256(content).hexdigest()
 
     # 5. Tenant duplicate detection
     if db is not None:
+        # Serialize tenant intake on PostgreSQL: duplicates and queue limits must
+        # be checked in the same transaction as persistence, not raced by tabs.
+        if not db.scalar(select(Organisation).where(Organisation.id == current_user.org_id).with_for_update()):
+            raise HTTPException(status_code=403, detail="Workspace unavailable.")
         existing = db.execute(
             select(Document).where(
                 Document.org_id == current_user.org_id,
@@ -140,6 +161,12 @@ async def upload_document(
                 },
             )
 
+        pending = db.scalar(select(func.count(IngestionJob.id)).where(
+            IngestionJob.org_id == current_user.org_id,
+            IngestionJob.status.in_(["QUEUED", "PROCESSING"]))) or 0
+        if pending >= settings.MAX_PENDING_UPLOADS_PER_TENANT:
+            raise HTTPException(status_code=429, detail="Workspace processing queue is full. Retry after pending invoices finish.", headers={"Retry-After": "30"})
+
     # 6. Build deterministic tenant-isolated storage path
     doc_id = f"doc_{uuid.uuid4().hex[:12]}"
     inv_id = f"inv_{uuid.uuid4().hex[:12]}"
@@ -151,14 +178,14 @@ async def upload_document(
         storage_meta = storage_adapter.save_file(
             content=content,
             filename=filename,
-            mime_type=file.content_type or "application/pdf",
+            mime_type="application/pdf",
             storage_key=storage_path,
         )
     except Exception as exc:
-        logger.error(f"Storage adapter save_file error: {exc}")
+        logger.error("Storage adapter save_file failed (%s)", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Secure storage failed: {str(exc)}",
+            detail="Secure storage failed. Document was not queued; retry or contact an administrator.",
         )
 
     # 8. Persist to database with compensating rollback
@@ -200,25 +227,13 @@ async def upload_document(
             )
             db.add(job)
 
-            audit = AuditEvent(
-                id=f"evt_{uuid.uuid4().hex[:12]}",
-                invoice_id=inv_id,
-                org_id=current_user.org_id,
-                actor_id=current_user.id,
-                actor_role=current_user.role.value if current_user.role else "UNKNOWN",
-                action="DOCUMENT_UPLOADED",
-                reason=f"Authenticated document upload: {filename}",
-                source_reference=storage_meta["storage_key"],
-            )
-            db.add(audit)
+            db.flush()
+            append_checkpoint(db, job, 'INTAKE', 'QUEUED',
+                f"Authenticated document upload: {filename}", attempt=0, invoice_id=inv_id,
+                actor_id=current_user.id, actor_role=current_user.role.value,
+                action='DOCUMENT_UPLOADED', source_reference=storage_meta['storage_key'])
             db.commit()
 
-            # Trigger background pipeline execution if enabled
-            if background_tasks is not None and os.getenv("ENABLE_BACKGROUND_PIPELINE", "true").lower() == "true":
-                claimed = claim_ingestion_job(db, org_id=current_user.org_id)
-                if claimed:
-                    c_job_id, c_org_id, c_doc_id, c_token = claimed
-                    background_tasks.add_task(process_document_pipeline_background, c_job_id, c_token)
         except Exception as exc:
             db.rollback()
             # COMPENSATING ROLLBACK: delete orphaned object from storage
@@ -230,8 +245,19 @@ async def upload_document(
 
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Database transaction failure during document ingestion: {str(exc)}",
+                detail="Document ingestion could not be committed. Retry or contact an administrator.",
             )
+
+        # After commit, dispatch failure must not remove the accepted evidence.
+        if background_tasks is not None and os.getenv("ENABLE_BACKGROUND_PIPELINE", "true").lower() == "true":
+            try:
+                claimed = claim_ingestion_job(db, org_id=current_user.org_id)
+                if claimed:
+                    c_job_id, c_org_id, c_doc_id, c_token = claimed
+                    background_tasks.add_task(process_document_pipeline_background, c_job_id, c_token, c_org_id)
+            except Exception:
+                db.rollback()
+                logger.error("Accepted document remains queued after dispatch failure")
 
     return {
         "status": "QUEUED",
@@ -244,6 +270,25 @@ async def upload_document(
         "storage_key": storage_meta["storage_key"],
         "message": "File received, verified and queued for processing.",
     }
+
+
+@router.post("/process-next")
+def process_next_document(
+    background_tasks: BackgroundTasks,
+    current_user: AuthenticatedUser = Depends(require_role([
+        UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN,
+    ])),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Resume one durable tenant job after restart or transient provider failure."""
+    if db is None:
+        raise HTTPException(status_code=503, detail="Database not connected.")
+    claimed = claim_ingestion_job(db, org_id=current_user.org_id)
+    if not claimed:
+        return {"status": "NO_QUEUED_JOB"}
+    job_id, org_id, document_id, lock_token = claimed
+    background_tasks.add_task(process_document_pipeline_background, job_id, lock_token, org_id)
+    return {"status": "PROCESSING", "job_id": job_id, "document_id": document_id}
 
 
 @router.get("", response_model=List[DocumentMetadataResponse])
@@ -343,7 +388,7 @@ def get_document_signed_url(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate presigned URL: {str(exc)}",
+            detail="Document access URL could not be generated.",
         )
 
     return {
@@ -379,7 +424,7 @@ def download_document(
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Physical object not found in storage.")
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storage retrieval failed: {str(exc)}")
+        raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable.")
 
     # Cryptographic integrity check
     calculated_hash = hashlib.sha256(content).hexdigest()
@@ -395,7 +440,7 @@ def download_document(
     return Response(
         content=content,
         media_type=doc.mime_type or "application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{doc.filename}"'},
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(doc.filename, safe='')}", "Cache-Control": "no-store"},
     )
 
 
@@ -424,12 +469,15 @@ def preview_document(
     except FileNotFoundError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Physical object not found in storage.")
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Storage retrieval failed: {str(exc)}")
+        raise HTTPException(status_code=503, detail="Document storage is temporarily unavailable.")
+
+    if hashlib.sha256(content).hexdigest() != doc.sha256_hash:
+        raise HTTPException(status_code=500, detail="Document integrity verification failed: SHA-256 mismatch detected.")
 
     return Response(
         content=content,
         media_type=doc.mime_type or "application/pdf",
-        headers={"Content-Disposition": f'inline; filename="{doc.filename}"'},
+        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(doc.filename, safe='')}", "Cache-Control": "no-store", "Content-Security-Policy": "sandbox"},
     )
 
 

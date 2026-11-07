@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from enum import Enum
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class CommercialDocumentType(str, Enum):
@@ -33,6 +33,7 @@ class FieldEvidence(BaseModel):
 
 class ExtractedLineItem(BaseModel):
     """Individual line item from an Indian GST invoice."""
+    model_config = ConfigDict(allow_inf_nan=False)
     item_description: str = Field(..., min_length=1)
     hsn_sac: Optional[str] = None
     quantity: float = Field(..., gt=0)
@@ -100,6 +101,7 @@ class ExtractedLineItem(BaseModel):
 
 class MantleInvoiceExtraction(BaseModel):
     """Structured extraction output validated against Bedrock Mantle Qwen3 235B response."""
+    model_config = ConfigDict(allow_inf_nan=False)
     document_type: CommercialDocumentType = CommercialDocumentType.INVOICE
     is_payable_invoice: bool = True
     supplier_name: str = Field(..., min_length=1)

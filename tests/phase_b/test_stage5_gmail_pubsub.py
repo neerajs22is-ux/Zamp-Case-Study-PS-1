@@ -571,6 +571,10 @@ def test_08_history_sync_ingests_attachments(stage5_client):
             select(Invoice).where(Invoice.org_id == "org_alpha")
         ).scalars().all()
         assert len(invoices) == 2
+        from backend.core.processing_events import processing_snapshot
+        for invoice in invoices:
+            run = processing_snapshot(session, invoice.id, 'org_alpha')['jobs'][0]
+            assert [(e['stage'], e['status'], e['attempt']) for e in run['events']] == [('INTAKE', 'QUEUED', 0)]
 
 
 # ==============================================================================

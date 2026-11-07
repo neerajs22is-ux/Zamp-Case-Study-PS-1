@@ -1,6 +1,6 @@
-import React from 'react';
-import { AlertCircle, RefreshCw } from 'lucide-react';
-import { Button } from './Button';
+import React from "react";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "./Button";
 
 export interface ErrorStateProps {
   title?: string;
@@ -10,14 +10,14 @@ export interface ErrorStateProps {
 }
 
 export const ErrorState: React.FC<ErrorStateProps> = ({
-  title = 'Something went wrong',
+  title = "Something went wrong",
   message,
   onRetry,
-  className = '',
+  className = "",
 }) => {
   return (
     <div
-      className={`p-6 sm:p-8 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 text-center flex flex-col items-center justify-center ${className}`}
+      className={`ui-error p-6 sm:p-8 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50/50 dark:bg-rose-950/20 text-center flex flex-col items-center justify-center ${className}`}
       role="alert"
     >
       <div className="w-10 h-10 rounded-full bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mb-3">

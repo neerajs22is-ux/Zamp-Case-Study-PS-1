@@ -1,5 +1,16 @@
 @import "tailwindcss";
 
+/* Keep utility variants in sync with ThemeProvider, not the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-slate-750: #29384b;
+  --color-slate-850: #172238;
+}
+
+/* Input borders stay distinguishable from dark surfaces across shared dialogs. */
+:root.dark .app-shell :is(input, select, textarea) { border-color: #76818c; }
+
 @layer base {
   :root {
     --bg-canvas: #f8fafc;
@@ -19,17 +30,53 @@
   }
 
   :root.dark {
-    --bg-canvas: #090d16;
-    --bg-surface: #0f172a;
-    --bg-surface-elevated: #1e293b;
-    --bg-muted: #1e293b;
-    --border-subtle: #1e293b;
-    --border-strong: #334155;
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
-    --accent-primary: #6366f1;
-    --accent-hover: #4f46e5;
+    --bg-canvas: #17191c;
+    --bg-surface: #202328;
+    --bg-surface-elevated: #292d33;
+    --bg-muted: #292d33;
+    --border-subtle: #454b53;
+    --border-strong: #68737e;
+    --text-primary: #f0f3f5;
+    --text-secondary: #c0c9d0;
+    --text-muted: #aab5be;
+    --accent-primary: #92bdff;
+    --accent-hover: #bad4fa;
+    /* Neutral surfaces and blue controls for dark utility classes. */
+    --color-slate-50: #f8f9fa;
+    --color-slate-100: #eff2f4;
+    --color-slate-200: #e0e5e8;
+    --color-slate-300: #c0c9d0;
+    --color-slate-400: #aab5be;
+    --color-slate-500: #8b969f;
+    --color-slate-600: #6d7882;
+    --color-slate-700: #505a64;
+    --color-slate-750: #3d454d;
+    --color-slate-800: #30363c;
+    --color-slate-850: #282c31;
+    --color-slate-900: #202328;
+    --color-slate-950: #151719;
+    --color-indigo-50: #eaf2ff;
+    --color-indigo-100: #d9e8ff;
+    --color-indigo-200: #c7ddff;
+    --color-indigo-300: #bed9ff;
+    --color-indigo-400: #9bc3fb;
+    --color-indigo-500: #376bb0;
+    --color-indigo-600: #3263a4;
+    --color-indigo-700: #315985;
+    --color-indigo-800: #385675;
+    --color-indigo-900: #263b50;
+    --color-indigo-950: #202f40;
+    --color-purple-50: var(--color-indigo-50);
+    --color-purple-100: var(--color-indigo-100);
+    --color-purple-200: var(--color-indigo-200);
+    --color-purple-300: var(--color-indigo-300);
+    --color-purple-400: var(--color-indigo-400);
+    --color-purple-500: var(--color-indigo-500);
+    --color-purple-600: var(--color-indigo-600);
+    --color-purple-700: var(--color-indigo-700);
+    --color-purple-800: var(--color-indigo-800);
+    --color-purple-900: var(--color-indigo-900);
+    --color-purple-950: var(--color-indigo-950);
     color-scheme: dark;
   }
 

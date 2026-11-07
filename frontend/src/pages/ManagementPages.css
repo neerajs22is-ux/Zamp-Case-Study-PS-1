@@ -1,0 +1,303 @@
+/* Scoped management screens. */
+.management-page {
+  --m-ink: var(--app-text);
+  --m-muted: var(--app-muted);
+  --m-border: var(--app-line);
+  --m-surface: var(--app-surface);
+  --m-subtle: var(--app-soft);
+  --m-accent: var(--app-accent);
+  padding: 24px;
+  border-radius: 12px;
+  background: var(--app-canvas);
+  color: var(--m-ink);
+  font-family: var(--font-sans);
+}
+.dark .management-page {
+  --m-ink: var(--app-text);
+  --m-muted: var(--app-muted);
+  --m-border: var(--app-line);
+  --m-surface: var(--app-surface);
+  --m-subtle: var(--app-soft);
+  --m-accent: var(--app-accent);
+  background: #17191c;
+}
+.management-page :is(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid #135db2;
+  outline-offset: 2px;
+}
+.dark .management-page :is(button, input, select, textarea, a):focus-visible {
+  outline-color: #8bbcff;
+}
+.management-page h1 {
+  color: var(--m-ink);
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 650;
+}
+.management-page h2,
+.management-page h3 {
+  color: var(--m-ink);
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+.management-page :is(p, td, th, label, button, input, select, textarea) {
+  line-height: 1.5;
+}
+.management-page :is(.text-slate-900, .text-slate-800, .text-slate-700) {
+  color: var(--m-ink);
+}
+.management-page :is(.text-slate-600, .text-slate-500, .text-slate-400) {
+  color: var(--m-muted);
+}
+.management-page :is(.bg-white, .bg-slate-900) {
+  background: var(--m-surface);
+  border-color: var(--m-border);
+}
+.management-page :is(.bg-slate-50, .bg-slate-100) {
+  background: var(--m-subtle);
+  border-color: var(--m-border);
+}
+.management-page
+  :is(
+    .border-slate-100,
+    .border-slate-200,
+    .border-slate-300,
+    .border-slate-800
+  ) {
+  border-color: var(--m-border);
+}
+.management-page :is(.text-indigo-600, .text-indigo-700) {
+  color: var(--m-accent);
+}
+.management-page :is(button.bg-indigo-600, a.bg-indigo-600) {
+  background: var(--app-primary);
+  color: #fff;
+}
+.management-page :is(input:not([type="checkbox"]), select, textarea) {
+  background: var(--m-surface);
+  color: var(--m-ink);
+  border-color: var(--m-border);
+}
+.management-page :is(input, select, textarea)::placeholder {
+  color: var(--m-muted);
+  opacity: 1;
+}
+.management-page button {
+  min-height: 34px;
+}
+.management-page table {
+  min-width: 720px;
+  color: var(--m-ink);
+}
+.management-page th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.management-page td {
+  font-size: 13px;
+}
+.management-page .text-\[10px\],
+.management-page .text-\[11px\] {
+  font-size: 12px;
+  line-height: 1.5;
+}
+@media (max-width: 640px) {
+  .management-page {
+    padding: 16px;
+  }
+  .management-page h1 {
+    font-size: 23px;
+  }
+}
+.management-page :is([class*="bg-amber-50"]) {
+  background: #fff4dd;
+  border-color: #efd6a7;
+  color: #8a4b08;
+}
+.management-page :is([class*="bg-amber-50"]) :is(span, p, div, svg) {
+  color: #8a4b08;
+}
+.management-page :is([class*="bg-indigo-50"]) {
+  background: var(--app-selected);
+  border-color: #c3ddcb;
+  color: var(--app-accent);
+}
+.management-page :is([class*="bg-indigo-50"]) :is(span, p, svg) {
+  color: var(--app-accent);
+}
+.management-page :is([class*="bg-sky-50"]) {
+  background: #eaf2ff;
+  border-color: #c6d8f2;
+  color: #135db2;
+}
+.management-page :is([class*="bg-sky-50"]) :is(span, p, div, svg) {
+  color: #135db2;
+}
+.dark .management-page :is([class*="bg-amber-50"]) {
+  background: #4c371c;
+  border-color: #806238;
+  color: #ffe1a6;
+}
+.dark .management-page :is([class*="bg-amber-50"]) :is(span, p, div, svg) {
+  color: #ffe1a6;
+}
+.dark .management-page :is([class*="bg-indigo-50"]) {
+  background: #2a3c50;
+  border-color: #789cc2;
+  color: #c9dfff;
+}
+.dark .management-page :is([class*="bg-indigo-50"]) :is(span, p, svg) {
+  color: #c9dfff;
+}
+.dark .management-page :is([class*="bg-sky-50"]) {
+  background: #203a52;
+  border-color: #3d6584;
+  color: #c1deff;
+}
+.dark .management-page :is([class*="bg-sky-50"]) :is(span, p, div, svg) {
+  color: #c1deff;
+}
+.management-page label:focus-within {
+  outline: 2px solid #135db2;
+  outline-offset: 2px;
+}
+.dark .management-page label:focus-within {
+  outline-color: #9bc3fb;
+}
+.setup-progress .setup-progress-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 20px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+}
+.setup-progress .setup-progress-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #718a79;
+}
+.setup-progress .setup-progress-mark.is-complete {
+  background: #63866f;
+}
+.setup-progress .setup-progress-mark.is-current {
+  width: 22px;
+  background: #126b46;
+}
+.dark .setup-progress .setup-progress-mark {
+  background: #7c8792;
+}
+.dark .setup-progress .setup-progress-mark.is-complete {
+  background: #8ba9cc;
+}
+.dark .setup-progress .setup-progress-mark.is-current {
+  background: #a9cdfc;
+}
+/* Neutral counters and primary button labels must remain readable in both themes. */
+.management-page button > span[class*="bg-slate-200"] {
+  background: var(--m-subtle);
+  color: var(--m-ink);
+}
+.management-page button.bg-indigo-600 :is(span, svg) {
+  color: #fff;
+}
+.setup-page > div:first-child > div:first-child > div:first-child {
+  background: var(--app-primary);
+  color: #fff;
+}
+.management-page svg.text-indigo-500 {
+  color: var(--m-accent);
+}
+.dark .management-page button.bg-indigo-600 {
+  background: #3263a4;
+  color: #fff;
+}
+.dark .management-page button.bg-indigo-600 :is(span, svg) {
+  color: #fff;
+}
+.dark .management-page button.bg-indigo-600:hover:not(:disabled) {
+  background: #274f83;
+}
+.dark .management-page button.bg-indigo-600:disabled {
+  background: #394047;
+  border-color: #8b969f;
+  color: #c0c9d0;
+  opacity: 1;
+}
+.dark .management-page button.bg-indigo-600:disabled :is(span, svg) {
+  color: #c0c9d0;
+}
+.dark .management-page .team-role-badge {
+  background: #2a3c50;
+  border-color: #789cc2;
+  color: #c9dfff;
+}
+.dark .setup-page > div:first-child > div:first-child > div:first-child {
+  background: #3263a4;
+  color: #fff;
+}
+.dark .connections-page .connection-health-icon {
+  color: #a9cdfc;
+}
+
+/* Connection health and actions: these light-only rules take precedence over
+   management-wide selectors that also match hover/dark class names. */
+:root:not(.dark) .connections-page .connection-status-connected {
+  background: #e3f2e8;
+  color: #126b46;
+  border-color: #63866f;
+}
+:root:not(.dark) .connections-page .connection-status-connected svg,
+:root:not(.dark) .connections-page .connection-health-icon,
+:root:not(.dark) .connections-page svg[class~="text-emerald-500"],
+:root:not(.dark) .connections-page svg[class~="text-emerald-600"] {
+  color: #126b46;
+}
+:root:not(.dark) .connections-page span.bg-emerald-500 {
+  background: #126b46;
+}
+:root:not(.dark) .connections-page span.bg-slate-400 {
+  background: #52665f;
+}
+:root:not(.dark) .connections-page button.connection-import {
+  background: var(--app-primary);
+  color: #fff;
+}
+:root:not(.dark) .connections-page button.connection-import svg {
+  color: #fff;
+}
+:root:not(.dark)
+  .connections-page
+  button.connection-import:hover:not(:disabled) {
+  background: var(--app-primary-hover);
+}
+:root:not(.dark) .connections-page button.connection-import:disabled {
+  background: #e4ebe5;
+  color: #52665f;
+  border: 1px solid #63866f;
+  opacity: 1;
+}
+:root:not(.dark) .connections-page button.connection-import:disabled svg {
+  color: #52665f;
+}
+:root:not(.dark)
+  .connections-page
+  button.connection-diagnostics:hover:not(:disabled) {
+  background: #d6e8dc;
+  color: var(--app-primary-hover);
+}
+:root:not(.dark) .connections-page button.connection-diagnostics:disabled {
+  background: #e4ebe5;
+  color: #52665f;
+  border-color: #63866f;
+  opacity: 1;
+}
+:root:not(.dark)
+  .connections-page
+  button[class~="text-slate-500"]:hover:not(:disabled) {
+  color: #126b46;
+}

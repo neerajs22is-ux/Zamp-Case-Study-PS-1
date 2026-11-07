@@ -8,7 +8,8 @@ Features:
 - OpenAI-compatible JSON payload schema.
 - Automatic removal of `<think>...</think>` internal chain-of-thought tokens.
 - Token consumption logging & exact cost estimation.
-- Configurable per-document ceiling & monthly spending caps.
+- Per-document preflight ceiling and response cost checks. Monthly budgets
+  require an external durable quota; this client does not enforce them.
 - Strict Pydantic v2 structured output validation.
 - Fenced untrusted evidence grounding.
 """
@@ -79,6 +80,13 @@ class BedrockMantleClient:
         """Extracts structured commercial document schema using AWS Bedrock Mantle."""
         start_time = time.perf_counter()
         fenced_content = fence_document_pages(pages_text)
+        # A conservative byte upper bound avoids trusting model token estimates.
+        # No request is sent if the configured worst-case request is too costly.
+        input_bytes = len(fenced_content.encode("utf-8")) + 4096
+        estimated_max_cost = (input_bytes * settings.MANTLE_COST_PER_1K_INPUT
+            + settings.MANTLE_MAX_TOKENS * settings.MANTLE_COST_PER_1K_OUTPUT) / 1000
+        if input_bytes > 100_000 or estimated_max_cost > settings.MANTLE_MAX_DOCUMENT_COST_USD:
+            raise MantleBudgetExceededError("Document exceeds the inference input or preflight cost limit; manual review required.")
 
         system_prompt = (
             "You are an expert Indian Accounts Payable Document Intelligence system.\n"
@@ -111,6 +119,8 @@ class BedrockMantleClient:
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
+        if settings.MANTLE_PROJECT_ID:
+            headers['OpenAI-Project'] = settings.MANTLE_PROJECT_ID
         payload = {
             "model": self.model_id,
             "messages": [
@@ -126,14 +136,14 @@ class BedrockMantleClient:
             with httpx.Client(timeout=self.timeout) as client:
                 resp = client.post(self.endpoint, headers=headers, json=payload)
         except httpx.TimeoutException as exc:
-            raise MantleClientError(f"Bedrock Mantle timeout after {self.timeout}s: {exc}") from exc
+            raise MantleClientError(f"Bedrock Mantle timeout after {self.timeout}s") from exc
         except Exception as exc:
-            raise MantleClientError(f"Network error calling Bedrock Mantle: {exc}") from exc
+            raise MantleClientError("Network error calling Bedrock Mantle") from exc
 
         if resp.status_code in (401, 403):
-            raise MantleAuthError(f"Bedrock Mantle authentication failed (HTTP {resp.status_code}): {resp.text}")
+            raise MantleAuthError(f"Bedrock Mantle authentication failed (HTTP {resp.status_code})")
         if resp.status_code != 200:
-            raise MantleClientError(f"Bedrock Mantle call failed with HTTP {resp.status_code}: {resp.text}")
+            raise MantleClientError(f"Bedrock Mantle call failed with HTTP {resp.status_code}")
 
         latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
         body = resp.json()
@@ -169,7 +179,10 @@ class BedrockMantleClient:
         try:
             parsed_data = json.loads(clean_json_str)
         except json.JSONDecodeError as exc:
-            raise MantleClientError(f"Failed to parse JSON from Mantle response: {clean_json_str[:300]}") from exc
+            raise MantleClientError("Mantle returned invalid structured JSON.") from exc
+
+        if not isinstance(parsed_data, dict):
+            raise MantleClientError("Mantle output must be a JSON object.")
 
         # Populate telemetry
         parsed_data["input_tokens"] = input_tokens
@@ -182,7 +195,7 @@ class BedrockMantleClient:
         try:
             extraction = MantleInvoiceExtraction(**parsed_data)
         except ValidationError as exc:
-            raise MantleClientError(f"Pydantic schema validation failed on Mantle output: {exc}") from exc
+            raise MantleClientError("Mantle output failed financial schema validation.") from exc
 
         # Execute grounding tripwires
         passed, unverified, updated_evidence = verify_extracted_evidence(extraction, pages_text)

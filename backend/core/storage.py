@@ -15,6 +15,7 @@ import datetime
 import hashlib
 import logging
 import os
+import re
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -42,6 +43,7 @@ def build_tenant_storage_path(org_id: str, document_id: str, filename: str) -> s
     import pathlib
     clean_filename = pathlib.PureWindowsPath(filename.strip()).name
     clean_filename = pathlib.PurePosixPath(clean_filename).name.replace(" ", "_")
+    clean_filename = re.sub(r"[^A-Za-z0-9._-]", "_", clean_filename)
     org_folder = clean_org if clean_org.startswith("org_") else f"org_{clean_org}"
     return f"{org_folder}/invoices/{document_id}/{clean_filename}"
 
@@ -149,7 +151,7 @@ class SupabaseStorageAdapter(ObjectStorageAdapter):
                         "status": "DEGRADED",
                         "provider": "supabase",
                         "bucket": self.bucket,
-                        "readiness": True,
+                        "readiness": False,
                         "message": f"WARNING: Bucket '{self.bucket}' is public. Invoices must be stored in private buckets only.",
                     }
                 return {
@@ -181,7 +183,7 @@ class SupabaseStorageAdapter(ObjectStorageAdapter):
                     "provider": "supabase",
                     "bucket": self.bucket,
                     "readiness": False,
-                    "message": f"Supabase Storage check returned HTTP {resp.status_code}: {resp.text}",
+                    "message": f"Supabase Storage check returned HTTP {resp.status_code}.",
                 }
         except Exception as exc:
             return {
@@ -189,7 +191,7 @@ class SupabaseStorageAdapter(ObjectStorageAdapter):
                 "provider": "supabase",
                 "bucket": self.bucket,
                 "readiness": False,
-                "message": f"Supabase Storage connection error: {str(exc)}",
+                "message": "Supabase Storage connection check failed.",
             }
 
     def save_file(
@@ -412,7 +414,7 @@ class S3EncryptedStorageAdapter(ObjectStorageAdapter):
                 "bucket": self.bucket,
                 "region": self.region,
                 "readiness": False,
-                "message": f"S3 access check failed: {str(exc)}",
+                "message": "S3 access check failed.",
             }
 
     def save_file(

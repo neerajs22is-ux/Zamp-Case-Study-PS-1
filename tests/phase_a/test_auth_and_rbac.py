@@ -57,7 +57,7 @@ def test_auditor_role_barred_from_executing_mutations(client, db_session):
     assert "read-only and cannot execute mutations" in resp.json()["detail"]
 
 
-def test_dual_control_rejects_self_approval(client, db_session):
+def test_dual_control_rejects_self_approval(client, db_session, record_valid_match):
     """High-value invoices require two distinct approvers. First approver cannot approve twice."""
     from backend.models.domain import Invoice
     # Create invoice exceeding dual approval threshold (₹5,00,000)
@@ -73,6 +73,7 @@ def test_dual_control_rejects_self_approval(client, db_session):
     db_session.commit()
 
     lead_headers = {"Authorization": "Bearer test_token:AP_LEAD:lead_user_01:lead@company.internal"}
+    record_valid_match(db_session, inv)
 
     # First approval succeeds and sets status to PENDING_SECOND_APPROVAL
     resp1 = client.post(

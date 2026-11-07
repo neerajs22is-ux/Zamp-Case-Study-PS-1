@@ -1,0 +1,191 @@
+/* Application chrome only. Screen components keep their own styles. */
+.app-shell {
+  --shell-canvas: var(--app-canvas);
+  --shell-surface: var(--app-surface);
+  --shell-subtle: var(--app-soft);
+  --shell-text: var(--app-text);
+  --shell-muted: var(--app-muted);
+  --shell-border: var(--app-line);
+  --shell-accent: var(--app-accent);
+  --shell-active: var(--app-selected);
+  background: var(--shell-canvas);
+  color: var(--shell-text);
+  font-family: var(--font-sans);
+}
+.dark .app-shell {
+  --shell-canvas: var(--app-canvas);
+  --shell-surface: var(--app-surface);
+  --shell-subtle: var(--app-soft);
+  --shell-text: var(--app-text);
+  --shell-muted: var(--app-muted);
+  --shell-border: var(--app-line);
+  --shell-accent: var(--app-accent);
+  --shell-active: var(--app-selected);
+}
+.app-shell
+  :is(.app-sidebar, .shell-header, .shell-footer)
+  :is(a, button):focus-visible {
+  outline: 2px solid #135db2;
+  outline-offset: 2px;
+}
+.dark
+  .app-shell
+  :is(.app-sidebar, .shell-header, .shell-footer)
+  :is(a, button):focus-visible {
+  outline-color: #8bbcff;
+}
+.app-sidebar {
+  background: var(--shell-surface);
+  border-color: var(--shell-border);
+  color: var(--shell-text);
+}
+.sidebar-brand,
+.sidebar-footer {
+  border-color: var(--shell-border);
+}
+.sidebar-brand > div:first-child span:first-child {
+  color: var(--shell-text);
+  font-size: 14px;
+}
+.sidebar-brand > div:first-child span:nth-child(2) {
+  color: var(--shell-muted);
+  font-size: 10px;
+}
+.sidebar-mark {
+  background: var(--app-primary);
+  color: #fff;
+  box-shadow: none;
+}
+.dark .sidebar-mark {
+  background: #3263a4;
+  color: #fff;
+}
+.sidebar-workspace,
+.sidebar-user {
+  background: var(--shell-subtle);
+  border-color: var(--shell-border);
+  box-shadow: none;
+}
+.sidebar-workspace :is(span, svg),
+.sidebar-user span {
+  color: var(--shell-muted);
+}
+.sidebar-workspace span:first-child,
+.sidebar-user span:first-child {
+  color: var(--shell-text);
+  font-size: 12px;
+}
+.sidebar-links > div > div:first-child {
+  color: var(--shell-muted);
+  font-size: 11px;
+}
+.sidebar-links > div {
+  border-color: var(--shell-border);
+}
+.sidebar-links a {
+  min-height: 40px;
+  color: var(--shell-muted);
+  font-size: 13px;
+  box-shadow: none;
+}
+.sidebar-links a svg {
+  color: var(--shell-muted);
+}
+.sidebar-links a:hover {
+  background: var(--shell-subtle);
+  color: var(--shell-text);
+}
+.sidebar-links a[aria-current="page"] {
+  background: var(--shell-active);
+  color: var(--shell-accent);
+}
+.sidebar-links a[aria-current="page"] svg {
+  color: var(--shell-accent);
+}
+.sidebar-links a[aria-current="page"]::before {
+  background: var(--shell-accent);
+}
+.sidebar-footer {
+  background: var(--shell-surface);
+}
+.sidebar-footer .sidebar-help {
+  min-height: 38px;
+  background: var(--shell-subtle);
+  border-color: var(--shell-border);
+  color: var(--shell-text);
+  box-shadow: none;
+}
+.sidebar-help :is(svg, span) {
+  color: var(--shell-accent);
+}
+.sidebar-help:hover {
+  background: var(--shell-active);
+}
+.sidebar-footer > button {
+  min-height: 38px;
+}
+.sidebar-footer .sidebar-health {
+  background: var(--shell-subtle);
+  border-color: var(--shell-border);
+  color: var(--shell-text);
+}
+.sidebar-footer .sidebar-health:hover {
+  background: var(--shell-active);
+}
+.shell-header {
+  min-height: 60px;
+  background: var(--shell-surface);
+  border-color: var(--shell-border);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.shell-header > div:first-child :is(span, a, button) {
+  color: var(--shell-text);
+}
+.shell-header > div:last-child > button {
+  min-height: 36px;
+  border-color: var(--shell-border);
+  background: var(--shell-subtle);
+  color: var(--shell-text);
+  box-shadow: none;
+}
+.shell-header > div:last-child > button:hover {
+  background: var(--shell-active);
+}
+.shell-header > div:last-child > button svg {
+  color: var(--shell-accent);
+}
+.shell-header .shell-boundary {
+  background: var(--shell-active);
+  border-color: var(--shell-border);
+  color: var(--shell-accent);
+}
+.shell-footer {
+  background: var(--shell-surface);
+  border-color: var(--shell-border);
+  color: var(--shell-muted);
+}
+.shell-footer span {
+  color: var(--shell-muted);
+}
+/* Keep count chips and the evaluator control legible in the selected theme. */
+.sidebar-links a > span.rounded-full {
+  background: var(--shell-active);
+  border-color: var(--shell-border);
+  color: var(--shell-accent);
+}
+.sidebar-footer .sidebar-dev {
+  background: var(--shell-surface);
+  border-color: var(--shell-border);
+  color: var(--shell-muted);
+}
+.sidebar-footer .sidebar-dev svg {
+  color: var(--shell-accent);
+}
+.sidebar-user > div > div:first-child {
+  background: var(--shell-active);
+  color: var(--shell-accent);
+}
+.dark .app-shell svg.text-indigo-500 {
+  color: #9bc3fb;
+}

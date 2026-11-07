@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
-import { RotateCcw, ShieldCheck, Database, Wrench, CheckCircle2, AlertTriangle, ExternalLink } from 'lucide-react';
-import { Drawer } from './ui/Drawer';
-import { Button } from './ui/Button';
-import { Badge } from './ui/Badge';
-import { api } from '../api/client';
-import type { AuthenticatedUser, HealthResponse } from '../types';
+import React, { useState } from "react";
+import {
+  RotateCcw,
+  ShieldCheck,
+  Database,
+  Wrench,
+  CheckCircle2,
+  AlertTriangle,
+  ExternalLink,
+} from "lucide-react";
+import { Drawer } from "./ui/Drawer";
+import { Button } from "./ui/Button";
+import { Badge } from "./ui/Badge";
+import { api } from "../api/client";
+import type { AuthenticatedUser, HealthResponse } from "../types";
 
 interface DeveloperDrawerProps {
   isOpen: boolean;
@@ -29,7 +37,7 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
   const handleResetDemo = async () => {
     if (isResetting) return;
     const confirmed = window.confirm(
-      "Reset Evaluation Workspace?\n\nThis will restore all line item quantities and rates to baseline synthetic fixtures and re-evaluate policy gates. The immutable audit trail is preserved."
+      "Reset evaluation workspace?\n\nThis can change corrected rates, invoice totals and approval records for all invoices in the evaluation workspace, including imported records. Checks will be re-evaluated. Continue?",
     );
     if (!confirmed) return;
 
@@ -37,7 +45,9 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
       setIsResetting(true);
       setResetMessage(null);
       const res = await api.resetDemoState();
-      setResetMessage(`Successfully reset ${res.re_evaluated_invoices_count} invoices.`);
+      setResetMessage(
+        `Successfully reset ${res.re_evaluated_invoices_count} invoices.`,
+      );
       setTimeout(() => {
         window.location.reload();
       }, 800);
@@ -55,10 +65,12 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
       title={
         <div className="flex items-center gap-2">
           <Wrench className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-          <span className="font-semibold text-slate-900 dark:text-white">Developer & Evaluator Controls</span>
+          <span className="font-semibold text-slate-900 dark:text-white">
+            Developer & Evaluator Controls
+          </span>
         </div>
       }
-      description="Quarantined tools for technical evaluation, role simulation, and state reset."
+      description="Evaluation tools can switch the active role or change evaluation records. Use them separately from an invoice demonstration."
       width="md"
     >
       <div className="space-y-6">
@@ -67,9 +79,11 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <span className="font-semibold block">Evaluation Mode Active</span>
+              <span className="font-semibold block">Development tools</span>
               <p className="mt-0.5 text-amber-800 dark:text-amber-300/90 leading-relaxed">
-                Procurement and invoice records in this workspace are synthetic evaluation fixtures. These developer controls are isolated to protect the non-technical buyer experience.
+                A development build does not establish whether workspace records
+                are synthetic. Check record provenance; imported invoices may be
+                live. These tools can change workspace state.
               </p>
             </div>
           </div>
@@ -83,15 +97,37 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
                 <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                 <span>Simulate User Role</span>
               </span>
-              <Badge tone="info" size="sm">{user.role || 'AP_LEAD'}</Badge>
+              <Badge tone="info" size="sm">
+                {user.role || "AP_LEAD"}
+              </Badge>
             </label>
             <div className="grid grid-cols-1 gap-1.5">
               {[
-                { role: 'AP_ASSOCIATE', label: 'AP Associate', desc: 'Can review and edit lines; cannot self-approve.' },
-                { role: 'AP_LEAD', label: 'AP Lead', desc: 'Can review, correct, and execute standard approvals.' },
-                { role: 'CONTROLLER', label: 'Financial Controller', desc: 'Can authorize dual approvals (≥ ₹5,00,000).' },
-                { role: 'AUDITOR', label: 'Auditor (Read-Only)', desc: 'View-only access; action mutations return HTTP 403.' },
-                { role: 'SYSTEM_ADMIN', label: 'System Admin', desc: 'Full administration and team access.' },
+                {
+                  role: "AP_ASSOCIATE",
+                  label: "AP Associate",
+                  desc: "Can review and edit lines; cannot self-approve.",
+                },
+                {
+                  role: "AP_LEAD",
+                  label: "AP Lead",
+                  desc: "Can review, correct, and execute standard approvals.",
+                },
+                {
+                  role: "CONTROLLER",
+                  label: "Financial Controller",
+                  desc: "Can provide eligible independent second sign-off.",
+                },
+                {
+                  role: "AUDITOR",
+                  label: "Auditor (Read-Only)",
+                  desc: "View-only access; action mutations return HTTP 403.",
+                },
+                {
+                  role: "SYSTEM_ADMIN",
+                  label: "System Admin",
+                  desc: "Full administration and team access.",
+                },
               ].map((item) => (
                 <button
                   key={item.role}
@@ -99,8 +135,8 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
                   onClick={() => onSwitchRole(item.role)}
                   className={`p-2.5 rounded-lg border text-left text-xs transition-colors cursor-pointer ${
                     user.role === item.role
-                      ? 'bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60'
+                      ? "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-700 text-indigo-900 dark:text-indigo-200"
+                      : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -125,7 +161,9 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
             <span>Workspace State Reset</span>
           </label>
           <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Restores all invoice records and line items back to initial baseline fixtures.
+            For the evaluation tenant, resets corrected rates and approval
+            records, recalculates invoice totals and re-evaluates checks for all
+            invoices, including imported records.
           </p>
           <Button
             variant="secondary"
@@ -135,7 +173,9 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
             leftIcon={<RotateCcw className="w-3.5 h-3.5" />}
             className="w-full justify-center"
           >
-            {isResetting ? 'Resetting Baseline Fixtures...' : 'Reset Invoices to Baseline'}
+            {isResetting
+              ? "Resetting evaluation records..."
+              : "Reset evaluation records"}
           </Button>
           {resetMessage && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 font-medium">
@@ -177,23 +217,33 @@ export const DeveloperDrawer: React.FC<DeveloperDrawerProps> = ({
             <div className="space-y-1.5 font-mono text-[11px] bg-slate-50 dark:bg-slate-950 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
               <div className="flex justify-between">
                 <span className="text-slate-500">Overall:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{health.overall_status}</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {health.overall_status}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Database:</span>
-                <span className="text-slate-800 dark:text-slate-200">{health.subsystems?.database?.status || 'OK'}</span>
+                <span className="text-slate-800 dark:text-slate-200">
+                  {health.subsystems?.database?.status || "OK"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Storage:</span>
-                <span className="text-slate-800 dark:text-slate-200">{health.subsystems?.object_storage?.status || 'OK'}</span>
+                <span className="text-slate-800 dark:text-slate-200">
+                  {health.subsystems?.object_storage?.status || "OK"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">SAP ERP:</span>
-                <span className="text-slate-800 dark:text-slate-200">{health.subsystems?.sap_erp?.status || 'OK'}</span>
+                <span className="text-slate-800 dark:text-slate-200">
+                  {health.subsystems?.sap_erp?.status || "OK"}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Auth Identity:</span>
-                <span className="text-slate-800 dark:text-slate-200">{health.subsystems?.identity_provider?.status || 'OK'}</span>
+                <span className="text-slate-800 dark:text-slate-200">
+                  {health.subsystems?.identity_provider?.status || "OK"}
+                </span>
               </div>
             </div>
           </div>

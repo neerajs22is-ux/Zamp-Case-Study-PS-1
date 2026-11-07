@@ -521,10 +521,11 @@ def test_07_no_duplicate_invoice_or_audit_creation_on_reclaim(stage52_db):
 # Test 08: Reclaim Endpoint and Truthful Scheduling Disclosure
 # ==============================================================================
 
-def test_08_reclaim_endpoint_and_scheduling_status_disclosure(stage52_client):
+def test_08_reclaim_endpoint_and_scheduling_status_disclosure(stage52_client, monkeypatch):
     """Test 08: Reclaim endpoint responds correctly and status documents synchronous execution."""
     client, session = stage52_client
     token = seed_tenant_user(session, org_id="org_alpha")
+    monkeypatch.setattr(settings, "PLATFORM_OPERATOR_SUBJECTS", "usr_01")
 
     # 1. Test POST /api/v1/integrations/gmail/pubsub/reclaim
     resp = client.post(

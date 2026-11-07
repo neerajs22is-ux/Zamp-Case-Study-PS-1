@@ -1,5 +1,5 @@
 """Phase 1 Complete Vertical Slice Tests:
-1. Postgres-backed durable job claiming (FOR UPDATE SKIP LOCKED)
+1. Durable job state transitions (SQLite; not a PostgreSQL concurrency proof)
 2. Lease expiry, bounded retries & crash recovery
 3. Lease renewal heartbeat
 4. Idempotency & duplicate protection
@@ -41,7 +41,7 @@ TEST_ORG = "org_p1_test"
 
 
 @pytest.fixture(autouse=True)
-def setup_test_org():
+def setup_test_org(disposable_app_db):
     with SessionLocal() as db:
         org = db.scalar(select(Organisation).where(Organisation.id == TEST_ORG))
         if not org:
@@ -66,7 +66,7 @@ def setup_test_org():
 
 
 def test_01_job_claiming_atomic_for_update_skip_locked():
-    """Verify atomic job claiming sets PROCESSING status, assigns lock token, and sets lease expiration."""
+    """Verify claim state/token/lease; real lock contention is covered in tests/postgres."""
     with SessionLocal() as db:
         job_id = f"job_test_{uuid.uuid4().hex[:8]}"
         doc_id = f"doc_test_{uuid.uuid4().hex[:8]}"
@@ -193,7 +193,7 @@ def test_04_bounded_retries_and_explicit_failed_state():
         assert "exceeded max retries" in job.error_message
 
 
-def test_05_dual_approval_controller_enforcement():
+def test_05_dual_approval_controller_enforcement(record_valid_match):
     """Verify high-value dual approval requires distinct CONTROLLER/SYSTEM_ADMIN for 2nd step."""
     with SessionLocal() as db:
         inv_id = f"inv_dual_{uuid.uuid4().hex[:8]}"
@@ -223,6 +223,8 @@ def test_05_dual_approval_controller_enforcement():
         db.add(exc)
         db.commit()
 
+        record_valid_match(db, inv)
+
         lead_user = AuthenticatedUser(id="usr_lead", org_id=TEST_ORG, email="lead@org.com", name="AP Lead", role=UserRole.AP_LEAD)
         assoc_user = AuthenticatedUser(id="usr_assoc", org_id=TEST_ORG, email="assoc@org.com", name="AP Assoc", role=UserRole.AP_ASSOCIATE)
         controller_user = AuthenticatedUser(id="usr_ctrl", org_id=TEST_ORG, email="ctrl@org.com", name="Controller", role=UserRole.CONTROLLER)
@@ -244,11 +246,15 @@ def test_05_dual_approval_controller_enforcement():
         assert excinfo.value.status_code == 400
         assert "distinct authenticated user" in excinfo.value.detail
 
+        db.rollback()  # Match the request dependency rollback after rejection.
+
         # Step 2: AP Associate attempting 2nd approval fails (role check)
         with pytest.raises(HTTPException) as excinfo:
             execute_invoice_action(inv_id, payload, assoc_user, db)
         assert excinfo.value.status_code == 403
         assert "requires CONTROLLER or SYSTEM_ADMIN role" in excinfo.value.detail
+
+        db.rollback()
 
         # Step 2: Controller approving succeeds
         res2 = execute_invoice_action(inv_id, payload, controller_user, db)
@@ -446,8 +452,8 @@ def test_09_invalid_action_rejected_with_422():
         assert "Unknown or invalid action" in excinfo.value.detail
 
 
-def test_10_e2e_real_invoice_upload_and_pipeline_execution():
-    """Verify end-to-end real document ingestion, lease-locked execution, and 7-gate match completion."""
+def test_10_e2e_real_invoice_upload_and_pipeline_execution(record_valid_match):
+    """Real PDF storage/persistence/matching with explicitly stubbed extraction output."""
     pdf_path = os.path.join("tests", "evaluation_corpus_v2", "invoices", "01_invoice_AP_26_001.pdf")
     assert os.path.exists(pdf_path), f"Corpus invoice missing: {pdf_path}"
 
@@ -476,7 +482,7 @@ def test_10_e2e_real_invoice_upload_and_pipeline_execution():
             filename=filename,
             mime_type="application/pdf",
             file_size_bytes=len(pdf_bytes),
-            sha256_hash="test_sha_" + uuid.uuid4().hex[:12],
+            sha256_hash=__import__("hashlib").sha256(pdf_bytes).hexdigest(),
             storage_provider=storage_meta["storage_provider"],
             storage_key=storage_meta["storage_key"],
             is_original=True,
@@ -573,6 +579,12 @@ def test_10_e2e_real_invoice_upload_and_pipeline_execution():
         )
         mock_extractor.extract_hybrid.return_value = mock_result
 
+        inv.total_amount = mock_result.grand_total
+        inv.tax_amount = mock_result.total_tax_amount
+        inv.vendor_gstin = mock_result.supplier_gstin
+        record_valid_match(db, inv, line_items=False, quantity=120, description="Precision turned steel shafts")
+        mock_result.po_reference = inv.po_reference
+
         # 4. Execute pipeline
         res = execute_document_pipeline(c_job_id, c_token, db_session=None, extractor=mock_extractor)
         assert res["status"] == "COMPLETED"
@@ -600,7 +612,7 @@ def test_10_e2e_real_invoice_upload_and_pipeline_execution():
         # Verify ExtractionRun
         ext_run = db.scalar(select(ExtractionRun).where(ExtractionRun.document_id == doc_id))
         assert ext_run is not None
-        assert float(ext_run.overall_confidence) >= 0.9
+        assert ext_run.overall_confidence is None  # No fabricated model confidence
 
         # Verify ExtractedFields (11 fields)
         fields = db.scalars(select(ExtractedField).where(ExtractedField.extraction_run_id == ext_run.id)).all()

@@ -78,6 +78,10 @@ class Settings(BaseSettings):
     SUPABASE_JWKS_URL: Optional[str] = Field(default=None)
     SUPABASE_ISSUER: Optional[str] = Field(default=None)
     SUPABASE_AUDIENCE: str = "authenticated"
+    # Operator must confirm the identity provider requires email confirmation.
+    IDENTITY_EMAIL_CONFIRMATION_ENFORCED: bool = False
+    # Emergency recovery cutoff, Unix seconds UTC; requires signed token iat.
+    AUTH_REJECT_TOKENS_ISSUED_BEFORE: Optional[int] = Field(default=None, ge=0)
     OIDC_ISSUER_URL: Optional[str] = "https://accounts.google.com"
     OIDC_CLIENT_ID: Optional[str] = None
     OIDC_CLIENT_SECRET: Optional[str] = None
@@ -85,6 +89,8 @@ class Settings(BaseSettings):
     OIDC_AUDIENCE: Optional[str] = None
     LOCAL_AUTH_BYPASS: bool = False
     ENABLE_DEV_SESSION: bool = False  # Development-only session minting flag; strictly False by default
+    # Comma-separated authenticated identity subjects allowed to operate platform-wide services.
+    PLATFORM_OPERATOR_SUBJECTS: str = ""
 
     # 4. Private Object Storage (Supabase Storage Primary, S3 Supported)
     STORAGE_PROVIDER: str = "supabase"  # supabase, s3
@@ -96,6 +102,9 @@ class Settings(BaseSettings):
     AWS_SECRET_ACCESS_KEY: Optional[str] = None
     STORAGE_SIGNED_URL_EXPIRY_SECONDS: int = 300
     MAX_UPLOAD_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB Supabase Free limit
+    MAX_PENDING_UPLOADS_PER_TENANT: int = Field(default=10, ge=1, le=1000)
+    # Renewal budget, not a guarantee that an external request can be cancelled.
+    PIPELINE_PROVIDER_BUDGET_SECONDS: int = Field(default=900, ge=180, le=3600)
 
     # 5. Gmail Ingestion (Phase B)
     GMAIL_CLIENT_ID: Optional[str] = None
@@ -145,6 +154,7 @@ class Settings(BaseSettings):
     MANTLE_BASE_URL: str = Field(default="https://bedrock-mantle.ap-south-1.api.aws/v1")
     MANTLE_API_KEY: Optional[str] = Field(default=None)
     MANTLE_MODEL_ID: str = Field(default="qwen.qwen3-235b-a22b-2507-v1:0")
+    MANTLE_PROJECT_ID: Optional[str] = None
     MANTLE_TIMEOUT_SECONDS: float = Field(default=30.0)
     MANTLE_MAX_TOKENS: int = Field(default=2048)
     MANTLE_TEMPERATURE: float = Field(default=0.0)
@@ -152,6 +162,8 @@ class Settings(BaseSettings):
     MANTLE_COST_PER_1K_OUTPUT: float = Field(default=0.0024)
     MANTLE_MAX_DOCUMENT_COST_USD: float = Field(default=0.10)
     MANTLE_MONTHLY_BUDGET_USD: float = Field(default=50.00)
+    MODEL_MAX_ATTEMPTS_PER_TENANT_MINUTE: int = Field(default=30, ge=1, le=100000)
+    MODEL_RESERVATION_BUDGET_USD_PER_TENANT_MONTH: float = Field(default=50.0, gt=0, le=100000)
 
     # 11. Multimodal Visual Document Intelligence (AWS Bedrock Palmyra Vision 7B)
     ENABLE_PALMYRA_VISION: bool = Field(default=False)
@@ -181,7 +193,7 @@ class Settings(BaseSettings):
                     f"Got None for environment '{self.APP_ENV.value}'."
                 )
 
-            valid_pg_prefixes = ("postgresql://", "postgres://", "postgresql+psycopg://", "postgresql+asyncpg://")
+            valid_pg_prefixes = ("postgresql://", "postgres://", "postgresql+psycopg://", "postgresql+psycopg2://")
             if not any(self.DATABASE_URL.startswith(prefix) for prefix in valid_pg_prefixes):
                 raise ConfigurationError(
                     f"Production/Staging violation: PostgreSQL is mandatory. "

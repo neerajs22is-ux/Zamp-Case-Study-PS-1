@@ -1,0 +1,306 @@
+/* Scoped to Exceptions, Approvals and Audit. */
+.operations-page {
+  --op-ink: var(--app-text);
+  --op-muted: var(--app-muted);
+  --op-border: var(--app-line);
+  --op-surface: var(--app-surface);
+  --op-subtle: var(--app-soft);
+  --op-accent: var(--app-accent);
+  --op-selected: var(--app-selected);
+  padding: 24px;
+  border-radius: 12px;
+  color: var(--op-ink);
+  background: var(--app-canvas);
+  font-family: var(--font-sans);
+}
+.dark .operations-page {
+  --op-ink: var(--app-text);
+  --op-muted: var(--app-muted);
+  --op-border: var(--app-line);
+  --op-surface: var(--app-surface);
+  --op-subtle: var(--app-soft);
+  --op-accent: var(--app-accent);
+  --op-selected: var(--app-selected);
+  background: #17191c;
+}
+.operations-page :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid #135db2;
+  outline-offset: 2px;
+}
+.dark .operations-page :is(button, input, select, textarea):focus-visible {
+  outline-color: #8bbcff;
+}
+.operations-header {
+  margin-bottom: 0;
+  padding-bottom: 24px;
+  border-color: var(--op-border);
+}
+.operations-header h1 {
+  color: var(--op-ink);
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 650;
+}
+.operations-header p {
+  color: var(--op-muted);
+  font-size: 14px;
+  line-height: 21px;
+  margin-top: 6px;
+}
+.operations-tabs {
+  gap: 4px;
+  min-width: 0;
+}
+.operations-page .operations-tabs > button {
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--op-muted);
+  font-size: 13px;
+  box-shadow: none;
+}
+.operations-page .operations-tabs > button:hover {
+  background: var(--op-subtle);
+  color: var(--op-ink);
+}
+.operations-page .operations-tabs > button.bg-slate-900 {
+  background: var(--op-selected);
+  color: var(--op-accent);
+  border-color: var(--op-border);
+}
+.operations-page .operations-tabs > button span:last-child {
+  background: var(--op-subtle);
+  color: var(--op-muted);
+  font-family: inherit;
+  font-size: 12px;
+}
+.operations-page input[type="text"] {
+  min-height: 40px;
+  background: var(--op-surface);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+  font-size: 13px;
+}
+.operations-page input[type="text"]::placeholder {
+  color: var(--op-muted);
+  opacity: 1;
+}
+.operations-table {
+  background: var(--op-surface);
+  border: 1px solid var(--op-border);
+  box-shadow: none;
+}
+.operations-table > div > div {
+  border: 0;
+  border-radius: 0;
+  background: var(--op-surface);
+  box-shadow: none;
+}
+.operations-table table {
+  min-width: 840px;
+  font-size: 13px;
+  color: var(--op-ink);
+}
+.operations-table thead {
+  background: var(--op-subtle);
+  border-color: var(--op-border);
+  color: var(--op-muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+}
+.operations-table th {
+  padding: 14px 16px;
+}
+.operations-table td {
+  padding: 15px 16px;
+  border-color: var(--op-border);
+  vertical-align: middle;
+}
+.operations-table tbody > tr {
+  border-color: var(--op-border);
+}
+.operations-table tbody > tr:hover {
+  background: var(--op-subtle);
+}
+.operations-table td :is(.text-slate-900, .text-slate-800, .text-slate-700) {
+  color: var(--op-ink);
+}
+.operations-table td :is(.text-slate-500, .text-slate-400, .text-slate-600) {
+  color: var(--op-muted);
+}
+.operations-table td > div.font-mono {
+  font-family: inherit;
+  font-size: 14px;
+}
+.operations-table td button {
+  min-height: 34px;
+}
+.operations-table td button[title="Click to reassign owner"] {
+  color: var(--op-accent);
+}
+.operations-notice {
+  background: var(--op-subtle);
+  color: var(--op-ink);
+  border: 1px solid var(--op-border);
+}
+.operations-notice :is(p, div, svg) {
+  color: var(--op-ink);
+}
+.operations-notice p {
+  font-size: 13px;
+  line-height: 20px;
+}
+.operations-eligibility {
+  max-width: 320px;
+  margin-top: 8px;
+  color: var(--op-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.operations-meta {
+  margin-top: 4px;
+  color: var(--op-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+}
+@media (max-width: 640px) {
+  .operations-page {
+    padding: 16px;
+  }
+  .operations-header h1 {
+    font-size: 23px;
+  }
+}
+.operations-table td.text-slate-900 {
+  color: var(--op-ink);
+}
+.operations-page
+  :is(.operations-header, .operations-table)
+  button:not(.operations-tabs button) {
+  background: var(--op-surface);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+  box-shadow: none;
+}
+.operations-page :is(.operations-header, .operations-table) button:hover {
+  background: var(--op-subtle);
+}
+.operations-page .operations-table button.bg-indigo-600 {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+  color: #fff;
+}
+.dark .operations-page .operations-table button.bg-indigo-600 {
+  background: #3263a4;
+  border-color: #789cc2;
+  color: #fff;
+}
+.dark .operations-page .operations-table button.bg-indigo-600:hover {
+  background: #274f83;
+}
+.operations-page .operations-table .bg-rose-50 {
+  background: #fdedee;
+  border-color: #f1cbd0;
+  color: #a42732;
+}
+.operations-page .operations-table .bg-amber-50 {
+  background: #fff4dd;
+  border-color: #efd6a7;
+  color: #8a4b08;
+}
+.operations-page .operations-table .bg-emerald-50 {
+  background: #e3f2e8;
+  border-color: #bddcc7;
+  color: #126b46;
+}
+.dark .operations-page .operations-table .bg-rose-50 {
+  background: #562b31;
+  border-color: #894750;
+  color: #ffd2d5;
+}
+.dark .operations-page .operations-table .bg-amber-50 {
+  background: #4c371c;
+  border-color: #806238;
+  color: #ffe1a6;
+}
+.dark .operations-page .operations-table .bg-emerald-50 {
+  background: #244737;
+  border-color: #416d52;
+  color: #bceccc;
+}
+.operations-dialog {
+  background: var(--op-surface);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+}
+.operations-dialog :is(h3, label) {
+  color: var(--op-ink);
+}
+.operations-dialog :is(p, .operations-dialog-note) {
+  color: var(--op-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+.operations-dialog :is(select, input, textarea) {
+  background: var(--op-surface);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+  font-size: 13px;
+}
+.operations-dialog :is(select, input) {
+  min-height: 40px;
+}
+.operations-dialog > div {
+  border-color: var(--op-border);
+}
+.operations-dialog > div:last-child {
+  background: var(--op-subtle);
+}
+.operations-dialog button:not([class*="bg-indigo"]) {
+  color: var(--op-ink);
+}
+.operations-dialog button.bg-indigo-600 {
+  background: var(--app-primary);
+  color: #fff;
+}
+.operations-page .operations-table .bg-slate-100 {
+  background: var(--op-subtle);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+}
+.operations-dialog
+  :is(
+    .text-slate-800,
+    .text-slate-700,
+    .text-slate-600,
+    .text-slate-500,
+    .text-slate-400
+  ) {
+  color: var(--op-ink);
+}
+.operations-dialog :is(.text-indigo-600) {
+  color: var(--op-accent);
+}
+.operations-dialog :is(.bg-slate-50, .bg-slate-100, .bg-white) {
+  background: var(--op-subtle);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+}
+.operations-dialog .bg-slate-900 {
+  background: #152b25;
+  color: #fff;
+}
+.operations-dialog button:not([class*="bg-indigo"]) {
+  background: var(--op-surface);
+  border-color: var(--op-border);
+  color: var(--op-ink);
+}
+.operations-dialog .operations-source {
+  overflow-wrap: anywhere;
+}
+.operations-table .text-indigo-600 {
+  color: var(--op-accent);
+}

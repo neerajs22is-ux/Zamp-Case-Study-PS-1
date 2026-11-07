@@ -360,8 +360,11 @@ def test_13_scheduler_maintenance_auth_accepts_human_system_admin_and_rejects_as
     client, session = db_client
     monkeypatch.setattr(settings, "APP_ENV", AppEnv.TEST)
 
-    # 1. System Admin succeeds
+    # A tenant administrator is not a platform operator until explicitly listed.
     admin_token = "Bearer test_token:SYSTEM_ADMIN:admin_user_01:org_test"
+    monkeypatch.setattr(settings, "PLATFORM_OPERATOR_SUBJECTS", "")
+    assert client.post("/api/v1/integrations/gmail/watch/renew", headers={"Authorization": admin_token}).status_code == 403
+    monkeypatch.setattr(settings, "PLATFORM_OPERATOR_SUBJECTS", "admin_user_01,controller_user_01")
     resp_admin = client.post("/api/v1/integrations/gmail/watch/renew", headers={"Authorization": admin_token})
     assert resp_admin.status_code == 200
 

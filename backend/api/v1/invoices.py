@@ -10,10 +10,11 @@ Enforces:
 from __future__ import annotations
 
 import datetime
+from decimal import Decimal
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -24,13 +25,27 @@ from backend.core.storage import storage_adapter
 from backend.models.domain import (
     ApprovalRequest, AuditEvent, Document, ExceptionRecord, ExtractedField, ExtractionRun,
     GoodsReceiptLineSnapshot, GoodsReceiptSnapshot, IngestionJob, Invoice, InvoiceLine, MatchGateCheck, MatchRun,
-    QualityControlSnapshot, WorkOrderLineSnapshot, WorkOrderSnapshot
+    QualityControlSnapshot, WorkOrderLineSnapshot, WorkOrderSnapshot, Vendor, VendorGSTIN
 )
 
 router = APIRouter(prefix="/invoices", tags=["Invoice Detail & Actions"])
 
 
+@router.get('/{invoice_id}/processing')
+def get_invoice_processing(invoice_id: str,
+    current_user: AuthenticatedUser = Depends(require_active_membership),
+    db: Session = Depends(get_db)) -> Dict[str, Any]:
+    if db is None:
+        raise HTTPException(status_code=503, detail='Database not connected.')
+    if db.scalar(select(Invoice.id).where(Invoice.id == invoice_id,
+            Invoice.org_id == current_user.org_id)) is None:
+        raise HTTPException(status_code=404, detail='Invoice not found.')
+    from backend.core.processing_events import processing_snapshot
+    return processing_snapshot(db, invoice_id, current_user.org_id)
+
+
 class ActionPayload(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     action: str = Field(..., description="Action name: APPROVE_AP_REVIEW, APPROVE_UNDISPUTED, REJECT_INVOICE, HOLD_PENDING_EVIDENCE, REQUEST_SUPPLIER_CORRECTION, RAISE_DEBIT_NOTE, ESCALATE, QUARANTINE")
     reason: str = Field(..., min_length=3, description="Operational justification for the action")
     undisputed_amount: Optional[float] = Field(None, description="Required for APPROVE_UNDISPUTED")
@@ -38,6 +53,7 @@ class ActionPayload(BaseModel):
 
 
 class LineCorrectionPayload(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False)
     billed_quantity: float = Field(..., gt=0, description="Corrected billed quantity")
     billed_unit_rate: float = Field(..., gt=0, description="Corrected unit rate")
     correction_reason: str = Field(..., min_length=3, description="Audit reason for correcting extracted line item")
@@ -302,7 +318,7 @@ def execute_invoice_action(
             detail="Auditor role is strictly read-only and cannot execute mutations.",
         )
 
-    inv = db.scalar(select(Invoice).where(Invoice.id == invoice_id, Invoice.org_id == current_user.org_id))
+    inv = db.scalar(select(Invoice).where(Invoice.id == invoice_id, Invoice.org_id == current_user.org_id).with_for_update())
     if not inv:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Invoice '{invoice_id}' not found.")
 
@@ -342,6 +358,8 @@ def execute_invoice_action(
 
     # Action 1 & 2: Approvals (Strict Validation Gate Enforcement - D-04 overrides deferred)
     if payload.action in ("APPROVE_AP_REVIEW", "APPROVE_UNDISPUTED"):
+        if inv.stage in ("REJECTED", "QUARANTINED") or inv.decision in ("REJECTED", "QUARANTINED"):
+            raise HTTPException(status_code=409, detail="Rejected or quarantined invoices cannot be approved.")
         # Strictly prevent approval if any deterministic match gate check failed (D-04 override deferred)
         match_run = db.scalar(
             select(MatchRun)
@@ -349,24 +367,29 @@ def execute_invoice_action(
             .order_by(MatchRun.evaluated_at.desc())
         )
         if match_run:
-            failed_gates = db.scalars(
-                select(MatchGateCheck).where(
-                    MatchGateCheck.match_run_id == match_run.id,
-                    MatchGateCheck.org_id == current_user.org_id,
-                    MatchGateCheck.status == "FAIL",
-                )
-            ).all()
-            if failed_gates:
-                failed_names = [g.gate_name for g in failed_gates]
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=(
-                        f"Cannot approve invoice '{invoice_id}': {len(failed_gates)} validation check(s) failed "
-                        f"({', '.join(failed_names)}). Policy overrides are disabled. "
-                        f"Authorized triage actions: HOLD_PENDING_EVIDENCE, REQUEST_SUPPLIER_CORRECTION, "
-                        f"RAISE_DEBIT_NOTE, ESCALATE, REJECT_INVOICE, or QUARANTINE."
-                    ),
-                )
+            checks = db.scalars(select(MatchGateCheck).where(
+                MatchGateCheck.match_run_id == match_run.id,
+                MatchGateCheck.org_id == current_user.org_id,
+            )).all()
+            if not set(range(1, 8)).issubset({g.gate_number for g in checks if g.status == "PASS"}) or any(g.status != "PASS" for g in checks) or match_run.overall_result != "PASS":
+                raise HTTPException(status_code=400, detail="Cannot approve: validation checks are failed, incomplete or not evaluated.")
+        else:
+            raise HTTPException(status_code=400, detail="Cannot approve: no completed validation checks exist.")
+
+        if inv.currency != "INR":
+            raise HTTPException(status_code=400, detail="Foreign currency invoices require a supported currency approval policy.")
+
+        # Lock the shared PO before rechecking current references/commitments.
+        # Invoice locks alone cannot serialize two different invoices on one PO.
+        wo_for_approval = db.scalar(select(WorkOrderSnapshot).where(
+            WorkOrderSnapshot.org_id == current_user.org_id,
+            WorkOrderSnapshot.po_number == inv.po_reference,
+        ).with_for_update())
+        if wo_for_approval is None:
+            raise HTTPException(status_code=400, detail="Cannot approve: current workspace PO evidence is unavailable.")
+        refreshed = reevaluate_match_gates(db, inv, current_user.org_id)
+        if refreshed.overall_result != "PASS":
+            raise HTTPException(status_code=400, detail="Cannot approve: current source evidence or PO commitments fail validation.")
 
         # Prevent approval if total_amount is unset or non-positive
         if inv.total_amount is None or inv.total_amount <= 0:
@@ -594,13 +617,22 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
                     )
                 )
 
-    # Gate 1: Vendor Identity Registered
-    g1_status = "PASS" if inv.vendor_gstin else "FAIL"
-    g1_notes = f"Supplier GSTIN: {inv.vendor_gstin or 'MISSING'}"
+    # A tax-ID-shaped string is not proof of a registered tenant supplier.
+    registered_vendor = db.scalar(select(Vendor).join(VendorGSTIN,
+        (VendorGSTIN.vendor_id == Vendor.id) & (VendorGSTIN.org_id == Vendor.org_id)).where(
+        Vendor.org_id == org_id, VendorGSTIN.org_id == org_id,
+        VendorGSTIN.gstin == inv.vendor_gstin, VendorGSTIN.status == "ACTIVE")) if inv.vendor_gstin else None
+    g1_status = "PASS" if registered_vendor else "FAIL"
+    g1_notes = "Active tenant supplier tax registration found." if registered_vendor else "No active supplier registration in this workspace."
 
     # Gate 2: PO Authorization Valid
     g2_status = "PASS" if wo else "FAIL"
     g2_notes = f"PO Ref: {inv.po_reference or 'NOT_FOUND'}" if wo else "No valid Purchase Order (PO) found in ERP contracts."
+
+    if wo and (wo.status not in ("OPEN", "APPROVED", "RELEASED") or wo.currency != inv.currency
+               or not registered_vendor or registered_vendor.erp_vendor_code != wo.vendor_code):
+        g2_status = "FAIL"
+        g2_notes = "PO is closed, currency differs, or PO supplier does not match the active invoice supplier."
 
     # Gate 3: GRN Receipt Confirmed
     if grn:
@@ -611,7 +643,7 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
         g3_notes = "No Goods Receipt Note (GRN) found in ERP receiving records."
 
     # Gate 4: QC Inspection Accepted
-    if qc and getattr(qc, "overall_status", "") in ("ACCEPTED", "PASS"):
+    if qc and getattr(qc, "overall_status", "") in ("ACCEPTED", "PASS", "PASSED"):
         g4_status = "PASS"
         g4_notes = f"QC inspection accepted: certificate #{qc.qc_certificate_number}"
     elif qc:
@@ -622,12 +654,15 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
         g4_notes = "No Quality Control (QC) inspection certificate found."
 
     # Gate 5: GST Arithmetic Reconciled
-    subtotal = sum(float(l.billed_line_total) for l in lines)
-    tax = float(inv.tax_amount or 0.0)
-    total = float(inv.total_amount or 0.0)
+    subtotal = sum((Decimal(str(l.billed_line_total)) for l in lines), Decimal("0"))
+    tax = Decimal(str(inv.tax_amount or 0))
+    total = Decimal(str(inv.total_amount or 0))
     discrepancy = abs(total - (subtotal + tax))
-    g5_status = "PASS" if discrepancy <= 1.00 else "FAIL"
+    g5_status = "PASS" if lines and total > 0 and discrepancy <= Decimal("1.00") and all(abs(Decimal(str(l.billed_line_total)) - Decimal(str(l.billed_quantity)) * Decimal(str(l.billed_unit_rate))) <= Decimal("0.01") for l in lines) else "FAIL"
     g5_notes = f"Calculated: ₹{(subtotal + tax):.2f} vs Billed: ₹{total:.2f} (Discrepancy: ₹{discrepancy:.2f})"
+    if any(line.is_corrected for line in lines):
+        g5_status = "FAIL"
+        g5_notes = "Edited line amounts and retained tax have not been re-grounded against an authoritative document; approval is blocked."
 
     # Gate 6: PO Price & Quantity Tolerance (±1.50% rate, 0.00% qty)
     g6_status = "PASS"
@@ -670,6 +705,67 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
                     f"Line #{l.line_number} quantity {float(l.billed_quantity)} exceeds PO authorized quantity {float(matching_wo_line.authorized_quantity)} (0.00% over-delivery tolerance)"
                 )
 
+        # Sum quantities for repeated references to a PO line; never grant each
+        # invoice line the entire authorized/received quantity independently.
+        billed_by_po = {}
+        for line in lines:
+            candidates = [w for w in wo_lines if w.line_number == line.line_number and
+                w.description.strip().casefold() == line.description.strip().casefold()]
+            if not candidates:
+                tolerances_breached.append(f"Line #{line.line_number} has no unambiguous PO identity match.")
+                continue
+            wol = candidates[0]
+            billed_by_po[wol.line_number] = billed_by_po.get(wol.line_number, Decimal("0")) + Decimal(str(line.billed_quantity))
+            if Decimal(str(wol.contracted_unit_rate)) <= 0:
+                tolerances_breached.append("PO rate is missing or non-positive.")
+        received = {}
+        if grn:
+            for receipt_line in db.scalars(select(GoodsReceiptLineSnapshot).where(
+                GoodsReceiptLineSnapshot.grn_id == grn.id, GoodsReceiptLineSnapshot.org_id == org_id)).all():
+                received[receipt_line.po_line_number] = received.get(receipt_line.po_line_number, Decimal("0")) + Decimal(str(receipt_line.accepted_quantity))
+        # The PO lock held during approval serializes these committed quantities
+        # across invoices. A partial monetary approval cannot be safely mapped to
+        # quantities without an explicit allocation, so require review instead.
+        prior = db.execute(select(Invoice, InvoiceLine).join(InvoiceLine,
+            (InvoiceLine.invoice_id == Invoice.id) & (InvoiceLine.org_id == Invoice.org_id)).where(
+            Invoice.org_id == org_id, Invoice.po_reference == inv.po_reference, Invoice.id != inv.id,
+            (Invoice.stage == "INTERNAL_APPROVAL_COMPLETE") | (Invoice.workflow_substatus == "PENDING_SECOND_APPROVAL"))).all()
+        for previous, line in prior:
+            candidates = [w for w in wo_lines if w.line_number == line.line_number and
+                (w.description or '').strip().casefold() == (line.description or '').strip().casefold()]
+            if len(candidates) != 1:
+                tolerances_breached.append("Previously committed invoice lines cannot be mapped reliably to this PO.")
+                continue
+            number = candidates[0].line_number
+            billed_by_po[number] = billed_by_po.get(number, Decimal("0")) + Decimal(str(line.billed_quantity))
+        prior_without_lines = db.scalar(select(func.count(Invoice.id)).where(
+            Invoice.org_id == org_id, Invoice.po_reference == inv.po_reference, Invoice.id != inv.id,
+            (Invoice.stage == "INTERNAL_APPROVAL_COMPLETE") | (Invoice.workflow_substatus == "PENDING_SECOND_APPROVAL"),
+            ~select(InvoiceLine.id).where(InvoiceLine.org_id == org_id, InvoiceLine.invoice_id == Invoice.id).exists()))
+        if prior_without_lines:
+            tolerances_breached.append("Previously committed invoice quantity is unavailable.")
+        partial = db.scalar(select(func.count(Invoice.id)).where(
+            Invoice.org_id == org_id, Invoice.po_reference == inv.po_reference, Invoice.id != inv.id,
+            (Invoice.stage == "INTERNAL_APPROVAL_COMPLETE") | (Invoice.workflow_substatus == "PENDING_SECOND_APPROVAL"),
+            Invoice.net_payable_amount < Invoice.total_amount))
+        if partial:
+            tolerances_breached.append("Previously partially approved quantity requires manual allocation.")
+        for number, quantity in billed_by_po.items():
+            po_line = next((line for line in wo_lines if line.line_number == number), None)
+            if po_line and quantity > Decimal(str(po_line.authorized_quantity)):
+                tolerances_breached.append(f"PO line {number}: cumulative billed quantity exceeds authorized quantity.")
+            if quantity > received.get(number, Decimal("0")):
+                tolerances_breached.append(f"PO line {number}: billed quantity exceeds accepted goods receipt quantity.")
+                g3_status = "FAIL"
+                g3_notes = "Billed quantity exceeds accepted goods receipt quantity."
+        committed = db.scalar(select(func.coalesce(func.sum(Invoice.total_amount), 0)).where(
+            Invoice.org_id == org_id, Invoice.po_reference == inv.po_reference,
+            Invoice.id != inv.id,
+            (Invoice.stage == "INTERNAL_APPROVAL_COMPLETE") | (Invoice.workflow_substatus == "PENDING_SECOND_APPROVAL")))
+        available = min(Decimal(str(wo.remaining_balance)), Decimal(str(wo.total_authorized_amount)) - Decimal(str(committed or 0)))
+        if total > available:
+            tolerances_breached.append(f"PO remaining balance {available:.2f} is exceeded by {total - available:.2f} {inv.currency}.")
+
         if tolerances_breached:
             g6_status = "FAIL"
             g6_notes = "; ".join(tolerances_breached[:2])
@@ -686,8 +782,9 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
             Invoice.id != inv.id,
         )
     ) or 0
-    g7_status = "PASS" if dup_count == 0 else "FAIL"
-    g7_notes = f"{dup_count} previous vouchers found"
+    valid_identity = bool(inv.invoice_number and inv.invoice_number.upper() not in ("UNKNOWN", "INV-UNKNOWN"))
+    g7_status = "PASS" if dup_count == 0 and valid_identity else "FAIL"
+    g7_notes = f"{dup_count} previous vouchers found" if valid_identity else "Invoice number is missing or unverified."
 
     # Check if record is an unreadable or degraded scan (P0-2 buyer trust preservation)
     is_unreadable_scan = (
@@ -714,6 +811,13 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
             (6, "PO Price & Quantity Tolerance", g6_status, g6_notes),
             (7, "Duplicate Invoice Check", g7_status, g7_notes),
         ]
+
+    previous = db.scalar(select(MatchRun).where(MatchRun.invoice_id == inv.id,
+        MatchRun.org_id == org_id).order_by(MatchRun.evaluated_at.desc()))
+    if previous:
+        for check in db.scalars(select(MatchGateCheck).where(MatchGateCheck.match_run_id == previous.id,
+            MatchGateCheck.org_id == org_id, MatchGateCheck.gate_number >= 8)).all():
+            gate_checks.append((check.gate_number, check.gate_name, check.status, check.evidence_notes))
 
     all_passed = all(g[2] == "PASS" for g in gate_checks)
     match_run_id = f"mr_{uuid.uuid4().hex[:12]}"

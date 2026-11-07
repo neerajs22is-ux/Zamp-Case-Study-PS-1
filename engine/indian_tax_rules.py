@@ -47,7 +47,7 @@ class ThreeWayMatchResult:
 class IndianAPRuleEngine:
     """Deterministic validation engine for Indian GST and manufacturing AP workflows."""
 
-    def __init__(self, reference_dir: Optional[str] = None) -> None:
+    def __init__(self, reference_dir: Optional[str] = None, load_reference_data: bool = True) -> None:
         ref_dir = reference_dir or os.path.join("tests", "evaluation_corpus_v2", "reference_data")
         self.ref_dir = ref_dir
         
@@ -59,7 +59,8 @@ class IndianAPRuleEngine:
         self.rates_df = pd.DataFrame()
         self.milestones_df = pd.DataFrame()
         self.service_periods_df = pd.DataFrame()
-        self._load_reference_data()
+        if load_reference_data:
+            self._load_reference_data()
 
     def _load_reference_data(self) -> None:
         def clean_df(path: str) -> pd.DataFrame:
@@ -113,7 +114,7 @@ class IndianAPRuleEngine:
                     notes.append("Intrastate transaction (Karnataka) should have CGST+SGST, not IGST.")
         
         return TaxArithmeticResult(
-            is_valid=is_math_valid,
+            is_valid=is_math_valid and tax_type_valid,
             calculated_tax=calc_tax,
             calculated_grand_total=calc_gt,
             tax_discrepancy=tax_disc,

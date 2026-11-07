@@ -420,21 +420,18 @@ def test_get_current_user_injects_tenant_context(fk_session: Session):
 # ------------------------------------------------------------------------------
 
 @pytest.fixture
-def live_pg_connection():
-    """Provides a connection to a live PostgreSQL database if configured.
-
-    Skips tests with explicit status 'BLOCKED' when live credentials are not available.
-    """
-    pg_url = os.environ.get("SUPABASE_DATABASE_URL") or os.environ.get("TEST_POSTGRES_URL")
-    if not pg_url:
-        pytest.skip(
-            "BLOCKED: Live Supabase / PostgreSQL database credentials unavailable. "
-            "Offline DDL, composite constraints, and schema migration 002 statically verified."
-        )
-
-    engine = create_engine(pg_url)
-    with engine.connect() as conn:
-        yield conn
+def live_pg_connection(postgres_database):
+    """An owned, migrated disposable DB and an actual non-bypass connection."""
+    pg = postgres_database
+    with Session(pg['admin']) as db:
+        db.add_all([Organisation(id=org, name=org) for org in ('org_alpha', 'org_beta')])
+        db.flush()
+        db.add_all([Invoice(id=f'invoice-{org}', org_id=org, source_channel='MANUAL_UPLOAD')
+                    for org in ('org_alpha', 'org_beta')])
+        db.commit()
+    with pg['app'].connect() as connection:
+        assert connection.scalar(text('SELECT current_user')) == 'ap_app_user'
+        yield connection
 
 
 def test_pg_rls_01_tenant_a_reads_own_records(live_pg_connection):
@@ -442,7 +439,7 @@ def test_pg_rls_01_tenant_a_reads_own_records(live_pg_connection):
     live_pg_connection.execute(text("SET ROLE ap_app_user;"))
     live_pg_connection.execute(text("SELECT set_config('app.current_org_id', 'org_alpha', true);"))
     rows = live_pg_connection.execute(text("SELECT org_id FROM invoices;")).fetchall()
-    assert all(r[0] == "org_alpha" for r in rows)
+    assert rows and all(r[0] == "org_alpha" for r in rows)
 
 
 def test_pg_rls_02_tenant_a_cannot_read_tenant_b_records(live_pg_connection):

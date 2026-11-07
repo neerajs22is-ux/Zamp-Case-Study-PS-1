@@ -81,7 +81,11 @@ def audit_session():
     session.commit()
 
     def override_get_db():
-        yield session
+        try:
+            yield session
+        except Exception:
+            session.rollback()
+            raise
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as client:
@@ -203,6 +207,19 @@ def test_a5_jwt_claims_structure_database_role_and_app_role(audit_session):
     assert claims["email"] == "lead_test@company.internal"
 
 
+def test_dev_session_requires_workspace_for_duplicate_emails(audit_session):
+    client, session = audit_session
+    seed_user(session, "duplicate_a", "duplicate@example.test", "AP_LEAD")
+    session.add(Organisation(id="other_workspace", name="Other"))
+    session.add(User(id="duplicate_b", org_id="other_workspace", email="duplicate@example.test", full_name="Other", is_active=True))
+    session.flush()
+    session.add(RoleAssignment(id="duplicate_role_b", org_id="other_workspace", user_id="duplicate_b", role_name="AUDITOR"))
+    session.commit()
+    assert client.post("/api/v1/auth/dev-session", json={"email": "duplicate@example.test"}).status_code == 409
+    selected = client.post("/api/v1/auth/dev-session", json={"email": "duplicate@example.test", "org_id": TEST_ORG})
+    assert selected.status_code == 200 and selected.json()["user"]["id"] == "duplicate_a"
+
+
 def test_a6_server_side_role_resolution_authority(audit_session):
     """Proves that server-side database records override forged JWT application role claims."""
     client, session = audit_session
@@ -268,7 +285,7 @@ def test_a7_invalid_signatures_expired_tokens_wrong_tenants(audit_session):
 # SECTION B: Financial Approval-State Machine & Dual Control Tests
 # ==============================================================================
 
-def test_b1_human_approval_sets_manually_approved_decision(audit_session):
+def test_b1_human_approval_sets_manually_approved_decision(audit_session, record_valid_match):
     """Verifies that human AP Lead approval sets stage='INTERNAL_APPROVAL_COMPLETE' and decision='MANUALLY_APPROVED'."""
     client, session = audit_session
     seed_user(session, "usr_lead_b1", "lead_b1@company.internal", "AP_LEAD")
@@ -290,6 +307,8 @@ def test_b1_human_approval_sets_manually_approved_decision(audit_session):
     session.add(inv)
     session.commit()
 
+    record_valid_match(session, inv)
+
     # Execute human approval
     resp = client.post(
         f"/api/v1/invoices/{inv_id}/actions",
@@ -306,7 +325,7 @@ def test_b1_human_approval_sets_manually_approved_decision(audit_session):
     assert db_inv.decision == "MANUALLY_APPROVED"
 
 
-def test_b2_dual_control_threshold_enforcement(audit_session):
+def test_b2_dual_control_threshold_enforcement(audit_session, record_valid_match):
     """Verifies dual control on invoices >= ₹500,000 INR and single approval on invoices < ₹500,000 INR."""
     client, session = audit_session
     seed_user(session, "usr_lead_b2", "lead_b2@company.internal", "AP_LEAD")
@@ -329,6 +348,8 @@ def test_b2_dual_control_threshold_enforcement(audit_session):
     )
     session.add(inv_high)
     session.commit()
+
+    record_valid_match(session, inv_high)
 
     # Step 1: First approval by AP Lead
     r_app1 = client.post(
@@ -354,7 +375,7 @@ def test_b2_dual_control_threshold_enforcement(audit_session):
         json={"action": "APPROVE_AP_REVIEW", "reason": "Secondary Financial Controller dual-approval authorization."},
         headers={"Authorization": f"Bearer {tok_ctrl}"},
     )
-    assert r_app2.status_code == status.HTTP_200_OK
+    assert r_app2.status_code == status.HTTP_200_OK, r_app2.text
     assert r_app2.json()["new_stage"] == "INTERNAL_APPROVAL_COMPLETE"
     assert r_app2.json()["new_decision"] == "MANUALLY_APPROVED"
 
@@ -395,7 +416,7 @@ def test_b3_auditor_role_strictly_read_only(audit_session):
     assert r_hold.status_code == status.HTTP_403_FORBIDDEN
 
 
-def test_b4_decoupling_zero_payment_and_zero_erp_mutation(audit_session):
+def test_b4_decoupling_zero_payment_and_zero_erp_mutation(audit_session, record_valid_match):
     """Verifies that AP approval strictly updates local ledger and NEVER executes payments or ERP mutations."""
     client, session = audit_session
     seed_user(session, "usr_lead_b4", "lead_b4@company.internal", "AP_LEAD")
@@ -408,6 +429,8 @@ def test_b4_decoupling_zero_payment_and_zero_erp_mutation(audit_session):
     )
     session.add(inv)
     session.commit()
+
+    record_valid_match(session, inv)
 
     resp = client.post(
         f"/api/v1/invoices/{inv_id}/actions",

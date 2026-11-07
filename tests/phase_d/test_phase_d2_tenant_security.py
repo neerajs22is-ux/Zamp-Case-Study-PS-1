@@ -19,6 +19,7 @@ import hashlib
 import io
 import os
 from typing import Any, Dict
+from pathlib import Path
 from unittest.mock import patch
 
 from fastapi import status
@@ -130,7 +131,7 @@ def seed_tenant(
     org_name: str,
     user_id: str,
     user_email: str,
-    role: str = "AP_CLERK",
+    role: str = "AP_ASSOCIATE",
 ) -> str:
     org = Organisation(id=org_id, name=org_name)
     user = User(id=user_id, org_id=org_id, email=user_email, full_name=f"User {user_id}", is_active=True)
@@ -148,8 +149,8 @@ def test_01_cross_tenant_invoice_isolation(sec_client):
     """Proves user in Org Alpha cannot retrieve an invoice from Org Beta."""
     client, session = sec_client
 
-    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_CLERK")
-    token_beta = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_CLERK")
+    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_ASSOCIATE")
+    token_beta = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_ASSOCIATE")
 
     # Seed invoice for Org Beta
     inv_beta = Invoice(
@@ -185,8 +186,8 @@ def test_02_cross_tenant_action_rejected(sec_client):
     """Proves user in Org Alpha cannot mutate or execute an action on Org Beta invoice."""
     client, session = sec_client
 
-    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_MANAGER")
-    _ = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_MANAGER")
+    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_LEAD")
+    _ = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_LEAD")
 
     inv_beta = Invoice(
         id="inv_beta_888",
@@ -213,8 +214,8 @@ def test_03_cross_tenant_document_metadata_and_signed_url_isolation(sec_client):
     """Proves user in Org Alpha cannot access metadata or signed URLs for Org Beta documents."""
     client, session = sec_client
 
-    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_CLERK")
-    token_beta = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_CLERK")
+    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_ASSOCIATE")
+    token_beta = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_ASSOCIATE")
 
     # Upload document under Beta
     pdf_content = b"%PDF-1.4 Beta confidential document"
@@ -292,7 +293,7 @@ def test_04_cross_tenant_audit_event_isolation(sec_client):
 def test_05_upload_validation_magic_bytes_and_mime(sec_client):
     """Proves upload endpoint strictly enforces PDF MIME and %PDF- magic bytes."""
     client, session = sec_client
-    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_CLERK")
+    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_ASSOCIATE")
 
     # 1. Invalid MIME / extension
     resp_txt = client.post(
@@ -315,10 +316,10 @@ def test_05_upload_validation_magic_bytes_and_mime(sec_client):
 def test_06_tenant_scoped_deduplication_and_cross_tenant_independence(sec_client):
     """Proves duplicate detection is scoped to tenant: Org Alpha duplicate fails, but Org Beta succeeds."""
     client, session = sec_client
-    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_CLERK")
-    token_beta = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_CLERK")
+    token_alpha = seed_tenant(session, "org_alpha", "Alpha Corp", "usr_alpha_01", "alice@alpha.test", "AP_ASSOCIATE")
+    token_beta = seed_tenant(session, "org_beta", "Beta Corp", "usr_beta_01", "bob@beta.test", "AP_ASSOCIATE")
 
-    pdf_bytes = b"%PDF-1.4 Shared Vendor Utility Bill Template"
+    pdf_bytes = Path("fixtures/data/HP-01-Happy-Path.pdf").read_bytes()
 
     # Upload 1 to Alpha: succeeds
     resp1 = client.post(

@@ -3,6 +3,7 @@ import {
   CheckCircle2, AlertTriangle, ShieldAlert, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Badge } from './ui';
+import { checkResultKind, summarizeCheckResults } from '../utils/checkResults';
 
 interface CaseSummaryCardProps {
   invoice: any;
@@ -38,8 +39,8 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
 
   const totalGates = matchGates.length;
   const failedGates = matchGates.filter((g) => g.status === 'FAIL');
-  const passedGates = matchGates.filter((g) => g.status === 'PASS');
   const hasFailedGates = failedGates.length > 0;
+  const incompleteGates = matchGates.filter((g) => g.status !== 'PASS' && g.status !== 'FAIL');
 
   const isUnreadable = Boolean(
     invoice.decision === 'FLAGGED_HITL_REVIEW' && (
@@ -69,11 +70,11 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   } else if (isApproved) {
     tone = 'success';
     title = 'Approved & Signed Off';
-    explanation = 'Internal AP review complete. Ready for payment batching.';
+    explanation = 'Internal AP review complete. This does not send a payment.';
   } else if (isUnreadable) {
     tone = 'error';
-    title = 'Document Unreadable — OCR Failed';
-    explanation = 'The uploaded scan could not be read cleanly. Downstream 3-way matching was halted to prevent false flags.';
+    title = 'Document needs review';
+    explanation = 'Some invoice details are missing or unclear. Inspect the source document and available checks.';
   } else if (hasFailedGates) {
     tone = 'error';
     title = `${failedGates.length} Verification Discrepanc${failedGates.length > 1 ? 'ies' : 'y'} Identified`;
@@ -81,13 +82,15 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   } else if (isPendingSecondApproval) {
     tone = 'warning';
     title = 'Awaiting Secondary Controller Sign-Off';
-    explanation = `Total amount (${formatINR(totalAmount)}) exceeds the ₹5,00,000 threshold. Primary review completed.`;
+    explanation = 'The first sign-off is recorded; an independent second sign-off is pending.';
+  } else if (totalGates === 0 || incompleteGates.length > 0) {
+    tone = 'warning';
+    title = 'Verification incomplete';
+    explanation = summarizeCheckResults(matchGates) + '.';
   } else {
     tone = 'success';
-    title = requiresDualApproval 
-      ? '3-Way Match Verified (Requires Dual-Approval)' 
-      : '3-Way Match Verified — Ready for Approval';
-    explanation = `All ${totalGates} policy checks passed. PO rates and physical quantities match.`;
+    title = 'Returned checks passed';
+    explanation = summarizeCheckResults(matchGates) + '.';
   }
 
   const toneBg = {
@@ -99,7 +102,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   }[tone];
 
   return (
-    <div className={`rounded-xl border p-3.5 transition-all ${toneBg}`}>
+    <div className={`review-summary rounded-xl border p-3.5 transition-all ${toneBg}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
           {tone === 'success' ? (
@@ -117,11 +120,11 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
               </span>
               {requiresDualApproval && (
                 <Badge tone="purple" size="sm">
-                  Dual-Approval ≥ ₹5L
+                  Dual approval ≥ {formatINR(policy.dual_approval_threshold_inr)}
                 </Badge>
               )}
             </div>
-            <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5 truncate">
+            <p className="review-summary-explanation text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
               {explanation}
             </p>
           </div>
@@ -133,9 +136,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
             onClick={onOpenPolicyDrawer ? onOpenPolicyDrawer : () => setIsExpanded(!isExpanded)}
             className="cursor-pointer"
           >
-            <Badge tone={tone} size="sm">
-              {passedGates.length} / {totalGates} Checks Passed
-            </Badge>
+            <Badge tone={tone} size="sm">View checks</Badge>
           </button>
           <button
             type="button"
@@ -148,6 +149,18 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
         </div>
       </div>
 
+      {(failedGates.length > 0 || incompleteGates.length > 0) && (
+        <ul className="review-check-list" aria-label="Checks requiring attention">
+          {[...failedGates, ...incompleteGates].map((gate, index) => (
+            <li key={gate.gate_number ?? index}>
+              <strong>{gate.gate_name || gate.name || 'Check'}:</strong>{' '}
+              {checkResultKind(gate.status)}
+              {gate.notes ? ` — ${gate.notes}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* Collapsible Policy Breakdown (Progressive Disclosure) */}
       {isExpanded && (
         <div className="mt-3 pt-3 border-t border-black/10 dark:border-white/10 text-xs space-y-2">
@@ -158,13 +171,13 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
                 className="p-2 rounded bg-white/70 dark:bg-slate-900/70 border border-slate-200/60 dark:border-slate-800 flex items-center justify-between"
               >
                 <div className="flex items-center gap-1.5 truncate">
-                  <span className={`w-1.5 h-1.5 rounded-full ${gate.status === 'PASS' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${gate.status === 'PASS' ? 'bg-emerald-500' : gate.status === 'FAIL' ? 'bg-rose-500' : 'bg-slate-400'}`} />
                   <span className="truncate text-[11px] font-medium text-slate-800 dark:text-slate-200">
                     {gate.gate_name || gate.name}
                   </span>
                 </div>
-                <Badge tone={gate.status === 'PASS' ? 'success' : 'error'} size="sm">
-                  {gate.status === 'PASS' ? 'Passed' : 'Failed'}
+                <Badge tone={gate.status === 'PASS' ? 'success' : gate.status === 'FAIL' ? 'error' : 'neutral'} size="sm">
+                  {checkResultKind(gate.status)}
                 </Badge>
               </div>
             ))}

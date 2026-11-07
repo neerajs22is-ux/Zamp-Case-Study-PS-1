@@ -1,25 +1,28 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { 
-  ArrowRight, 
-  ArrowLeft, 
-  X, 
-  CheckCircle2, 
-  Lightbulb 
-} from 'lucide-react';
-import { Button, Badge } from '../ui';
-import { useTour, TOUR_STEPS } from '../../context/TourContext';
+import React, { useEffect, useState, useRef } from "react";
+import {
+  ArrowRight,
+  ArrowLeft,
+  X,
+  CheckCircle2,
+  Lightbulb,
+} from "lucide-react";
+import { Button, Badge } from "../ui";
+import { useTour } from "../../context/TourContext";
+import "./OnboardingSurfaces.css";
 
 export const GuidedTour: React.FC = () => {
-  const { 
-    isTourActive, 
-    currentStepIndex, 
-    currentStep, 
-    totalSteps, 
-    nextStep, 
-    prevStep, 
-    skipTour, 
+  const {
+    isTourActive,
+    isTourPreparing,
+    currentStepIndex,
+    currentStep,
+    steps,
+    totalSteps,
+    nextStep,
+    prevStep,
+    skipTour,
     finishTour,
-    goToStep 
+    goToStep,
   } = useTour();
 
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
@@ -30,21 +33,42 @@ export const GuidedTour: React.FC = () => {
     if (!isTourActive) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      const target = e.target as HTMLElement | null;
+      const editing =
+        target?.isContentEditable ||
+        ["INPUT", "TEXTAREA", "SELECT"].includes(target?.tagName || "");
+      if (e.key !== "Escape" && editing) return;
+      if (e.key === "Escape") {
         e.preventDefault();
         skipTour();
-      } else if (e.key === 'ArrowRight' && currentStepIndex < totalSteps - 1) {
+      } else if (
+        !isTourPreparing &&
+        e.key === "ArrowRight" &&
+        currentStepIndex < totalSteps - 1
+      ) {
         e.preventDefault();
         nextStep();
-      } else if (e.key === 'ArrowLeft' && currentStepIndex > 0) {
+      } else if (
+        !isTourPreparing &&
+        e.key === "ArrowLeft" &&
+        currentStepIndex > 0
+      ) {
         e.preventDefault();
         prevStep();
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isTourActive, currentStepIndex, totalSteps, nextStep, prevStep, skipTour]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    isTourActive,
+    isTourPreparing,
+    currentStepIndex,
+    totalSteps,
+    nextStep,
+    prevStep,
+    skipTour,
+  ]);
 
   // Update target element bounding rect whenever step changes
   useEffect(() => {
@@ -53,14 +77,33 @@ export const GuidedTour: React.FC = () => {
       return;
     }
 
+    let scrolled = false;
     const updateRect = () => {
       const el = document.querySelector(currentStep.targetSelector!);
       if (el) {
         const rect = el.getBoundingClientRect();
-        setTargetRect(rect);
+        setTargetRect((previous) =>
+          previous &&
+          previous.top === rect.top &&
+          previous.left === rect.left &&
+          previous.width === rect.width &&
+          previous.height === rect.height
+            ? previous
+            : rect,
+        );
         // Scroll target into view smoothly if not visible
-        if (rect.top < 60 || rect.bottom > window.innerHeight - 80) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (
+          !scrolled &&
+          (rect.top < 60 || rect.bottom > window.innerHeight - 80)
+        ) {
+          scrolled = true;
+          el.scrollIntoView({
+            behavior: window.matchMedia("(prefers-reduced-motion: reduce)")
+              .matches
+              ? "auto"
+              : "smooth",
+            block: rect.height > window.innerHeight - 140 ? "start" : "center",
+          });
         }
       } else {
         setTargetRect(null);
@@ -70,13 +113,16 @@ export const GuidedTour: React.FC = () => {
     // Immediate check + short retry to allow route transitions to render
     updateRect();
     const timer = setTimeout(updateRect, 300);
-    window.addEventListener('resize', updateRect);
-    window.addEventListener('scroll', updateRect);
+    const observer = new MutationObserver(updateRect);
+    observer.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", updateRect);
+    window.addEventListener("scroll", updateRect, true);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener('resize', updateRect);
-      window.removeEventListener('scroll', updateRect);
+      observer.disconnect();
+      window.removeEventListener("resize", updateRect);
+      window.removeEventListener("scroll", updateRect, true);
     };
   }, [isTourActive, currentStep]);
 
@@ -84,17 +130,20 @@ export const GuidedTour: React.FC = () => {
 
   const isLastStep = currentStepIndex === totalSteps - 1;
   const isFirstStep = currentStepIndex === 0;
-  const progressPercent = Math.round(((currentStepIndex + 1) / totalSteps) * 100);
+  const progressPercent = Math.round(
+    ((currentStepIndex + 1) / totalSteps) * 100,
+  );
 
   return (
-    <div className="fixed inset-0 z-50 pointer-events-none select-none">
-      {/* Subtle Focus Ring Highlight on Target Element */}
+    <div className="guided-tour-layer fixed inset-0 z-50 pointer-events-none select-none">
+      {/* Spotlight leaves the target clear and dims only the surrounding screen. */}
       {targetRect && (
         <div
-          className="absolute rounded-xl transition-all duration-300 pointer-events-none border-2 border-indigo-500/90 shadow-[0_0_0_9999px_rgba(15,23,42,0.45)] dark:shadow-[0_0_0_9999px_rgba(2,6,23,0.65)] ring-4 ring-indigo-400/30"
+          className="tour-highlight absolute rounded-xl pointer-events-none"
+          aria-hidden="true"
           style={{
-            top: Math.max(0, targetRect.top - 6),
-            left: Math.max(0, targetRect.left - 6),
+            top: targetRect.top - 6,
+            left: targetRect.left - 6,
             width: targetRect.width + 12,
             height: targetRect.height + 12,
           }}
@@ -102,9 +151,11 @@ export const GuidedTour: React.FC = () => {
       )}
 
       {/* Floating Tour Guide Card - Positioned in the Bottom Right Viewport Dock */}
-      <div className="fixed bottom-5 right-5 sm:right-8 max-w-md w-[calc(100vw-2.5rem)] pointer-events-auto z-50">
+      <div className="tour-surface fixed bottom-5 right-5 sm:right-8 max-w-md w-[calc(100vw-2.5rem)] pointer-events-auto z-50">
         <div
           ref={cardRef}
+          role="region"
+          aria-label="Optional guided tour"
           className="bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900/60 rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in slide-in-from-bottom-3 duration-200"
         >
           {/* Header Progress Bar */}
@@ -119,7 +170,7 @@ export const GuidedTour: React.FC = () => {
             {/* Top Toolbar: Step Counter & Close */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Badge tone={currentStep.badgeTone || 'info'} size="sm">
+                <Badge tone={currentStep.badgeTone || "info"} size="sm">
                   {currentStep.badge}
                 </Badge>
                 <span className="text-[11px] font-mono font-semibold text-slate-500 dark:text-slate-400">
@@ -132,6 +183,7 @@ export const GuidedTour: React.FC = () => {
                 onClick={skipTour}
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg transition-colors cursor-pointer"
                 title="Exit Tour (Esc)"
+                aria-label="Exit tour"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -142,10 +194,20 @@ export const GuidedTour: React.FC = () => {
               <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white leading-snug">
                 {currentStep.title}
               </h3>
-              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+              <p
+                className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed"
+                aria-live="polite"
+              >
                 {currentStep.details}
               </p>
             </div>
+
+            {!targetRect && (
+              <p className="tour-missing">
+                This section may still be loading or may be unavailable. You can
+                continue to the next step.
+              </p>
+            )}
 
             {/* Operator Tip Callout */}
             {currentStep.tip && (
@@ -157,19 +219,22 @@ export const GuidedTour: React.FC = () => {
 
             {/* Step Dots Navigation */}
             <div className="flex items-center justify-center gap-1.5 pt-1">
-              {TOUR_STEPS.map((s, idx) => (
+              {steps.map((s, idx) => (
                 <button
                   key={s.step}
                   type="button"
                   onClick={() => goToStep(idx)}
+                  disabled={isTourPreparing}
                   className={`w-2 h-2 rounded-full transition-all cursor-pointer ${
                     idx === currentStepIndex
-                      ? 'w-5 bg-indigo-600'
+                      ? "w-5 bg-indigo-600"
                       : idx < currentStepIndex
-                      ? 'bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
-                      : 'bg-slate-200 dark:bg-slate-800 hover:bg-slate-300'
+                        ? "bg-slate-300 dark:bg-slate-700 hover:bg-slate-400"
+                        : "bg-slate-200 dark:bg-slate-800 hover:bg-slate-300"
                   }`}
                   title={`Go to Step ${s.step}: ${s.title}`}
+                  aria-label={`Go to step ${s.step}: ${s.title}`}
+                  aria-current={idx === currentStepIndex ? "step" : undefined}
                 />
               ))}
             </div>
@@ -189,7 +254,7 @@ export const GuidedTour: React.FC = () => {
                   variant="secondary"
                   size="sm"
                   onClick={prevStep}
-                  disabled={isFirstStep}
+                  disabled={isFirstStep || isTourPreparing}
                   leftIcon={<ArrowLeft className="w-3.5 h-3.5" />}
                 >
                   Back
@@ -199,9 +264,16 @@ export const GuidedTour: React.FC = () => {
                   variant="primary"
                   size="sm"
                   onClick={isLastStep ? finishTour : nextStep}
-                  rightIcon={isLastStep ? <CheckCircle2 className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
+                  disabled={isTourPreparing}
+                  rightIcon={
+                    isLastStep ? (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    ) : (
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    )
+                  }
                 >
-                  {isLastStep ? 'Finish Tour' : 'Next Step'}
+                  {isLastStep ? "Finish Tour" : "Next Step"}
                 </Button>
               </div>
             </div>

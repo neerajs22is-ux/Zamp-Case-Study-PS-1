@@ -1,0 +1,9 @@
+.invoice-run { border: 1px solid var(--review-border); border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+.invoice-run-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.invoice-run h2, .invoice-run h3 { margin: 0 0 8px; }
+.invoice-run p { margin: 8px 0; line-height: 1.5; }
+.invoice-run button { font: inherit; color: inherit; background: transparent; border: 1px solid currentColor; border-radius: 4px; padding: 8px 12px; cursor: pointer; }
+.invoice-run button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.invoice-run-job { border-top: 1px solid var(--review-border); padding-top: 16px; margin-top: 16px; overflow-wrap: anywhere; }
+.invoice-run ol { padding-left: 24px; }
+.invoice-run li { margin: 16px 0; }

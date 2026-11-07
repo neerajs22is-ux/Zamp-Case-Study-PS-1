@@ -173,7 +173,8 @@ def seed_tenant_user(
     return make_jwt(sub=user_id, email=email)
 
 
-SAMPLE_VALID_PDF = b"%PDF-1.4\n1 0 obj\n<< /Title (Invoice 101) >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF"
+from pathlib import Path
+SAMPLE_VALID_PDF = Path("fixtures/data/HP-01-Happy-Path.pdf").read_bytes()
 
 
 # ==============================================================================
@@ -265,7 +266,7 @@ def test_05_sha256_calculation_and_persistence_verified(stage3_client):
     client, session = stage3_client
     token = seed_tenant_user(session, org_id="org_alpha", user_id="usr_05", email="eve@alpha.internal")
 
-    content = b"%PDF-1.7\nUnique content payload\xaa\xbb\xcc\xdd\n%%EOF"
+    content = SAMPLE_VALID_PDF
     expected_hash = hashlib.sha256(content).hexdigest()
 
     files = {"file": ("crypto_test.pdf", io.BytesIO(content), "application/pdf")}
@@ -378,7 +379,7 @@ def test_11_database_failure_triggers_compensating_cleanup(stage3_client):
             resp = client.post("/api/v1/documents/upload", files=files, headers={"Authorization": f"Bearer {token}"})
 
             assert resp.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-            assert "Database transaction failure" in resp.json()["detail"]
+            assert "could not be committed" in resp.json()["detail"]
 
     # Assert compensating delete_file was called for the uploaded object
     assert len(deleted_keys) == 1

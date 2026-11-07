@@ -15,19 +15,10 @@ from backend.main import app
 from backend.core.database import SessionLocal
 from backend.models.domain import Invoice, MatchRun, MatchGateCheck
 from engine.server import app as engine_app
-from engine.sme_eval_setup import SME_USERS, generate_sme_jwt, ensure_jwt_secret
 
 client = TestClient(app)
 engine_client = TestClient(engine_app)
 
-
-@pytest.fixture(scope="module")
-def sme_tokens():
-    jwt_secret = ensure_jwt_secret()
-    return {
-        u["role"]: generate_sme_jwt(u, jwt_secret)
-        for u in SME_USERS
-    }
 
 
 def test_p0_1_clean_invoice_has_db_backed_grn_and_qc(sme_tokens):

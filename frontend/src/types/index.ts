@@ -42,7 +42,7 @@ export interface AccessRequest {
 }
 
 export interface SubsystemHealth {
-  status: 'CONNECTED' | 'NOT_CONFIGURED' | 'DEGRADED' | 'BLOCKED' | 'ERROR';
+  status: 'CONNECTED' | 'CONFIGURED_UNVERIFIED' | 'NOT_CONFIGURED' | 'DEGRADED' | 'BLOCKED' | 'ERROR';
   message: string;
   readiness: boolean;
   [key: string]: any;
@@ -71,6 +71,7 @@ export interface DashboardMetrics {
     total_invoices: number;
     open_exceptions: number;
     blocked_value_inr: number;
+    non_inr_exceptions_excluded: number;
     msme_exposure_count: number;
     touchless_rate_pct: number | null;
     active_ingestion_jobs: number;
@@ -115,7 +116,8 @@ export interface ExceptionItem {
   vendor_name: string | null;
   blocking_gate_number: number;
   blocking_gate_name: string;
-  exposure_amount_inr: number;
+  exposure_amount_inr: number | null;
+  currency: string;
   msme_statutory_deadline: string | null;
   assigned_user_id: string | null;
   created_at: string;

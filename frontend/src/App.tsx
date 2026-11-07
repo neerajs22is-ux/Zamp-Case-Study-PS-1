@@ -15,6 +15,7 @@ import { AuditPage } from './pages/AuditPage';
 import { AccessManagementPage } from './pages/AccessManagementPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { api, clearAuthToken, setAuthToken, getAuthToken } from './api/client';
+import { oauthCallbackParams } from './utils/oauth';
 import type { AuthenticatedUser, HealthResponse } from './types';
 
 // Route Wrapper for Invoice Detail with URL parameter binding
@@ -67,8 +68,7 @@ export const AppContent: React.FC = () => {
 
   useEffect(() => {
     // 1. Check for OAuth callback in URL hash (from Supabase Auth Google sign-in)
-    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    const accessToken = hashParams.get('access_token');
+    const { accessToken } = oauthCallbackParams(window.location.search, window.location.hash);
     if (accessToken) {
       setAuthToken(accessToken);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -80,12 +80,15 @@ export const AppContent: React.FC = () => {
   }, [fetchUserProfile]);
 
   const handleLogout = async () => {
+    let logoutError: string | null = null;
     try {
-      await api.logout().catch(() => {});
+      await api.logout();
+    } catch {
+      logoutError = 'Local session cleared, but server-side token revocation failed. The access token may remain valid until expiry.';
     } finally {
       clearAuthToken();
       setUser(null);
-      setAuthError(null);
+      setAuthError(logoutError);
       navigate('/today');
     }
   };
@@ -115,8 +118,8 @@ export const AppContent: React.FC = () => {
 
   if (!isFullyProvisioned) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150">
-        <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <div className={user ? 'min-h-screen bg-slate-50 dark:bg-[#17191c] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-150' : 'auth-page min-h-screen flex flex-col'}>
+        <main className={user ? 'flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-10' : 'auth-page-main flex-1 w-full px-4 sm:px-6'}>
           <AuthScreen
             user={user}
             loading={authLoading}
@@ -130,6 +133,7 @@ export const AppContent: React.FC = () => {
   }
 
   return (
+    <TourProvider key={JSON.stringify([user!.id, user!.org_id])} currentUser={user!}>
     <AppShell
       user={user}
       health={health}
@@ -139,7 +143,7 @@ export const AppContent: React.FC = () => {
       <Routes>
         {/* Core Primary Navigation Routes */}
         <Route path="/" element={<Navigate to="/today" replace />} />
-        <Route path="/today" element={<DashboardPage onNavigate={(route) => navigate(route === 'inbox' ? '/invoices' : `/${route}`)} currentUser={user} />} />
+        <Route path="/today" element={<DashboardPage onNavigate={(route) => navigate(route === 'inbox' ? '/invoices' : route.startsWith('/') ? route : `/${route}`)} currentUser={user} />} />
         <Route path="/setup" element={<OnboardingPage currentUser={user} />} />
         <Route path="/invoices" element={<InboxPage onSelectInvoice={(id) => navigate(`/invoices/${id}`)} />} />
         <Route path="/invoices/:id" element={<InvoiceDetailWrapper user={user} />} />
@@ -164,6 +168,7 @@ export const AppContent: React.FC = () => {
         <Route path="*" element={<Navigate to="/today" replace />} />
       </Routes>
     </AppShell>
+    </TourProvider>
   );
 };
 
@@ -171,9 +176,7 @@ export const App: React.FC = () => {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <TourProvider>
-          <AppContent />
-        </TourProvider>
+        <AppContent />
       </BrowserRouter>
     </ThemeProvider>
   );

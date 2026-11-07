@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface KeyboardShortcutOptions {
   onToggleShortcutsHelp?: () => void;
@@ -23,13 +23,13 @@ export function useKeyboardShortcuts({
       const target = e.target as HTMLElement | null;
       if (
         target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
           target.isContentEditable)
       ) {
         // Allow Esc even inside inputs to blur or close
-        if (e.key === 'Escape' && onEscape) {
+        if (e.key === "Escape" && onEscape) {
           target.blur();
           onEscape();
         }
@@ -45,7 +45,7 @@ export function useKeyboardShortcuts({
       const lastKey = lastKeyRef.current;
 
       // 2. Escape: Close active overlays / drawers
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         if (onEscape) {
           onEscape();
         }
@@ -53,8 +53,10 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return;
+
       // 3. '?' (Shift + /): Toggle Keyboard Shortcuts Help
-      if (e.key === '?' || (e.shiftKey && e.key === '/')) {
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
         e.preventDefault();
         if (onToggleShortcutsHelp) {
           onToggleShortcutsHelp();
@@ -64,10 +66,10 @@ export function useKeyboardShortcuts({
       }
 
       // 4. '/': Focus primary search or filter input on page
-      if (e.key === '/') {
+      if (e.key === "/") {
         e.preventDefault();
         const searchInput = document.querySelector<HTMLInputElement>(
-          'input[placeholder*="Search" i], input[placeholder*="Filter" i]'
+          'input[placeholder*="Search" i], input[placeholder*="Filter" i]',
         );
         if (searchInput) {
           searchInput.focus();
@@ -78,41 +80,40 @@ export function useKeyboardShortcuts({
       }
 
       // 5. 'g' then <key> Navigation Sequences (1000ms window)
-      if (lastKey && lastKey.key === 'g' && now - lastKey.time < 1200) {
+      if (lastKey && lastKey.key === "g" && now - lastKey.time < 1200) {
         lastKeyRef.current = null;
         switch (e.key.toLowerCase()) {
-          case 't':
+          case "t":
             e.preventDefault();
-            navigate('/today');
+            navigate("/today");
             return;
-          case 'i':
+          case "i":
             e.preventDefault();
-            navigate('/invoices');
+            navigate("/invoices");
             return;
-          case 'a':
+          case "a":
             e.preventDefault();
-            navigate('/approvals');
+            navigate("/approvals");
             return;
-          case 'u':
+          case "u":
             e.preventDefault();
-            navigate('/audit');
+            navigate("/audit");
             return;
-          case 'c':
-          case 's':
+          case "s":
             e.preventDefault();
-            navigate('/setup');
+            navigate("/setup");
             return;
-          case 'c':
+          case "c":
             e.preventDefault();
-            navigate('/settings/connections');
+            navigate("/settings/connections");
             return;
-          case 'r':
+          case "r":
             e.preventDefault();
-            navigate('/settings/reference-data');
+            navigate("/settings/reference-data");
             return;
-          case 'm':
+          case "m":
             e.preventDefault();
-            navigate('/settings/team');
+            navigate("/settings/team");
             return;
           default:
             break;
@@ -120,8 +121,8 @@ export function useKeyboardShortcuts({
       }
 
       // Record 'g' keypress for sequence
-      if (e.key.toLowerCase() === 'g') {
-        lastKeyRef.current = { key: 'g', time: now };
+      if (e.key.toLowerCase() === "g") {
+        lastKeyRef.current = { key: "g", time: now };
         return;
       }
 
@@ -129,9 +130,9 @@ export function useKeyboardShortcuts({
       lastKeyRef.current = null;
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [navigate, onToggleShortcutsHelp, onEscape, enabled]);
 }

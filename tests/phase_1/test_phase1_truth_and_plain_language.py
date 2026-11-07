@@ -17,19 +17,9 @@ from backend.main import app
 from backend.core.config import settings
 from backend.core.database import SessionLocal
 from backend.models.domain import Invoice, Organisation, RoleAssignment, User
-from engine.sme_eval_setup import SME_USERS, generate_sme_jwt, ensure_jwt_secret
 
 client = TestClient(app)
 
-
-@pytest.fixture(scope="module")
-def sme_tokens():
-    jwt_secret = ensure_jwt_secret()
-    tokens = {
-        u["role"]: generate_sme_jwt(u, jwt_secret)
-        for u in SME_USERS
-    }
-    return tokens
 
 
 def test_01_authoritative_backend_policy_configuration():
@@ -92,7 +82,9 @@ def test_04_failed_gate_error_uses_plain_business_language(sme_tokens):
     # Verify absence of developer tags
     assert "D-04" not in detail, "Error message must not expose internal D-04 tag"
     assert "Tier 2" not in detail, "Error message must not expose Tier 2 tag"
-    assert "Policy overrides are disabled" in detail, "Error must use clear business language"
+    assert "Cannot approve" in detail and "validation checks" in detail
+    with SessionLocal() as db:
+        assert db.get(Invoice, exc_inv_id).stage != "INTERNAL_APPROVAL_COMPLETE"
 
 
 def test_05_frontend_source_has_zero_forbidden_engineering_strings():
@@ -136,7 +128,9 @@ def test_06_frontend_source_contains_phase1_truth_strings():
     assert "Evaluated against authoritative procurement reference snapshots" in content, "Must use truthful ERP provenance"
     assert "Live SAP S/4HANA synchronization is not configured" in content, "Must disclose evaluation fixtures"
     assert "Approval blocked until the failed checks are resolved" in content, "Must use plain language banner badge"
-    assert "Information Read by AI" in content, "Must use plain language extraction header"
+    assert "Read the original document, compare the figures and inspect named" in content
+    assert "Processing checkpoints above show only persisted events" in content
+    assert "missing events do not establish completion" in content
     assert "Verified by automatic checks" in content, "Must use plain language verification badge"
     assert "Verification Status" in content, "Must label table column accurately"
     assert "DEFAULT_POLICY" in content, "Must read policy from central constants"

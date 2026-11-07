@@ -3,6 +3,7 @@ import type {
   ExceptionsResponse, SourceRecordsData, AuditResponse, AuthenticatedUser,
   UserInvitation, AccessRequest, DocumentMetadata
 } from '../types';
+import type { ProcessingSnapshot } from '../components/InvoiceRunView';
 
 const AUTH_STORAGE_KEY = 'ap_command_center_auth_token';
 
@@ -35,18 +36,19 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   });
 
   if (response.status === 401) {
-    throw new Error('Authentication required. Missing or expired enterprise session token.');
+    throw Object.assign(new Error('Authentication required. Missing or expired enterprise session token.'), { status: response.status });
   }
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+    throw Object.assign(new Error(errorData.detail || `Request failed with status ${response.status}`), { status: response.status });
   }
 
   return response.json();
 }
 
 export const api = {
+  getInvoiceProcessing: (id: string, signal?: AbortSignal) => request<ProcessingSnapshot>(`/api/v1/invoices/${encodeURIComponent(id)}/processing`, { signal }),
   getHealth: () => request<HealthResponse>('/api/v1/health'),
   getAuthStatus: () => request<any>('/api/v1/auth/status'),
   getCurrentUser: () => request<AuthenticatedUser>('/api/v1/auth/me'),
@@ -92,6 +94,7 @@ export const api = {
     statutory_msme_verified_due_inr: number;
     statutory_msme_verified_count: number;
     statutory_msme_note: string;
+    non_inr_invoices_excluded: number;
   }>('/api/v1/dashboard/exposure'),
   resetDemoState: () => request<{ status: string; message: string; tenant: string; reset_lines_count: number; re_evaluated_invoices_count: number; timestamp: string }>('/api/v1/system/reset-demo', { method: 'POST' }),
   getConnections: () => request<any>('/api/v1/connections'),
@@ -111,6 +114,7 @@ export const api = {
     return request<InboxResponse>(`/api/v1/inbox?${q.toString()}`);
   },
   getInvoiceDetail: (id: string) => request<any>(`/api/v1/invoices/${id}`),
+  processNextDocument: () => request<{ status: string }>('/api/v1/documents/process-next', { method: 'POST' }),
   correctInvoiceLine: (
     invoiceId: string,
     lineId: string,

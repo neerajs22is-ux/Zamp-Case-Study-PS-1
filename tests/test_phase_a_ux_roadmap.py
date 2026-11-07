@@ -17,27 +17,18 @@ from fastapi.testclient import TestClient
 from backend.main import app
 from backend.core.database import SessionLocal
 from backend.models.domain import ApprovalRequest, AuditEvent, Invoice, InvoiceLine, MatchGateCheck, MatchRun
-from engine.sme_eval_setup import SME_USERS, generate_sme_jwt, ensure_jwt_secret
 
 client = TestClient(app)
 
 
-@pytest.fixture(scope="module")
-def sme_tokens():
-    jwt_secret = ensure_jwt_secret()
-    return {
-        u["role"]: generate_sme_jwt(u, jwt_secret)
-        for u in SME_USERS
-    }
 
-
-def test_stage_a1_line_item_correction_and_revalidation(sme_tokens):
+def test_stage_a1_line_item_correction_and_revalidation(sme_tokens, evaluation_workspace):
     """TC-CORR-01: AP_ASSOCIATE corrects line rate; Gate 6 re-evaluates to PASS; audit event written."""
     headers_assoc = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
 
     with SessionLocal() as db:
         # Find an invoice in org_sme_eval with line items
-        inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+        inv = db.get(Invoice, evaluation_workspace["clean"])
         assert inv is not None, "Evaluation invoice must exist in database"
         inv_id = inv.id
         line = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv_id).first()
@@ -80,12 +71,12 @@ def test_stage_a1_line_item_correction_and_revalidation(sme_tokens):
         assert "Verified OCR accuracy" in latest_audit.reason
 
 
-def test_stage_a1_auditor_role_forbidden(sme_tokens):
+def test_stage_a1_auditor_role_forbidden(sme_tokens, evaluation_workspace):
     """TC-CORR-03: Auditor role is strictly barred from modifying line items (HTTP 403)."""
     headers_auditor = {"Authorization": f"Bearer {sme_tokens['AUDITOR']}"}
 
     with SessionLocal() as db:
-        inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+        inv = db.get(Invoice, evaluation_workspace["clean"])
         line = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv.id).first()
         inv_id = inv.id
         line_id = line.id
@@ -105,12 +96,12 @@ def test_stage_a1_auditor_role_forbidden(sme_tokens):
     assert "read-only" in res.json()["detail"].lower()
 
 
-def test_stage_a1_optimistic_locking_precondition_failed(sme_tokens):
+def test_stage_a1_optimistic_locking_precondition_failed(sme_tokens, evaluation_workspace):
     """TC-CORR-04: Outdated If-Match header returns HTTP 412 Precondition Failed."""
     headers_assoc = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
 
     with SessionLocal() as db:
-        inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+        inv = db.get(Invoice, evaluation_workspace["clean"])
         line = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv.id).first()
         inv_id = inv.id
         line_id = line.id
@@ -130,12 +121,12 @@ def test_stage_a1_optimistic_locking_precondition_failed(sme_tokens):
     assert "Precondition Failed" in res.json()["detail"]
 
 
-def test_stage_a1_stale_approval_invalidation(sme_tokens):
+def test_stage_a1_stale_approval_invalidation(sme_tokens, evaluation_workspace):
     """TC-CORR-02: Modifying an invoice with pending/active approval invalidates approval."""
     headers_lead = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 
     with SessionLocal() as db:
-        inv = db.query(Invoice).filter(Invoice.org_id == "org_sme_eval").first()
+        inv = db.get(Invoice, evaluation_workspace["clean"])
         line = db.query(InvoiceLine).filter(InvoiceLine.invoice_id == inv.id).first()
         inv_id = inv.id
         line_id = line.id
@@ -180,7 +171,7 @@ def test_stage_a1_stale_approval_invalidation(sme_tokens):
         assert app_req.status == "REVOKED_CORRECTION"
 
 
-def test_stage_a3_inbox_temporal_filtering(sme_tokens):
+def test_stage_a3_inbox_temporal_filtering(sme_tokens, evaluation_workspace):
     """Stage A3: Inbox list accepts fy, month, and year query parameters."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 
@@ -198,7 +189,7 @@ def test_stage_a3_inbox_temporal_filtering(sme_tokens):
     assert "items" in data_fy
 
 
-def test_stage_a4_system_reset_demo(sme_tokens):
+def test_stage_a4_system_reset_demo(sme_tokens, evaluation_workspace):
     """Stage A4: POST /api/v1/system/reset-demo safely resets evaluation fixtures."""
     headers_controller = {"Authorization": f"Bearer {sme_tokens['CONTROLLER']}"}
 
@@ -209,7 +200,7 @@ def test_stage_a4_system_reset_demo(sme_tokens):
     assert data["tenant"] == "org_sme_eval"
 
 
-def test_stage_a5_dashboard_exposure_scorecard(sme_tokens):
+def test_stage_a5_dashboard_exposure_scorecard(sme_tokens, evaluation_workspace):
     """Stage A5: GET /api/v1/dashboard/exposure returns operational aging & blocked liability."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 

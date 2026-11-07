@@ -4,23 +4,26 @@ from __future__ import annotations
 
 import datetime
 import hashlib
+import json
 import secrets
 import time
+import urllib.request
 from typing import Any, Dict, List, Optional
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Security, status
+from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, field_validator
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from backend.core.config import AppEnv, settings
 from backend.core.auth import (
     AuthenticatedUser, UserRole, check_idp_health,
-    get_current_user, require_active_membership, require_role
+    get_current_user, require_active_membership, require_role, security_bearer, verify_token_claims
 )
 from backend.core.database import get_db, set_tenant_context
 from backend.models.domain import (
-    AccessRequest, AuditEvent, Organisation, RoleAssignment, User, UserInvitation
+    AccessRequest, AuditEvent, Organisation, RevokedAccessToken, RoleAssignment, User, UserInvitation
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication & Identity"])
@@ -142,7 +145,13 @@ def create_dev_session(
                 detail="Database connection unavailable.",
             )
 
-        user = db.scalar(select(User).where(func.lower(User.email) == clean_email))
+        user_query = select(User).where(func.lower(User.email) == clean_email)
+        if payload.org_id:
+            user_query = user_query.where(User.org_id == payload.org_id)
+        matching_users = db.scalars(user_query).all()
+        if len(matching_users) > 1:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Select a workspace for this development account.")
+        user = matching_users[0] if matching_users else None
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -163,7 +172,9 @@ def create_dev_session(
             )
 
         effective_org = payload.org_id or user.org_id or roles[0].org_id
-        matching_role = next((r for r in roles if r.org_id == effective_org), roles[0])
+        matching_role = next((r for r in roles if r.org_id == effective_org), None)
+        if matching_role is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No role assignment exists in the selected workspace.")
         user_id = user.id
         user_name = user.full_name or user.email
         role_name = matching_role.role_name
@@ -232,16 +243,34 @@ def get_current_user_profile(
         "org_id": current_user.org_id,
         "org_name": current_user.org_name,
         "is_provisioned": current_user.is_provisioned,
+        "is_owner": current_user.is_owner,
+        "workspace_selection_required": current_user.workspace_selection_required,
         "available_orgs": current_user.available_orgs,
         "legal_entity_ids": current_user.legal_entity_ids,
-        "status": "ACTIVE" if current_user.is_provisioned else "UNPROVISIONED",
+        "status": "ACTIVE" if current_user.is_provisioned else ("WORKSPACE_SELECTION_REQUIRED" if current_user.workspace_selection_required else "UNPROVISIONED"),
     }
 
 
 @router.post("/logout")
-def logout() -> Dict[str, str]:
-    """Logs out user and signals client to clear local session tokens."""
-    return {"status": "LOGGED_OUT", "message": "Session terminated."}
+def logout(
+    current_user: AuthenticatedUser = Depends(get_current_user),
+    credentials: HTTPAuthorizationCredentials = Security(security_bearer),
+    db: Session = Depends(get_db),
+) -> Dict[str, str]:
+    """Revoke this access token for this application, then clear it locally."""
+    if db is None or credentials is None:
+        raise HTTPException(status_code=503, detail="Session revocation is unavailable.")
+    claims, _, _ = verify_token_claims(credentials.credentials)
+    if not claims.get("exp"):
+        raise HTTPException(status_code=400, detail="An expiring access token is required for revocation.")
+    try:
+        expires = datetime.datetime.fromtimestamp(int(claims["exp"]), datetime.timezone.utc).replace(tzinfo=None)
+        db.add(RevokedAccessToken(token_hash=hashlib.sha256(credentials.credentials.encode("utf-8")).hexdigest(), expires_at=expires))
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Session revocation is unavailable.") from exc
+    return {"status": "ACCESS_TOKEN_REVOKED", "message": "This access token is revoked for this application. Identity-provider refresh sessions are not revoked."}
 
 
 # ------------------------------------------------------------------------------
@@ -376,11 +405,31 @@ def revoke_invitation(
     }
 
 
+def verify_invitation_email(user: AuthenticatedUser, credentials: HTTPAuthorizationCredentials) -> None:
+    """Check current provider identity; mutable JWT user_metadata is not proof."""
+    if not (settings.IDENTITY_EMAIL_CONFIRMATION_ENFORCED and settings.SUPABASE_URL
+            and settings.SUPABASE_ANON_KEY and credentials and credentials.credentials):
+        raise HTTPException(status_code=503, detail="Verified-email invitation acceptance is not configured.")
+    try:
+        request = urllib.request.Request(settings.SUPABASE_URL.rstrip('/') + '/auth/v1/user',
+            headers={'apikey': settings.SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + credentials.credentials})
+        with urllib.request.urlopen(request, timeout=5) as response:
+            body = json.load(response)
+        if (body.get('id') != user.auth_subject or not body.get('email_confirmed_at')
+                or str(body.get('email') or '').lower() != user.email.lower()):
+            raise HTTPException(status_code=403, detail="A confirmed matching provider email is required.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Provider email verification is unavailable.") from exc
+
+
 @router.post("/invitations/accept")
 def accept_invitation(
     payload: AcceptInvitationPayload,
     current_user: AuthenticatedUser = Depends(get_current_user),
     db: Optional[Session] = Depends(get_db),
+    credentials: HTTPAuthorizationCredentials = Security(security_bearer),
 ) -> Dict[str, Any]:
     """Accepts a tenant invitation, activating active membership.
 
@@ -395,10 +444,25 @@ def accept_invitation(
     if db is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
 
+    if settings.APP_ENV != AppEnv.TEST:
+        verify_invitation_email(current_user, credentials)
+
     token_hash = hashlib.sha256(payload.token.strip().encode("utf-8")).hexdigest()
     now_utc = datetime.datetime.utcnow()
 
-    invitation = db.scalar(select(UserInvitation).where(UserInvitation.token_hash == token_hash))
+    # The invitation belongs to a tenant that the invitee may not yet be able
+    # to access. Resolve only a pending, email-matched token before setting its
+    # tenant context, then lock and recheck it inside the transaction.
+    if db.bind and db.bind.dialect.name == "postgresql":
+        found = db.execute(
+            text("SELECT org_id FROM find_pending_invitation(:token_hash, :email)"),
+            {"token_hash": token_hash, "email": current_user.email},
+        ).first()
+        if not found:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation is invalid, expired, used, or belongs to another account.")
+        set_tenant_context(db, found[0])
+
+    invitation = db.scalar(select(UserInvitation).where(UserInvitation.token_hash == token_hash).with_for_update())
     if not invitation:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -430,6 +494,14 @@ def accept_invitation(
     existing_user = db.scalar(
         select(User).where(User.org_id == invitation.org_id, User.email == invitation.email.lower())
     )
+    if existing_user and existing_user.id != current_user.id:
+        # Matching email is not proof that this provider subject owns a legacy
+        # tenant identity. Preserve its user ID, role and historical audit actor.
+        raise HTTPException(status_code=409, detail="Existing workspace identity requires administrator reconciliation before this invitation can be accepted.")
+    if current_user.is_provisioned and current_user.org_id != invitation.org_id:
+        # Cross-workspace identity binding is not implemented by this endpoint.
+        # Do not reuse a tenant-local primary key or rewrite an existing account.
+        raise HTTPException(status_code=409, detail="Joining another workspace requires administrator identity reconciliation.")
     if not existing_user:
         new_user = User(
             id=current_user.id,

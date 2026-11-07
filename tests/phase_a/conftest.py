@@ -52,7 +52,9 @@ def db_session():
     """Isolated transactional test session with rollback."""
     connection = test_engine.connect()
     transaction = connection.begin()
-    session = TestingSessionLocal(bind=connection)
+    # SQLite must begin a real outer transaction before the first SAVEPOINT.
+    connection.exec_driver_sql("BEGIN")
+    session = TestingSessionLocal(bind=connection, join_transaction_mode="create_savepoint")
 
     yield session
 
@@ -66,8 +68,9 @@ def client(db_session):
     def override_get_db():
         try:
             yield db_session
-        finally:
-            pass
+        except Exception:
+            db_session.rollback()
+            raise
 
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:

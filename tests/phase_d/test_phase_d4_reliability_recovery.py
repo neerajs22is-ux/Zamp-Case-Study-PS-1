@@ -153,7 +153,7 @@ def test_02_database_disconnected_returns_503_or_fails_closed(rel_db):
     assert "Database not connected" in exc_info.value.detail
 
 
-def test_03_idempotent_duplicate_actions_prevention(rel_client):
+def test_03_idempotent_duplicate_actions_prevention(rel_client, record_valid_match):
     """Proves that executing an approval twice on an invoice is handled idempotently without error."""
     client, session = rel_client
     token = seed_user(session)
@@ -172,6 +172,8 @@ def test_03_idempotent_duplicate_actions_prevention(rel_client):
     session.commit()
 
     # First approval
+    record_valid_match(session, inv)
+
     resp1 = client.post(
         "/api/v1/invoices/inv_idemp_01/actions",
         json={"action": "APPROVE_AP_REVIEW", "reason": "First approval verification"},

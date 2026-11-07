@@ -314,6 +314,10 @@ def test_05_mailbox_ingestion_downloads_valid_pdf_and_stores_in_supabase(stage4_
         select(AuditEvent).where(AuditEvent.org_id == "org_alpha", AuditEvent.action == "GMAIL_INVOICE_INGESTED")
     ).scalar_one()
     assert audit.invoice_id == inv.id
+    from backend.core.processing_events import processing_snapshot
+    run = processing_snapshot(session, inv.id, 'org_alpha')['jobs'][0]
+    assert [(event['stage'], event['status'], event['attempt']) for event in run['events']] == [('INTAKE', 'QUEUED', 0)]
+    assert audit.actor_id == 'usr_admin' and audit.actor_role == 'SYSTEM_ADMIN'
 
 
 def test_06_corrupt_attachment_is_quarantined(stage4_client):

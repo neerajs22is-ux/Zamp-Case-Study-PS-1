@@ -45,25 +45,25 @@ def get_connections_status(
     storage = storage_adapter.check_health()
 
     gmail = {
-        "status": "CONNECTED" if settings.is_gmail_configured() else "NOT_CONFIGURED",
+        "status": "CONFIGURED_UNVERIFIED" if settings.is_gmail_configured() else "NOT_CONFIGURED",
         "pillar": "gmail",
         "mailbox": settings.GMAIL_TARGET_MAILBOX,
         "scopes": ["https://www.googleapis.com/auth/gmail.readonly"],
         "required_env": ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_TARGET_MAILBOX"],
         "redirect_uri": f"{settings.BASE_URL}/api/v1/integrations/gmail/callback",
         "readiness": settings.is_gmail_configured(),
-        "message": "Authorized Gmail ingestion active." if settings.is_gmail_configured() else "Gmail OAuth 2.0 credentials not provisioned.",
+        "message": "Gmail credentials configured; mailbox authorization must be verified separately." if settings.is_gmail_configured() else "Gmail OAuth 2.0 credentials not provisioned.",
     }
 
     erp = {
-        "status": "CONNECTED" if settings.is_erp_configured() else "NOT_CONFIGURED",
+        "status": "CONFIGURED_UNVERIFIED" if settings.is_erp_configured() else "NOT_CONFIGURED",
         "pillar": "sap_erp",
         "system": "SAP S/4HANA (Read-Only)",
         "company_code": settings.SAP_COMPANY_CODE,
         "api_endpoint": settings.SAP_API_BASE_URL,
         "required_env": ["SAP_API_BASE_URL", "SAP_CLIENT_ID", "SAP_CLIENT_SECRET", "SAP_COMPANY_CODE"],
         "readiness": settings.is_erp_configured(),
-        "message": "SAP S/4HANA OData connection verified." if settings.is_erp_configured() else "SAP S/4HANA read-only connection not provisioned.",
+        "message": "SAP settings configured; live synchronization is not implemented." if settings.is_erp_configured() else "SAP S/4HANA read-only connection not provisioned.",
     }
 
     # Fetch recent quarantined documents if DB available

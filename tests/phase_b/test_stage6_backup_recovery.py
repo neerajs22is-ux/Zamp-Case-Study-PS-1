@@ -61,6 +61,36 @@ SAMPLE_PDF_2 = b"%PDF-1.4\n2 0 obj\n<< /Title (Invoice 2) >>\nendobj\ntrailer\n<
 CORRUPT_BYTES = b"%PDF-1.4\nTAMPERED_INVOICE_CORRUPTED_BYTES\n%%EOF"
 
 
+def test_backup_rejects_unavailable_inventory(stage6_db, stage6_storage, monkeypatch):
+    session, _ = stage6_db
+    def fail(*args, **kwargs):
+        raise RuntimeError('private provider details')
+    monkeypatch.setattr(stage6_storage, 'list_all_objects', fail)
+    with pytest.raises(BackupError, match='completeness') as err:
+        StorageBackupManager.export_storage(session, stage6_storage)
+    assert 'private provider details' not in str(err.value)
+
+
+def test_backup_rejects_missing_unindexed_object(stage6_db, stage6_storage, monkeypatch):
+    session, _ = stage6_db
+    monkeypatch.setattr(stage6_storage, 'list_all_objects', lambda: [{'path': 'orphan.pdf'}])
+    _, _, summary = StorageBackupManager.export_storage(session, stage6_storage)
+    assert summary['failed_exports'] == 1
+    assert summary['completion_status'] == 'FAILED'
+
+
+def test_restore_rejects_nonempty_or_unavailable_target(stage6_storage, monkeypatch):
+    stage6_storage.save_file(content=b'preserve', filename='existing.pdf', storage_key='existing.pdf')
+    with pytest.raises(BackupError, match='empty isolated'):
+        StorageBackupManager.restore_storage({}, [], stage6_storage)
+    assert stage6_storage.get_file('existing.pdf') == b'preserve'
+    def fail(*args, **kwargs): raise RuntimeError('private storage detail')
+    monkeypatch.setattr(stage6_storage, 'list_all_objects', fail)
+    with pytest.raises(BackupError, match='inventory is unavailable') as err:
+        StorageBackupManager.restore_storage({}, [], stage6_storage)
+    assert 'private storage detail' not in str(err.value)
+
+
 @pytest.fixture(autouse=True)
 def configure_stage6_settings():
     """Configures test environment for Stage 6."""
@@ -500,7 +530,7 @@ def test_11_restored_files_match_original_sha256(stage6_db, stage6_storage, temp
         confirm_restore=True,
     )
 
-    assert restore_res["status"] == "RESTORE_COMPLETE"
+    assert restore_res["status"] == "RESTORE_PARTIAL"
     assert restore_res["storage"]["restored_objects"] == 1
     assert restore_res["storage"]["verified_objects"] == 1
 
@@ -581,7 +611,7 @@ def test_13_existing_audit_records_remain_intact(stage6_db, stage6_storage, temp
             confirm_restore=True,
         )
 
-        assert restore_res["status"] == "RESTORE_COMPLETE"
+        assert restore_res["status"] == "RESTORE_PARTIAL"
 
         # Check audit event in restored target session
         audits = target_session.execute(select(AuditEvent)).scalars().all()
@@ -692,7 +722,7 @@ def test_16_restoration_without_confirmation_guard_fails_safe(temp_backup_dir):
 # Test 17: Backup Status Endpoint Reports Truthful State and Scheduling
 # ==============================================================================
 
-def test_17_backup_status_endpoint_truthful_disclosure(stage6_db, temp_backup_dir):
+def test_17_backup_status_endpoint_truthful_disclosure(stage6_db, temp_backup_dir, monkeypatch):
     """Test 17: GET /api/v1/system/backup/status reports NOT_CONFIGURED when empty."""
     session, _ = stage6_db
     app.dependency_overrides[get_db] = lambda: session
@@ -719,6 +749,10 @@ def test_17_backup_status_endpoint_truthful_disclosure(stage6_db, temp_backup_di
     session.commit()
 
     token = "test_token:SYSTEM_ADMIN:user_sysadmin:sysadmin@alpha.com:org_admin"
+    monkeypatch.setattr(settings, "PLATFORM_OPERATOR_SUBJECTS", "")
+    denied = client.get("/api/v1/system/backup/status", headers={"Authorization": f"Bearer {token}"})
+    assert denied.status_code == status.HTTP_403_FORBIDDEN
+    monkeypatch.setattr(settings, "PLATFORM_OPERATOR_SUBJECTS", "user_sysadmin")
 
     with patch("backend.core.backup.settings.BACKUP_DIR", temp_backup_dir):
         resp = client.get(
@@ -881,8 +915,8 @@ def test_21_secure_key_handling_prefers_env_and_warns_on_cli(caplog):
 # Test 22: Auth Reconciliation Updates User ID and Logs Immutable Audit Event
 # ==============================================================================
 
-def test_22_auth_reconciliation_updates_user_id_and_logs_audit(stage6_db):
-    """Test 22: DatabaseBackupManager.reconcile_auth_user updates user ID and role assignments."""
+def test_22_email_only_auth_reconciliation_is_denied(stage6_db):
+    """Email alone cannot authorize identity binding or changes to historical IDs."""
     session, _ = stage6_db
     storage = TestInMemoryStorageAdapter()
     user, _, _ = seed_test_tenant(session, storage, org_id="org_alpha")
@@ -890,29 +924,22 @@ def test_22_auth_reconciliation_updates_user_id_and_logs_audit(stage6_db):
     old_user_id = user.id
     new_uuid = "usr_google_sub_999888"
 
-    res = DatabaseBackupManager.reconcile_auth_user(
-        session=session,
-        email="operator@alpha.com",
-        new_auth_id=new_uuid,
-        actor_id="SYS_OPERATOR",
-    )
-
-    assert res["status"] == "RECONCILED"
-    assert res["old_id"] == old_user_id
-    assert res["new_id"] == new_uuid
+    with pytest.raises(DatabaseRestoreError):
+        DatabaseBackupManager.reconcile_auth_user(
+            session=session, email="operator@alpha.com", new_auth_id=new_uuid, actor_id="SYS_OPERATOR")
 
     # Verify user record updated
     updated_user = session.execute(select(User).where(User.email == "operator@alpha.com")).scalar_one()
-    assert updated_user.id == new_uuid
+    assert updated_user.id == old_user_id
 
     # Verify role assignment cascaded
-    role = session.execute(select(RoleAssignment).where(RoleAssignment.user_id == new_uuid)).scalar_one_or_none()
+    role = session.execute(select(RoleAssignment).where(RoleAssignment.user_id == old_user_id)).scalar_one_or_none()
     assert role is not None
-    assert role.user_id == new_uuid
+    assert role.user_id == old_user_id
 
     # Verify audit event logged
     audit = session.execute(
         select(AuditEvent).where(AuditEvent.action == "USER_AUTH_RECONCILED")
     ).scalar_one_or_none()
-    assert audit is not None
-    assert new_uuid in audit.reason
+    assert audit is None
+    assert 'INSERT INTO auth.' not in DatabaseBackupManager.export_auth_state(session)

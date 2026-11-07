@@ -18,27 +18,17 @@ from backend.main import app
 from backend.core.config import settings
 from backend.core.database import SessionLocal
 from backend.models.domain import Invoice, MatchGateCheck, MatchRun, WorkOrderSnapshot
-from engine.sme_eval_setup import SME_USERS, generate_sme_jwt, ensure_jwt_secret
 
 client = TestClient(app)
 
 
-@pytest.fixture(scope="module")
-def sme_tokens():
-    jwt_secret = ensure_jwt_secret()
-    tokens = {
-        u["role"]: generate_sme_jwt(u, jwt_secret)
-        for u in SME_USERS
-    }
-    return tokens
 
-
-def test_01_po_snapshot_returned_with_real_data(sme_tokens):
+def test_01_po_snapshot_returned_with_real_data(sme_tokens, evaluation_workspace):
     """Verify that invoices citing a PO return the authoritative PO snapshot with real lines."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 
     # Invoice AP-26-001 (inv_be609a16676f) cites PO-26-1001
-    res = client.get("/api/v1/invoices/inv_be609a16676f", headers=headers)
+    res = client.get(f"/api/v1/invoices/{evaluation_workspace['incomplete']}", headers=headers)
     assert res.status_code == 200
     data = res.json()
 
@@ -46,17 +36,17 @@ def test_01_po_snapshot_returned_with_real_data(sme_tokens):
     po = data["po_snapshot"]
     assert po is not None
     assert po["po_number"] == "PO-26-1001"
-    assert po["vendor_code"] == "V001"
+    assert po["vendor_code"] == "V002"
     assert len(po["lines"]) > 0
     assert po["lines"][0]["authorized_quantity"] == 120.0
     assert po["lines"][0]["contracted_unit_rate"] == 185.0
 
 
-def test_02_unavailable_grn_and_qc_not_fabricated(sme_tokens):
+def test_02_unavailable_grn_and_qc_not_fabricated(sme_tokens, evaluation_workspace):
     """Verify that when GRN or QC snapshots do not exist in the database, they are returned as None (not fabricated)."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 
-    res = client.get("/api/v1/invoices/inv_be609a16676f", headers=headers)
+    res = client.get(f"/api/v1/invoices/{evaluation_workspace['incomplete']}", headers=headers)
     assert res.status_code == 200
     data = res.json()
 
@@ -67,11 +57,11 @@ def test_02_unavailable_grn_and_qc_not_fabricated(sme_tokens):
     assert po.get("qc") is None, "QC must not be fabricated when missing in DB"
 
 
-def test_03_seven_gates_preserve_backend_identifiers_and_results(sme_tokens):
+def test_03_seven_gates_preserve_backend_identifiers_and_results(sme_tokens, evaluation_workspace):
     """Verify the 7 gate checks retain their exact backend names and results."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 
-    res = client.get("/api/v1/invoices/inv_be609a16676f", headers=headers)
+    res = client.get(f"/api/v1/invoices/{evaluation_workspace['incomplete']}", headers=headers)
     assert res.status_code == 200
     data = res.json()
 
@@ -91,21 +81,21 @@ def test_03_seven_gates_preserve_backend_identifiers_and_results(sme_tokens):
     assert expected_names == returned_names, f"Gate name mismatch: {expected_names.symmetric_difference(returned_names)}"
 
 
-def test_04_failed_gates_block_approval(sme_tokens):
+def test_04_failed_gates_block_approval(sme_tokens, evaluation_workspace):
     """Verify that failed validation checks strictly block approval via HTTP 400."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
 
     # Invoice AP-26-011 (inv_dbfcaf77ba9b) has failing Gate 6 (Price & Quantity Tolerance)
     res = client.post(
-        "/api/v1/invoices/inv_dbfcaf77ba9b/actions",
+        f"/api/v1/invoices/{evaluation_workspace['variance']}/actions",
         headers=headers,
         json={"action": "APPROVE_AP_REVIEW", "reason": "Attempting approval on blocked invoice"},
     )
     assert res.status_code == 400
     detail = res.json()["detail"]
-    assert "validation check(s) failed" in detail
-    assert "Policy overrides are disabled" in detail
-    assert "Authorized triage actions" in detail
+    assert "Cannot approve" in detail and "validation checks" in detail
+    with SessionLocal() as db:
+        assert db.get(Invoice, evaluation_workspace["variance"]).stage != "INTERNAL_APPROVAL_COMPLETE"
 
 
 def test_05_absence_of_unsubstantiated_audit_claims():

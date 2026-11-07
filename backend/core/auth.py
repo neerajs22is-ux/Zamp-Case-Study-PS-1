@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.config import AppEnv, settings
 from backend.core.database import get_db, set_tenant_context
-from backend.models.domain import Organisation, RoleAssignment, User
+from backend.models.domain import IdentityMembership, Organisation, RoleAssignment, RevokedAccessToken, User
 
 logger = logging.getLogger("ap_command_center.auth")
 
@@ -48,12 +48,16 @@ class UserRole(str, Enum):
 
 class AuthenticatedUser(BaseModel):
     id: str
+    auth_subject: Optional[str] = None
+    identity_issuer: Optional[str] = None
     email: str
     name: str
     role: Optional[UserRole] = None
     org_id: Optional[str] = None
     org_name: Optional[str] = None
     is_provisioned: bool = False
+    is_owner: bool = False
+    workspace_selection_required: bool = False
     available_orgs: List[Dict[str, str]] = []
     legal_entity_ids: List[str] = []
 
@@ -138,12 +142,16 @@ ALLOWED_JWT_ALGORITHMS = {"RS256", "ES256", "HS256"}
 _JWKS_CACHE: Dict[str, Dict[str, Any]] = {}
 _JWKS_LAST_FETCH_TIME: float = 0.0
 _JWKS_CACHE_TTL_SECONDS: float = 3600.0  # 1 hour cache TTL
+_JWKS_LAST_ATTEMPT_TIME: float = 0.0
+from threading import Lock
+_JWKS_REFRESH_LOCK = Lock()
 _JWKS_MIN_REFRESH_INTERVAL: float = 5.0   # Rate-limit between network fetches
 
 
 def clear_jwks_cache() -> None:
     """Resets in-memory JWKS cache (used for testing and manual cache busts)."""
-    global _JWKS_CACHE, _JWKS_LAST_FETCH_TIME
+    global _JWKS_CACHE, _JWKS_LAST_FETCH_TIME, _JWKS_LAST_ATTEMPT_TIME
+    _JWKS_LAST_ATTEMPT_TIME = 0.0
     _JWKS_CACHE = {}
     _JWKS_LAST_FETCH_TIME = 0.0
 
@@ -173,41 +181,32 @@ def fetch_and_cache_jwks(force_refresh: bool = False) -> Dict[str, Dict[str, Any
     2. Debounces rapid subsequent fetches to prevent cache-stampede / DoS on unknown kids.
     3. Fails closed and preserves existing cache if the network call fails.
     """
-    global _JWKS_CACHE, _JWKS_LAST_FETCH_TIME
-    now = time.time()
-
-    if not force_refresh and _JWKS_CACHE and (now - _JWKS_LAST_FETCH_TIME < _JWKS_CACHE_TTL_SECONDS):
-        return _JWKS_CACHE
-
-    if (now - _JWKS_LAST_FETCH_TIME < _JWKS_MIN_REFRESH_INTERVAL) and _JWKS_CACHE:
-        return _JWKS_CACHE
-
-    jwks_url = get_supabase_jwks_url()
-    if not jwks_url:
-        return _JWKS_CACHE
-
-    try:
-        import httpx
-        resp = httpx.get(jwks_url, timeout=5.0)
-        if resp.status_code != 200:
-            logger.warning(f"Failed to fetch Supabase JWKS from {jwks_url} (HTTP {resp.status_code}): {resp.text}")
+    global _JWKS_CACHE, _JWKS_LAST_FETCH_TIME, _JWKS_LAST_ATTEMPT_TIME
+    with _JWKS_REFRESH_LOCK:
+        now = time.time()
+        fresh = bool(_JWKS_CACHE) and now - _JWKS_LAST_FETCH_TIME < _JWKS_CACHE_TTL_SECONDS
+        if fresh and not force_refresh:
             return _JWKS_CACHE
-
-        data = resp.json()
-        keys_list = data.get("keys", [])
-        new_cache: Dict[str, Dict[str, Any]] = {}
-        for key_dict in keys_list:
-            kid = key_dict.get("kid")
-            if kid:
-                new_cache[kid] = key_dict
-
-        _JWKS_CACHE = new_cache
-        _JWKS_LAST_FETCH_TIME = now
-        logger.info(f"Refreshed Supabase JWKS cache with {len(new_cache)} public key(s).")
-        return _JWKS_CACHE
-    except Exception as exc:
-        logger.warning(f"Network error querying Supabase JWKS at {jwks_url}: {exc}")
-        return _JWKS_CACHE
+        # Failed/empty fetches must be debounced too, including a cold cache.
+        if now - _JWKS_LAST_ATTEMPT_TIME < _JWKS_MIN_REFRESH_INTERVAL:
+            return _JWKS_CACHE if fresh else {}
+        jwks_url = get_supabase_jwks_url()
+        if not jwks_url:
+            return _JWKS_CACHE if fresh else {}
+        _JWKS_LAST_ATTEMPT_TIME = now
+        try:
+            import httpx
+            resp = httpx.get(jwks_url, timeout=5.0)
+            if resp.status_code != 200:
+                logger.warning("Supabase JWKS refresh failed (HTTP %s)", resp.status_code)
+                return _JWKS_CACHE if fresh else {}
+            keys_list = resp.json().get("keys", [])
+            _JWKS_CACHE = {key["kid"]: key for key in keys_list if key.get("kid")}
+            _JWKS_LAST_FETCH_TIME = now
+            return _JWKS_CACHE
+        except Exception:
+            logger.warning("Supabase JWKS refresh unavailable")
+            return _JWKS_CACHE if fresh else {}
 
 
 def get_jwk_key_by_kid(kid: str) -> Optional[Any]:
@@ -215,8 +214,8 @@ def get_jwk_key_by_kid(kid: str) -> Optional[Any]:
 
     If the kid is not present in the current cache, forces a refresh against the JWKS endpoint.
     """
-    keys = _JWKS_CACHE
-    if not keys or kid not in keys:
+    keys = fetch_and_cache_jwks()
+    if kid not in keys:
         keys = fetch_and_cache_jwks(force_refresh=True)
 
     key_dict = keys.get(kid)
@@ -331,6 +330,7 @@ def verify_token_claims(token: str) -> Tuple[Dict[str, Any], Optional[str], Opti
         "verify_signature": True,
         "verify_aud": bool(expected_aud),
         "verify_exp": True,
+        "require_exp": True,
         "verify_iss": bool(expected_iss),
     }
 
@@ -399,7 +399,9 @@ def resolve_server_side_membership(
     db: Optional[Session] = None,
     hint_org_id: Optional[str] = None,
     hint_role: Optional[UserRole] = None,
-) -> Tuple[Optional[str], Optional[str], Optional[UserRole], bool, List[Dict[str, str]]]:
+    issuer: Optional[str] = None,
+    legacy_allowed: bool = True,
+) -> Tuple[Optional[str], Optional[str], Optional[UserRole], bool, List[Dict[str, str]], Optional[str], bool]:
     """Resolves authenticated user organisation membership from server-side database records.
 
     Solves the RLS bootstrap sequence:
@@ -410,10 +412,13 @@ def resolve_server_side_membership(
     4. Returns: (resolved_org_id, resolved_org_name, resolved_role, is_provisioned, available_orgs).
     """
     if db is None:
-        # Fallback when database is unconfigured
-        if hint_org_id:
-            return hint_org_id, "Default Organisation", hint_role or UserRole.AP_ASSOCIATE, True, [{"id": hint_org_id, "name": "Default Organisation"}]
-        return None, None, None, False, []
+        # Only the isolated test harness may use a synthetic membership hint.
+        if settings.APP_ENV == AppEnv.TEST and hint_org_id:
+            return hint_org_id, "Test Organisation", hint_role or UserRole.AP_ASSOCIATE, True, [{"id": hint_org_id, "name": "Test Organisation"}], auth_user_id, False
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Workspace membership could not be verified. Please try again.",
+        )
 
     memberships: List[Dict[str, Any]] = []
 
@@ -421,8 +426,8 @@ def resolve_server_side_membership(
         # 1. Attempt PostgreSQL SECURITY DEFINER lookup if running against live PostgreSQL
         if db.bind and "postgresql" in db.bind.dialect.name:
             res = db.execute(
-                text("SELECT user_id, org_id, org_name, role_name, is_active FROM resolve_user_memberships(:uid, :email);"),
-                {"uid": auth_user_id, "email": email}
+                text("SELECT user_id, org_id, org_name, role_name, is_owner FROM resolve_workspace_memberships(:issuer, :uid, :legacy_allowed);"),
+                {"uid": auth_user_id, "issuer": issuer or "", "legacy_allowed": legacy_allowed}
             ).fetchall()
             for r in res:
                 memberships.append({
@@ -430,41 +435,61 @@ def resolve_server_side_membership(
                     "org_id": r[1],
                     "org_name": r[2],
                     "role": r[3],
-                    "is_active": r[4],
+                    "is_owner": r[4],
                 })
         else:
             # 2. SQLite / unit test bootstrap query
             stmt = (
-                select(User.id, User.org_id, Organisation.name, RoleAssignment.role_name, User.is_active)
+                select(User.id, User.org_id, Organisation.name, RoleAssignment.role_name, IdentityMembership.is_owner)
                 .join(Organisation, Organisation.id == User.org_id)
+                .join(IdentityMembership, and_(IdentityMembership.user_id == User.id, IdentityMembership.org_id == User.org_id))
                 .outerjoin(
                     RoleAssignment,
                     and_(RoleAssignment.user_id == User.id, RoleAssignment.org_id == User.org_id)
                 )
                 .where(
-                    or_(User.id == auth_user_id, func.lower(User.email) == email.lower()),
+                    IdentityMembership.issuer == (issuer or ""), IdentityMembership.subject == auth_user_id,
+                    IdentityMembership.is_active == True,
                     User.is_active == True,
                 )
             )
-            rows = db.execute(stmt).fetchall()
+            legacy = (
+                select(User.id, User.org_id, Organisation.name, RoleAssignment.role_name)
+                .join(Organisation, Organisation.id == User.org_id)
+                .outerjoin(RoleAssignment, and_(RoleAssignment.user_id == User.id, RoleAssignment.org_id == User.org_id))
+                .where(User.id == auth_user_id, User.is_active == True,
+                       ~select(IdentityMembership.id).where(IdentityMembership.user_id == User.id, IdentityMembership.org_id == User.org_id).exists())
+            )
+            rows = db.execute(stmt).fetchall() + ([(row[0], row[1], row[2], row[3], False) for row in db.execute(legacy).fetchall()] if legacy_allowed else [])
             for r in rows:
                 memberships.append({
                     "user_id": r[0],
                     "org_id": r[1],
                     "org_name": r[2],
-                    "role": r[3] or "AP_ASSOCIATE",
-                    "is_active": r[4],
+                    "role": r[3],
+                    "is_owner": r[4],
                 })
     except Exception as exc:
-        logger.debug(f"Membership query failed: {exc}")
+        logger.exception("Membership query failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Workspace membership could not be verified. Please try again.",
+        ) from exc
 
     # If no records exist in database
     if not memberships:
         # In test mode with explicit test token hint before seeding
         if settings.APP_ENV == AppEnv.TEST and hint_org_id:
-            return hint_org_id, "Test Organisation", hint_role or UserRole.AP_ASSOCIATE, True, [{"id": hint_org_id, "name": "Test Organisation"}]
+            return hint_org_id, "Test Organisation", hint_role or UserRole.AP_ASSOCIATE, True, [{"id": hint_org_id, "name": "Test Organisation"}], auth_user_id, False
         # User is authenticated in Supabase but has NO active organization membership (uninvited/unprovisioned)
-        return None, None, None, False, []
+        if requested_org_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: no active membership in the selected workspace.")
+        return None, None, None, False, [], None, False
+
+    if len({m["org_id"] for m in memberships}) != len(memberships):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Workspace membership roles require administrator review.")
+    if any(m["role"] not in UserRole.__members__ for m in memberships):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Workspace membership roles require administrator review.")
 
     available_orgs = [{"id": m["org_id"], "name": m["org_name"]} for m in memberships]
 
@@ -478,12 +503,14 @@ def resolve_server_side_membership(
             )
         selected = matching[0]
     else:
+        if len(memberships) > 1:
+            return None, None, None, False, available_orgs, None, False
         selected = memberships[0]
 
     role_val = selected["role"]
-    resolved_role = UserRole(role_val) if role_val in UserRole.__members__ else UserRole.AP_ASSOCIATE
+    resolved_role = UserRole(role_val)
 
-    return selected["org_id"], selected["org_name"], resolved_role, True, available_orgs
+    return selected["org_id"], selected["org_name"], resolved_role, True, available_orgs, selected["user_id"], bool(selected["is_owner"])
 
 
 def get_current_user(
@@ -507,17 +534,45 @@ def get_current_user(
         )
 
     claims, hint_org, hint_role = verify_token_claims(credentials.credentials)
+    # Test-only synthetic credentials have no expiry; real signed tokens never
+    # bypass the durable store, including in test mode.
+    synthetic_test_token = settings.APP_ENV == AppEnv.TEST and credentials.credentials.startswith("test_token:")
+    if not synthetic_test_token:
+        cutoff = settings.AUTH_REJECT_TOKENS_ISSUED_BEFORE
+        if cutoff is not None:
+            issued_at = claims.get('iat')
+            if isinstance(issued_at, bool) or not isinstance(issued_at, int) or issued_at < cutoff:
+                raise HTTPException(status_code=401, detail="Token is older than the recovery security cutoff or lacks a valid issue time.", headers={"WWW-Authenticate": "Bearer"})
+        if db is None:
+            raise HTTPException(status_code=503, detail="Session verification is unavailable.")
+        token_hash = hashlib.sha256(credentials.credentials.encode("utf-8")).hexdigest()
+        try:
+            revoked = db.get(RevokedAccessToken, token_hash)
+        except Exception as exc:
+            logger.error("Session verification store unavailable (%s)", type(exc).__name__)
+            raise HTTPException(status_code=503, detail="Session verification is unavailable.") from exc
+        if revoked:
+            raise HTTPException(status_code=401, detail="Session token has been revoked.", headers={"WWW-Authenticate": "Bearer"})
     user_id = claims["sub"]
     email = claims["email"]
     name = claims.get("name") or email.split("@")[0]
 
-    org_id, org_name, role, is_provisioned, available_orgs = resolve_server_side_membership(
+    issuer = claims.get("iss") or ("test" if settings.APP_ENV == AppEnv.TEST else None)
+    if settings.APP_ENV != AppEnv.TEST and not (settings.SUPABASE_ISSUER or settings.SUPABASE_URL):
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Identity issuer is not configured; workspace membership cannot be verified.")
+    canonical_issuer = (settings.SUPABASE_ISSUER or (f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1" if settings.SUPABASE_URL else "test")).rstrip("/")
+    legacy_issuers = {canonical_issuer}
+    if settings.SUPABASE_ISSUER and not canonical_issuer.endswith("/auth/v1"):
+        legacy_issuers.add(f"{canonical_issuer}/auth/v1")
+    org_id, org_name, role, is_provisioned, available_orgs, member_id, is_owner = resolve_server_side_membership(
         auth_user_id=user_id,
         email=email,
         requested_org_id=requested_org,
         db=db,
         hint_org_id=hint_org,
         hint_role=hint_role,
+        issuer=issuer,
+        legacy_allowed=bool(issuer and (issuer.rstrip("/") in legacy_issuers or (settings.APP_ENV == AppEnv.TEST and issuer == "test"))),
     )
 
     # Establish transaction-local tenant context strictly after membership is confirmed
@@ -525,13 +580,17 @@ def get_current_user(
         set_tenant_context(db, org_id)
 
     return AuthenticatedUser(
-        id=user_id,
+        id=member_id or user_id,
+        auth_subject=user_id,
+        identity_issuer=issuer,
         email=email,
         name=name,
         role=role,
         org_id=org_id,
         org_name=org_name,
         is_provisioned=is_provisioned,
+        is_owner=is_owner,
+        workspace_selection_required=not is_provisioned and len(available_orgs) > 1,
         available_orgs=available_orgs,
     )
 
@@ -560,6 +619,13 @@ def require_role(allowed_roles: List[UserRole]):
             )
         return current_user
     return role_checker
+
+
+def verify_platform_operator(user: AuthenticatedUser) -> None:
+    """Require an explicitly configured authenticated subject for platform operations."""
+    allowed = {item.strip() for item in settings.PLATFORM_OPERATOR_SUBJECTS.split(",") if item.strip()}
+    if not user.is_provisioned or (user.auth_subject or user.id) not in allowed:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Platform operator access is required.")
 
 
 class MaintenanceActor(BaseModel):
@@ -676,8 +742,9 @@ def require_maintenance_auth(
 
             # In production or staging, verify signature against Google's public certs
             if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
-                import requests
-                jwks_resp = requests.get("https://www.googleapis.com/oauth2/v3/certs", timeout=5)
+                import httpx
+                jwks_resp = httpx.get("https://www.googleapis.com/oauth2/v3/certs", timeout=5)
+                jwks_resp.raise_for_status()
                 jwks = jwks_resp.json()
                 jwt.decode(raw_token, jwks, algorithms=["RS256"], audience=aud)
 
@@ -705,6 +772,7 @@ def require_maintenance_auth(
                 detail=f"Operation forbidden for role '{user.role.value if user.role else 'NONE'}'. "
                        f"Allowed roles: {[UserRole.SYSTEM_ADMIN.value, UserRole.CONTROLLER.value]}",
             )
+        verify_platform_operator(user)
         return MaintenanceActor(
             id=user.id,
             email=user.email,

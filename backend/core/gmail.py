@@ -37,6 +37,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.config import AppEnv, settings
 from backend.core.storage import build_tenant_storage_path, storage_adapter
+from backend.core.processing_events import append_checkpoint
 from backend.models.domain import (
     AuditEvent, Document, GmailAccount, IngestionJob, Invoice,
     OAuthStateNonce, PubSubEvent, QuarantinedDocument
@@ -563,18 +564,11 @@ def process_single_message_ingestion(
             )
             db.add(job)
 
-            audit = AuditEvent(
-                id=f"evt_{uuid.uuid4().hex[:12]}",
-                invoice_id=inv_id,
-                org_id=account.org_id,
-                actor_id=actor_id,
-                actor_role="SYSTEM_ADMIN",
-                action="GMAIL_INVOICE_INGESTED",
-                reason=f"Automated ingestion of {filename} from {vendor_email}",
-                source_reference=storage_meta["storage_key"],
-            )
-            db.add(audit)
             db.flush()
+            append_checkpoint(db, job, 'INTAKE', 'QUEUED',
+                f"Automated ingestion of {filename} from {vendor_email}",
+                attempt=0, invoice_id=inv_id, actor_id=actor_id, actor_role='SYSTEM_ADMIN',
+                action='GMAIL_INVOICE_INGESTED', source_reference=storage_meta['storage_key'])
 
             ingested.append({
                 "document_id": doc_id,
@@ -1112,8 +1106,8 @@ def validate_pubsub_oidc_token(
 
         # In production, verify signature against Google's public certs
         if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
-            import requests
-            jwks_resp = requests.get("https://www.googleapis.com/oauth2/v3/certs", timeout=5)
+            jwks_resp = httpx.get("https://www.googleapis.com/oauth2/v3/certs", timeout=5)
+            jwks_resp.raise_for_status()
             jwks = jwks_resp.json()
             jose_jwt.decode(token, jwks, algorithms=["RS256"], audience=effective_aud)
 

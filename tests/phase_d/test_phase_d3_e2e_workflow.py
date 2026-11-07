@@ -23,6 +23,7 @@ import hashlib
 import io
 import os
 from typing import Any, Dict
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from fastapi import status
@@ -139,7 +140,7 @@ def make_jwt(sub: str, email: str) -> str:
 def setup_org_and_users(session: Session) -> Dict[str, str]:
     org = Organisation(id="org_acme", name="Acme Logistics India")
     u_clerk = User(id="usr_clerk", org_id="org_acme", email="clerk@acme.test", full_name="AP Clerk", is_active=True)
-    r_clerk = RoleAssignment(id="ra_clerk", org_id="org_acme", user_id="usr_clerk", role_name="AP_CLERK")
+    r_clerk = RoleAssignment(id="ra_clerk", org_id="org_acme", user_id="usr_clerk", role_name="AP_ASSOCIATE")
 
     u_mgr = User(id="usr_mgr", org_id="org_acme", email="manager@acme.test", full_name="AP Lead", is_active=True)
     r_mgr = RoleAssignment(id="ra_mgr", org_id="org_acme", user_id="usr_mgr", role_name="AP_LEAD")
@@ -153,7 +154,7 @@ def setup_org_and_users(session: Session) -> Dict[str, str]:
     }
 
 
-def test_01_complete_clean_invoice_approval_lifecycle(e2e_client):
+def test_01_complete_clean_invoice_approval_lifecycle(e2e_client, record_valid_match):
     """Executes the full 9-step workflow for a clean invoice from upload to approval."""
     client, session = e2e_client
     tokens = setup_org_and_users(session)
@@ -166,7 +167,7 @@ def test_01_complete_clean_invoice_approval_lifecycle(e2e_client):
     assert resp_me.json()["email"] == "clerk@acme.test"
 
     # 2. Step 2: Upload invoice PDF
-    pdf_bytes = b"%PDF-1.4 Clean Tax Invoice INV-2026-001 content"
+    pdf_bytes = Path("fixtures/data/HP-01-Happy-Path.pdf").read_bytes()
     resp_up = client.post(
         "/api/v1/documents/upload",
         files={"file": ("invoice_2026_001.pdf", pdf_bytes, "application/pdf")},
@@ -237,6 +238,8 @@ def test_01_complete_clean_invoice_approval_lifecycle(e2e_client):
     )
     session.commit()
 
+    record_valid_match(session, inv)
+
     # 5. Step 5 & 6: HITL Review - Inspect operational 3-pane view
     resp_detail = client.get(f"/api/v1/invoices/{inv_id}", headers={"Authorization": f"Bearer {mgr_token}"})
     assert resp_detail.status_code == status.HTTP_200_OK
@@ -287,7 +290,7 @@ def test_02_exception_path_po_mismatch_and_human_resolution(e2e_client):
     mgr_token = tokens["manager_token"]
 
     # 1. Ingest an invoice with PO discrepancy
-    pdf_bytes = b"%PDF-1.4 Discrepant Invoice INV-MISMATCH-01"
+    pdf_bytes = Path("fixtures/data/EC-03-Price-Spike-Variance.pdf").read_bytes()
     resp_up = client.post(
         "/api/v1/documents/upload",
         files={"file": ("invoice_mismatch.pdf", pdf_bytes, "application/pdf")},

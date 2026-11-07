@@ -1,39 +1,42 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  ArrowLeft, 
-  FileText, 
-  Copy, 
-  Check, 
-  AlertTriangle, 
-  CheckCircle2, 
-  ZoomIn, 
-  ZoomOut, 
+import React, { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  FileText,
+  Copy,
+  Check,
+  AlertTriangle,
+  CheckCircle2,
+  ZoomIn,
+  ZoomOut,
   ExternalLink,
   ShieldCheck,
   CheckCircle,
-  MoreVertical
-} from 'lucide-react';
-import { api } from '../api/client';
-import { StatusBadge } from '../components/StatusBadge';
-import { DEFAULT_POLICY } from '../content/policy';
-import { GlossaryModal } from '../components/GlossaryModal';
-import { CaseSummaryCard } from '../components/CaseSummaryCard';
-import { ProcurementVerificationFlow } from '../components/ProcurementVerificationFlow';
-import { PolicyChecksGrouped } from '../components/PolicyChecksGrouped';
-import { ConsequenceAwareActionModal } from '../components/ConsequenceAwareActionModal';
-import { 
-  Card, 
-  CardHeader, 
-  CardTitle, 
-  CardDescription, 
-  CardContent, 
-  Button, 
-  Badge, 
-  Drawer, 
-  LoadingState, 
-  ErrorState 
-} from '../components/ui';
-import type { AuthenticatedUser } from '../types';
+  MoreVertical,
+} from "lucide-react";
+import { api } from "../api/client";
+import { InvoiceRunView } from "../components/InvoiceRunView";
+import { StatusBadge } from "../components/StatusBadge";
+import { summarizeCheckResults } from "../utils/checkResults";
+import { DEFAULT_POLICY } from "../content/policy";
+import "./InvoiceDetailPage.css";
+import { GlossaryModal } from "../components/GlossaryModal";
+import { CaseSummaryCard } from "../components/CaseSummaryCard";
+import { ProcurementVerificationFlow } from "../components/ProcurementVerificationFlow";
+import { PolicyChecksGrouped } from "../components/PolicyChecksGrouped";
+import { ConsequenceAwareActionModal } from "../components/ConsequenceAwareActionModal";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  Button,
+  Badge,
+  Drawer,
+  LoadingState,
+  ErrorState,
+} from "../components/ui";
+import type { AuthenticatedUser } from "../types";
 
 interface InvoiceDetailPageProps {
   invoiceId: string;
@@ -41,46 +44,56 @@ interface InvoiceDetailPageProps {
   currentUser?: AuthenticatedUser | null;
 }
 
-type TabType = 'reconciliation' | 'history';
+type TabType = "reconciliation" | "history";
 
-export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({ 
-  invoiceId, 
+export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
+  invoiceId,
   onBack,
-  currentUser 
+  currentUser,
 }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [correctionRefreshRequired, setCorrectionRefreshRequired] =
+    useState(false);
+
   // Navigation & Tabs
-  const [activeTab, setActiveTab] = useState<TabType>('reconciliation');
+  const [activeTab, setActiveTab] = useState<TabType>("reconciliation");
   const [policyDrawerOpen, setPolicyDrawerOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
-  
+
   // Document Viewer State
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState<number>(100);
   const [copiedSha, setCopiedSha] = useState(false);
   const [refreshingDocUrl, setRefreshingDocUrl] = useState(false);
+  const [documentError, setDocumentError] = useState<string | null>(null);
 
   // Decision & Action State
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
-  const [actionReason, setActionReason] = useState('');
+  const [actionReason, setActionReason] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
   // Glossary Modal State
   const [showGlossary, setShowGlossary] = useState(false);
-  const [glossaryTerm, setGlossaryTerm] = useState<string | undefined>(undefined);
+  const [glossaryTerm, setGlossaryTerm] = useState<string | undefined>(
+    undefined,
+  );
 
   const openGlossaryWithTerm = (term?: string) => {
     setGlossaryTerm(term);
     setShowGlossary(true);
   };
 
-  const dualApprovalThreshold = data?.policy?.dual_approval_threshold_inr || data?.approval?.threshold_inr || DEFAULT_POLICY.dual_approval_threshold_inr;
-  const rateTolerancePercent = data?.policy?.rate_tolerance_percent || DEFAULT_POLICY.rate_tolerance_percent;
+  const dualApprovalThreshold =
+    data?.policy?.dual_approval_threshold_inr ||
+    data?.approval?.threshold_inr ||
+    DEFAULT_POLICY.dual_approval_threshold_inr;
+  const rateTolerancePercent =
+    data?.policy?.rate_tolerance_percent ||
+    DEFAULT_POLICY.rate_tolerance_percent;
 
   const loadDetail = async () => {
     setLoading(true);
@@ -88,9 +101,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     try {
       const res = await api.getInvoiceDetail(invoiceId);
       setData(res);
+      setCorrectionRefreshRequired(false);
       setPreviewUrl(res.document?.preview_url || null);
+      setDocumentError(null);
     } catch (err: any) {
-      setError(err.message || 'Failed to retrieve invoice detail.');
+      setError(err.message || "Failed to retrieve invoice detail.");
     } finally {
       setLoading(false);
     }
@@ -103,11 +118,18 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const handleRefreshSignedUrl = async () => {
     if (!data?.document?.document_id) return;
     setRefreshingDocUrl(true);
+    setDocumentError(null);
     try {
-      const res = await api.getDocumentSignedUrl(data.document.document_id, 300);
+      const res = await api.getDocumentSignedUrl(
+        data.document.document_id,
+        300,
+      );
       setPreviewUrl(res.signed_url);
     } catch (err: any) {
-      console.error('Failed to refresh document signed URL:', err);
+      console.error("Failed to refresh document signed URL:", err);
+      setDocumentError(
+        "Could not refresh the document link. Please try again.",
+      );
     } finally {
       setRefreshingDocUrl(false);
     }
@@ -122,13 +144,18 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const handleExecuteAction = async () => {
     if (!selectedAction) return;
     if (actionReason.trim().length < 3) {
-      setActionError('Operational justification reason must be at least 3 characters.');
+      setActionError(
+        "Operational justification reason must be at least 3 characters.",
+      );
       return;
     }
 
-    const hasFailedGate = data?.match_gates?.some((g: any) => g.status === 'FAIL');
-    if (selectedAction === 'APPROVE_AP_REVIEW' && hasFailedGate) {
-      setActionError('Approval blocked: this invoice failed policy validation checks. Please resolve discrepancies first.');
+    const checks = data?.match_gates || [];
+    const hasFailedGate = checks.length < 7 || checks.some((g: any) => g.status !== "PASS");
+    if (selectedAction === "APPROVE_AP_REVIEW" && hasFailedGate) {
+      setActionError(
+        "Approval blocked: this invoice failed policy validation checks. Please resolve discrepancies first.",
+      );
       return;
     }
 
@@ -138,12 +165,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
     try {
       await api.executeAction(invoiceId, selectedAction, actionReason.trim());
-      setActionSuccess('Action recorded successfully.');
+      setActionSuccess("Action recorded successfully.");
       setSelectedAction(null);
-      setActionReason('');
+      setActionReason("");
       await loadDetail();
     } catch (err: any) {
-      setActionError(err.message || 'Action execution failed.');
+      setActionError(err.message || "Action execution failed.");
     } finally {
       setActionLoading(false);
     }
@@ -151,49 +178,91 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
   const handleCorrectLine = async (
     lineId: string,
-    payload: { billed_quantity: number; billed_unit_rate: number; correction_reason: string }
+    payload: {
+      billed_quantity: number;
+      billed_unit_rate: number;
+      correction_reason: string;
+    },
   ) => {
     if (!data?.invoice) return;
     const ifMatch = data.invoice.updated_at;
     await api.correctInvoiceLine(data.invoice.id, lineId, payload, ifMatch);
+    setCorrectionRefreshRequired(true);
     await loadDetail();
   };
 
   const formatINR = (val?: number | null) => {
-    if (val === undefined || val === null) return '—';
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
+    if (val === undefined || val === null) return "—";
+    if (data?.invoice?.currency !== "INR") return "INR equivalent unavailable";
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
       maximumFractionDigits: 0,
     }).format(val);
   };
 
+  if (correctionRefreshRequired && loading) {
+    return (
+      <LoadingState
+        label="Correction saved. Refreshing invoice review..."
+        size="lg"
+        className="py-24"
+      />
+    );
+  }
+
+  if (correctionRefreshRequired && error) {
+    return (
+      <ErrorState
+        title="Correction saved, but review could not be refreshed"
+        message="The displayed review may be out of date. Retry loading the invoice before making another decision; do not submit the correction again."
+        onRetry={loadDetail}
+        className="my-12"
+      />
+    );
+  }
+
   if (loading && !data) {
-    return <LoadingState label="Loading invoice verification workspace..." size="lg" className="py-24" />;
+    return (
+      <LoadingState
+        label="Loading invoice verification workspace..."
+        size="lg"
+        className="py-24"
+      />
+    );
   }
 
   if (error && !data) {
-    return <ErrorState message={error} onRetry={loadDetail} className="my-12" />;
+    return (
+      <ErrorState message={error} onRetry={loadDetail} className="my-12" />
+    );
   }
 
   const invoice = data?.invoice || {};
-  const matchGates = data?.match_gates || [];
+  const matchGates = Array.isArray(data?.match_gates) ? data.match_gates : [];
   const poSnapshot = data?.po_snapshot || null;
-  const auditEvents = data?.audit_events || [];
-  const isAuditor = currentUser?.role === 'AUDITOR';
-  const isController = currentUser?.role === 'CONTROLLER' || currentUser?.role === 'SYSTEM_ADMIN';
+  const auditEvents = data?.timeline ?? data?.audit_events ?? [];
+  const invoiceLines = data?.lines ?? invoice.lines ?? [];
+  const isAuditor = currentUser?.role === "AUDITOR";
+  const isController =
+    currentUser?.role === "CONTROLLER" || currentUser?.role === "SYSTEM_ADMIN";
   const totalAmount = invoice.total_amount || 0;
   const isDualApprovalRequired = totalAmount >= dualApprovalThreshold;
-  const hasFailedGates = matchGates.some((g: any) => g.status === 'FAIL');
-  const isApproved = invoice.stage === 'INTERNAL_APPROVAL_COMPLETE';
-  const isPendingSecondApproval = invoice.workflow_substatus === 'PENDING_SECOND_APPROVAL';
+  const hasFailedGates = matchGates.length < 7 || matchGates.some((g: any) => g.status !== "PASS");
+  const isApproved = invoice.stage === "INTERNAL_APPROVAL_COMPLETE";
+  const isPendingSecondApproval =
+    invoice.workflow_substatus === "PENDING_SECOND_APPROVAL";
 
   // Determine Primary Action Button
   let primaryActionBtn = null;
   if (!isAuditor) {
     if (isApproved) {
       primaryActionBtn = (
-        <Badge tone="success" size="lg" icon={<CheckCircle2 className="w-4 h-4" />}>
+        <Badge
+          tone="success"
+          size="lg"
+          icon={<CheckCircle2 className="w-4 h-4" />}
+        >
           Invoice Review Complete (Internal Sign-Off)
         </Badge>
       );
@@ -204,12 +273,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             variant="primary"
             size="md"
             onClick={() => {
-              setSelectedAction('APPROVE_AP_REVIEW');
-              setActionReason('Controller dual sign-off verified and approved.');
+              setSelectedAction("APPROVE_AP_REVIEW");
+              setActionReason("Second internal sign-off.");
             }}
             leftIcon={<ShieldCheck className="w-4 h-4" />}
           >
-            Authorize Controller Dual Sign-Off
+            Review Second Sign-Off
           </Button>
         );
       } else {
@@ -225,12 +294,14 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           variant="primary"
           size="md"
           onClick={() => {
-            setSelectedAction('APPROVE_AP_REVIEW');
-            setActionReason('All 3-way match gates verified against original PDF. Approved for payment.');
+            setSelectedAction("APPROVE_AP_REVIEW");
+            setActionReason("Internal AP review approved.");
           }}
           leftIcon={<CheckCircle className="w-4 h-4" />}
         >
-          {isDualApprovalRequired ? 'Approve (Step 1 of 2)' : 'Approve Invoice'}
+          {isDualApprovalRequired
+            ? "Review first sign-off"
+            : "Review internal sign-off"}
         </Button>
       );
     } else {
@@ -239,8 +310,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           variant="secondary"
           size="md"
           onClick={() => {
-            setSelectedAction('REQUEST_SUPPLIER_CORRECTION');
-            setActionReason('');
+            setSelectedAction("REQUEST_SUPPLIER_CORRECTION");
+            setActionReason("");
           }}
           leftIcon={<AlertTriangle className="w-4 h-4 text-amber-500" />}
         >
@@ -251,9 +322,9 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="review-page space-y-4">
       {/* 1. Header Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
+      <div className="review-header flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3 min-w-0">
           <Button
             variant="ghost"
@@ -272,7 +343,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               <StatusBadge invoice={invoice} size="sm" />
             </div>
             <span className="text-xs text-slate-500 dark:text-slate-400 truncate block">
-              {invoice.vendor_name || 'Vendor Pending Extraction'} • Date: {invoice.invoice_date || 'Pending'}
+              {invoice.vendor_name || "Vendor Pending Extraction"} • Date:{" "}
+              {invoice.invoice_date || "Pending"}
             </span>
           </div>
         </div>
@@ -290,23 +362,106 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               Billed Total
             </span>
             <span className="text-lg font-bold font-mono text-slate-900 dark:text-white tabular-nums">
-              {formatINR(totalAmount)}
+              {invoice.total_amount == null
+                ? "Amount unavailable"
+                : formatINR(invoice.total_amount)}
             </span>
           </div>
 
-          <div data-tour="policy-gates-trigger">
+          <div
+            data-tour="policy-gates-trigger"
+            className="flex flex-col items-end gap-1"
+          >
+            <span
+              className="text-xs text-slate-600 dark:text-slate-300"
+              role="status"
+            >
+              {summarizeCheckResults(matchGates)}
+            </span>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPolicyDrawerOpen(true)}
               leftIcon={<ShieldCheck className="w-3.5 h-3.5" />}
             >
-              {matchGates.filter((g: any) => g.status === 'PASS').length}/{matchGates.length} Gates
+              View checks
             </Button>
           </div>
         </div>
       </div>
 
+      <InvoiceRunView key={invoiceId} invoiceId={invoiceId} onOutcome={async () => {
+        try {
+          const latest = await api.getInvoiceDetail(invoiceId);
+          setData((previous: any) => previous?.invoice?.id === invoiceId ? latest : previous);
+        }
+        catch { setActionError("The processing run changed, but the invoice result could not be refreshed. Reload before taking action."); }
+      }} />
+      <p className="text-xs text-slate-600 dark:text-slate-300" role="note">
+        Matching uses workspace procurement snapshots. Their source and freshness are not independently verified; confirm current records before deciding.
+      </p>
+      <section
+        className="review-recorded-outcome"
+        aria-label="Recorded decision and next step"
+      >
+        <div>
+          <h2>Recorded decision</h2>
+          {(invoice.job_status === "QUEUED" || invoice.job_status === "PROCESSING") && currentUser?.role && ["AP_ASSOCIATE", "AP_LEAD", "CONTROLLER", "SYSTEM_ADMIN"].includes(currentUser.role) && (
+            <Button variant="outline" disabled={actionLoading} onClick={async () => {
+              setActionLoading(true);
+              setActionError(null);
+              try {
+                await api.processNextDocument();
+                await loadDetail();
+              } catch (err: any) {
+                setActionError(err.message || "Could not resume processing. Try again.");
+              } finally {
+                setActionLoading(false);
+              }
+            }}>Resume workspace queue</Button>
+          )}
+          <strong>
+            {invoice.decision
+              ? invoice.decision.toLowerCase().replace(/_/g, " ")
+              : "Decision unavailable"}
+          </strong>
+          {invoice.decision_reason?.startsWith("Processing failed:") ? (
+            <>
+              <p>
+                The document could not be processed. Inspect the source and
+                available check results.
+              </p>
+              <details>
+                <summary>Technical processing details</summary>
+                <p>{invoice.decision_reason}</p>
+              </details>
+            </>
+          ) : (
+            <p>
+              {invoice.decision_reason ||
+                "No decision reason was returned. Inspect the available checks and evidence before making a decision."}
+            </p>
+          )}
+          <p>
+            Read the original document, compare the figures and inspect named
+            blockers. Processing checkpoints above show only persisted events;
+            missing events do not establish completion.
+          </p>
+          {invoice.workflow_substatus === "SUPPLIER_CORRECTION_REQUESTED" && (
+            <p>
+              Supplier follow-up is recorded internally. Your team must contact
+              the supplier outside this app; no correction email or
+              revised-document link is created automatically.
+            </p>
+          )}
+        </div>
+        <div>
+          <Button variant="outline" onClick={() => setPolicyDrawerOpen(true)}>
+            Inspect all checks
+          </Button>
+          {isAuditor && <p>Read-only role: inspect evidence and history.</p>}
+        </div>
+      </section>
       {/* Success Banner */}
       {actionSuccess && (
         <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
@@ -314,22 +469,28 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             <span>{actionSuccess}</span>
           </div>
-          <button onClick={() => setActionSuccess(null)} className="text-emerald-600 hover:text-emerald-800">
+          <button
+            onClick={() => setActionSuccess(null)}
+            className="text-emerald-600 hover:text-emerald-800"
+          >
             &times;
           </button>
         </div>
       )}
 
       {/* 2. Main 50/50 Workspace (Rossum Split Layout) */}
-      <div data-tour="workspace-split" className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+      <div
+        data-tour="workspace-split"
+        className="review-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
+      >
         {/* Left Pane: Original Document Viewer (5 cols on lg) */}
         <div className="lg:col-span-5 space-y-2">
-          <Card className="overflow-hidden flex flex-col h-[650px]">
+          <Card className="review-document overflow-hidden flex flex-col h-[650px]">
             {/* Document Toolbar */}
-            <div className="p-2 sm:px-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div className="review-document-toolbar p-2 sm:px-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
               <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
                 <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                <span className="truncate">Information Read by AI</span>
+                <span className="truncate">Original invoice</span>
               </span>
 
               <div className="flex items-center gap-1">
@@ -338,6 +499,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                   onClick={() => setZoomLevel((z) => Math.max(70, z - 15))}
                   className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                   title="Zoom Out"
+                  aria-label="Zoom out"
                 >
                   <ZoomOut className="w-3.5 h-3.5" />
                 </button>
@@ -349,6 +511,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                   onClick={() => setZoomLevel((z) => Math.min(180, z + 15))}
                   className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                   title="Zoom In"
+                  aria-label="Zoom in"
                 >
                   <ZoomIn className="w-3.5 h-3.5" />
                 </button>
@@ -359,6 +522,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                     rel="noopener noreferrer"
                     className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
                     title="Open in new window"
+                    aria-label="Open invoice in new window"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
@@ -367,54 +531,105 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             </div>
 
             {/* Document Render Area */}
-            <div className="flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-2 relative">
+            <div className="review-document-canvas flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-2 relative">
               {previewUrl ? (
-                previewUrl.endsWith('.pdf') || previewUrl.includes('.pdf?') ? (
+                previewUrl.endsWith(".pdf") || previewUrl.includes(".pdf?") ? (
                   <iframe
                     src={previewUrl}
                     title="Invoice Document"
                     className="w-full h-full border-none rounded bg-white shadow-xs"
-                    style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+                    style={{
+                      transform: `scale(${zoomLevel / 100})`,
+                      transformOrigin: "top center",
+                    }}
                   />
                 ) : (
                   <img
                     src={previewUrl}
                     alt="Invoice scan"
                     className="max-w-full max-h-full object-contain rounded shadow-xs"
-                    style={{ transform: `scale(${zoomLevel / 100})`, transformOrigin: 'top center' }}
+                    style={{
+                      transform: `scale(${zoomLevel / 100})`,
+                      transformOrigin: "top center",
+                    }}
+                    onError={() =>
+                      setDocumentError(
+                        "The document image could not be displayed. Try refreshing the link or opening it separately.",
+                      )
+                    }
                   />
                 )
               ) : (
                 <div className="text-center p-6 text-slate-400">
                   <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <span className="text-xs font-medium block">Document preview unavailable</span>
-                  <span className="text-[11px] block mt-1">Storage key: {data?.document?.storage_key || 'None'}</span>
+                  <span className="text-xs font-medium block">
+                    Document preview unavailable
+                  </span>
+                  <span className="text-[11px] block mt-1">
+                    No document link is available.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="review-document-help">
+              <span>
+                If the preview is blank or unavailable, open the document
+                separately or refresh its link.
+              </span>
+              <div>
+                {previewUrl && (
+                  <a
+                    href={previewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Open document
+                  </a>
+                )}
+                {data?.document?.document_id && (
                   <Button
                     variant="ghost"
                     size="xs"
                     onClick={handleRefreshSignedUrl}
                     isLoading={refreshingDocUrl}
-                    className="mt-3"
                   >
-                    Refresh Signed URL
+                    Refresh link
                   </Button>
-                </div>
-              )}
+                )}
+              </div>
+              {documentError && <span role="alert">{documentError}</span>}
             </div>
 
             {/* Document Fingerprint Footer */}
-            {data?.document?.sha256_hash && (
-              <div className="p-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                <span className="truncate max-w-[200px]" title={data.document.sha256_hash}>
-                  SHA: {data.document.sha256_hash.slice(0, 16)}...
+            {(data?.document?.sha256 || data?.document?.sha256_hash) && (
+              <div className="review-document-hash p-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                <span
+                  className="truncate max-w-[200px]"
+                  title={data.document.sha256 || data.document.sha256_hash}
+                >
+                  SHA:{" "}
+                  {(data.document.sha256 || data.document.sha256_hash).slice(
+                    0,
+                    16,
+                  )}
+                  ...
                 </span>
                 <button
                   type="button"
-                  onClick={() => handleCopySha(data.document.sha256_hash)}
+                  onClick={() =>
+                    handleCopySha(
+                      data.document.sha256 || data.document.sha256_hash,
+                    )
+                  }
                   className="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                 >
-                  {copiedSha ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedSha ? 'Copied' : 'Copy'}</span>
+                  {copiedSha ? (
+                    <Check className="w-3 h-3 text-emerald-500" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                  <span>{copiedSha ? "Copied" : "Copy"}</span>
                 </button>
               </div>
             )}
@@ -431,33 +646,37 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             policy={{
               dual_approval_threshold_inr: dualApprovalThreshold,
               rate_tolerance_percent: rateTolerancePercent,
-              rounding_tolerance_inr: data?.policy?.rounding_tolerance_inr || DEFAULT_POLICY.rounding_tolerance_inr,
+              rounding_tolerance_inr:
+                data?.policy?.rounding_tolerance_inr ||
+                DEFAULT_POLICY.rounding_tolerance_inr,
             }}
             onOpenGlossary={openGlossaryWithTerm}
             onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
           />
 
           {/* Tab Navigation: Line Matching vs History */}
-          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
+          <div className="review-tabs flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setActiveTab('reconciliation')}
+                onClick={() => setActiveTab("reconciliation")}
+                aria-pressed={activeTab === "reconciliation"}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  activeTab === 'reconciliation'
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  activeTab === "reconciliation"
+                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
-                Line-by-Line 4-Way Match ({invoice.lines?.length || 0})
+                Compare line items ({invoiceLines.length})
               </button>
               <button
                 type="button"
-                onClick={() => setActiveTab('history')}
+                onClick={() => setActiveTab("history")}
+                aria-pressed={activeTab === "history"}
                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  activeTab === 'history'
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  activeTab === "history"
+                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 Audit Trail ({auditEvents.length})
@@ -480,11 +699,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           </div>
 
           {/* Tab Content 1: 4-Way Reconciliation Table */}
-          {activeTab === 'reconciliation' && (
+          {activeTab === "reconciliation" && (
             <div data-tour="reconciliation-flow" className="space-y-4">
               <ProcurementVerificationFlow
                 invoice={invoice}
-                lines={invoice.lines || []}
+                lines={invoiceLines}
                 poSnapshot={poSnapshot}
                 rateTolerancePercent={rateTolerancePercent}
                 onOpenGlossary={openGlossaryWithTerm}
@@ -495,12 +714,13 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           )}
 
           {/* Tab Content 2: Immutable Audit Trail */}
-          {activeTab === 'history' && (
+          {activeTab === "history" && (
             <Card>
               <CardHeader>
                 <CardTitle>Invoice Activity & Audit Log</CardTitle>
                 <CardDescription>
-                  Chronological record of OCR extraction, policy checks, corrections, and approvals.
+                  Chronological record of OCR extraction, policy checks,
+                  corrections, and approvals.
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
@@ -511,15 +731,24 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 ) : (
                   <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
                     {auditEvents.map((event: any) => (
-                      <div key={event.id} className="p-3.5 flex items-start justify-between gap-3">
+                      <div
+                        key={event.event_id || event.id}
+                        className="review-audit-event p-3.5 flex items-start justify-between gap-3"
+                      >
                         <div className="space-y-0.5">
                           <span className="font-semibold text-slate-800 dark:text-slate-200 block">
-                            {event.description || event.action?.replace(/_/g, ' ')}
+                            {event.description ||
+                              event.action?.replace(/_/g, " ")}
                           </span>
+                          {event.reason && <p>{event.reason}</p>}
                           <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                            <span>Actor: {event.actor_name || event.actor_id}</span>
+                            <span>
+                              Actor: {event.actor_name || event.actor_id}
+                            </span>
                             <span>•</span>
-                            <span className="font-mono">{new Date(event.timestamp).toLocaleString()}</span>
+                            <span className="font-mono">
+                              {new Date(event.timestamp).toLocaleString()}
+                            </span>
                           </div>
                         </div>
                         <Badge tone="neutral" size="sm">
@@ -535,10 +764,13 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
           {/* Sticky Decision & Action Footer */}
           {!isAuditor && (
-            <Card className="sticky bottom-3 shadow-lg border-indigo-200/80 dark:border-indigo-900/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
+            <Card className="review-decision sticky bottom-3 shadow-lg border-indigo-200/80 dark:border-indigo-900/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
               <div className="p-3.5 flex items-center justify-between gap-3">
                 <div className="text-xs text-slate-500 hidden sm:block">
-                  <span className="font-medium text-slate-800 dark:text-slate-200">Review Decision:</span> Select an action based on 4-way match findings.
+                  <span className="font-medium text-slate-800 dark:text-slate-200">
+                    Next action:
+                  </span>{" "}
+                  Inspect the evidence before recording an internal decision.
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
@@ -548,6 +780,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                       variant="secondary"
                       size="md"
                       onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+                      aria-expanded={actionsMenuOpen}
                       rightIcon={<MoreVertical className="w-3.5 h-3.5" />}
                     >
                       Other Actions
@@ -562,8 +795,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                           type="button"
                           onClick={() => {
                             setActionsMenuOpen(false);
-                            setSelectedAction('HOLD_PENDING_EVIDENCE');
-                            setActionReason('');
+                            setSelectedAction("HOLD_PENDING_EVIDENCE");
+                            setActionReason("");
                           }}
                           className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                         >
@@ -573,8 +806,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                           type="button"
                           onClick={() => {
                             setActionsMenuOpen(false);
-                            setSelectedAction('REQUEST_SUPPLIER_CORRECTION');
-                            setActionReason('');
+                            setSelectedAction("REQUEST_SUPPLIER_CORRECTION");
+                            setActionReason("");
                           }}
                           className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                         >
@@ -584,8 +817,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                           type="button"
                           onClick={() => {
                             setActionsMenuOpen(false);
-                            setSelectedAction('RAISE_DEBIT_NOTE');
-                            setActionReason('');
+                            setSelectedAction("RAISE_DEBIT_NOTE");
+                            setActionReason("");
                           }}
                           className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                         >
@@ -595,8 +828,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                           type="button"
                           onClick={() => {
                             setActionsMenuOpen(false);
-                            setSelectedAction('QUARANTINE');
-                            setActionReason('');
+                            setSelectedAction("QUARANTINE");
+                            setActionReason("");
                           }}
                           className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-purple-700 dark:text-purple-300"
                         >
@@ -607,8 +840,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                           type="button"
                           onClick={() => {
                             setActionsMenuOpen(false);
-                            setSelectedAction('REJECT_INVOICE');
-                            setActionReason('');
+                            setSelectedAction("REJECT_INVOICE");
+                            setActionReason("");
                           }}
                           className="w-full text-left px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold"
                         >
@@ -634,11 +867,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         title={
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <span>7 Policy Validation Gates</span>
+            <span>All invoice checks & evidence</span>
           </div>
         }
-        description="Deterministic governance checks evaluated against supplier invoice, PO, GRN, and QC."
-        width="lg"
+        description="Checks compare the invoice with available order, receipt and inspection records. A failed check needs attention; unavailable or not evaluated does not mean passed."
+        width="xl"
+        className="policy-checks-drawer"
       >
         <div className="space-y-4">
           <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 space-y-1">
@@ -646,7 +880,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               Procurement System Truth & Provenance
             </span>
             <p>
-              Evaluated against authoritative procurement reference snapshots. Live SAP S/4HANA synchronization is not configured.
+              Evaluated against authoritative procurement reference snapshots.
+              Live SAP S/4HANA synchronization is not configured.
             </p>
             <p className="text-[11px] font-mono text-slate-500">
               {`Allowed price variance: ±${rateTolerancePercent.toFixed(2)}% | Strict 0.00% quantity tolerance.`}
@@ -679,7 +914,9 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           policy={{
             dual_approval_threshold_inr: dualApprovalThreshold,
             rate_tolerance_percent: rateTolerancePercent,
-            rounding_tolerance_inr: data?.policy?.rounding_tolerance_inr || DEFAULT_POLICY.rounding_tolerance_inr,
+            rounding_tolerance_inr:
+              data?.policy?.rounding_tolerance_inr ||
+              DEFAULT_POLICY.rounding_tolerance_inr,
           }}
         />
       )}

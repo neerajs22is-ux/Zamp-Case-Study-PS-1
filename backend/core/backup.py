@@ -165,6 +165,8 @@ GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ap_app_user;
 
 -- Explicit Immutability Grant Guardrail
 REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
+REVOKE UPDATE, DELETE ON TABLE revoked_access_tokens FROM ap_app_user;
+REVOKE DELETE ON TABLE model_quota_buckets FROM ap_app_user;
 """
 
     @staticmethod
@@ -174,6 +176,11 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
         Returns:
             (schema_ddl, data_sql, table_counts, auth_summary)
         """
+        # Do not mistake an RLS-filtered tenant view for a platform backup.
+        # PostgreSQL raises on a policy-filtered query with row_security=off;
+        # this setting does not itself grant permission to bypass RLS.
+        if session.get_bind().dialect.name == "postgresql":
+            session.execute(text("SET LOCAL row_security = off"))
         # 1. Capture table row counts and data
         table_counts: Dict[str, int] = {}
         data_statements: List[str] = [
@@ -212,13 +219,13 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
                             cols.append(f'"{col_name}"')
                             if val is None:
                                 vals.append("NULL")
-                            elif isinstance(val, (int, float)):
-                                vals.append(str(val))
                             elif isinstance(val, bool):
                                 vals.append("TRUE" if val else "FALSE")
+                            elif isinstance(val, (int, float)):
+                                vals.append(str(val))
                             elif isinstance(val, (datetime.datetime, datetime.date)):
                                 vals.append(f"'{val.isoformat()}'")
-                            elif isinstance(val, dict):
+                            elif isinstance(val, (dict, list)):
                                 clean_json = json.dumps(val).replace("'", "''")
                                 vals.append(f"'{clean_json}'")
                             else:
@@ -229,8 +236,8 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
                         data_statements.append(stmt)
                     data_statements.append("")
             except Exception as exc:
-                logger.warning(f"Could not dump table {tname}: {exc}")
-                table_counts[tname] = 0
+                logger.error("Could not export database table %s (%s)", tname, type(exc).__name__)
+                raise BackupError("Database export failed; no complete backup was created.") from exc
 
         data_statements.append("RESET session_replication_role;\n")
         full_data_sql = "\n".join(data_statements)
@@ -251,7 +258,7 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
                     "created_at": u.created_at.isoformat() + "Z" if u.created_at else None,
                 })
         except Exception as exc:
-            logger.warning(f"Could not generate auth summary: {exc}")
+            logger.warning("Could not generate auth summary (%s)", type(exc).__name__)
 
         # 3. Schema DDL placeholder (represented cleanly for target environment)
         schema_ddl = "-- Schema managed via Alembic migrations (Head: " + (alembic_rev or "unknown") + ")\n"
@@ -260,98 +267,13 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
 
     @staticmethod
     def export_auth_state(session: Session) -> str:
-        """Exports SQL statements for Supabase auth.users and auth.identities.
-
-        Preserves user UUIDs, email confirmation state, and Google OAuth identity linking.
-        Following official Supabase Auth user migration patterns.
-        """
-        users = session.execute(select(User)).scalars().all()
-        statements: List[str] = [
-            "-- Supabase Auth Schema User and Identity Migration SQL",
-            "-- Preserves user UUIDs and Google OAuth identity linkages",
-            "-- Note: Restoring to a new project requires fresh employee Google sign-in due to JWT secret rotation.\n",
-        ]
-
-        now_str = datetime.datetime.now(datetime.UTC).isoformat() + "Z"
-
-        for u in users:
-            clean_email = u.email.replace("'", "''")
-            clean_name = u.full_name.replace("'", "''")
-            user_meta = json.dumps({"full_name": u.full_name, "email": u.email}).replace("'", "''")
-            app_meta = json.dumps({"provider": "google", "providers": ["google"]}).replace("'", "''")
-
-            # auth.users record
-            u_stmt = (
-                f"INSERT INTO auth.users ("
-                f"id, email, raw_user_meta_data, raw_app_meta_data, "
-                f"is_super_admin, role, aud, email_confirmed_at, created_at, updated_at"
-                f") VALUES ("
-                f"'{u.id}', '{clean_email}', '{user_meta}', '{app_meta}', "
-                f"FALSE, 'authenticated', 'authenticated', '{now_str}', '{now_str}', '{now_str}'"
-                f") ON CONFLICT (id) DO UPDATE SET "
-                f"email = EXCLUDED.email, raw_user_meta_data = EXCLUDED.raw_user_meta_data;\n"
-            )
-            statements.append(u_stmt)
-
-            # auth.identities record for Google OAuth linking
-            ident_data = json.dumps({"sub": u.id, "email": u.email, "email_verified": True}).replace("'", "''")
-            i_stmt = (
-                f"INSERT INTO auth.identities ("
-                f"id, user_id, provider_id, provider, identity_data, last_sign_in_at, created_at, updated_at"
-                f") VALUES ("
-                f"'{u.id}', '{u.id}', '{clean_email}', 'google', '{ident_data}', '{now_str}', '{now_str}', '{now_str}'"
-                f") ON CONFLICT (provider, provider_id) DO NOTHING;\n"
-            )
-            statements.append(i_stmt)
-
-        return "\n".join(statements)
+        """Application users cannot establish provider identity or email verification."""
+        return "-- Identity-provider state is not included. Restore using the provider's verified recovery process.\n"
 
     @staticmethod
     def reconcile_auth_user(session: Session, email: str, new_auth_id: str, actor_id: str = "SYSTEM") -> Dict[str, Any]:
-        """Reconciles user UUID when GoTrue generates a new UUID upon Google sign-in.
-
-        Updates public.users.id and cascades to role_assignments.user_id.
-        Appends an immutable audit event documenting the identity reconciliation.
-        """
-        user = session.execute(select(User).where(User.email == email)).scalar_one_or_none()
-        if not user:
-            raise DatabaseRestoreError(f"Cannot reconcile user: No user found for email '{email}'.")
-
-        old_id = user.id
-        if old_id == new_auth_id:
-            return {"status": "NOOP", "email": email, "user_id": new_auth_id}
-
-        # 1. Update role_assignments
-        session.execute(
-            text("UPDATE role_assignments SET user_id = :new_id WHERE user_id = :old_id"),
-            {"new_id": new_auth_id, "old_id": old_id},
-        )
-
-        # 2. Update user id
-        session.execute(
-            text("UPDATE users SET id = :new_id WHERE id = :old_id"),
-            {"new_id": new_auth_id, "old_id": old_id},
-        )
-
-        # 3. Append immutable audit event
-        audit = AuditEvent(
-            id=f"evt_rec_{new_auth_id[:8]}",
-            org_id=user.org_id,
-            actor_id=actor_id,
-            actor_role="SYSTEM_ADMIN",
-            action="USER_AUTH_RECONCILED",
-            reason=f"Reconciled Auth UUID for {email} from {old_id} to {new_auth_id}",
-            source_reference=new_auth_id,
-        )
-        session.add(audit)
-        session.commit()
-
-        return {
-            "status": "RECONCILED",
-            "email": email,
-            "old_id": old_id,
-            "new_id": new_auth_id,
-        }
+        """Email alone cannot authorize identity binding or historical ID changes."""
+        raise DatabaseRestoreError("Email-only identity reconciliation is unsupported; use a verified administrator workflow.")
 
     @staticmethod
     def restore_database(
@@ -362,28 +284,37 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
     ) -> Dict[str, Any]:
         """Restores database data and verifies post-restoration counts."""
         statements = []
-        for raw_stmt in data_sql.split(";"):
-            lines = [line.strip() for line in raw_stmt.splitlines()]
-            clean_lines = [l for l in lines if l and not l.startswith("--")]
-            clean_stmt = " ".join(clean_lines).strip()
-            if clean_stmt:
-                statements.append(clean_stmt)
+        if session.get_bind().dialect.name == 'postgresql':
+            try:
+                session.connection().exec_driver_sql(data_sql)
+            except Exception as exc:
+                session.rollback()
+                raise DatabaseRestoreError("Database restoration failed; transaction rolled back.") from exc
+        else:
+            # Legacy SQLite fixture compatibility. PostgreSQL executes the SQL
+            # as a whole so semicolons inside quoted data are not split.
+            for raw_stmt in data_sql.split(";"):
+                lines = [line.strip() for line in raw_stmt.splitlines()]
+                clean_lines = [l for l in lines if l and not l.startswith("--")]
+                clean_stmt = " ".join(clean_lines).strip()
+                if clean_stmt:
+                    statements.append(clean_stmt)
 
         # Execute statements in target session
         for stmt in statements:
             if stmt.upper().startswith("SET ") or stmt.upper().startswith("RESET "):
                 try:
                     session.execute(text(stmt))
-                except Exception:
-                    pass  # Non-PostgreSQL engines (e.g. SQLite) safely ignore session configs
+                except Exception as exc:
+                    if session.get_bind().dialect.name == 'postgresql':
+                        session.rollback()
+                        raise DatabaseRestoreError("Required database restore setting failed.") from exc
                 continue
             try:
                 session.execute(text(stmt))
             except Exception as exc:
                 session.rollback()
-                raise DatabaseRestoreError(f"Database restoration failed executing SQL: {stmt[:100]}... Error: {exc}") from exc
-
-        session.commit()
+                raise DatabaseRestoreError("Database restoration failed; transaction rolled back.") from exc
 
         # Verify restored counts
         restored_counts: Dict[str, int] = {}
@@ -392,8 +323,12 @@ REVOKE UPDATE, DELETE ON TABLE audit_events FROM ap_app_user;
             try:
                 cnt = session.execute(text(f"SELECT count(*) FROM {tname}")).scalar()
                 restored_counts[tname] = int(cnt or 0)
-            except Exception:
-                pass
+            except Exception as exc:
+                session.rollback()
+                raise DatabaseRestoreError("Could not verify restored database table counts.") from exc
+            if tname not in table_counts or restored_counts[tname] != table_counts[tname]:
+                session.rollback()
+                raise DatabaseRestoreError("Restored database table counts do not match the backup manifest.")
 
         return {
             "restored_tables": len(restored_counts),
@@ -430,8 +365,8 @@ class StorageBackupManager:
         try:
             physical_objects = storage_adapter.list_all_objects()
         except Exception as exc:
-            logger.warning(f"Could not list physical storage objects: {exc}")
-            physical_objects = []
+            logger.warning("Could not list physical storage objects (%s)", type(exc).__name__)
+            raise BackupError("Storage inventory failed; backup completeness cannot be verified.") from exc
 
         physical_by_key = {obj["path"].lstrip("/"): obj for obj in physical_objects}
 
@@ -457,7 +392,7 @@ class StorageBackupManager:
             try:
                 file_bytes = storage_adapter.get_file(clean_key)
             except Exception as exc:
-                logger.error(f"Failed to download expected document {clean_key}: {exc}")
+                logger.error("Failed to download expected document (%s)", type(exc).__name__)
                 failed_exports += 1
                 manifest_objects.append({
                     "document_id": doc_id,
@@ -531,8 +466,9 @@ class StorageBackupManager:
                         "backup_timestamp": now_str,
                         "verification_result": "UNINDEXED_STORAGE_OBJECT",
                     })
-                except Exception:
-                    pass
+                except Exception as exc:
+                    logger.warning("Could not export an unindexed storage object (%s)", type(exc).__name__)
+                    failed_exports += 1
 
         # 5. Strict completion status: Never mark SUCCESS if files missing or checksum failed
         if failed_exports > 0 or checksum_mismatches > 0:
@@ -560,6 +496,12 @@ class StorageBackupManager:
         target_storage_adapter: ObjectStorageAdapter,
     ) -> Dict[str, Any]:
         """Restores physical files into target storage adapter and verifies checksums."""
+        try:
+            existing = target_storage_adapter.list_all_objects()
+        except Exception as exc:
+            raise StorageRestoreError("Restore target inventory is unavailable.") from exc
+        if existing:
+            raise StorageRestoreError("Restore requires an empty isolated target bucket.")
         restored_count = 0
         verified_count = 0
 
@@ -606,6 +548,10 @@ def create_backup_archive(
     prune: bool = True,
 ) -> Dict[str, Any]:
     """Executes a full backup of database and invoice storage objects into an encrypted archive."""
+    if session.get_bind().dialect.name == 'postgresql':
+        isolation = session.execute(text('SHOW transaction_isolation')).scalar()
+        if isolation not in ('repeatable read', 'serializable'):
+            raise BackupError('Platform backup requires a repeatable-read database snapshot.')
     target_storage = storage_adapter or default_storage_adapter
     out_dir = backup_dir or settings.BACKUP_DIR
     os.makedirs(out_dir, exist_ok=True)
@@ -759,28 +705,26 @@ def verify_restore_integrity(
     """
     # 1. Foreign-Key Constraint Check
     for table in Base.metadata.sorted_tables:
-        for fk in table.foreign_keys:
-            parent_table = fk.column.table
-            child_col = fk.parent.name
-            parent_col = fk.column.name
-
-            # Query for orphaned child rows
-            orphan_sql = (
-                f'SELECT c."{child_col}" FROM "{table.name}" c '
-                f'LEFT JOIN "{parent_table.name}" p ON c."{child_col}" = p."{parent_col}" '
-                f'WHERE c."{child_col}" IS NOT NULL AND p."{parent_col}" IS NULL LIMIT 1'
-            )
+        for constraint in table.foreign_key_constraints:
+            elements = list(constraint.elements)
+            parent_table = elements[0].column.table
+            # MATCH SIMPLE: any null child column exempts the whole FK. Composite
+            # relationships must match one parent row, not independent columns.
+            join = ' AND '.join(f'c."{fk.parent.name}" = p."{fk.column.name}"' for fk in elements)
+            present = ' AND '.join(f'c."{fk.parent.name}" IS NOT NULL' for fk in elements)
+            orphan_sql = (f'SELECT 1 FROM "{table.name}" c '
+                f'LEFT JOIN "{parent_table.name}" p ON {join} '
+                f'WHERE {present} AND p."{elements[0].column.name}" IS NULL LIMIT 1')
             try:
                 orphan = session.execute(text(orphan_sql)).first()
                 if orphan:
                     raise DatabaseRestoreError(
-                        f"Foreign key constraint violation: Orphan record found in table '{table.name}' "
-                        f"column '{child_col}' referencing missing parent in '{parent_table.name}.{parent_col}'."
+                        f"Foreign key constraint violation: orphan record in '{table.name}' referencing '{parent_table.name}'."
                     )
             except DatabaseRestoreError:
                 raise
             except Exception as exc:
-                logger.warning(f"FK validation query skipped for {table.name}.{child_col}: {exc}")
+                raise DatabaseRestoreError("Foreign-key verification could not be completed.") from exc
 
     # 2. Multi-Tenant Relationship Consistency
     # Verify child org_id matches parent org_id across all related entities
@@ -817,8 +761,8 @@ def verify_restore_integrity(
                     )
             except DatabaseRestoreError:
                 raise
-            except Exception:
-                pass
+            except Exception as exc:
+                raise DatabaseRestoreError("Tenant relationship verification could not be completed.") from exc
 
     # 3. Document-to-Invoice Linkage
     docs_with_invoice = session.execute(
@@ -969,6 +913,8 @@ def restore_backup_archive(
 
     if not manifest:
         raise ManifestVerificationError("Archive invalid: manifest.json is missing.")
+    if manifest.get("summary", {}).get("completion_status") != "SUCCESS":
+        raise ManifestVerificationError("Incomplete backup cannot be restored.")
 
     # 3. Check manifest integrity against extracted archive files
     for obj in manifest.get("objects", []):
@@ -984,34 +930,26 @@ def restore_backup_archive(
                     f"Archive integrity failure for {path}: expected {obj['sha256']}, found {actual_sha}"
                 )
 
-    # 4. Restore Database State
-    db_result = {"status": "SKIPPED_NO_TARGET_SESSION"}
-    if target_session is not None:
-        table_counts = manifest.get("database", {}).get("table_counts", {})
-        db_result = DatabaseBackupManager.restore_database(
-            session=target_session,
-            roles_sql=roles_sql,
-            data_sql=data_sql,
-            table_counts=table_counts,
-        )
-
-    # 5. Restore Storage Objects
-    storage_result = {"status": "SKIPPED_NO_TARGET_STORAGE"}
-    if target_storage is not None:
-        storage_result = StorageBackupManager.restore_storage(
-            files_map=files_map,
-            manifest_objects=manifest.get("objects", []),
-            target_storage_adapter=target_storage,
-        )
-
-    # 6. Post-Restoration Integrity Verification
-    verification_summary = {"status": "SKIPPED_NO_TARGET_SESSION"}
-    if target_session is not None:
-        verification_summary = verify_restore_integrity(
-            session=target_session,
-            storage_adapter=target_storage,
-            manifest=manifest,
-        )
+    try:
+        db_result = {"status": "SKIPPED_NO_TARGET_SESSION"}
+        if target_session is not None:
+            db_result = DatabaseBackupManager.restore_database(
+                session=target_session, roles_sql=roles_sql, data_sql=data_sql,
+                table_counts=manifest.get("database", {}).get("table_counts", {}))
+        storage_result = {"status": "SKIPPED_NO_TARGET_STORAGE"}
+        if target_storage is not None:
+            storage_result = StorageBackupManager.restore_storage(
+                files_map=files_map, manifest_objects=manifest.get("objects", []),
+                target_storage_adapter=target_storage)
+        verification_summary = {"status": "SKIPPED_NO_TARGET_SESSION"}
+        if target_session is not None:
+            verification_summary = verify_restore_integrity(
+                session=target_session, storage_adapter=target_storage, manifest=manifest)
+            target_session.commit()
+    except Exception:
+        if target_session is not None:
+            target_session.rollback()
+        raise
 
     return {
         "backup_id": manifest.get("backup_id"),
@@ -1019,7 +957,7 @@ def restore_backup_archive(
         "database": db_result,
         "storage": storage_result,
         "verification": verification_summary,
-        "status": "RESTORE_COMPLETE",
+        "status": "RESTORE_COMPLETE" if target_session is not None and target_storage is not None else "RESTORE_PARTIAL",
     }
 
 

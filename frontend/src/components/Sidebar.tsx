@@ -1,10 +1,11 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React from "react";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   FileText,
   CheckCircle2,
   ShieldCheck,
+  ShieldAlert,
   Link2,
   Database,
   Users,
@@ -14,10 +15,10 @@ import {
   ChevronRight,
   Wrench,
   Sliders,
-  HelpCircle
-} from 'lucide-react';
-import { useTour } from '../context/TourContext';
-import type { AuthenticatedUser, HealthResponse } from '../types';
+  HelpCircle,
+} from "lucide-react";
+import { useTour } from "../context/TourContext";
+import type { AuthenticatedUser, HealthResponse } from "../types";
 
 interface SidebarProps {
   user: AuthenticatedUser | null;
@@ -25,7 +26,7 @@ interface SidebarProps {
   onLogout?: () => void;
   isOpen: boolean;
   onClose: () => void;
-  invoiceCount?: number;
+  exceptionCount?: number;
   approvalCount?: number;
   onOpenDevDrawer?: () => void;
 }
@@ -36,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   isOpen,
   onClose,
-  invoiceCount,
+  exceptionCount,
   approvalCount,
   onOpenDevDrawer,
 }) => {
@@ -44,51 +45,77 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { openHelp } = useTour();
 
   // Role permissions based on server RBAC rules
-  const isAuditor = user?.role === 'AUDITOR';
-  const isAdminOrController = user?.role === 'SYSTEM_ADMIN' || user?.role === 'CONTROLLER';
-  const isLead = user?.role === 'AP_LEAD';
+  const isAuditor = user?.role === "AUDITOR";
+  const isAdminOrController =
+    user?.role === "SYSTEM_ADMIN" || user?.role === "CONTROLLER";
+  const isLead = user?.role === "AP_LEAD";
   const canAccessTeam = isAdminOrController || isLead;
 
   const navItems = [
-    { to: '/today', label: 'Today', icon: LayoutDashboard },
-    { to: '/invoices', label: 'Invoices', icon: FileText, badge: invoiceCount },
-    ...(!isAuditor ? [{ to: '/approvals', label: 'Approvals', icon: CheckCircle2, badge: approvalCount }] : []),
-    { to: '/audit', label: 'Audit Trail', icon: ShieldCheck },
+    { to: "/today", label: "Today", icon: LayoutDashboard },
+    { to: "/invoices", label: "Invoices", icon: FileText },
+    {
+      to: "/exceptions",
+      label: "Exceptions",
+      icon: ShieldAlert,
+      badge: exceptionCount,
+    },
+    ...(!isAuditor
+      ? [
+          {
+            to: "/approvals",
+            label: "Approvals",
+            icon: CheckCircle2,
+            badge: approvalCount,
+          },
+        ]
+      : []),
+    { to: "/audit", label: "Audit Trail", icon: ShieldCheck },
   ];
 
   const settingsItems = [
-    { to: '/setup', label: 'Setup Guide', icon: Sliders },
-    { to: '/settings/connections', label: 'Connections & Storage', icon: Link2 },
-    { to: '/settings/reference-data', label: 'Procurement Records', icon: Database },
-    ...(canAccessTeam ? [{ to: '/settings/team', label: 'Team & Access', icon: Users }] : []),
+    { to: "/setup", label: "Workspace setup", icon: Sliders },
+    { to: "/settings/connections", label: "Connections", icon: Link2 },
+    {
+      to: "/settings/reference-data",
+      label: "Procurement Records",
+      icon: Database,
+    },
+    ...(canAccessTeam
+      ? [{ to: "/settings/team", label: "Team & Access", icon: Users }]
+      : []),
   ];
 
   const getHealthBadge = () => {
     const status = health?.overall_status;
     switch (status) {
-      case 'READY':
+      case "READY":
         return {
-          text: 'Systems Operational',
-          className: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/40 dark:border-emerald-800/50',
-          dot: 'bg-emerald-500',
+          text: "Systems Operational",
+          className:
+            "text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/40 dark:border-emerald-800/50",
+          dot: "bg-emerald-500",
         };
-      case 'SETUP_REQUIRED':
+      case "SETUP_REQUIRED":
         return {
-          text: 'Setup Required',
-          className: 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-400 dark:bg-sky-950/40 dark:border-sky-800/50',
-          dot: 'bg-sky-500',
+          text: "Setup Required",
+          className:
+            "text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-400 dark:bg-sky-950/40 dark:border-sky-800/50",
+          dot: "bg-sky-500",
         };
-      case 'BLOCKED':
+      case "BLOCKED":
         return {
-          text: 'Subsystem Blocked',
-          className: 'text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/40 dark:border-rose-800/50',
-          dot: 'bg-rose-500',
+          text: "Subsystem Blocked",
+          className:
+            "text-rose-700 bg-rose-50 border-rose-200 dark:text-rose-400 dark:bg-rose-950/40 dark:border-rose-800/50",
+          dot: "bg-rose-500",
         };
       default:
         return {
-          text: 'Checking status...',
-          className: 'text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-400 dark:bg-slate-800/40 dark:border-slate-700',
-          dot: 'bg-slate-400 animate-pulse',
+          text: "Checking status...",
+          className:
+            "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-400 dark:bg-slate-800/40 dark:border-slate-700",
+          dot: "bg-slate-400 animate-pulse",
         };
     }
   };
@@ -108,17 +135,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Sidebar Container */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-50 w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`app-sidebar fixed top-0 bottom-0 left-0 z-50 w-64 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
         aria-label="Sidebar Navigation"
         role="navigation"
       >
         {/* Brand & Workspace Header */}
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800">
+        <div className="sidebar-brand p-4 border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white tracking-wider text-xs shadow-xs">
+              <div className="sidebar-mark h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white tracking-wider text-xs shadow-xs">
                 AP
               </div>
               <div>
@@ -142,15 +169,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Workspace Pill */}
-          <div className="mt-3.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-2">
+          <div className="sidebar-workspace mt-3.5 p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800/80 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 min-w-0">
               <Building2 className="w-4 h-4 text-slate-500 dark:text-slate-400 shrink-0" />
               <div className="min-w-0">
                 <span className="text-xs font-medium text-slate-800 dark:text-slate-200 truncate block">
-                  {user?.org_name || user?.org_id || 'Primary Workspace'}
+                  {user?.org_name || user?.org_id || "Primary Workspace"}
                 </span>
                 <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 block truncate">
-                  ID: {user?.org_id || 'org_default'}
+                  ID: {user?.org_id || "org_default"}
                 </span>
               </div>
             </div>
@@ -158,7 +185,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Primary Navigation List */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
+        <div className="sidebar-links flex-1 overflow-y-auto px-3 py-4 space-y-6">
           {/* Main Operations Group */}
           <div className="space-y-1">
             <div className="px-3 pb-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
@@ -176,8 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={({ isActive }) =>
                     `group relative flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                       isActive
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold shadow-2xs before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-md before:bg-indigo-600 dark:before:bg-indigo-400'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
+                        ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold shadow-2xs before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-md before:bg-indigo-600 dark:before:bg-indigo-400"
+                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white"
                     }`
                   }
                 >
@@ -187,18 +214,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <Icon
                           className={`w-4 h-4 shrink-0 transition-colors ${
                             isActive
-                              ? 'text-indigo-600 dark:text-indigo-400'
-                              : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+                              ? "text-indigo-600 dark:text-indigo-400"
+                              : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
                           }`}
                         />
                         <span className="truncate">{item.label}</span>
                       </div>
-                      {typeof item.badge === 'number' && item.badge > 0 && (
+                      {typeof item.badge === "number" && item.badge > 0 && (
                         <span
                           className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold tabular-nums border ${
-                            item.label === 'Invoices'
-                              ? 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800'
-                              : 'bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800'
+                            item.label === "Invoices"
+                              ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800"
+                              : "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800"
                           }`}
                         >
                           {item.badge}
@@ -228,8 +255,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={({ isActive }) =>
                     `group relative flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
                       isActive
-                        ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold shadow-2xs before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-md before:bg-indigo-600 dark:before:bg-indigo-400'
-                        : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white'
+                        ? "bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold shadow-2xs before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-1 before:rounded-r-md before:bg-indigo-600 dark:before:bg-indigo-400"
+                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900/80 hover:text-slate-900 dark:hover:text-white"
                     }`
                   }
                 >
@@ -238,8 +265,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       <Icon
                         className={`w-4 h-4 shrink-0 transition-colors ${
                           isActive
-                            ? 'text-indigo-600 dark:text-indigo-400'
-                            : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300'
+                            ? "text-indigo-600 dark:text-indigo-400"
+                            : "text-slate-400 dark:text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-300"
                         }`}
                       />
                       <span className="truncate">{item.label}</span>
@@ -252,34 +279,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Sidebar Footer: Health, Dev Tools & User */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-950">
+        <div className="sidebar-footer p-3 border-t border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/50 dark:bg-slate-950">
           {/* AP Assistant & Help Entry */}
           <button
             type="button"
             onClick={() => {
-              openHelp('screen');
+              openHelp("screen");
               if (window.innerWidth < 1024) onClose();
             }}
-            className="w-full px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
+            className="sidebar-help w-full px-2.5 py-1.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer shadow-2xs"
           >
             <div className="flex items-center gap-2 truncate">
               <HelpCircle className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
               <span className="truncate">AP Assistant & Help</span>
             </div>
-            <span className="text-[10px] font-mono text-indigo-500 font-bold">?</span>
+            <span className="text-[10px] font-mono text-indigo-500 font-bold">
+              ?
+            </span>
           </button>
 
           {/* Health Pill Indicator */}
           <button
             type="button"
             onClick={() => {
-              navigate('/settings/connections');
+              navigate("/settings/connections");
               if (window.innerWidth < 1024) onClose();
             }}
-            className={`w-full px-2.5 py-1.5 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition-colors ${healthBadge.className}`}
+            className={`sidebar-health w-full px-2.5 py-1.5 rounded-lg border text-left text-xs font-medium flex items-center justify-between transition-colors ${healthBadge.className}`}
           >
             <div className="flex items-center gap-2 truncate">
-              <span className={`w-2 h-2 rounded-full shrink-0 ${healthBadge.dot}`} />
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${healthBadge.dot}`}
+              />
               <span className="truncate">{healthBadge.text}</span>
             </div>
             <ChevronRight className="w-3.5 h-3.5 opacity-60 shrink-0" />
@@ -290,29 +321,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               type="button"
               onClick={onOpenDevDrawer}
-              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer"
+              className="sidebar-dev w-full px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-850 text-slate-600 dark:text-slate-400 text-xs font-medium flex items-center justify-between transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-2 truncate">
                 <Wrench className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <span className="truncate">Evaluator & Dev Tools</span>
               </div>
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">Ctrl+Shift+D</span>
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+                Ctrl+Shift+D
+              </span>
             </button>
           )}
 
           {/* User Profile Card */}
           {user && (
-            <div className="p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-2xs">
+            <div className="sidebar-user p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shadow-2xs">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center font-bold text-xs uppercase shrink-0">
                   {user.name ? user.name.slice(0, 2) : user.email.slice(0, 2)}
                 </div>
                 <div className="min-w-0">
                   <span className="text-xs font-semibold text-slate-900 dark:text-white truncate block">
-                    {user.name || user.email.split('@')[0]}
+                    {user.name || user.email.split("@")[0]}
                   </span>
                   <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate block">
-                    {user.role || 'MEMBER'}
+                    {user.role || "MEMBER"}
                   </span>
                 </div>
               </div>
@@ -322,8 +355,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="button"
                   onClick={onLogout}
                   className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  aria-label="Sign out"
-                  title="Sign out"
+                  aria-label="Sign out and revoke this application access token"
+                  title="Sign out and revoke this application access token"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>

@@ -1,0 +1,179 @@
+.onboarding-surface,
+.tour-surface {
+  --on-ink: var(--app-text);
+  --on-muted: var(--app-muted);
+  --on-border: var(--app-line);
+  --on-surface: var(--app-surface);
+  --on-subtle: var(--app-soft);
+  --on-accent: var(--app-accent);
+  color: var(--on-ink);
+}
+.dark .onboarding-surface,
+.dark .tour-surface {
+  --on-ink: var(--app-text);
+  --on-muted: var(--app-muted);
+  --on-border: var(--app-line);
+  --on-surface: var(--app-surface);
+  --on-subtle: var(--app-soft);
+  --on-accent: var(--app-accent);
+}
+.onboarding-surface,
+.tour-surface > div {
+  background: var(--on-surface);
+  border-color: var(--on-border);
+  color: var(--on-ink);
+}
+:is(.onboarding-surface, .tour-surface)
+  :is(h2, h3, .text-slate-900, .text-slate-800, .text-slate-700) {
+  color: var(--on-ink);
+}
+:is(.onboarding-surface, .tour-surface)
+  :is(p, .text-slate-600, .text-slate-500, .text-slate-400) {
+  color: var(--on-muted);
+  line-height: 1.5;
+}
+:is(.onboarding-surface, .tour-surface)
+  :is(.bg-white, .bg-slate-50, .bg-slate-100) {
+  background: var(--on-subtle);
+  border-color: var(--on-border);
+}
+:is(.onboarding-surface, .tour-surface)
+  :is(.text-indigo-600, .text-indigo-700) {
+  color: var(--on-accent);
+}
+:is(.onboarding-surface, .tour-surface) button.bg-indigo-600 {
+  background: var(--app-primary);
+  color: #fff;
+}
+:is(.onboarding-surface, .tour-surface) button.bg-white {
+  color: var(--on-ink);
+  border-color: var(--on-border);
+}
+:is(.onboarding-surface, .tour-surface) :is(button, input):focus-visible {
+  outline: 2px solid #135db2;
+  outline-offset: 2px;
+}
+:is(.onboarding-surface, .tour-surface) .text-\[10px\],
+:is(.onboarding-surface, .tour-surface) .text-\[11px\] {
+  font-size: 12px;
+  line-height: 1.5;
+}
+.tour-surface > div {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+.tour-surface .tour-missing {
+  color: var(--on-muted);
+  font-size: 12px;
+}
+.tour-surface [class*="bg-sky-50"] {
+  background: #eaf2ff;
+  border-color: #c6d8f2;
+  color: #135db2;
+}
+.dark .tour-surface [class*="bg-sky-50"] {
+  background: #203a52;
+  border-color: #3d6584;
+  color: #c1deff;
+}
+.tour-surface [class*="bg-indigo-600"] {
+  background: #126b46;
+}
+.dark .tour-surface [class*="bg-indigo-600"] {
+  background: #3263a4;
+  color: #fff;
+}
+/* Welcome and help: explicit surfaces avoid mixed OS and app theme colours. */
+.welcome-surface [class*="bg-gradient-to-r"] {
+  background: var(--on-subtle);
+  border-color: var(--on-border);
+}
+.welcome-surface > div:last-child {
+  background: var(--on-subtle);
+  border-color: var(--on-border);
+}
+.welcome-surface .bg-indigo-600 {
+  background: var(--app-primary);
+  color: #fff;
+}
+.help-drawer button.bg-indigo-50 {
+  background: #e3f2e8;
+  color: var(--app-primary);
+  border-color: #bddcc7;
+}
+.help-drawer .bg-sky-50 {
+  background: #eaf2ff;
+  color: #135db2;
+  border-color: #b5cbed;
+}
+.help-drawer [class~="bg-emerald-50/70"] {
+  background: #e3f2e8;
+  color: #126b46;
+  border-color: #bddcc7;
+}
+.help-drawer [class~="bg-emerald-50/70"] :is(span, p) {
+  color: #126b46;
+}
+.dark .help-drawer button.bg-indigo-50,
+.dark .help-drawer [class~="bg-emerald-50/70"] {
+  background: #2a3c50;
+  color: #c9dfff;
+  border-color: #789cc2;
+}
+.dark .help-drawer [class~="bg-emerald-50/70"] :is(span, p) {
+  color: #c9dfff;
+}
+.dark .help-drawer .bg-sky-50 {
+  background: #203a52;
+  color: #c1deff;
+  border-color: #3d6584;
+}
+.welcome-surface .welcome-step-icon {
+  background: #e3f2e8;
+  border-color: #bddcc7;
+  color: #126b46;
+}
+.dark .welcome-surface .welcome-step-icon {
+  background: #2a3c50;
+  border-color: #557491;
+  color: #c9dfff;
+}
+.help-drawer .help-faq-answer {
+  background: var(--on-subtle);
+  border-color: var(--on-border);
+  color: var(--on-muted);
+}
+.help-drawer .help-faq-answer p {
+  color: var(--on-muted);
+}
+.tour-highlight {
+  border: 2px solid #126b46;
+  box-shadow: 0 0 0 3px rgba(18, 107, 70, 0.2);
+}
+.dark .tour-highlight {
+  border-color: #a9cdfc;
+  box-shadow: 0 0 0 3px rgba(169, 205, 252, 0.2);
+}
+.dark :is(.onboarding-surface, .tour-surface) :is(button, input):focus-visible {
+  outline-color: #9bc3fb;
+}
+.dark :is(.onboarding-surface, .tour-surface) button.bg-indigo-600,
+.dark .welcome-surface .bg-indigo-600 {
+  background: #3263a4;
+  color: #fff;
+}
+.dark
+  :is(.onboarding-surface, .tour-surface)
+  button.bg-indigo-600:hover:not(:disabled) {
+  background: #274f83;
+}
+.dark
+  :is(.onboarding-surface, .tour-surface)
+  button:is(.bg-indigo-600, .bg-white):disabled:not(
+    [aria-label^="Go to step"]
+  ) {
+  background: #394047;
+  border-color: #8b969f;
+  color: #c0c9d0;
+  opacity: 1;
+}

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from backend.core.auth import AuthenticatedUser, UserRole, require_active_membership, require_role
 from backend.core.database import get_db
-from backend.models.domain import AuditEvent, ExceptionRecord, Invoice
+from backend.models.domain import AuditEvent, ExceptionRecord, Invoice, User, RoleAssignment
 
 router = APIRouter(prefix="/exceptions", tags=["Exceptions Queue"])
 
@@ -43,8 +43,8 @@ def list_exceptions(
 
     stmt = (
         select(ExceptionRecord, Invoice)
-        .join(Invoice, ExceptionRecord.invoice_id == Invoice.id)
-        .where(ExceptionRecord.status == "OPEN", Invoice.org_id == current_user.org_id)
+        .join(Invoice, (ExceptionRecord.invoice_id == Invoice.id) & (ExceptionRecord.org_id == Invoice.org_id))
+        .where(ExceptionRecord.status == "OPEN", Invoice.org_id == current_user.org_id, ExceptionRecord.org_id == current_user.org_id)
         .order_by(
             ExceptionRecord.msme_statutory_deadline.asc().nullslast(),
             ExceptionRecord.exposure_amount_inr.desc(),
@@ -61,7 +61,8 @@ def list_exceptions(
             "vendor_name": inv.vendor_name,
             "blocking_gate_number": exc.blocking_gate_number,
             "blocking_gate_name": exc.blocking_gate_name,
-            "exposure_amount_inr": float(exc.exposure_amount_inr),
+            "exposure_amount_inr": float(exc.exposure_amount_inr) if inv.currency == "INR" else None,
+            "currency": inv.currency,
             "msme_statutory_deadline": exc.msme_statutory_deadline.isoformat() + "Z" if exc.msme_statutory_deadline else None,
             "assigned_user_id": exc.assigned_user_id,
             "created_at": exc.created_at.isoformat() + "Z",
@@ -94,6 +95,13 @@ def reassign_exception(
     )
     if not exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Exception record not found.")
+
+    assignee = db.scalar(select(User.id).join(RoleAssignment,
+        (RoleAssignment.user_id == User.id) & (RoleAssignment.org_id == User.org_id)).where(
+        User.id == payload.assigned_user_id, User.org_id == current_user.org_id,
+        User.is_active == True, RoleAssignment.role_name.in_([role.value for role in UserRole])))
+    if assignee is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Active workspace assignee not found.")
 
     old_owner = exc.assigned_user_id
     exc.assigned_user_id = payload.assigned_user_id

@@ -56,7 +56,7 @@ def main() -> int:
         print("\nTo generate a new encryption key, run:\n  python -m backend.scripts.backup --generate-key\n")
         return 1
 
-    engine = create_engine(db_url)
+    engine = create_engine(db_url, isolation_level='REPEATABLE READ')
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
 
@@ -95,10 +95,11 @@ def main() -> int:
 
         return 0
     except Exception as exc:
-        logger.critical(f"Backup operation encountered an unhandled error: {exc}", exc_info=True)
+        logger.critical("Backup operation failed (%s)", type(exc).__name__)
         return 1
     finally:
         session.close()
+        engine.dispose()
 
 
 if __name__ == "__main__":

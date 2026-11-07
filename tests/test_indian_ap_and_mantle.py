@@ -62,8 +62,10 @@ def test_grounding_tripwires():
         currency="INR",
         taxable_value=22200.0,
         grand_total=26196.0,
+        line_items=[ExtractedLineItem(item_description="Steel shafts", quantity=120,
+            unit_price=185, taxable_amount=22200, total_amount=26196)],
     )
-    pages = [(1, "Supplier: Asterion Precision Components Pvt Ltd\nGSTIN: 29SYNTH0001A1Z5\nDocument number AP-26-001\nGrand total INR 26,196.00")]
+    pages = [(1, "Supplier: Asterion Precision Components Pvt Ltd\nGSTIN: 29SYNTH0001A1Z5\nDocument number AP-26-001\nDate 2026-09-02\nSteel shafts 120 @185 Taxable 22200\nGrand total INR 26,196.00")]
     passed, unverified, _ = verify_extracted_evidence(inv, pages)
     assert passed is True
     assert len(unverified) == 0

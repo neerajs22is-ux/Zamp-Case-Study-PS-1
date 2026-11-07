@@ -76,11 +76,16 @@ def get_dashboard_metrics(
         ) or 0
 
         blocked_value = db.scalar(
-            select(func.sum(ExceptionRecord.exposure_amount_inr)).where(
+            select(func.sum(ExceptionRecord.exposure_amount_inr)).join(Invoice,
+                (Invoice.id == ExceptionRecord.invoice_id) & (Invoice.org_id == ExceptionRecord.org_id)).where(
                 ExceptionRecord.status == "OPEN",
                 ExceptionRecord.org_id == org_id,
+                Invoice.currency == "INR",
             )
         ) or 0.0
+        non_inr_exceptions = db.scalar(select(func.count(ExceptionRecord.id)).join(Invoice,
+            (Invoice.id == ExceptionRecord.invoice_id) & (Invoice.org_id == ExceptionRecord.org_id)).where(
+            ExceptionRecord.status == "OPEN", ExceptionRecord.org_id == org_id, Invoice.currency != "INR")) or 0
 
         # 5. MSME Critical Exposure (Eligible payables within statutory horizon)
         msme_exposure_count = db.scalar(
@@ -132,6 +137,7 @@ def get_dashboard_metrics(
                 "total_invoices": total_invoices,
                 "open_exceptions": open_exceptions_count,
                 "blocked_value_inr": float(blocked_value),
+                "non_inr_exceptions_excluded": non_inr_exceptions,
                 "msme_exposure_count": msme_exposure_count,
                 "touchless_rate_pct": touchless_rate,
                 "active_ingestion_jobs": active_jobs_count,
@@ -157,7 +163,7 @@ def get_dashboard_metrics(
     except Exception as exc:
         return {
             "status": "unavailable",
-            "reason": f"Database query error during aggregation: {str(exc)}",
+            "reason": "Database query error during aggregation. Contact an administrator.",
             "timestamp": now_utc,
             "timezone": settings.APP_TIMEZONE,
             "metrics": {},
@@ -175,17 +181,8 @@ def get_dashboard_exposure(
     Strictly separates operational ageing (> 30 days) from verified statutory MSME liabilities.
     """
     if db is None:
-        return {
-            "total_blocked_liability_inr": 0.0,
-            "blocked_invoices_count": 0,
-            "operational_aging_over_30_days_inr": 0.0,
-            "operational_aging_count": 0,
-            "cleared_for_erp_inr": 0.0,
-            "cleared_invoices_count": 0,
-            "statutory_msme_verified_due_inr": 0.0,
-            "statutory_msme_verified_count": 0,
-            "statutory_msme_note": "Database not connected. No exposure metrics available.",
-        }
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database not connected; exposure metrics are unavailable.")
 
     org_id = current_user.org_id
     now = datetime.datetime.utcnow()
@@ -199,6 +196,7 @@ def get_dashboard_exposure(
         func.count(Invoice.id)
     ).where(
         Invoice.org_id == org_id,
+        Invoice.currency == "INR",
         Invoice.stage.in_(["ACTION_REQUIRED", "PENDING_APPROVAL", "PENDING_SECOND_APPROVAL", "RECEIVED"]),
         Invoice.stage != "INTERNAL_APPROVAL_COMPLETE",
         Invoice.decision != "REJECTED",
@@ -211,6 +209,7 @@ def get_dashboard_exposure(
         func.count(Invoice.id)
     ).where(
         Invoice.org_id == org_id,
+        Invoice.currency == "INR",
         Invoice.stage != "INTERNAL_APPROVAL_COMPLETE",
         Invoice.decision != "REJECTED",
         inv_date_col < thirty_days_ago,
@@ -223,6 +222,7 @@ def get_dashboard_exposure(
         func.count(Invoice.id)
     ).where(
         Invoice.org_id == org_id,
+        Invoice.currency == "INR",
         Invoice.stage == "INTERNAL_APPROVAL_COMPLETE",
     )
     cleared_sum, cleared_count = db.execute(cleared_stmt).one()
@@ -233,17 +233,19 @@ def get_dashboard_exposure(
         func.coalesce(func.sum(net_payable_col), 0.0),
         func.count(Invoice.id)
     ).join(
-        VendorGSTIN, VendorGSTIN.gstin == Invoice.vendor_gstin
+        VendorGSTIN, and_(VendorGSTIN.gstin == Invoice.vendor_gstin, VendorGSTIN.org_id == Invoice.org_id)
     ).join(
         Vendor, and_(Vendor.id == VendorGSTIN.vendor_id, Vendor.org_id == org_id)
     ).where(
         Invoice.org_id == org_id,
+        Invoice.currency == "INR",
         Invoice.stage != "INTERNAL_APPROVAL_COMPLETE",
         Vendor.msme_registered == True,
         Vendor.udyam_number.isnot(None),
     )
     msme_sum, msme_count = db.execute(msme_stmt).one()
 
+    non_inr_count = db.scalar(select(func.count(Invoice.id)).where(Invoice.org_id == org_id, Invoice.currency != "INR")) or 0
     return {
         "total_blocked_liability_inr": float(blocked_sum),
         "blocked_invoices_count": int(blocked_count),
@@ -253,5 +255,6 @@ def get_dashboard_exposure(
         "cleared_invoices_count": int(cleared_count),
         "statutory_msme_verified_due_inr": float(msme_sum),
         "statutory_msme_verified_count": int(msme_count),
+        "non_inr_invoices_excluded": int(non_inr_count),
         "statutory_msme_note": "Statutory MSME §15 deadlines displayed only for verified Udyam suppliers. Operational aging reflects standard invoice ageing.",
     }

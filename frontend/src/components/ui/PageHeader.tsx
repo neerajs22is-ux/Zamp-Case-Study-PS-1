@@ -1,5 +1,5 @@
-import React from 'react';
-import { ArrowLeft } from 'lucide-react';
+import React from "react";
+import { ArrowLeft } from "lucide-react";
 
 export interface PageHeaderProps {
   title: string;
@@ -19,10 +19,12 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   badge,
   actions,
   backAction,
-  className = '',
+  className = "",
 }) => {
   return (
-    <div className={`mb-6 pb-4 border-b border-slate-200 dark:border-slate-800 ${className}`}>
+    <div
+      className={`ui-page-header mb-6 pb-4 border-b border-slate-200 dark:border-slate-800 ${className}`}
+    >
       {backAction && (
         <button
           type="button"
@@ -30,7 +32,7 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 mb-2 transition-colors cursor-pointer group"
         >
           <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-          <span>{backAction.label || 'Back'}</span>
+          <span>{backAction.label || "Back"}</span>
         </button>
       )}
 

@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from backend.api.v1.invoices import reevaluate_match_gates
 from backend.core.auth import AuthenticatedUser, UserRole, require_active_membership
 from backend.core.database import get_db
+from backend.core.config import AppEnv, settings
 from backend.models.domain import ApprovalRequest, AuditEvent, Invoice, InvoiceLine
 
 router = APIRouter(prefix="/system", tags=["System Administration"])
@@ -35,6 +36,8 @@ def reset_demo_state(
     """
     if db is None:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Database not connected.")
+    if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
+        raise HTTPException(status_code=403, detail="Demo reset is disabled in production and staging.")
 
     if current_user.is_read_only() or current_user.role == UserRole.AUDITOR:
         raise HTTPException(

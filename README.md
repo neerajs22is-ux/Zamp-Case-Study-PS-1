@@ -1,270 +1,127 @@
-# Autonomous Accounts Payable (AP) Command Center
-### Enterprise Multi-Tenant AI Document Processing & Financial Control Platform
+# AP Command Center
 
-[![Tests](https://img.shields.io/badge/tests-266%20passing%20%7C%2012%20skipped-emerald.svg?style=flat-square)](./tests/)
-[![Python](https://img.shields.io/badge/Python-3.12-blue.svg?style=flat-square)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-teal.svg?style=flat-square)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-19%20%7C%20Vite%20SPA-61dafb.svg?style=flat-square)](https://react.dev)
-[![Database](https://img.shields.io/badge/PostgreSQL-15%20(Supabase)-336791.svg?style=flat-square)](https://supabase.com)
-[![Bedrock Mantle](https://img.shields.io/badge/AWS%20Bedrock%20Mantle-Qwen3--235B%20(ap--south--1)-orange.svg?style=flat-square)](https://aws.amazon.com/bedrock/)
-[![License](https://img.shields.io/badge/License-Proprietary-red.svg?style=flat-square)](#)
+AP Command Center is a case-study prototype for reviewing supplier invoices against purchase orders, receipts and quality records. It combines model-assisted PDF extraction with deterministic checks, human decisions, document evidence and an audit trail. It records an internal AP decision; it does not send a payment or post a voucher to an ERP.
 
----
+The original [PS-1 process specification](specs/PS1_INVOICE_PROCESSING_SPEC.md) describes the intended problem, including capabilities that are not implemented. This README describes the current authenticated application. The separate `engine.server` is an unauthenticated, in-memory **mock evaluation** and is not evidence of the protected workflow.
 
-## 🌟 Executive Overview & Business Problem
-
-Mid-size and enterprise organizations process thousands of commercial vendor invoices monthly across decentralized email inboxes, paper receipts, and supplier portals. Manual AP processing creates acute financial and regulatory liabilities:
-- **Duplicate Payments:** Inadvertent double payment of identical vendor invoices across different accounting periods or batches.
-- **Price & Quantity Leakage:** Overlooking unauthorized unit price increases exceeding contracted Purchase Order (PO) rates or paying for goods not yet delivered to the warehouse.
-- **Indian GST Non-Compliance:** Miscalculating interstate (IGST) versus intrastate (CGST + SGST) tax splits, invalid supplier GSTINs, or missing statutory 45-day payment deadlines under Section 15 of the MSME Development Act.
-- **Auditor Liability:** Lack of an immutable, database-enforced regulatory audit trail linking invoice approvals to source document coordinates, purchase order lines, and human justifications.
-
-The **Autonomous AP Command Center** solves these challenges by combining **multi-modal document intelligence** (powered by AWS Bedrock Mantle Qwen3-235B) with a **deterministic Python/SQL matching engine**. The system autonomously classifies commercial documents, verifies Indian GST arithmetic, performs 3-way reconciliation (PO, GRN, QC), absorbs allowable contractual tolerances, and packages exceptions for human review in an interactive **3-Pane Review Workspace**.
-
----
-
-## 🚀 Core Capabilities & Highlights
-
-1. **Hybrid AI & Deterministic Architecture:**
-   - **Probabilistic LLM:** Interprets ambiguous unstructured PDF layouts, extracts complex tables, and detects commercial document types.
-   - **Deterministic Guardrails:** 100% Python/SQL mathematical invariants for tax arithmetic, tolerance calculations, duplicate detection, and dual-control approval rules. Zero LLM hallucinations enter the accounting ledger.
-2. **Indian Tax & Statutory Compliance:**
-   - Full support for Indian GST rules: automated supplier state-code verification, Interstate (IGST) vs Intrastate (CGST + SGST) reconciliation, and ₹20 penny/rounding tolerance.
-   - MSME supplier tracking with statutory payment aging alerts.
-3. **Deterministic 7-Gate 3-Way Matching:**
-   - Evaluates invoices across 7 sequential policy gates: Vendor Master, PO Authorization, Goods Receipt Note (GRN) match, Quality Certificate (QC) acceptance, GST math, PO price/quantity tolerances ($\le 1.5\%$), and cryptographic SHA-256 duplicate detection.
-4. **Interactive 3-Pane Review Workspace:**
-   - **Pane 1 (Left):** Signed, secure document evidence viewer rendering original PDF pages.
-   - **Pane 2 (Center):** Line-item reconciliation comparing invoice billed lines against PO contracted rates and GST splits.
-   - **Pane 3 (Right):** Deterministic match gate status, variance details, reason justification input, and human approval controls.
-5. **Enterprise Multi-Tenancy & Security:**
-   - PostgreSQL Row-Level Security (RLS) and session tenant isolation (`org_id`).
-   - Supabase Auth JWT verification with server-side authoritative Role-Based Access Control (RBAC) across 5 roles: `AP_ASSOCIATE`, `AP_LEAD`, `CONTROLLER`, `AUDITOR`, and `SYSTEM_ADMIN`.
-   - Append-only, database-level immutable audit logging protected by PostgreSQL triggers (`prevent_audit_events_mutation`).
-   - High-value dual-control threshold policy ($\ge ₹5,00,000$ requires secondary Controller sign-off with anti-self-approval enforcement).
-6. **Strict Decoupling from Payments & ERP Mutations:**
-   - Internal approval represents operational AP review clearance only. The system contains zero live payment rails (no funds disbursement) and triggers zero direct ledger mutations in SAP S/4HANA.
-
----
-
-## 🏛️ System Architecture
+## Invoice-to-decision flow
 
 ```mermaid
-flowchart TD
-    subgraph Ingestion Layer
-        PDFUpload["Web UI PDF Upload"]
-        GmailSync["Gmail Ingestion (OAuth + Pub/Sub)"]
-    end
-
-    subgraph Security & Tenancy
-        Auth["Supabase Auth JWT Validator"]
-        TenantRLS["PostgreSQL Tenant Scoping (org_id)"]
-        RBAC["Server-Side PostgreSQL RBAC"]
-    end
-
-    subgraph Document Intelligence Plane
-        PreScreen["Modality Pre-Screener (Digital vs Raster)"]
-        Mantle["AWS Bedrock Mantle ap-south-1 (Qwen3-235B)"]
-        Palmyra["AWS Bedrock Palmyra Vision 7B (us-east-1)"]
-    end
-
-    subgraph Deterministic Business Engine
-        Gate1["Gate 1: Vendor Master"]
-        Gate2["Gate 2: PO Authorization"]
-        Gate3["Gate 3: GRN Warehouse Receipt"]
-        Gate4["Gate 4: QC Quality Acceptance"]
-        Gate5["Gate 5: GST Math & State Split"]
-        Gate6["Gate 6: Price & Qty Tolerance (≤1.5%)"]
-        Gate7["Gate 7: Cryptographic Duplicate Check"]
-    end
-
-    subgraph Decision & Governance
-        StateMach["Approval State Machine"]
-        DualControl{"Net Payable ≥ ₹5L?"}
-        Audit["Immutable Audit Log (DB Trigger)"]
-    end
-
-    PDFUpload --> Auth
-    GmailSync --> Auth
-    Auth --> TenantRLS --> RBAC
-    RBAC --> PreScreen
-    PreScreen -->|Digital Text| Mantle
-    PreScreen -->|Degraded Scan| Palmyra
-
-    Mantle --> Gate1 --> Gate2 --> Gate3 --> Gate4 --> Gate5 --> Gate6 --> Gate7
-    Palmyra --> Gate1
-
-    Gate7 --> StateMach
-    StateMach --> DualControl
-    DualControl -->|Yes| NeedController["Hold: PENDING_SECOND_APPROVAL"]
-    DualControl -->|No| Ready["Match Candidate / Single Approval"]
-    StateMach --> Audit
+flowchart LR
+    A[Signed-in workspace member] --> B[Upload PDF]
+    B --> C[Private storage, document and queued job]
+    C --> D[Lease-protected worker and digest check]
+    D --> E[PDF text and Mantle extraction]
+    E --> F[Typed output and source grounding]
+    F --> G[Tenant vendor, PO, receipt, QC and duplicate checks]
+    G --> H[Candidate, exception or rejection]
+    H --> I[Human review and recorded decision]
+    C --> J[Persisted run events]
+    D --> J
+    E --> J
+    G --> J
+    I --> K[Evidence and audit history]
 ```
 
-For complete architectural details, see [**ARCHITECTURE.md**](./ARCHITECTURE.md).
+The React/Vite frontend calls the FastAPI API under `/api/v1`. Supabase Auth JWTs are verified and resolved to active server-side workspace memberships and assigned roles; PostgreSQL row-level security provides an additional boundary when configured with the restricted application role. Uploaded PDFs are validated, hashed and stored privately. A durable job records actual intake, extraction, matching and outcome events; lease fencing prevents stale workers from committing results. Text-bearing PDFs can use AWS Bedrock Mantle; output is schema-validated and checked against document text before deterministic matching against **workspace snapshots**, not live ERP data. Reviewers can inspect the source PDF, recorded checks, outcome and history. A successful match is a candidate for review, not an automatic payment.
 
----
+## What has been verified
 
-## 💻 Technology Stack
+The offline suite uses disposable SQLite fixtures and blocks outbound connections. Separate tests create a disposable PostgreSQL cluster and exercise migrations, restricted-role isolation, approval concurrency, worker recovery and backup/restore. An earlier isolated provider-backed run exercised one synthetic happy path, an exact duplicate, a price variance, missing QC and a payment receipt. That provider environment was removed; the result is **historical**, not a fresh live-demo guarantee. See [verification summary](docs/CASE_STUDY_VERIFICATION.md), [database verification](docs/OFFLINE_POSTGRES_VERIFICATION.md), [live-run reliability](docs/LIVE_RUN_RELIABILITY.md) and [dependency and recovery follow-up](docs/CLEAN_DEPENDENCY_RECOVERY_FOLLOWUP.md). Older reports document earlier states and are superseded where later follow-ups say so.
 
-| Layer | Technology | Version | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Backend Runtime** | Python | 3.12 | Core backend application execution |
-| **API Framework** | FastAPI / Uvicorn | 0.110+ | High-performance async REST API gateway |
-| **Data Validation** | Pydantic v2 | 2.5+ | Typed schemas, configuration, and arithmetic invariants |
-| **Database** | PostgreSQL | 15+ (Supabase) | Multi-tenant relational storage & RLS enforcement |
-| **ORM & Migrations**| SQLAlchemy / Alembic | 2.0 / 1.13 | Database models and transactional DDL migrations |
-| **Object Storage** | Supabase Storage / S3 | API v1 | Private encrypted storage with signed URL access (900s TTL)|
-| **Frontend Framework**| React | 19.0 | Component hierarchy, state management, and SSE streaming |
-| **Build Tooling** | Vite / Tailwind CSS | 5.0 / 3.4 | Fast SPA bundling and utility-first styling |
-| **Primary LLM** | AWS Bedrock Mantle | Qwen3-235B | Commercial classification and structured invoice extraction |
-| **Multimodal Vision**| AWS Bedrock Palmyra | Vision 7B | Visual extraction adapter evaluated on degraded raster scans |
-| **Testing** | Pytest / Playwright | 8.0+ / 1.40+ | Automated unit, security, and headless browser tests |
+## Local setup
 
----
+These steps target PowerShell on Windows. Python **3.12**, Node.js **22.18 or newer** (Node 26.7 was used for the checks below), npm, and a disposable PostgreSQL database are required. The Python requirements file contains minimum versions and test dependencies; it is **not a Python lockfile**. The frontend has `frontend/package-lock.json`.
 
-## ⚡ Quickstart & Local Setup
-
-### 1. Prerequisites
-- Python 3.10+ (Python 3.12 recommended).
-- Node.js 18+ LTS and `npm`.
-- PostgreSQL 15+ (local or Supabase).
-
-### 2. Installation
-```bash
-# 1. Clone repository
-git clone https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-.git
-cd Zamp-Case-Study-PS-1-
-
-# 2. Python environment & dependencies
-python -m venv venv
-# Windows: .\venv\Scripts\Activate.ps1 | Linux/macOS: source venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Frontend dependencies
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --upgrade "pip>=26.2"
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
 cd frontend
-npm install
+npm ci
+npm run build
 cd ..
-
-# 4. Configure environment
-cp .env.example .env
-# Edit .env with your PostgreSQL DATABASE_URL and MANTLE_API_KEY
 ```
 
-### 3. Database Migrations & Evaluation Seeding
-```bash
-# Apply migrations
-alembic upgrade head
+Edit the local, ignored `.env` with values for **your own isolated test services**. Never commit it or put server secrets in `VITE_` variables. At minimum, a real authenticated processing run needs:
 
-# Seed synthetic evaluation tenant (org_sme_eval)
-python engine/sme_eval_setup.py
+| Area | Environment variable names | Purpose |
+| --- | --- | --- |
+| Runtime | `APP_ENV`, `BASE_URL`, `SECRET_KEY` | Use an isolated configuration and a strong unique secret. `APP_ENV=development` is the template default; staging additionally enforces PostgreSQL, a configured bucket and a strong secret. |
+| Database | `DATABASE_URL`, `MIGRATION_DATABASE_URL` | Runtime connection uses a non-superuser, non-BYPASSRLS application role; migrations use a separately reviewed privileged connection. |
+| Identity | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_ISSUER`, `SUPABASE_AUDIENCE`, `SUPABASE_JWKS_URL` | A disposable Supabase Auth project, its public key configuration and an actual provider user. Legacy HS256 installations additionally use `SUPABASE_JWT_SECRET`; do not expose it to the frontend. |
+| Private documents | `STORAGE_PROVIDER`, `STORAGE_BUCKET_NAME`, `SUPABASE_STORAGE_BUCKET`, `SUPABASE_SERVICE_ROLE_KEY` | A private, isolated Supabase bucket and server-only access. Other storage backends require their own credentials and verification. |
+| Extraction | `MANTLE_BASE_URL`, `MANTLE_MODEL_ID`, `MANTLE_API_KEY`, `MANTLE_PROJECT_ID` | An authorized isolated Mantle project, model access and credential. `MANTLE_PROJECT_ID` is optional in code but should be set when using project-scoped access. Model calls incur provider charges. |
+
+`VITE_SUPABASE_URL` may be set to the public project URL for Google sign-in; the UI can also obtain the configured URL from the API. Configure the provider's Google OAuth redirect for the local frontend and verify email confirmation is required. `IDENTITY_EMAIL_CONFIRMATION_ENFORCED=true` is an operator attestation required for invitation acceptance outside test mode, not an automatic check of provider settings.
+
+Apply migrations to the **disposable** database after reviewing the identity migration notes:
+
+```powershell
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m alembic current
 ```
 
-### 4. Running Backend and Frontend
-```bash
-# Terminal 1: Backend Server (Port 8000)
-python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+Migration `010` requires a migration-function owner with appropriate RLS-bypass authority; use the restricted `ap_app_user` role for normal application traffic. Migrations through `013` are required by the current code, including the session-revocation store. Migration and runtime credentials must not be interchangeable. See [workspace identity migration](docs/WORKSPACE_IDENTITY_MIGRATION.md) and [durable controls](docs/DURABLE_CONTROLS_FOLLOWUP.md) before applying them to any existing data.
 
-# Terminal 2: Frontend Dev Server (Port 5173)
+An administrator must provision a test organisation, a provider identity, its matching `identity_memberships` binding and an assigned role, and load synthetic vendor, PO, receipt and QC snapshots. The app does **not** have a finished self-service bootstrap or ERP sync. The acceptance harness illustrates synthetic setup, but provisions external disposable resources and must be reviewed and configured before use; it is not a one-command local seed. No working provider credentials or workspace are supplied in this repository.
+
+Start the backend and frontend in separate terminals after configuration:
+
+```powershell
+# Terminal 1, repository root: Vite's /api proxy expects port 8000.
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+
+# Terminal 2
 cd frontend
 npm run dev
 ```
 
-- **Application UI:** [`http://localhost:5173`](http://localhost:5173) (or [`http://127.0.0.1:8000`](http://127.0.0.1:8000))
-- **Interactive OpenAPI Specification:** [`http://127.0.0.1:8000/docs`](http://127.0.0.1:8000/docs)
-- **Health Check Probe:** [`http://127.0.0.1:8000/api/v1/health`](http://127.0.0.1:8000/api/v1/health)
+Open the Vite URL printed by the second command. The built frontend can alternatively be served by FastAPI after `npm run build`. `run.py` starts its server on port 8001; use the explicit command above with the Vite proxy. Setup, migrations, sign-in and live provider calls require the external services described above and were not rerun as part of the README review.
 
-For comprehensive setup details, see [**docs/LOCAL_SETUP.md**](./docs/LOCAL_SETUP.md).
+## Demo path and scenarios
 
----
+1. Prepare a **new, disposable** workspace, identity, private bucket, Mantle project and matching synthetic procurement records. Confirm the signed-in user's membership and role. Do not use actual invoices or submit a real financial decision.
+2. Generate the synthetic PDFs and expected procurement data locally. The output directory must not already exist:
 
-## 🧪 Automated Testing & Verification
+   ```powershell
+   .\.venv\Scripts\python.exe scripts/prepare_ps1_acceptance.py --output scratch/ps1-demo-fixtures
+   ```
 
-The repository contains 256 automated test items:
-- **244 passed, 12 skipped, 0 failed in ~20 seconds.**
+3. Upload `happy.pdf`. Open the invoice and follow its recorded run events, source evidence, checks and outcome. Processing may be dispatched in the background; an authorized reviewer can also request the next queued job. Inspect failure or queued states rather than assuming a stage completed.
+4. Repeat with `price_variance.pdf`, `missing_qc.pdf`, and `payment_receipt.pdf`; upload `happy.pdf` again for an exact-byte duplicate. The generated manifest specifies the necessary synthetic source records and expected results. It does not seed the workspace or call a provider. See [the acceptance plan](docs/PROVIDER_ACCEPTANCE.md) for setup and [historical observed outcomes](docs/CASE_STUDY_VERIFICATION.md).
 
-```bash
-# Run the complete test suite
-python -m pytest tests/ -v
+## Checks
 
-# Run Phase E security & financial control tests
-python -m pytest tests/phase_e/ -v
+From the repository root, the broad offline runner disables dotenv/integration credentials and outbound network access; the explicitly live Supabase module is excluded:
 
-# Run automated browser tests (Playwright with headless Edge)
-python scratch/test_browser_acceptance.py
+```powershell
+.\.venv\Scripts\python.exe scripts/inspect_offline.py tests -q -rs --ignore=tests/phase_b/test_stage9_live_supabase_verification.py --tb=short --disable-warnings
+.\.venv\Scripts\python.exe scripts/inspect_offline.py tests/test_production_inspection.py tests/test_operations_boundaries.py tests/test_processing_events.py -q --tb=short
+cd frontend
+npm run build
+npm run lint
+node --test tests/runPolling.test.mjs
+cd ..
 ```
 
-For test suite architecture and benchmark details, see [**docs/TESTING_AND_EVALUATION.md**](./docs/TESTING_AND_EVALUATION.md).
+For PostgreSQL tests on Windows, supply a local portable PostgreSQL `bin` directory to the disposable runner; it creates and removes its own loopback cluster and never uses `.env`:
 
----
+```powershell
+.\.venv\Scripts\python.exe scripts/inspect_postgres.py --bin-dir C:/path/to/postgresql/bin --tb=short
+```
 
-## 👥 Enterprise User Roles & Personas
+The runner expects Windows `initdb.exe` and `pg_ctl.exe`. The legacy mock benchmark is separate: `.\.venv\Scripts\python.exe scripts/benchmark_ps1_offline.py`. It must not be interpreted as live model accuracy or authenticated workflow evidence.
 
-When running locally with `ENABLE_DEV_SESSION=true`, use the enterprise quick-login buttons:
+## Boundaries and remaining risks
 
-| Persona | Email | Assigned Role | Capabilities & Workflow |
-| :--- | :--- | :---: | :--- |
-| **Priya Sharma** | `sme_lead@company.internal` | `AP_LEAD` | Primary reviewer. Inspects 3-pane evidence, approves sub-₹5L invoices, applies query holds (`HOLD_PENDING_EVIDENCE`), and rejects invalid invoices. |
-| **Rajesh Nair** | `sme_controller@company.internal` | `CONTROLLER` | Financial Controller. Executive metrics inspection, secondary dual-control sign-off on invoices $\ge ₹5,00,000$. |
-| **Ananya Iyer** | `sme_assoc@company.internal` | `AP_ASSOCIATE` | AP Associate. Document ingestion, initial triage, and extraction verification. |
-| **Vikram Malhotra**| `sme_auditor@company.internal` | `AUDITOR` | Statutory Auditor. Strictly read-only access; all mutation actions return HTTP 403 Forbidden. |
+- Upload supports PDFs. Textless scans require human review; OCR/vision is not a verified end-to-end path. PDF parsing and grounding checks reduce risk but do not establish semantic correctness or malware safety.
+- Matching uses saved workspace reference records with no verified upstream freshness or external commitment synchronization. General GST treatment, currency conversion, non-INR approval, multi-receipt allocation and partial-quantity allocation are not supported. A corrected line is blocked until authoritative re-grounding is available.
+- Invitation and multi-workspace onboarding remain incomplete. Provider email-confirmation settings must be verified separately. Sign-out revokes the presented application access token, but provider refresh sessions and other tokens require separate handling. After restoring an older database, use the documented recovery cutoff and provider-session procedure.
+- The run view reports persisted events and actual failures; it does not backfill older invoices or infer provider progress. An interrupted provider call can still complete and incur charges. Per-tenant reservations are estimates, not a hard provider billing cap.
+- Production backup schedules, provider identity recovery, full object-store restore behavior, a clean locked production build and an independent penetration test remain outstanding. Two unpatched dependency advisories are discussed in [dependency and recovery follow-up](docs/CLEAN_DEPENDENCY_RECOVERY_FOLLOWUP.md). This is not a compliance or production-readiness claim.
 
----
+## Repository guide
 
-## 🏆 Continuous Product Excellence & UX Quality Certification
-
-The AP Command Center has completed an exhaustive, 20-iteration continuous product improvement mission, elevating the platform from a functional engineering baseline (composite score 6.93 / 10) to institutional enterprise craft (**9.64 / 10** across all 15 operational dimensions):
-
-- **In-App HR Showcase Tour:** Click the **"Showcase Tour"** button with Sparkles in the top navigation bar at any time to tour the 6 canonical scenarios with 1 click:
-  1. *Touchless 3-Way Match & Clean Sign-Off* (`AP-26-009`)
-  2. *Line Rate Discrepancy & Debit Note Recommendation* (`AP-26-011`)
-  3. *High-Value Dual-Approval Governance ($\ge ₹5,00,000$)* (`INV-DUAL-SEC-001`)
-  4. *MSMED Act 2006 Statutory 45-Day Deadline Priority*
-  5. *Quarantine & Tamper-Detection Vault*
-  6. *Forensic Immutability & Audit Trail Ledger*
-- **Accompanying Governance Records:**
-  - [**docs/HR_SHOWCASE_GUIDE.md**](./docs/HR_SHOWCASE_GUIDE.md): Complete executive walkthrough script and evaluator guide.
-  - [**docs/UX_QUALITY_SCORECARD.md**](./docs/UX_QUALITY_SCORECARD.md): 15-dimension quality matrix with runtime evidence and scores.
-  - [**docs/UX_ITERATION_LOG.md**](./docs/UX_ITERATION_LOG.md): Full audit log of all 20 iterative engineering cycles.
-  - [**docs/CONTINUOUS_IMPROVEMENT_STATE.md**](./docs/CONTINUOUS_IMPROVEMENT_STATE.md): Current continuous improvement tracker.
-
----
-
-## 📚 Documentation Index
-
-### Root Specifications
-- [**PROJECT_STATUS.md**](./PROJECT_STATUS.md): Authoritative milestone ledger, implemented features, live-tested subsystems, and test results.
-- [**ARCHITECTURE.md**](./ARCHITECTURE.md): Comprehensive technical architecture, Mermaid diagrams, and data flows.
-- [**CONTRIBUTING.md**](./CONTRIBUTING.md): Engineering conventions, commit rules, and security policies.
-
-### Deep-Dive Topic Guides
-- [**docs/LOCAL_SETUP.md**](./docs/LOCAL_SETUP.md): Step-by-step local installation and environment setup.
-- [**docs/ENVIRONMENT_VARIABLES.md**](./docs/ENVIRONMENT_VARIABLES.md): Full reference for all settings and configuration options.
-- [**docs/DATABASE_AND_MIGRATIONS.md**](./docs/DATABASE_AND_MIGRATIONS.md): Schema ER diagrams, connection separation, and Alembic guides.
-- [**docs/SECURITY_AND_RBAC.md**](./docs/SECURITY_AND_RBAC.md): Supabase JWT architecture, RBAC matrix, and dev-session sandboxing.
-- [**docs/GMAIL_INTEGRATION.md**](./docs/GMAIL_INTEGRATION.md): Gmail OAuth 2.0, History API synchronization, and Pub/Sub webhooks.
-- [**docs/AI_AND_DOCUMENT_PROCESSING.md**](./docs/AI_AND_DOCUMENT_PROCESSING.md): Bedrock Mantle Qwen 235B, Palmyra Vision 7B, and contrast pre-screening.
-- [**docs/AP_BUSINESS_RULES.md**](./docs/AP_BUSINESS_RULES.md): 7 deterministic match gates, Indian GST tax rules, and state machine transitions.
-- [**docs/TESTING_AND_EVALUATION.md**](./docs/TESTING_AND_EVALUATION.md): Pytest architecture, 40-doc corpus evaluation, and browser tests.
-- [**docs/DEPLOYMENT_RUNBOOK.md**](./docs/DEPLOYMENT_RUNBOOK.md): Docker multi-stage containerization, Render, and Cloud Run guides.
-- [**docs/KNOWN_LIMITATIONS.md**](./docs/KNOWN_LIMITATIONS.md): UI/UX usability audit catalog and system boundaries.
-
-### Preserved Milestone Reports
-- [**Phase A Architecture Corrections & Security Validation**](./docs/project-history/phase_a_architecture_corrections_security_validation.md)
-- [**Phase C AP Evaluation & Mantle Architecture Report**](./docs/project-history/phase_c_ap_evaluation_and_mantle_architecture.md)
-- [**Phase D Production Readiness Report**](./docs/project-history/phase_d_production_readiness_report.md)
-- [**Phase E Controlled SME Acceptance Testing Report**](./docs/project-history/phase_e_sme_acceptance_testing_report.md)
-- [**Full 40-Document Evaluation Report (JSON)**](./docs/project-history/full_40_evaluation_report.json)
-- [**Palmyra Vision 7B Benchmark Report (JSON)**](./docs/project-history/palmyra_vision_benchmark_report.json)
-- [**Phase E Acceptance Verification Report (JSON)**](./docs/project-history/phase_e_full_acceptance_verification_report.json)
-- [**Real Browser Verification Screenshots**](./docs/images/browser_verification/)
-
----
-
-## 🔒 Security & Git Hygiene Compliance
-
-- `.env` and local credentials are strictly excluded via `.gitignore`.
-- All credentials in reports and sample configuration are redacted or use safe placeholders.
-- Frontend bundles contain zero server-side secrets or master keys.
-- Codebase scanned with automated secret scanners: **0 leaked credentials in tree**.
-- Production deployment to Render is **on HOLD** awaiting explicit user sign-off.
+`backend/api/v1/` contains authenticated routes; `backend/core/` contains auth, storage, jobs and recovery; `backend/migrations/` contains schema changes; `engine/` contains extraction and deterministic evaluation; `frontend/src/` contains the review UI; `tests/` and `scripts/inspect_*.py` contain disposable checks. The `docs/` inspection and acceptance reports capture findings and their historical context. Generated graphs, local fixtures, scratch environments, raw local evidence and logs are excluded from the commit where they may contain local paths or provider metadata; they are not required to run the application.

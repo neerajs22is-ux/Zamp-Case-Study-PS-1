@@ -7,6 +7,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 import logging
 
@@ -26,20 +27,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="AP Command Center Supabase Restoration Utility")
     parser.add_argument("--archive", required=True, help="Path to the encrypted backup archive (.tar.gz.enc)")
     parser.add_argument("--key", default=None, help="[SECURITY NOTICE: Prefer BACKUP_ENCRYPTION_KEY env var or interactive prompt to avoid process table exposure]")
-    parser.add_argument("--target-db-url", default=None, help="Target PostgreSQL connection string (defaults to BACKUP_DATABASE_URL or DATABASE_URL; must be disposable test/pilot DB)")
+    parser.add_argument("--target-db-url", default=None, help="Explicit target PostgreSQL connection string; alternatively set RESTORE_TARGET_DATABASE_URL")
     parser.add_argument("--confirm-restore", action="store_true", help="Explicit confirmation required to execute destructive restoration")
     parser.add_argument("--skip-storage", action="store_true", help="Restore database only, skip storage objects")
+    parser.add_argument("--confirm-target-bucket", default=None, help="Exact configured destination bucket name; required when restoring storage")
 
     args = parser.parse_args()
 
     target_url = (
         args.target_db_url
-        or os.getenv("BACKUP_DATABASE_URL")
-        or settings.BACKUP_DATABASE_URL
-        or settings.DATABASE_URL
+        or os.getenv("RESTORE_TARGET_DATABASE_URL")
     )
     if not target_url:
-        logger.error("Target database URL is required. Provide --target-db-url or set BACKUP_DATABASE_URL / DATABASE_URL.")
+        logger.error("Explicit restore target required: --target-db-url or RESTORE_TARGET_DATABASE_URL.")
+        return 1
+
+    if not args.skip_storage and (not args.confirm_target_bucket or args.confirm_target_bucket != getattr(storage_adapter, 'bucket', None)):
+        logger.error("An exact --confirm-target-bucket matching the configured destination is required, or use --skip-storage.")
         return 1
 
     if not args.confirm_restore:
@@ -84,8 +88,7 @@ def main() -> int:
         print("=" * 60)
         print("\nSUPABASE AUTH OPERATOR NOTICE:")
         print("Database and storage restoration does not recreate Supabase Auth identities.")
-        print("For fresh projects, ensure user emails are provisioned via Supabase Admin API:")
-        print("  supabase.auth.admin.create_user({'email': user_email, 'email_confirm': True})")
+        print("Use the provider's verified identity recovery procedure; do not infer email confirmation from workspace records.")
         print("=" * 60 + "\n")
 
         return 0
@@ -93,10 +96,11 @@ def main() -> int:
         logger.error(f"Restoration failed: {exc}")
         return 1
     except Exception as exc:
-        logger.critical(f"Restoration encountered an unhandled error: {exc}", exc_info=True)
+        logger.critical("Restoration failed (%s)", type(exc).__name__)
         return 1
     finally:
         target_session.close()
+        target_engine.dispose()
 
 
 if __name__ == "__main__":

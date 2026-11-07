@@ -38,22 +38,22 @@ def health(response: Response) -> Dict[str, Any]:
     idp_status = check_idp_health()
 
     gmail_status = {
-        "status": "CONNECTED" if settings.is_gmail_configured() else "NOT_CONFIGURED",
+        "status": "CONFIGURED_UNVERIFIED" if settings.is_gmail_configured() else "NOT_CONFIGURED",
         "mailbox": settings.GMAIL_TARGET_MAILBOX if settings.is_gmail_configured() else None,
         "readiness": settings.is_gmail_configured(),
-        "message": "Gmail OAuth credentials verified." if settings.is_gmail_configured() else "Gmail ingestion credentials not configured.",
+        "message": "Gmail credentials configured; mailbox authorization is verified separately." if settings.is_gmail_configured() else "Gmail ingestion credentials not configured.",
     }
 
     erp_status = {
-        "status": "CONNECTED" if settings.is_erp_configured() else "NOT_CONFIGURED",
+        "status": "CONFIGURED_UNVERIFIED" if settings.is_erp_configured() else "NOT_CONFIGURED",
         "company_code": settings.SAP_COMPANY_CODE if settings.is_erp_configured() else None,
         "endpoint": settings.SAP_API_BASE_URL if settings.is_erp_configured() else None,
         "readiness": settings.is_erp_configured(),
-        "message": "SAP S/4HANA OData connection verified." if settings.is_erp_configured() else "SAP S/4HANA ERP API not configured.",
+        "message": "SAP settings configured; live synchronization is not implemented." if settings.is_erp_configured() else "SAP S/4HANA ERP API not configured.",
     }
 
     is_production_like = settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING)
-    is_ready = db_status["readiness"] and storage_status["readiness"]
+    is_ready = db_status["readiness"] and storage_status["readiness"] and idp_status["readiness"]
 
     if is_production_like and not is_ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE

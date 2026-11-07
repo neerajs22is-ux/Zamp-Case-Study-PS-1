@@ -33,6 +33,21 @@ from backend.core.database import Base
 # 1. Tenancy, Organizations, Legal Entities & RBAC
 # ------------------------------------------------------------------------------
 
+class RevokedAccessToken(Base):
+    __tablename__ = "revoked_access_tokens"
+
+    token_hash = Column(String(64), primary_key=True)
+    expires_at = Column(DateTime, nullable=False, index=True)
+    revoked_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+
+class ModelQuotaBucket(Base):
+    __tablename__ = "model_quota_buckets"
+    org_id = Column(String(64), ForeignKey("organisations.id"), primary_key=True)
+    period = Column(String(20), primary_key=True)
+    bucket = Column(String(20), primary_key=True)
+    used = Column(Integer, nullable=False, default=0)
+
 class Organisation(Base):
     __tablename__ = "organisations"
 
@@ -104,6 +119,26 @@ class RoleAssignment(Base):
 
     __table_args__ = (
         ForeignKeyConstraint(["user_id", "org_id"], ["users.id", "users.org_id"], name="fk_role_assignments_user_org"),
+    )
+
+
+class IdentityMembership(Base):
+    """Verified identity binding to an existing tenant user; roles remain on that user."""
+    __tablename__ = "identity_memberships"
+
+    id = Column(String(64), primary_key=True)
+    issuer = Column(String(512), nullable=False)
+    subject = Column(String(255), nullable=False)
+    org_id = Column(String(64), ForeignKey("organisations.id"), nullable=False, index=True)
+    user_id = Column(String(64), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    is_owner = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        ForeignKeyConstraint(["user_id", "org_id"], ["users.id", "users.org_id"], name="fk_identity_membership_user_org"),
+        UniqueConstraint("issuer", "subject", "org_id", name="uq_identity_membership_identity_org"),
+        UniqueConstraint("org_id", "user_id", name="uq_identity_membership_user_org"),
     )
 
 

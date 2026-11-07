@@ -31,14 +31,15 @@ def get_source_records(
     db: Optional[Session] = Depends(get_db),
 ) -> Dict[str, Any]:
     """Returns read-only authoritative ERP snapshots with truthful provenance."""
-    is_live_erp = settings.is_erp_configured()
-    origin_system = "SAP S/4HANA (Read-Only)" if is_live_erp else "Evaluation Dataset (fictional_supplier_master.csv / purchase_orders.csv)"
+    # Credentials alone cannot prove a synchronization that has not occurred.
+    is_live_erp = False
+    origin_system = "Workspace database snapshots (source provenance requires verification)"
 
     if db is None:
         return {
             "origin_system": origin_system,
             "is_live_sync": is_live_erp,
-            "provenance": "LIVE_ERP_OData" if is_live_erp else "SYNTHETIC_EVALUATION_CORPUS",
+            "provenance": "WORKSPACE_SNAPSHOT_UNVERIFIED",
             "vendors": [],
             "purchase_orders": [],
             "goods_receipts": [],
@@ -55,7 +56,7 @@ def get_source_records(
     return {
         "origin_system": origin_system,
         "is_live_sync": is_live_erp,
-        "provenance": "LIVE_ERP_OData" if is_live_erp else "SYNTHETIC_EVALUATION_CORPUS",
+        "provenance": "WORKSPACE_SNAPSHOT_UNVERIFIED",
         "vendors": [
             {
                 "id": v.id,
