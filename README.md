@@ -1,6 +1,6 @@
 # Autonomous AP Digital Employee (Zamp PS-1)
 > **Problem Statement 1: Automated Invoice Processing, 2-Way/3-Way Matching & AOP Tolerance Policy Engine**  
-> **Candidate:** Neeraj Shivkumar — Senior AI Solutions Associate Candidate  
+> **Candidate:** Neeraj Shivkumar — AI Solutions Associate Candidate  
 > **Evaluation Framework:** Deterministic Plan-Execute-Validate (PEV) Architecture
 
 ---

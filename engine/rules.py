@@ -157,19 +157,34 @@ class AOPRuleEngine:
                 "document_type": invoice.document_type.value,
             }
 
-        today = date.today()
-        if invoice.invoice_date > today:
+        # Missing metadata checks
+        if not invoice.invoice_number:
             reasons.append(
-                f"Future-dated invoice detected: Invoice date ({invoice.invoice_date}) is in the future. "
-                "Held for verification."
+                "Missing mandatory invoice number: document extraction failed to identify an invoice number. "
+                "Held for manual indexing."
             )
-            discrepancies["future_dated_invoice"] = str(invoice.invoice_date)
-        elif (today - invoice.invoice_date).days > 365:
+            discrepancies["missing_invoice_number"] = True
+
+        if not invoice.invoice_date:
             reasons.append(
-                f"Stale invoice detected: Invoice date ({invoice.invoice_date}) is older than 365 days. "
-                "Held for accounting review."
+                "Missing mandatory invoice date: document extraction failed to identify an issue date. "
+                "Held for manual indexing."
             )
-            discrepancies["stale_invoice"] = str(invoice.invoice_date)
+            discrepancies["missing_invoice_date"] = True
+        else:
+            today = date.today()
+            if invoice.invoice_date > today:
+                reasons.append(
+                    f"Future-dated invoice detected: Invoice date ({invoice.invoice_date}) is in the future. "
+                    "Held for verification."
+                )
+                discrepancies["future_dated_invoice"] = str(invoice.invoice_date)
+            elif (today - invoice.invoice_date).days > 365:
+                reasons.append(
+                    f"Stale invoice detected: Invoice date ({invoice.invoice_date}) is older than 365 days. "
+                    "Held for accounting review."
+                )
+                discrepancies["stale_invoice"] = str(invoice.invoice_date)
 
         # -------------------------------------------------------------
         # Gate 2: Vendor Verification & Tax ID Precedence
@@ -262,11 +277,12 @@ class AOPRuleEngine:
         # -------------------------------------------------------------
         # Gate 3: Duplicate Submission Check
         # -------------------------------------------------------------
-        invoice_hash = hashlib.sha256(
-            f"{vendor.vendor_id}:{invoice.invoice_number}:{invoice.total_amount:.2f}".encode("utf-8")
-        ).hexdigest()
+        if invoice.invoice_number:
+            invoice_hash = hashlib.sha256(
+                f"{vendor.vendor_id}:{invoice.invoice_number}:{invoice.total_amount:.2f}".encode("utf-8")
+            ).hexdigest()
 
-        is_dup, dup_record, dup_type = erp.check_duplicate(
+            is_dup, dup_record, dup_type = erp.check_duplicate(
             vendor_id=vendor.vendor_id,
             invoice_number=invoice.invoice_number,
             amount=invoice.total_amount,
@@ -311,6 +327,8 @@ class AOPRuleEngine:
                     "prior_processed_date": str(dup_record.processed_date),
                     "duplicate_type": dup_type,
                 }
+        else:
+            invoice_hash = "NO_INVOICE_NUMBER"
 
         # -------------------------------------------------------------
         # Gate 4: PO Lookup & Split-PO Budget Allocation Check
@@ -318,6 +336,35 @@ class AOPRuleEngine:
         po: Optional[PurchaseOrder] = None
         if po_reference:
             po = erp.get_po(po_reference)
+            if po and vendor and po.vendor_id != vendor.vendor_id:
+                reasons.append(
+                    f"PO Vendor Mismatch: PO #{po.po_number} was issued to vendor ID '{po.vendor_id}' ('{po.vendor_name}'), "
+                    f"which does not match billing vendor ID '{vendor.vendor_id}' ('{vendor.name}'). Payment blocked."
+                )
+                discrepancies["po_vendor_mismatch"] = {
+                    "po_number": po.po_number,
+                    "po_vendor_id": po.vendor_id,
+                    "billing_vendor_id": vendor.vendor_id,
+                }
+                return self._build_audit(
+                    run_id=run_id,
+                    invoice=invoice,
+                    decision=DecisionState.REJECTED,
+                    overall_confidence=overall_confidence,
+                    reasons=reasons,
+                    discrepancies=discrepancies,
+                    line_results=line_results,
+                    stage_timings=stage_timings or [],
+                )
+            if po and getattr(po, "status", "OPEN") in ("CLOSED", "EXHAUSTED"):
+                reasons.append(
+                    f"Purchase Order Inactive: PO #{po.po_number} is currently marked as '{po.status}'. "
+                    "Cannot process new invoices against a closed PO."
+                )
+                discrepancies["po_inactive"] = {
+                    "po_number": po.po_number,
+                    "status": po.status,
+                }
 
         if not po and not po_reference:
             # Check if there is an unambiguous open PO for this vendor
@@ -408,6 +455,7 @@ class AOPRuleEngine:
                     reasons.append(
                         f"Line {inv_line.line_number} ('{inv_line.description}') does not match any approved line item on PO #{po.po_number}."
                     )
+                    discrepancies.setdefault("unmatched_lines", []).append(inv_line.line_number)
                     discrepancies["unmatched_line"] = inv_line.line_number
                     continue
 
@@ -451,13 +499,15 @@ class AOPRuleEngine:
                             f"and ≤{format_currency(self.config.unit_price_variance_amount_threshold, curr)} per unit)."
                         )
                         reasons.append(f"Line {inv_line.line_number}: {notes}")
-                        discrepancies["price_variance"] = {
+                        price_var_info = {
                             "line_number": inv_line.line_number,
                             "billed_unit_price": inv_line.unit_price,
                             "contracted_unit_price": contracted_price,
                             "variance_pct": price_variance_pct,
                             "variance_amount_per_unit": price_diff,
                         }
+                        discrepancies.setdefault("price_variances", []).append(price_var_info)
+                        discrepancies["price_variance"] = price_var_info
                     else:
                         notes += (
                             f" (Minor price variance of +{price_variance_pct}% absorbed within AOP tolerance limit)."

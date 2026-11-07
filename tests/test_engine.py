@@ -15,7 +15,7 @@ from datetime import date
 import pytest
 
 from engine.mock_erp import MockERPDatabase
-from engine.models import DecisionState, Invoice, InvoiceLineItem, LineMatchStatus, VendorInfo
+from engine.models import DecisionState, DocumentType, Invoice, InvoiceLineItem, LineMatchStatus, VendorInfo
 from engine.pipeline import InvoiceProcessingPipeline
 
 
@@ -300,3 +300,86 @@ def test_currency_formatting_inr_supported(fresh_pipeline):
     assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
     assert audit.vendor_email_draft is not None
     assert "₹" in audit.vendor_email_draft
+
+
+def test_no_data_fabrication_on_missing_invoice_number_and_date(fresh_pipeline):
+    """F-09: Extractor must not fabricate INV-{time} or date.today() when fields missing."""
+    text = (
+        "Acme Supplies Corp\n"
+        "PO: PO-1042\n"
+        "Description\n"
+        "1 Widget Model A 10 500.00 5000.00\n"
+        "Subtotal: $5,000.00\n"
+        "Tax: $0.00\n"
+        "Grand Total: $5,000.00\n"
+    )
+    invoice = fresh_pipeline._extract(DocumentType.DIGITAL_PDF, text, parsed_json=None)
+    assert invoice.invoice_number is None
+    assert invoice.invoice_date is None
+
+    audit = fresh_pipeline.rule_engine.evaluate(invoice, fresh_pipeline.erp)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert audit.discrepancy_details.get("missing_invoice_number") is True
+    assert audit.discrepancy_details.get("missing_invoice_date") is True
+
+
+def test_po_vendor_ownership_rejection(fresh_pipeline):
+    """F-18: Invoices citing a PO belonging to a different vendor must be immediately REJECTED."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    # PO-1042 belongs to VEND-001 (Acme Supplies Corp). Change vendor to VEND-002 (Logistics Pro).
+    data["vendor"]["name"] = "Global Logistics Partners LLC"
+    data["vendor"]["tax_id"] = "US-EIN-12-8492019"
+    audit = fresh_pipeline.process(data)
+
+    assert audit.decision == DecisionState.REJECTED
+    assert "po_vendor_mismatch" in audit.discrepancy_details
+    assert audit.discrepancy_details["po_vendor_mismatch"]["po_vendor_id"] == "VEND-001"
+    assert audit.discrepancy_details["po_vendor_mismatch"]["billing_vendor_id"] == "VEND-002"
+
+
+def test_multiline_price_variance_recorded_as_list(fresh_pipeline):
+    """F-20: Multiple price spike lines must all be preserved in price_variances list."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["line_items"] = [
+        {
+            "line_number": 1,
+            "description": "Enterprise API Compute Tier 3",
+            "quantity": 5.0,
+            "unit_price": 550.0,
+            "total": 2750.0,
+        },
+        {
+            "line_number": 2,
+            "description": "Enterprise API Compute Tier 3",
+            "quantity": 5.0,
+            "unit_price": 600.0,
+            "total": 3000.0,
+        },
+    ]
+    data["subtotal"] = 5750.0
+    data["tax_amount"] = 431.25
+    data["total_amount"] = 6181.25
+
+    audit = fresh_pipeline.process(data)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "price_variances" in audit.discrepancy_details
+    assert len(audit.discrepancy_details["price_variances"]) == 2
+    assert audit.discrepancy_details["price_variances"][0]["line_number"] == 1
+    assert audit.discrepancy_details["price_variances"][1]["line_number"] == 2
+
+
+def test_genuine_5_stages_executed_honestly(fresh_pipeline):
+    """F-01/F-02: Pipeline executes exactly 5 honest stages with valid timings and status."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    audit = fresh_pipeline.process(data)
+
+    assert len(audit.stage_timings) == 5
+    stage_names = [st.stage_name for st in audit.stage_timings]
+    assert "1. Ingestion & Classification" in stage_names[0]
+    assert "2. Structured Extraction" in stage_names[1]
+    assert "3. ERP Cross-Reference" in stage_names[2]
+    assert "4. AOP Policy & Tolerance Match" in stage_names[3]
+    assert "5. Decision State & Audit Packaging" in stage_names[4]
+
+    for st in audit.stage_timings:
+        assert st.status == "SUCCESS"

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Zamp Pace — AP Digital Employee (PS-1 Live Demo)</title>
+  <title>Autonomous AP Command Center — Digital Accounts Payable Employee (PS-1 Live Demo)</title>
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Lucide Icons -->
@@ -52,11 +52,11 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/20">
-          Z
+          AP
         </div>
         <div>
           <div class="flex items-center space-x-2">
-            <span class="font-bold tracking-tight text-white text-base">Zamp <span class="text-blue-400">Pace</span></span>
+            <span class="font-bold tracking-tight text-white text-base">Autonomous <span class="text-blue-400">AP Command Center</span></span>
             <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">Digital Employee</span>
           </div>
           <p class="text-xs text-slate-400">PS-1: Autonomous Invoice Processing & AOP Tolerance Engine</p>
@@ -306,6 +306,31 @@
                   <span>Exception Analysis</span>
                 </div>
                 <div id="discrepancy-content" class="text-[11px] font-mono text-amber-300/90 whitespace-pre-wrap"></div>
+              </div>
+            </div>
+
+            <!-- Interactive Human Operator Action Bar (Visible when FLAGGED_HITL_REVIEW) -->
+            <div id="hitl-action-panel" class="mt-4 p-3 rounded-lg bg-slate-900 border border-amber-500/30 hidden space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-semibold text-amber-400 flex items-center space-x-1.5">
+                  <i data-lucide="user-check" class="w-4 h-4 text-amber-400"></i>
+                  <span>Human Triage Actions</span>
+                </span>
+                <span class="text-[10px] text-slate-400">Sign-off required</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <button id="hitl-approve-btn" onclick="submitHitlAction('APPROVE')" class="flex-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1 transition shadow-sm">
+                  <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                  <span>Approve Override</span>
+                </button>
+                <button id="hitl-reject-btn" onclick="submitHitlAction('REJECT')" class="flex-1 px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-md text-xs font-semibold flex items-center justify-center space-x-1 transition shadow-sm">
+                  <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                  <span>Reject Misbill</span>
+                </button>
+                <button id="hitl-email-btn" onclick="openEmailModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-md text-xs font-medium flex items-center justify-center space-x-1 transition">
+                  <i data-lucide="mail" class="w-3.5 h-3.5 text-blue-400"></i>
+                  <span>Clarify</span>
+                </button>
               </div>
             </div>
 
@@ -617,9 +642,9 @@
         const data = JSON.parse(e.data);
 
         if (data.event === 'STAGE_START') {
-          highlightStage(data.stage, 'RUNNING', data.details);
+          highlightStage(data.stage, 'RUNNING', data.status, data.details);
         } else if (data.event === 'STAGE_COMPLETE') {
-          highlightStage(data.stage, 'COMPLETE');
+          highlightStage(data.stage, 'COMPLETE', data.status, data.details);
         } else if (data.event === 'DECISION_FINAL') {
           eventSource.close();
           runBtn.disabled = false;
@@ -650,21 +675,34 @@
       document.getElementById('decision-badge').innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i><span>PROCESSING...</span>';
       document.getElementById('view-email-btn').classList.add('hidden');
       document.getElementById('discrepancy-card').classList.add('hidden');
+      const hitlPanel = document.getElementById('hitl-action-panel');
+      if (hitlPanel) hitlPanel.classList.add('hidden');
       lucide.createIcons();
     }
 
-    function highlightStage(stageNum, state, details) {
+    function highlightStage(stageNum, state, status, details) {
       const card = document.getElementById(`stage-card-${stageNum}`);
       const icon = document.getElementById(`stage-icon-${stageNum}`);
+      if (!card || !icon) return;
 
       if (state === 'RUNNING') {
         card.className = 'p-3.5 rounded-lg border border-blue-500/50 bg-blue-950/20 flex items-start justify-between transition-all duration-300';
         icon.className = 'w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center text-white text-xs font-bold mt-0.5 animate-pulse';
         icon.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>';
       } else if (state === 'COMPLETE') {
-        card.className = 'p-3.5 rounded-lg border border-emerald-500/40 bg-emerald-950/10 flex items-start justify-between transition-all duration-300';
-        icon.className = 'w-7 h-7 rounded-md bg-emerald-600 flex items-center justify-center text-white text-xs font-bold mt-0.5';
-        icon.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+        if (status === 'SUCCESS') {
+          card.className = 'p-3.5 rounded-lg border border-emerald-500/40 bg-emerald-950/10 flex items-start justify-between transition-all duration-300';
+          icon.className = 'w-7 h-7 rounded-md bg-emerald-600 flex items-center justify-center text-white text-xs font-bold mt-0.5';
+          icon.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+        } else if (status === 'FLAGGED' || status === 'WARNING') {
+          card.className = 'p-3.5 rounded-lg border border-amber-500/50 bg-amber-950/20 flex items-start justify-between transition-all duration-300';
+          icon.className = 'w-7 h-7 rounded-md bg-amber-600 flex items-center justify-center text-white text-xs font-bold mt-0.5';
+          icon.innerHTML = '<i data-lucide="alert-triangle" class="w-4 h-4"></i>';
+        } else {
+          card.className = 'p-3.5 rounded-lg border border-rose-500/50 bg-rose-950/20 flex items-start justify-between transition-all duration-300';
+          icon.className = 'w-7 h-7 rounded-md bg-rose-600 flex items-center justify-center text-white text-xs font-bold mt-0.5';
+          icon.innerHTML = '<i data-lucide="x" class="w-4 h-4"></i>';
+        }
       }
       lucide.createIcons();
     }
@@ -677,9 +715,12 @@
       audit.stage_timings.forEach((st, idx) => {
         const timer = document.getElementById(`stage-timer-${idx + 1}`);
         if (timer) timer.textContent = `${st.latency_ms} ms`;
+        highlightStage(idx + 1, 'COMPLETE', st.status, st.details);
       });
-      document.getElementById('stage-timer-5').textContent = `${audit.total_latency_ms} ms (Total)`;
-      highlightStage(5, 'COMPLETE');
+      const timer5 = document.getElementById('stage-timer-5');
+      if (timer5 && audit.stage_timings.length >= 5) {
+        timer5.textContent = `${audit.stage_timings[4].latency_ms} ms`;
+      }
 
       // Decision Badge
       const badge = document.getElementById('decision-badge');
@@ -689,7 +730,7 @@
       if (audit.decision === 'AUTO_APPROVED') {
         badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10';
         badge.innerHTML = '<i data-lucide="check-circle-2" class="w-5 h-5"></i><span>AUTO APPROVED</span>';
-        subtext.textContent = 'Zero financial variance. Posted directly to ERP general ledger.';
+        subtext.textContent = 'Zero financial variance. Approved per AOP Policy & posted to ERP voucher ledger.';
         voucherBadge.textContent = audit.erp_voucher_id || '';
       } else if (audit.decision === 'FLAGGED_HITL_REVIEW') {
         badge.className = 'inline-flex items-center space-x-2 px-5 py-2.5 rounded-xl text-base font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10';
@@ -730,6 +771,16 @@
         nextActionText.innerHTML = '<strong>Payment Fenced:</strong> Transaction terminated to prevent duplicate disbursement or compliance breach. Formal rejection notice is drafted and ready for vendor notification.';
       }
 
+      // Interactive Human Triage Actions Panel
+      const hitlPanel = document.getElementById('hitl-action-panel');
+      if (hitlPanel) {
+        if (audit.decision === 'FLAGGED_HITL_REVIEW') {
+          hitlPanel.classList.remove('hidden');
+        } else {
+          hitlPanel.classList.add('hidden');
+        }
+      }
+
       // Render Discrepancies
       const discCard = document.getElementById('discrepancy-card');
       if (Object.keys(audit.discrepancy_details).length > 0) {
@@ -751,6 +802,30 @@
       // Render Extracted Line Items Table
       renderLineItemsTable(audit);
       lucide.createIcons();
+    }
+
+    async function submitHitlAction(action) {
+      if (!currentAudit || !currentAudit.run_id) return;
+      const defaultNote = action === 'APPROVE' ? 'AP Lead manual tolerance sign-off' : 'AP Lead rejected invoice for non-conforming rates';
+      const notes = prompt(`Confirm operator action: ${action}\n\nEnter audit note / override reasoning:`, defaultNote);
+      if (notes === null) return; // user cancelled prompt
+
+      try {
+        const resp = await fetch(`/api/invoices/${currentAudit.run_id}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, notes: notes || defaultNote })
+        });
+        const res = await resp.json();
+        if (res.status === 'SUCCESS') {
+          renderFinalDecision(res.audit);
+          refreshHistory();
+        } else {
+          alert('Action failed: ' + (res.detail || 'Unknown error'));
+        }
+      } catch (err) {
+        alert('Error submitting operator action: ' + err.message);
+      }
     }
 
     async function resetDemoData() {

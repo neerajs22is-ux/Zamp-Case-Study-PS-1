@@ -12,7 +12,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Literal, Optional
+import uuid
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -28,7 +30,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FIXTURES_DIR = os.path.join(BASE_DIR, "fixtures", "data")
 
 app = FastAPI(
-    title="Zamp AI Solutions Associate — PS-1 Digital Employee API",
+    title="AI Solutions Associate — PS-1 Digital Employee API",
     description="Autonomous Invoice Processing & 2-Way/3-Way Matching Engine with AOP Tolerance Validation",
     version="1.0.0",
 )
@@ -160,6 +162,12 @@ async def run_scenario(scenario_id: str):
     return audit.model_dump()
 
 
+class OperatorActionPayload(BaseModel):
+    action: Literal["APPROVE", "REJECT", "RECORD_CLARIFICATION"]
+    notes: Optional[str] = None
+    override_reason: Optional[str] = None
+
+
 @app.get("/api/stream-scenario/{scenario_id}")
 async def stream_scenario_execution(scenario_id: str):
     """Server-Sent Events (SSE) streaming endpoint for live UI execution view."""
@@ -175,19 +183,77 @@ async def stream_scenario_execution(scenario_id: str):
     async def event_generator():
         # Event 1: Pipeline Init
         yield f"data: {json.dumps({'event': 'INIT', 'message': f'Starting genuine ingestion for {scenario_id}', 'scenario': scenario})}\n\n"
+        await asyncio.sleep(0.08)
 
-        # Execute genuine engine logic synchronously
-        audit = pipeline.process(invoice_data, filename=scenario["json_file"])
-
-        # Stream actual executed pipeline stages
-        for idx, timing in enumerate(audit.stage_timings, start=1):
-            yield f"data: {json.dumps({'event': 'STAGE_START', 'stage': idx, 'name': timing.stage_name, 'details': timing.details})}\n\n"
-            yield f"data: {json.dumps({'event': 'STAGE_COMPLETE', 'stage': idx, 'name': timing.stage_name, 'status': timing.status, 'details': timing.details})}\n\n"
-
-        # Final Decision & Audit
-        yield f"data: {json.dumps({'event': 'DECISION_FINAL', 'decision': audit.decision.value, 'audit': audit.model_dump(mode='json')})}\n\n"
+        # Genuine incremental stage execution
+        for event in pipeline.process_iter(invoice_data, filename=scenario["json_file"]):
+            evt_type = event["event"]
+            if evt_type == "DECISION_FINAL":
+                audit = event["audit"]
+                payload = {
+                    "event": "DECISION_FINAL",
+                    "decision": audit.decision.value,
+                    "audit": audit.model_dump(mode="json"),
+                }
+            else:
+                payload = {
+                    "event": evt_type,
+                    "stage": event["stage"],
+                    "name": event["name"],
+                    "status": event.get("status", "SUCCESS"),
+                    "details": event.get("details", {}),
+                }
+            yield f"data: {json.dumps(payload)}\n\n"
+            await asyncio.sleep(0.12)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/api/invoices/{run_id}/action")
+async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
+    """Allow human AP operator to review, override, reject, or record clarification on an invoice."""
+    audit = next((r for r in pipeline.run_history if r.run_id == run_id), None)
+    if not audit:
+        audit = next(
+            (r for r in pipeline.run_history if r.invoice_number == run_id or r.run_id.endswith(run_id)),
+            None,
+        )
+    if not audit:
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found in audit history")
+
+    if action_req.action == "APPROVE":
+        audit.decision = DecisionState.AUTO_APPROVED
+        audit.erp_voucher_id = audit.erp_voucher_id or f"VCHR-OVR-{uuid.uuid4().hex[:6].upper()}"
+        note = action_req.notes or action_req.override_reason or "Approved via human operator tolerance override"
+        audit.reasons.append(f"[OPERATOR OVERRIDE]: {note}")
+        audit.discrepancy_details["operator_override"] = {
+            "action": "APPROVED",
+            "notes": note,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    elif action_req.action == "REJECT":
+        audit.decision = DecisionState.REJECTED
+        note = action_req.notes or "Rejected by human AP operator during exception review"
+        audit.reasons.append(f"[OPERATOR REJECTED]: {note}")
+        audit.discrepancy_details["operator_action"] = {
+            "action": "REJECTED",
+            "notes": note,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    elif action_req.action == "RECORD_CLARIFICATION":
+        note = action_req.notes or "Supplier clarification requested via email"
+        audit.reasons.append(f"[VENDOR CLARIFICATION]: {note}")
+        audit.discrepancy_details["clarification_logged"] = {
+            "notes": note,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+    return {
+        "status": "SUCCESS",
+        "run_id": audit.run_id,
+        "decision": audit.decision.value,
+        "audit": audit.model_dump(mode="json"),
+    }
 
 
 @app.post("/api/upload-invoice")

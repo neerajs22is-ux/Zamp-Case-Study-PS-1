@@ -54,8 +54,8 @@ class VendorInfo(BaseModel):
 
 
 class Invoice(BaseModel):
-    invoice_number: str = Field(..., min_length=1, description="Vendor invoice number")
-    invoice_date: date = Field(..., description="Invoice issue date")
+    invoice_number: Optional[str] = Field(None, description="Vendor invoice number")
+    invoice_date: Optional[date] = Field(None, description="Invoice issue date")
     due_date: Optional[date] = Field(None, description="Payment due date")
     vendor: VendorInfo
     po_reference: Optional[str] = Field(None, description="Purchase Order reference number")
@@ -128,7 +128,7 @@ class VendorRecord(BaseModel):
 class HistoricalInvoiceRecord(BaseModel):
     invoice_id: str
     vendor_id: str
-    invoice_number: str
+    invoice_number: Optional[str] = Field(None, description="Vendor invoice number")
     amount: float
     invoice_date: Optional[date] = None
     processed_date: date
@@ -154,13 +154,13 @@ class LineMatchResult(BaseModel):
 class StageTiming(BaseModel):
     stage_name: str
     latency_ms: float
-    status: Literal["SUCCESS", "FAILED", "SKIPPED"] = "SUCCESS"
+    status: Literal["SUCCESS", "FAILED", "SKIPPED", "FLAGGED", "WARNING"] = "SUCCESS"
     details: Dict[str, Any] = Field(default_factory=dict)
 
 
 class DecisionAudit(BaseModel):
     run_id: str
-    invoice_number: str
+    invoice_number: Optional[str] = Field(None, description="Vendor invoice number")
     vendor_name: str
     po_number: Optional[str] = None
     decision: DecisionState

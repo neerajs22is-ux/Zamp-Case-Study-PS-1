@@ -1,4 +1,4 @@
-"""Root launcher for Zamp AP Digital Employee & AP Command Center.
+"""Root launcher for AP Digital Employee & AP Command Center.
 
 Usage:
   python run.py               # Starts the PS-1 AP Digital Employee on http://127.0.0.1:8001 (Recommended, zero credentials)
@@ -46,8 +46,8 @@ def main():
     else:
         print("""
 =============================================================================
-   [ZAMP AI SOLUTIONS ASSOCIATE] - PS-1 AP DIGITAL EMPLOYEE
-   Pace Autonomous Workflow Engine & Live Execution Server
+   [AI SOLUTIONS ASSOCIATE] - PS-1 AP DIGITAL EMPLOYEE
+   Autonomous Accounts Payable (AP) Decision Engine & Live Execution Server
 =============================================================================
    * Interactive UI:        http://127.0.0.1:8001
    * API Docs (Swagger UI): http://127.0.0.1:8001/docs

@@ -13,7 +13,7 @@ import re
 import time
 import uuid
 from datetime import date, datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Dict, Iterator, List, Optional, Union
 
 from pypdf import PdfReader
 
@@ -52,64 +52,107 @@ class InvoiceProcessingPipeline:
         self.rule_engine = AOPRuleEngine(config=policy_config)
         self.run_history: List[DecisionAudit] = []
 
-    def process(
+    def process_iter(
         self,
         input_data: Union[str, bytes, Dict[str, Any], Invoice],
         filename: Optional[str] = None,
-    ) -> DecisionAudit:
-        """Synchronously execute the end-to-end 5-stage pipeline."""
+    ) -> Iterator[Dict[str, Any]]:
+        """Incrementally execute each stage of the genuine 5-stage pipeline, yielding events live."""
         stage_timings: List[StageTiming] = []
         pipeline_start = time.perf_counter()
 
         # -------------------------------------------------------------
         # Stage 1: Document Ingestion & Classification
         # -------------------------------------------------------------
+        yield {
+            "event": "STAGE_START",
+            "stage": 1,
+            "name": "1. Ingestion & Classification",
+            "details": {"filename": filename or "inline_payload"},
+        }
         t0 = time.perf_counter()
         doc_type, raw_text, parsed_json = self._ingest(input_data, filename)
-        stage_timings.append(
-            StageTiming(
-                stage_name="1. Ingestion & Classification",
-                latency_ms=round((time.perf_counter() - t0) * 1000, 2),
-                status="SUCCESS",
-                details={"document_type": doc_type.value, "char_count": len(raw_text or "")},
-            )
+        st1 = StageTiming(
+            stage_name="1. Ingestion & Classification",
+            latency_ms=round((time.perf_counter() - t0) * 1000, 2),
+            status="SUCCESS",
+            details={"document_type": doc_type.value, "char_count": len(raw_text or "")},
         )
+        stage_timings.append(st1)
+        yield {
+            "event": "STAGE_COMPLETE",
+            "stage": 1,
+            "name": st1.stage_name,
+            "status": st1.status,
+            "details": st1.details,
+        }
 
         # -------------------------------------------------------------
         # Stage 2: Structured Entity Extraction & Sanity Verification
         # -------------------------------------------------------------
+        yield {
+            "event": "STAGE_START",
+            "stage": 2,
+            "name": "2. Structured Extraction",
+            "details": {"document_type": doc_type.value},
+        }
         t1 = time.perf_counter()
         try:
             invoice = self._extract(doc_type, raw_text, parsed_json)
         except ValueError as exc:
-            stage_timings.append(
-                StageTiming(
-                    stage_name="2. Structured Extraction",
-                    latency_ms=round((time.perf_counter() - t1) * 1000, 2),
-                    status="FAILED",
-                    details={"error": str(exc)[:300]},
-                )
-            )
-            audit = self._extraction_failure_audit(doc_type, filename, exc, stage_timings)
-            self.run_history.append(audit)
-            return audit
-        stage_timings.append(
-            StageTiming(
+            st2 = StageTiming(
                 stage_name="2. Structured Extraction",
                 latency_ms=round((time.perf_counter() - t1) * 1000, 2),
-                status="SUCCESS",
-                details={
-                    "invoice_number": invoice.invoice_number,
-                    "total_amount": invoice.total_amount,
-                    "line_item_count": len(invoice.line_items),
-                    "confidence": invoice.confidence_scores.get("overall", 1.0),
-                },
+                status="FAILED",
+                details={"error": str(exc)[:300]},
             )
+            stage_timings.append(st2)
+            yield {
+                "event": "STAGE_COMPLETE",
+                "stage": 2,
+                "name": st2.stage_name,
+                "status": st2.status,
+                "details": st2.details,
+            }
+            audit = self._extraction_failure_audit(doc_type, filename, exc, stage_timings)
+            self.run_history.append(audit)
+            yield {
+                "event": "DECISION_FINAL",
+                "stage": 5,
+                "decision": audit.decision.value,
+                "audit": audit,
+            }
+            return
+
+        st2 = StageTiming(
+            stage_name="2. Structured Extraction",
+            latency_ms=round((time.perf_counter() - t1) * 1000, 2),
+            status="SUCCESS",
+            details={
+                "invoice_number": invoice.invoice_number,
+                "total_amount": invoice.total_amount,
+                "line_item_count": len(invoice.line_items),
+                "confidence": invoice.confidence_scores.get("overall", 1.0),
+            },
         )
+        stage_timings.append(st2)
+        yield {
+            "event": "STAGE_COMPLETE",
+            "stage": 2,
+            "name": st2.stage_name,
+            "status": st2.status,
+            "details": st2.details,
+        }
 
         # -------------------------------------------------------------
         # Stage 3: ERP Cross-Reference
         # -------------------------------------------------------------
+        yield {
+            "event": "STAGE_START",
+            "stage": 3,
+            "name": "3. ERP Cross-Reference",
+            "details": {"vendor_query": invoice.vendor.tax_id or invoice.vendor.name},
+        }
         t2 = time.perf_counter()
         vendor = None
         if invoice.vendor.tax_id and invoice.vendor.tax_id.strip():
@@ -118,42 +161,138 @@ class InvoiceProcessingPipeline:
             vendor = self.erp.get_vendor_by_name(invoice.vendor.name)
         po = self.erp.get_po(invoice.po_reference) if invoice.po_reference else None
 
-        stage_timings.append(
-            StageTiming(
-                stage_name="3. ERP Cross-Reference",
-                latency_ms=round((time.perf_counter() - t2) * 1000, 2),
-                status="SUCCESS",
-                details={
-                    "vendor_found": vendor is not None,
-                    "vendor_status": vendor.status if vendor else "NOT_FOUND",
-                    "po_found": po is not None,
-                    "po_balance": po.remaining_balance if po else 0.0,
-                },
-            )
+        stage_3_status = "SUCCESS"
+        if not vendor:
+            stage_3_status = "WARNING"
+        elif invoice.po_reference and not po:
+            stage_3_status = "WARNING"
+
+        st3 = StageTiming(
+            stage_name="3. ERP Cross-Reference",
+            latency_ms=round((time.perf_counter() - t2) * 1000, 2),
+            status=stage_3_status,
+            details={
+                "vendor_found": vendor is not None,
+                "vendor_status": vendor.status if vendor else "NOT_FOUND",
+                "po_found": po is not None,
+                "po_balance": po.remaining_balance if po else 0.0,
+            },
         )
+        stage_timings.append(st3)
+        yield {
+            "event": "STAGE_COMPLETE",
+            "stage": 3,
+            "name": st3.stage_name,
+            "status": st3.status,
+            "details": st3.details,
+        }
 
         # -------------------------------------------------------------
-        # Stage 4 & 5: AOP Matching, Tolerance Math & Decision Audit
+        # Stage 4: AOP Policy Matching & Tolerance Math
         # -------------------------------------------------------------
+        yield {
+            "event": "STAGE_START",
+            "stage": 4,
+            "name": "4. AOP Policy & Tolerance Match",
+            "details": {"po_reference": invoice.po_reference, "tolerance_limit": "1.5%"},
+        }
         t3 = time.perf_counter()
         audit = self.rule_engine.evaluate(invoice, self.erp, stage_timings=stage_timings)
-        stage_status = "FAILED" if audit.decision in (DecisionState.REJECTED, DecisionState.FLAGGED_HITL_REVIEW) else "SUCCESS"
+        if audit.decision == DecisionState.AUTO_APPROVED:
+            stage_4_status = "SUCCESS"
+        elif audit.decision == DecisionState.FLAGGED_HITL_REVIEW:
+            stage_4_status = "FLAGGED"
+        else:
+            stage_4_status = "FAILED"
 
-        stage_timings.append(
-            StageTiming(
-                stage_name="4. AOP Policy & Tolerance Match",
-                latency_ms=round((time.perf_counter() - t3) * 1000, 2),
-                status=stage_status,
-                details={"decision": audit.decision.value, "reasons_count": len(audit.reasons)},
-            )
+        st4 = StageTiming(
+            stage_name="4. AOP Policy & Tolerance Match",
+            latency_ms=round((time.perf_counter() - t3) * 1000, 2),
+            status=stage_4_status,
+            details={"decision": audit.decision.value, "reasons_count": len(audit.reasons)},
         )
+        stage_timings.append(st4)
+        yield {
+            "event": "STAGE_COMPLETE",
+            "stage": 4,
+            "name": st4.stage_name,
+            "status": st4.status,
+            "details": st4.details,
+        }
 
+        # -------------------------------------------------------------
+        # Stage 5: Decision State & Audit Packaging
+        # -------------------------------------------------------------
+        yield {
+            "event": "STAGE_START",
+            "stage": 5,
+            "name": "5. Decision State & Audit Packaging",
+            "details": {"decision": audit.decision.value},
+        }
+        t4 = time.perf_counter()
+        if audit.decision == DecisionState.AUTO_APPROVED:
+            stage_5_status = "SUCCESS"
+            stage_5_details = {
+                "workflow_state": "POSTED_TO_ERP",
+                "voucher_id": audit.erp_voucher_id,
+                "action": "AUTOMATED_PAYMENT_SCHEDULED",
+            }
+        elif audit.decision == DecisionState.FLAGGED_HITL_REVIEW:
+            stage_5_status = "FLAGGED"
+            stage_5_details = {
+                "workflow_state": "HELD_FOR_HITL_REVIEW",
+                "action": "ROUTED_TO_AP_LEAD",
+                "reasons_count": len(audit.reasons),
+            }
+        else:
+            stage_5_status = "FAILED"
+            stage_5_details = {
+                "workflow_state": "REJECTED_FENCED",
+                "action": "DISBURSAL_BLOCKED",
+                "reasons_count": len(audit.reasons),
+            }
+
+        st5 = StageTiming(
+            stage_name="5. Decision State & Audit Packaging",
+            latency_ms=round((time.perf_counter() - t4) * 1000, 2),
+            status=stage_5_status,
+            details=stage_5_details,
+        )
+        stage_timings.append(st5)
         audit.stage_timings = stage_timings
         audit.total_latency_ms = round((time.perf_counter() - pipeline_start) * 1000, 2)
 
+        yield {
+            "event": "STAGE_COMPLETE",
+            "stage": 5,
+            "name": st5.stage_name,
+            "status": st5.status,
+            "details": st5.details,
+        }
+
         # Append to historical audit ledger
         self.run_history.append(audit)
-        return audit
+
+        yield {
+            "event": "DECISION_FINAL",
+            "stage": 5,
+            "decision": audit.decision.value,
+            "audit": audit,
+        }
+
+    def process(
+        self,
+        input_data: Union[str, bytes, Dict[str, Any], Invoice],
+        filename: Optional[str] = None,
+    ) -> DecisionAudit:
+        """Synchronously execute the end-to-end 5-stage pipeline."""
+        final_audit: Optional[DecisionAudit] = None
+        for step in self.process_iter(input_data, filename):
+            if step["event"] == "DECISION_FINAL":
+                final_audit = step["audit"]
+        if final_audit is None:
+            raise RuntimeError("Pipeline failed to generate final DecisionAudit")
+        return final_audit
 
     def _ingest(
         self,
@@ -217,22 +356,21 @@ class InvoiceProcessingPipeline:
             )
 
         # Extract Invoice Number
-        inv_match = re.search(r"Invoice\s*(?:#|Number|No\.?)[:\s]*([A-Z0-9\-_]+)", text, re.IGNORECASE)
-        invoice_number = inv_match.group(1) if inv_match else f"INV-{int(time.time())}"
+        inv_match = re.search(r"\bInvoice\s*(?:#|Number|No\.?)[:\s]*([A-Z0-9\-_]+)\b", text, re.IGNORECASE)
+        invoice_number = inv_match.group(1) if inv_match else None
 
         # Extract PO Reference
-        po_match = re.search(r"(?:PO|Purchase Order)\s*(?:#|Number|No\.?|Ref\.?|Reference)?[:\s]*([A-Z0-9\-_]+)", text, re.IGNORECASE)
+        po_match = re.search(r"\b(?:PO|Purchase Order)\s*(?:#|Number|No\.?|Ref\.?|Reference)?[:\s]*([A-Z0-9\-_]+)\b", text, re.IGNORECASE)
         po_reference = po_match.group(1) if po_match else None
 
         # Extract Date
-        date_match = re.search(r"Date[:\s]*(\d{4}-\d{2}-\d{2})", text, re.IGNORECASE)
+        date_match = re.search(r"\bDate[:\s]*(\d{4}-\d{2}-\d{2})\b", text, re.IGNORECASE)
+        inv_date = None
         if date_match:
             try:
                 inv_date = datetime.strptime(date_match.group(1), "%Y-%m-%d").date()
             except ValueError:
-                inv_date = date.today()
-        else:
-            inv_date = date.today()
+                inv_date = None
 
         # Extract Vendor Name
         vendor_name = "Unknown Vendor"
@@ -250,8 +388,22 @@ class InvoiceProcessingPipeline:
 
         # Extract labeled amounts (Subtotal / Tax / Grand Total) and the line-item table
         amounts = self._parse_labeled_amounts(lines)
-        subtotal_val = amounts.get("subtotal")
-        tax_val = amounts.get("tax", 0.0)
+        subtotal_val = next(
+            (
+                amounts[k]
+                for k in ("subtotal", "sub-total", "sub total", "taxable amount", "net amount")
+                if k in amounts
+            ),
+            None,
+        )
+        tax_val = next(
+            (
+                amounts[k]
+                for k in ("tax", "sales tax", "vat", "gst", "cgst", "sgst", "igst", "tax amount", "taxes")
+                if k in amounts
+            ),
+            0.0,
+        )
         total_val = next(
             (
                 amounts[key]
@@ -355,9 +507,17 @@ class InvoiceProcessingPipeline:
         stage_timings: List[StageTiming],
     ) -> DecisionAudit:
         """Fail closed: an unreadable document goes to a human, never to an automated payment."""
+        stage_timings.append(
+            StageTiming(
+                stage_name="5. Decision State & Audit Packaging",
+                latency_ms=0.0,
+                status="FAILED",
+                details={"workflow_state": "EXTRACTION_HALTED", "action": "ROUTED_TO_AP_LEAD"},
+            )
+        )
         return DecisionAudit(
             run_id=f"RUN-{uuid.uuid4().hex[:8].upper()}",
-            invoice_number="UNKNOWN",
+            invoice_number=None,
             vendor_name="UNKNOWN",
             decision=DecisionState.FLAGGED_HITL_REVIEW,
             overall_confidence=0.0,
