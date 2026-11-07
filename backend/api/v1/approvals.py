@@ -76,27 +76,42 @@ def list_approvals(
         for u in users:
             user_names[u.id] = u.full_name or u.email
 
+    # Batch fetch latest match runs and failed gates to prevent N+1 queries
+    invoice_ids = [inv.id for req, inv in rows]
+    latest_match_runs_by_inv = {}
+    if invoice_ids:
+        all_runs = db.scalars(
+            select(MatchRun)
+            .where(MatchRun.invoice_id.in_(invoice_ids), MatchRun.org_id == current_user.org_id)
+            .order_by(MatchRun.evaluated_at.desc())
+        ).all()
+        for mr in all_runs:
+            if mr.invoice_id not in latest_match_runs_by_inv:
+                latest_match_runs_by_inv[mr.invoice_id] = mr
+
+    failed_gates_by_mr = {}
+    if latest_match_runs_by_inv:
+        mr_ids = [mr.id for mr in latest_match_runs_by_inv.values()]
+        all_failed_gates = db.scalars(
+            select(MatchGateCheck).where(
+                MatchGateCheck.match_run_id.in_(mr_ids),
+                MatchGateCheck.org_id == current_user.org_id,
+                MatchGateCheck.status == "FAIL",
+            )
+        ).all()
+        for fg in all_failed_gates:
+            failed_gates_by_mr.setdefault(fg.match_run_id, []).append(fg.gate_name)
+
     items = []
     for req, inv in rows:
-        # Check failed gates on the invoice
-        match_run = db.scalar(
-            select(MatchRun)
-            .where(MatchRun.invoice_id == inv.id, MatchRun.org_id == current_user.org_id)
-            .order_by(MatchRun.evaluated_at.desc())
-        )
+        # Check failed gates on the invoice from batch cache
+        match_run = latest_match_runs_by_inv.get(inv.id)
         has_failed_gate = False
         failed_gate_names = []
         if match_run:
-            failed_gates = db.scalars(
-                select(MatchGateCheck).where(
-                    MatchGateCheck.match_run_id == match_run.id,
-                    MatchGateCheck.org_id == current_user.org_id,
-                    MatchGateCheck.status == "FAIL",
-                )
-            ).all()
-            if failed_gates:
+            failed_gate_names = failed_gates_by_mr.get(match_run.id, [])
+            if failed_gate_names:
                 has_failed_gate = True
-                failed_gate_names = [g.gate_name for g in failed_gates]
 
         # Determine if current user can approve this item
         can_approve = True

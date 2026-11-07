@@ -169,12 +169,12 @@ class HybridAPExtractor:
         gstin_match = re.search(r"GSTIN:\s*([0-9]{2}[A-Z0-9]{13})", full_text)
         supplier_gstin = gstin_match.group(1).strip() if gstin_match else None
 
-        # Document Number & Date
+        # Document Number & Date (Strict extraction without hallucinated defaults)
         doc_num_match = re.search(r"Document number[\s:]+([A-Z0-9\-]+)", full_text, re.IGNORECASE)
-        inv_number = doc_num_match.group(1).strip() if doc_num_match else "INV-UNKNOWN"
+        inv_number = doc_num_match.group(1).strip() if doc_num_match else None
 
         date_match = re.search(r"Document date[\s:]+(\d{4}-\d{2}-\d{2})", full_text, re.IGNORECASE)
-        inv_date = date_match.group(1).strip() if date_match else "2026-01-01"
+        inv_date = date_match.group(1).strip() if date_match else None
 
         # PO & GRN
         po_match = re.search(r"Purchase order[\s:]+([A-Z0-9\-]+)", full_text, re.IGNORECASE)

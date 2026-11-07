@@ -104,7 +104,7 @@ Before submitting changes or staging commits:
 ## 5. UI/UX Audit & Redesign Guidelines (For Reviewing AI Models)
 
 If you are an independent AI model conducting a UI/UX audit or redesign:
-- Read [`docs/KNOWN_LIMITATIONS.md`](./docs/KNOWN_LIMITATIONS.md) first to understand existing operator pain points.
+- Read [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md) first to understand existing operator pain points.
 - Review the 3-pane workflow in [`frontend/src/pages/InvoiceDetailPage.tsx`](./frontend/src/pages/InvoiceDetailPage.tsx).
 - Respect business terminology: `MATCH_CANDIDATE` (recommendation), `MANUALLY_APPROVED` (human sign-off), `AUTO_APPROVED` (STP only), `HOLD_PENDING_EVIDENCE` (query hold), `QUARANTINED` (non-payable document).
 - Maintain statutory compliance: Action justification must remain mandatory for audit trails.

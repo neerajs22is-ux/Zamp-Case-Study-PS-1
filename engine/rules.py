@@ -53,7 +53,7 @@ class AOPPolicyConfig:
         unit_price_variance_amount_threshold: float = 20.00,
         tax_rounding_tolerance_threshold: float = 5.00,
         low_confidence_threshold: float = 0.75,
-        duplicate_window_days: int = 0,
+        duplicate_window_days: int = 30,
     ) -> None:
         self.unit_price_variance_pct_threshold = unit_price_variance_pct_threshold
         self.unit_price_variance_amount_threshold = unit_price_variance_amount_threshold
@@ -277,56 +277,57 @@ class AOPRuleEngine:
         # -------------------------------------------------------------
         # Gate 3: Duplicate Submission Check
         # -------------------------------------------------------------
+        invoice_hash: Optional[str] = None
         if invoice.invoice_number:
             invoice_hash = hashlib.sha256(
                 f"{vendor.vendor_id}:{invoice.invoice_number}:{invoice.total_amount:.2f}".encode("utf-8")
             ).hexdigest()
 
             is_dup, dup_record, dup_type = erp.check_duplicate(
-            vendor_id=vendor.vendor_id,
-            invoice_number=invoice.invoice_number,
-            amount=invoice.total_amount,
-            sha256_hash=invoice_hash,
-            invoice_date=invoice.invoice_date,
-            window_days=self.config.duplicate_window_days,
-        )
+                vendor_id=vendor.vendor_id,
+                invoice_number=invoice.invoice_number,
+                amount=invoice.total_amount,
+                sha256_hash=invoice_hash,
+                invoice_date=invoice.invoice_date,
+                window_days=self.config.duplicate_window_days,
+            )
 
-        if is_dup and dup_record:
-            if dup_type in ("EXACT_INVOICE_NUMBER", "EXACT_HASH"):
-                reasons.append(
-                    f"Duplicate submission detected. Invoice #{invoice.invoice_number} from '{vendor.name}' "
-                    f"for {format_currency(invoice.total_amount, curr)} was previously processed on {dup_record.processed_date} "
-                    f"(Batch: {dup_record.batch_id}, Ref: {dup_record.invoice_id}). Auto-rejected to prevent double payment."
-                )
-                discrepancies["duplicate"] = {
-                    "prior_invoice_id": dup_record.invoice_id,
-                    "prior_processed_date": str(dup_record.processed_date),
-                    "prior_batch_id": dup_record.batch_id,
-                    "duplicate_type": dup_type,
-                }
-                return self._build_audit(
-                    run_id=run_id,
-                    invoice=invoice,
-                    decision=DecisionState.REJECTED,
-                    overall_confidence=overall_confidence,
-                    reasons=reasons,
-                    discrepancies=discrepancies,
-                    line_results=line_results,
-                    stage_timings=stage_timings or [],
-                )
-            else:
-                # Fuzzy near-duplicate (same vendor + exact amount within window)
-                reasons.append(
-                    f"Possible duplicate submission detected: Invoice for {format_currency(invoice.total_amount, curr)} "
-                    f"matches prior invoice #{dup_record.invoice_number} from '{vendor.name}' within duplicate window. "
-                    "Held for human review."
-                )
-                discrepancies["possible_duplicate"] = {
-                    "prior_invoice_id": dup_record.invoice_id,
-                    "prior_invoice_number": dup_record.invoice_number,
-                    "prior_processed_date": str(dup_record.processed_date),
-                    "duplicate_type": dup_type,
-                }
+            if is_dup and dup_record:
+                if dup_type in ("EXACT_INVOICE_NUMBER", "EXACT_HASH"):
+                    reasons.append(
+                        f"Duplicate submission detected. Invoice #{invoice.invoice_number} from '{vendor.name}' "
+                        f"for {format_currency(invoice.total_amount, curr)} was previously processed on {dup_record.processed_date} "
+                        f"(Batch: {dup_record.batch_id}, Ref: {dup_record.invoice_id}). Auto-rejected to prevent double payment."
+                    )
+                    discrepancies["duplicate"] = {
+                        "prior_invoice_id": dup_record.invoice_id,
+                        "prior_processed_date": str(dup_record.processed_date),
+                        "prior_batch_id": dup_record.batch_id,
+                        "duplicate_type": dup_type,
+                    }
+                    return self._build_audit(
+                        run_id=run_id,
+                        invoice=invoice,
+                        decision=DecisionState.REJECTED,
+                        overall_confidence=overall_confidence,
+                        reasons=reasons,
+                        discrepancies=discrepancies,
+                        line_results=line_results,
+                        stage_timings=stage_timings or [],
+                    )
+                else:
+                    # Fuzzy near-duplicate (same vendor + exact amount within window)
+                    reasons.append(
+                        f"Possible duplicate submission detected: Invoice for {format_currency(invoice.total_amount, curr)} "
+                        f"matches prior invoice #{dup_record.invoice_number} from '{vendor.name}' within duplicate window. "
+                        "Held for human review."
+                    )
+                    discrepancies["possible_duplicate"] = {
+                        "prior_invoice_id": dup_record.invoice_id,
+                        "prior_invoice_number": dup_record.invoice_number,
+                        "prior_processed_date": str(dup_record.processed_date),
+                        "duplicate_type": dup_type,
+                    }
         else:
             invoice_hash = "NO_INVOICE_NUMBER"
 
@@ -356,6 +357,15 @@ class AOPRuleEngine:
                     line_results=line_results,
                     stage_timings=stage_timings or [],
                 )
+            if po and getattr(po, "currency", "USD") != getattr(invoice, "currency", "USD"):
+                reasons.append(
+                    f"PO Currency Mismatch: PO #{po.po_number} is denominated in '{getattr(po, 'currency', 'USD')}', "
+                    f"but invoice is billed in '{invoice.currency}'. Cross-currency settlement requires manual Treasury review."
+                )
+                discrepancies["currency_mismatch"] = {
+                    "po_currency": getattr(po, "currency", "USD"),
+                    "invoice_currency": invoice.currency,
+                }
             if po and getattr(po, "status", "OPEN") in ("CLOSED", "EXHAUSTED"):
                 reasons.append(
                     f"Purchase Order Inactive: PO #{po.po_number} is currently marked as '{po.status}'. "
@@ -630,6 +640,8 @@ class AOPRuleEngine:
             invoice_number=invoice.invoice_number,
             vendor_name=invoice.vendor.name,
             po_number=invoice.po_reference or (po.po_number if po else None),
+            total_amount=invoice.total_amount,
+            currency=invoice.currency,
             decision=decision,
             overall_confidence=overall_confidence,
             reasons=reasons,
@@ -735,6 +747,10 @@ class AOPRuleEngine:
                 vendor_bullets.append(clean_r)
 
         bullet_points = "\n".join(f"  • {b}" for b in vendor_bullets)
+        if po:
+            po_instruction = f"  1. Reply to this email referencing PO #{po.po_number} and billing details."
+        else:
+            po_instruction = "  1. Reply to this email with an authorized Purchase Order (PO) reference number issued by our procurement department."
 
         return f"""To: {recipient}
 Subject: {subject}
@@ -748,7 +764,7 @@ We are processing Invoice #{invoice.invoice_number} (dated {invoice.invoice_date
 {bullet_points}
 
 To expedite approval and release of payment:
-  1. Reply to this email with reference to PO #{po.po_number if po else 'N/A'}.
+{po_instruction}
   2. If a rate addendum or contract revision applies, please attach the authorized documentation.
   3. For onboarding or invoice inquiries, reach our AP operations desk at ap-operations@company.internal.
 

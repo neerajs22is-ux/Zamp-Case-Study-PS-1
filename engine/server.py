@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Literal, Optional
 import uuid
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -21,7 +21,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from engine.mock_erp import MockERPDatabase
-from engine.models import DecisionAudit, DecisionState, DocumentType, Invoice
+from engine.models import DecisionAudit, DecisionState, DocumentType, HistoricalInvoiceRecord, Invoice
 from engine.pipeline import InvoiceProcessingPipeline
 
 
@@ -87,7 +87,7 @@ SCENARIOS_META = [
         "title": "Edge Case 2: Duplicate Invoice Submission",
         "vendor": "Apex Cloud Technologies Inc.",
         "invoice_number": "INV-2026-089",
-        "amount": 5425.00,
+        "amount": 3250.00,
         "po_reference": "PO-1042",
         "expected_decision": "REJECTED",
         "description": "Re-submission of identical invoice #INV-2026-089 processed 12 days prior. Catches collision to prevent double payment.",
@@ -148,17 +148,22 @@ async def run_scenario(scenario_id: str):
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
 
+    pdf_path = os.path.join(FIXTURES_DIR, scenario.get("pdf_file", ""))
     json_path = os.path.join(FIXTURES_DIR, scenario["json_file"])
-    if not os.path.exists(json_path):
-        raise HTTPException(status_code=500, detail=f"Fixture file missing: {json_path}")
-
-    # Each scenario run starts from the seeded ERP state so the demo is repeatable.
     erp_instance.reset()
 
-    with open(json_path, "r", encoding="utf-8") as f:
-        invoice_data = json.load(f)
+    if os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            invoice_data = f.read()
+        file_name = scenario["pdf_file"]
+    elif os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as f:
+            invoice_data = json.load(f)
+        file_name = scenario["json_file"]
+    else:
+        raise HTTPException(status_code=500, detail=f"Fixture file missing: {json_path}")
 
-    audit = pipeline.process(invoice_data, filename=scenario["json_file"])
+    audit = pipeline.process(invoice_data, filename=file_name)
     return audit.model_dump()
 
 
@@ -175,10 +180,20 @@ async def stream_scenario_execution(scenario_id: str):
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found")
 
+    pdf_path = os.path.join(FIXTURES_DIR, scenario.get("pdf_file", ""))
     json_path = os.path.join(FIXTURES_DIR, scenario["json_file"])
     erp_instance.reset()
-    with open(json_path, "r", encoding="utf-8") as f:
-        invoice_data = json.load(f)
+
+    if os.path.exists(pdf_path):
+        with open(pdf_path, "rb") as f:
+            invoice_data = f.read()
+        file_name = scenario["pdf_file"]
+    elif os.path.exists(json_path):
+        with open(json_path, "r", encoding="utf-8") as f:
+            invoice_data = json.load(f)
+        file_name = scenario["json_file"]
+    else:
+        raise HTTPException(status_code=500, detail=f"Fixture file missing: {json_path}")
 
     async def event_generator():
         # Event 1: Pipeline Init
@@ -186,7 +201,7 @@ async def stream_scenario_execution(scenario_id: str):
         await asyncio.sleep(0.08)
 
         # Genuine incremental stage execution
-        for event in pipeline.process_iter(invoice_data, filename=scenario["json_file"]):
+        for event in pipeline.process_iter(invoice_data, filename=file_name):
             evt_type = event["event"]
             if evt_type == "DECISION_FINAL":
                 audit = event["audit"]
@@ -222,7 +237,12 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found in audit history")
 
     if action_req.action == "APPROVE":
-        audit.decision = DecisionState.AUTO_APPROVED
+        if audit.decision == DecisionState.REJECTED:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot override an invoice with decision REJECTED. Re-upload or resolve hard rejection grounds.",
+            )
+        audit.decision = DecisionState.MANUALLY_APPROVED
         audit.erp_voucher_id = audit.erp_voucher_id or f"VCHR-OVR-{uuid.uuid4().hex[:6].upper()}"
         note = action_req.notes or action_req.override_reason or "Approved via human operator tolerance override"
         audit.reasons.append(f"[OPERATOR OVERRIDE]: {note}")
@@ -231,6 +251,23 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
             "notes": note,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+        # Financial consistency: record PO drawdown if PO exists, and record in historical ledger
+        if audit.po_number:
+            erp_instance.record_po_drawdown(audit.po_number, audit.total_amount or 0.0)
+        today = date.today()
+        erp_instance.record_processed_invoice(
+            HistoricalInvoiceRecord(
+                invoice_id=f"PROC-OVR-{uuid.uuid4().hex[:6].upper()}",
+                vendor_id=getattr(audit, "vendor_name", "UNKNOWN"),
+                invoice_number=audit.invoice_number,
+                amount=audit.total_amount or 0.0,
+                invoice_date=today,
+                processed_date=today,
+                sha256_hash=f"OVERRIDE_HASH_{audit.run_id}",
+                batch_id=f"BATCH-OVR-{today.isoformat()}",
+                status=DecisionState.MANUALLY_APPROVED,
+            )
+        )
     elif action_req.action == "REJECT":
         audit.decision = DecisionState.REJECTED
         note = action_req.notes or "Rejected by human AP operator during exception review"
@@ -261,14 +298,18 @@ async def upload_invoice(file: UploadFile = File(...)):
     """Upload custom invoice PDF or JSON and run through the pipeline."""
     content = await file.read()
     filename = file.filename or "uploaded_invoice"
+    fn_lower = filename.lower()
 
-    if filename.endswith(".json"):
+    if len(content) > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File size exceeds maximum permitted limit (15MB).")
+
+    if fn_lower.endswith(".json"):
         try:
             data = json.loads(content.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError):
             raise HTTPException(status_code=400, detail="Uploaded file is not valid JSON")
         audit = pipeline.process(data, filename=filename)
-    elif filename.endswith(".pdf"):
+    elif fn_lower.endswith(".pdf"):
         audit = pipeline.process(content, filename=filename)
     else:
         raise HTTPException(status_code=400, detail="Only .pdf or .json files are supported")
@@ -281,17 +322,21 @@ async def get_run_history():
     """Retrieve full history of executed runs for the dashboard."""
     runs = [r.model_dump() for r in reversed(pipeline.run_history)]
     total = len(runs)
-    approved = sum(1 for r in runs if r["decision"] == DecisionState.AUTO_APPROVED.value)
+    auto_app = sum(1 for r in runs if r["decision"] == DecisionState.AUTO_APPROVED.value)
+    manual_app = sum(1 for r in runs if r["decision"] == DecisionState.MANUALLY_APPROVED.value)
+    total_approved = auto_app + manual_app
     flagged = sum(1 for r in runs if r["decision"] == DecisionState.FLAGGED_HITL_REVIEW.value)
     rejected = sum(1 for r in runs if r["decision"] == DecisionState.REJECTED.value)
 
     return {
         "metrics": {
             "total_runs": total,
-            "auto_approved": approved,
+            "auto_approved": auto_app,
+            "manually_approved": manual_app,
+            "total_approved": total_approved,
             "flagged_for_review": flagged,
             "rejected": rejected,
-            "auto_approval_rate_pct": round((approved / total * 100), 1) if total > 0 else 0.0,
+            "auto_approval_rate_pct": round((total_approved / total * 100), 1) if total > 0 else 0.0,
             "exception_rate_pct": round(((flagged + rejected) / total * 100), 1) if total > 0 else 0.0,
         },
         "runs": runs,

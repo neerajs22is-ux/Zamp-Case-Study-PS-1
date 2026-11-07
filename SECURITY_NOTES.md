@@ -141,7 +141,7 @@
 
 ## 17. Asymmetric Supabase JWT Verification & Modern Key Architecture (Phase B Stage 7.3)
 - **Supabase JWKS Asymmetric Verification (RS256 & ES256):**
-  - Backend [`verify_token_claims`](file:///c:/Zamp Casse Study/backend/core/auth.py) fetches and cryptographically validates JWTs using public keys from the official Supabase JWKS endpoint (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json` or `SUPABASE_JWKS_URL`).
+  - Backend [`verify_token_claims`](backend/core/auth.py) fetches and cryptographically validates JWTs using public keys from the official Supabase JWKS endpoint (`{SUPABASE_URL}/auth/v1/.well-known/jwks.json` or `SUPABASE_JWKS_URL`).
   - Supports modern Supabase signing key standards: `ES256` (Elliptic Curve P-256) and `RS256` (RSA 2048).
   - Matches the JWT header `kid` against cached public keys to reconstruct the appropriate verification key via `jose.jwk.construct`.
 - **Safe Public Key Caching & Auto-Refresh:**
@@ -161,16 +161,16 @@
   - Elevated service keys are restricted strictly to backend server-side operations and are never exposed to the client frontend.
 
 ## 18. Thirty-Minute Pub/Sub Event Recovery Scheduling Audit (Phase B Stage 7.3)
-- **Automated Cloud Scheduler Configuration:** Verified that [`deploy/cloudrun/deploy.sh`](file:///c:/Zamp Casse Study/deploy/cloudrun/deploy.sh) configures `gmail-pubsub-reclaim` on schedule `*/30 * * * *` (every 30 minutes).
+- **Automated Cloud Scheduler Configuration:** Verified that [`deploy/cloudrun/deploy.sh`](deploy/cloudrun/deploy.sh) configures `gmail-pubsub-reclaim` on schedule `*/30 * * * *` (every 30 minutes).
 - **Target URI & Authentication:** Invokes `POST ${SERVICE_URL}/api/v1/integrations/gmail/pubsub/reclaim` using dedicated maintenance identity `SCHEDULER_SA` (`ap-cloud-scheduler-sa@${PROJECT_ID}.iam.gserviceaccount.com`) with OIDC token audience matching the exact reclaim URI.
 - **Invoker Authorization:** Service account `ap-cloud-scheduler-sa` is explicitly granted `roles/run.invoker` on the Cloud Run service.
-- **Application Identity Enforcement:** Endpoint is protected by [`require_maintenance_auth`](file:///c:/Zamp Casse Study/backend/core/auth.py), rejecting unauthorized service accounts (e.g. Pub/Sub push identity or arbitrary accounts) with HTTP 403 Forbidden.
+- **Application Identity Enforcement:** Endpoint is protected by [`require_maintenance_auth`](backend/core/auth.py), rejecting unauthorized service accounts (e.g. Pub/Sub push identity or arbitrary accounts) with HTTP 403 Forbidden.
 - **Idempotency & Safe Zero-State Execution:** When no unfinished events exist, the endpoint safely returns HTTP 200 with `scanned_count: 0`. When unfinished events (`RECEIVED`, `FAILED`, `CONCURRENT_DEFERRED`, `PARTIALLY_PROCESSED`) exist, they are reclaimed under exclusive per-mailbox lease and ingested with zero duplicate invoices or audit records via SHA-256 deduplication.
 
 ## 19. Supabase API Key Header Format Awareness & Least-Privilege Gmail Scope (Stage 7.3.1)
 - **Format-Aware Supabase Storage Headers:**
   - Supabase documents that modern secret and publishable keys (`sb_secret_...`, `sb_pub_...`) are not JWTs and must only be supplied via the `apikey` header. Sending an `sb_secret_` key as an `Authorization: Bearer` token causes API gateways to reject requests due to failed JWT parsing.
-  - [`SupabaseStorageAdapter._get_auth_headers`](file:///c:/Zamp%20Casse%20Study/backend/core/storage.py) implements format-aware request construction:
+  - [`SupabaseStorageAdapter._get_auth_headers`](backend/core/storage.py) implements format-aware request construction:
     - **Legacy JWT-based Keys (`eyJ...`):** Transmitted via both `apikey: <key>` and `Authorization: Bearer <key>` for complete backward compatibility.
     - **Modern Secret Keys (`sb_secret_...` / `sb_pub_...`):** Transmitted exclusively via `apikey: <key>`; `Authorization: Bearer` is strictly omitted.
     - **Anti-Decoding Guard:** `sb_secret_` keys are treated as opaque strings and are never decoded or parsed as JWTs.
@@ -191,9 +191,9 @@
   - Separated runtime (`DATABASE_URL`), migration (`MIGRATION_DATABASE_URL`), and backup/restore (`BACKUP_DATABASE_URL`) connection strings.
   - Serverless runtime uses Supavisor transaction pooler (port 6543) with prepared-statement safety and check-in sanitization.
   - DDL migrations and operator backups use direct PostgreSQL (port 5432) or session poolers (port 5432), preventing transactional DDL failures and advisory lock collisions on transaction poolers.
-  - Sensitive connection credentials across all three URLs are masked in logs, diagnostics, and configurations via [`Settings.redacted_dict`](file:///c:/Zamp%20Casse%20Study/backend/core/config.py).
+  - Sensitive connection credentials across all three URLs are masked in logs, diagnostics, and configurations via [`Settings.redacted_dict`](backend/core/config.py).
 - **Mandatory Privileged Storage Credentials:**
-  - [`SupabaseStorageAdapter`](file:///c:/Zamp%20Casse%20Study/backend/core/storage.py) enforces server-side exclusivity: privileged storage operations (file upload, private presigned URL creation, purge, listing) strictly require `SUPABASE_SERVICE_ROLE_KEY`.
+  - [`SupabaseStorageAdapter`](backend/core/storage.py) enforces server-side exclusivity: privileged storage operations (file upload, private presigned URL creation, purge, listing) strictly require `SUPABASE_SERVICE_ROLE_KEY`.
   - Unprivileged `SUPABASE_ANON_KEY` or publishable keys are **never silently substituted**.
   - Missing or invalid credentials immediately report honest `NOT_CONFIGURED` or `BLOCKED` states without attempting unauthenticated operations.
 

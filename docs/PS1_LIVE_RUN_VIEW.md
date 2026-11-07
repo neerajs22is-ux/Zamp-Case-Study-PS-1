@@ -1,8 +1,8 @@
 # PS-1 persisted processing run — 6 November 2026
 
-**Reliability follow-up:** [Bounded lease renewal and interrupted-worker recovery](LIVE_RUN_RELIABILITY.md) supersedes the no-heartbeat limitation below and documents Gmail intake checkpoints, late-result fencing, crash/concurrency tests and remaining provider limits. Historical results below are retained.
+**Reliability follow-up:** Bounded lease renewal and interrupted-worker recovery document Gmail intake checkpoints, late-result fencing, crash/concurrency tests and remaining provider limits (see `backend/core/processing_events.py` and `tests/test_processing_events.py`). Historical results below are retained.
 
-Continuation of [the production inspection](PRODUCTION_INSPECTION.md) and [offline/PostgreSQL verification](OFFLINE_POSTGRES_VERIFICATION.md). This change adds a small authenticated run view. It does **not** establish live-demo or production readiness.
+Continuation of production inspection and offline verification suites. This change adds a small authenticated run view. It does **not** establish live-demo or production readiness.
 
 ## Observed path and implementation
 

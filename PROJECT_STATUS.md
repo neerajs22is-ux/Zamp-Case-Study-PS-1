@@ -64,11 +64,11 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-- **Total Test Items Collected:** 426
-- **Passed:** 383
+- **Total Test Items Collected:** 436
+- **Passed:** 393
 - **Skipped:** 43 (PostgreSQL-specific isolation fixtures, live Gmail Pub/Sub network probes)
 - **Failed:** 0
-- **Standalone PS-1 Engine Suite:** 22 passed, 0 failed in 0.26s (`tests/test_engine.py`)
+- **Standalone PS-1 Engine Suite:** 28 passed, 0 failed in 0.25s (`tests/test_engine.py`)
 - **Audit Invariants & Approval Safety Suite:** 6 passed, 0 failed in 1.82s (`tests/test_audit_invariants_and_safety.py`)
 - **Execution Time:** ~38 seconds
 - **Frontend Build:** `npm run build` in `frontend/` completes with 0 errors.
@@ -95,4 +95,4 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 7. Next Recommended Development Milestone
 
-**Independent UI/UX Audit & Redesign:** Hand off repository to an independent design-focused AI model to evaluate AP employee ergonomics, 3-pane density, keyboard triage shortcuts, and bulk action workflows based on the specifications in [`docs/KNOWN_LIMITATIONS.md`](./docs/KNOWN_LIMITATIONS.md).
+**Independent UI/UX Audit & Redesign:** Hand off repository to an independent design-focused AI model to evaluate AP employee ergonomics, 3-pane density, keyboard triage shortcuts, and bulk action workflows based on the specifications in [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md).

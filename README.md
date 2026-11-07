@@ -93,15 +93,15 @@ Every scenario represents a distinct, high-friction accounts payable failure mod
 The repository maintains two comprehensive automated test suites verified on a clean Python 3.12 environment:
 
 ```powershell
-# 1. Run the standalone PS-1 engine verification suite (22 tests)
+# 1. Run the standalone PS-1 engine verification suite (28 tests)
 python run.py --test
 
-# 2. Run full repository verification suite (377 tests)
-pytest tests/ -q
+# 2. Run full repository verification suite (393 tests)
+python -m pytest tests/ -q
 ```
 
 ### Verified Test Results Summary:
-- **Standalone PS-1 Engine Suite:** **22 passed, 0 failed** in 0.26s (`tests/test_engine.py`)
+- **Standalone PS-1 Engine Suite:** **28 passed, 0 failed** in 0.25s (`tests/test_engine.py`)
   - HP-01 through EC-04 deterministic scenario test matrix
   - Tax ID mismatch strict rejection (never falls back to name)
   - Short vendor name rejection (minimum 3-char threshold)
@@ -112,7 +112,7 @@ pytest tests/ -q
   - Remittance bank account mismatch fraud prevention
   - Multi-line quantity aggregation per PO line
   - Multi-currency formatting (USD `$`, INR `₹`, EUR `€`, GBP `£`)
-- **Full Project Test Suite:** **377 passed, 43 skipped, 0 failed** in 44.09s (Skipped tests require disposable PostgreSQL or external services).
+- **Full Project Test Suite:** **393 passed, 43 skipped, 0 failed** in ~48s (Skipped tests require disposable PostgreSQL or external services).
 - **Security & Hygiene:** 0 committed credentials; `.env`, `.agents`, `.vibe-wise`, employer dossiers, and external project files scrubbed from git tracking.
 
 ---
@@ -152,11 +152,11 @@ For enterprise-scale production evaluations, the repository also includes a mult
 ├── specs/                          # Case study blueprints and specifications
 │   └── PS1_INVOICE_PROCESSING_SPEC.md
 ├── ASSUMPTIONS.md                  # 10 core enterprise AP operating assumptions
-├── tests/                          # 420 automated verification tests
-│   ├── test_engine.py              # 22 deterministic regression tests for PS-1 rules
+├── tests/                          # 436 automated verification tests
+│   ├── test_engine.py              # 28 deterministic regression tests for PS-1 rules
 │   └── test_hardening.py           # Engine fail-soft and extraction regression tests
-└── docs/                           # Architecture, verification reports, and archive
-    ├── archive/                    # Archived phase reports and audit documents
+└── docs/                           # Architecture, verification reports, and blueprints
+    ├── architecture/               # High-availability and storage design
     ├── AP_BUSINESS_RULES.md        # Comprehensive business rule definitions
     └── CASE_STUDY_VERIFICATION.md  # Production verification evidence register
 ```

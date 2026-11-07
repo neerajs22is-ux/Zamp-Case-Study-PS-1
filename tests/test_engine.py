@@ -383,3 +383,23 @@ def test_genuine_5_stages_executed_honestly(fresh_pipeline):
 
     for st in audit.stage_timings:
         assert st.status == "SUCCESS"
+
+
+def test_gate3_missing_invoice_number_known_vendor(fresh_pipeline):
+    """F-01: When invoice_number is None for a known vendor, Gate 3 must not raise UnboundLocalError."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["invoice_number"] = None
+    audit = fresh_pipeline.process(data)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert audit.discrepancy_details.get("missing_invoice_number") is True
+
+
+def test_gate4_cross_currency_mismatch(fresh_pipeline):
+    """F-09: PO denominated in USD billed in EUR triggers cross-currency discrepancy."""
+    data = load_fixture("HP-01-Happy-Path.json")
+    data["currency"] = "EUR"  # PO-1042 is denominated in USD
+    audit = fresh_pipeline.process(data)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "currency_mismatch" in audit.discrepancy_details
+    assert audit.discrepancy_details["currency_mismatch"]["po_currency"] == "USD"
+    assert audit.discrepancy_details["currency_mismatch"]["invoice_currency"] == "EUR"

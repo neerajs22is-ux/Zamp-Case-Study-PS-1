@@ -717,7 +717,7 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
     tax = Decimal(str(inv.tax_amount or 0))
     total = Decimal(str(inv.total_amount or 0))
     discrepancy = abs(total - (subtotal + tax))
-    g5_status = "PASS" if lines and total > 0 and discrepancy <= Decimal("1.00") and all(abs(Decimal(str(l.billed_line_total)) - Decimal(str(l.billed_quantity)) * Decimal(str(l.billed_unit_rate))) <= Decimal("0.01") for l in lines) else "FAIL"
+    g5_status = "PASS" if lines and total > 0 and discrepancy <= Decimal(str(settings.ROUNDING_TOLERANCE_INR)) and all(abs(Decimal(str(l.billed_line_total)) - Decimal(str(l.billed_quantity)) * Decimal(str(l.billed_unit_rate))) <= Decimal("0.01") for l in lines) else "FAIL"
     g5_notes = f"Calculated: ₹{(subtotal + tax):.2f} vs Billed: ₹{total:.2f} (Discrepancy: ₹{discrepancy:.2f})"
     if any(line.is_corrected for line in lines):
         g5_status = "FAIL"
@@ -818,7 +818,7 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
 
         if tolerances_breached:
             g6_status = "FAIL"
-            g6_notes = "; ".join(tolerances_breached[:2])
+            g6_notes = "; ".join(tolerances_breached)
         else:
             g6_status = "PASS"
             g6_notes = f"All {len(lines)} line(s) within ±{settings.RATE_TOLERANCE_PERCENT:.2f}% rate (Max variance: {max_variance:+.2f}%) and 0.00% quantity tolerance."

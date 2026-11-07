@@ -2,7 +2,8 @@
 
 import json
 from fastapi.testclient import TestClient
-from engine.server import app
+import os
+from engine.server import app, FIXTURES_DIR
 
 client = TestClient(app)
 
@@ -100,5 +101,40 @@ def test_api_operator_action_endpoints():
     assert res_override.status_code == 200
     updated = res_override.json()
     assert updated["status"] == "SUCCESS"
-    assert updated["decision"] == "AUTO_APPROVED"
+    assert updated["decision"] in ("MANUALLY_APPROVED", "AUTO_APPROVED")
+    assert updated["decision"] == "MANUALLY_APPROVED"
+
+    # 3. Rejection override guard: Hard-rejected invoices cannot be overridden
+    res_ec02 = client.post("/api/run-scenario/EC-02-Duplicate-Submission")
+    assert res_ec02.status_code == 200
+    ec02_run_id = res_ec02.json()["run_id"]
+    res_bad_override = client.post(
+        f"/api/invoices/{ec02_run_id}/action",
+        json={"action": "APPROVE", "notes": "Attempting illegal override of hard duplicate"}
+    )
+    assert res_bad_override.status_code == 400
+    assert "Cannot override an invoice with decision REJECTED" in res_bad_override.json()["detail"]
     assert "operator_override" in updated["audit"]["discrepancy_details"]
+
+
+def test_upload_invoice_file_size_limit():
+    """F-15: Uploading file exceeding 15MB returns HTTP 413."""
+    large_bytes = b"0" * (15 * 1024 * 1024 + 10)
+    res = client.post(
+        "/api/upload-invoice",
+        files={"file": ("huge_invoice.pdf", large_bytes, "application/pdf")}
+    )
+    assert res.status_code == 413
+    assert "exceeds maximum permitted limit" in res.json()["detail"]
+
+
+def test_upload_invoice_case_insensitive_extension():
+    """F-15: Uploading uppercase .PDF is accepted."""
+    with open(os.path.join(FIXTURES_DIR, "HP-01-Happy-Path.pdf"), "rb") as f:
+        pdf_bytes = f.read()
+    res = client.post(
+        "/api/upload-invoice",
+        files={"file": ("INVOICE_UPPERCASE.PDF", pdf_bytes, "application/pdf")}
+    )
+    assert res.status_code == 200
+    assert res.json()["decision"] == "AUTO_APPROVED"

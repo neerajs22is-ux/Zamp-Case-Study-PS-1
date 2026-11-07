@@ -100,6 +100,7 @@ class MockERPDatabase:
             vendor_name="Apex Cloud Technologies Inc.",
             authorized_amount=10000.00,
             invoiced_amount=0.00,
+            currency="USD",
             status="OPEN",
             line_items=[
                 POLineItem(
@@ -123,6 +124,7 @@ class MockERPDatabase:
             vendor_name="Apex Cloud Technologies Inc.",
             authorized_amount=10000.00,
             invoiced_amount=8000.00,
+            currency="USD",
             status="PARTIALLY_INVOICED",
             line_items=[
                 POLineItem(
@@ -145,6 +147,7 @@ class MockERPDatabase:
             vendor_name="Global Logistics Partners LLC",
             authorized_amount=10000.00,
             invoiced_amount=0.00,
+            currency="USD",
             status="OPEN",
             line_items=[
                 POLineItem(
@@ -165,8 +168,9 @@ class MockERPDatabase:
             po_number="PO-3015",
             vendor_id="VEND-003",
             vendor_name="Valley Hardware & Tools",
-            authorized_amount=2500.00,
+            authorized_amount=1280.00,
             invoiced_amount=0.00,
+            currency="USD",
             status="OPEN",
             line_items=[
                 POLineItem(
@@ -192,10 +196,10 @@ class MockERPDatabase:
             invoice_id="HIST-INV-9102",
             vendor_id="VEND-001",
             invoice_number="INV-2026-089",
-            amount=5425.00,
+            amount=3250.00,
             invoice_date=earlier_date,
             processed_date=earlier_date,
-            sha256_hash=hashlib.sha256(b"VEND-001:INV-2026-089:5425.00").hexdigest(),
+            sha256_hash=hashlib.sha256(b"VEND-001:INV-2026-089:3250.00").hexdigest(),
             batch_id="BATCH-2026-10-12A",
             status=DecisionState.AUTO_APPROVED,
         )

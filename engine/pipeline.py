@@ -327,13 +327,26 @@ class InvoiceProcessingPipeline:
             for page in reader.pages:
                 extracted_text += (page.extract_text() or "") + "\n"
 
-            # Check if text is dense or looks like a scanned raster
             clean_text = extracted_text.strip()
             if len(clean_text) < 50:
+                # Scanned raster image or low-density text -> run local OCR Engine
+                try:
+                    from engine.ocr_engine import OCREngine
+                    ocr_res = OCREngine().process_pdf_bytes(file_bytes, filename=filename or "invoice.pdf")
+                    if ocr_res.full_text and len(ocr_res.full_text.strip()) >= 20:
+                        return DocumentType.SCANNED_IMAGE, ocr_res.full_text, None
+                except Exception:
+                    pass
                 return DocumentType.SCANNED_IMAGE, clean_text, None
             return DocumentType.DIGITAL_PDF, clean_text, None
         except Exception:
-            # Fallback if corrupt or image
+            try:
+                from engine.ocr_engine import OCREngine
+                ocr_res = OCREngine().process_pdf_bytes(file_bytes, filename=filename or "invoice.pdf")
+                if ocr_res.full_text and len(ocr_res.full_text.strip()) >= 20:
+                    return DocumentType.SCANNED_IMAGE, ocr_res.full_text, None
+            except Exception:
+                pass
             return DocumentType.SCANNED_IMAGE, None, None
 
     def _extract(
@@ -356,11 +369,19 @@ class InvoiceProcessingPipeline:
             )
 
         # Extract Invoice Number
-        inv_match = re.search(r"\bInvoice\s*(?:#|Number|No\.?)[:\s]*([A-Z0-9\-_]+)\b", text, re.IGNORECASE)
+        inv_match = re.search(
+            r"\bInvoice[ \t]*(?:#|Number\b|No\b|No\.\B|Num\b|Num\.\B|ID\b|Id\b|:)[ \t:#]*(?!Invoice\b|Date\b|Due\b|Notes?\b|Total\b|Summary\b|Subtotal\b|Details?\b|To\b|From\b|Amount\b)([A-Z0-9][A-Z0-9\-_]*)\b",
+            text,
+            re.IGNORECASE,
+        )
         invoice_number = inv_match.group(1) if inv_match else None
 
         # Extract PO Reference
-        po_match = re.search(r"\b(?:PO|Purchase Order)\s*(?:#|Number|No\.?|Ref\.?|Reference)?[:\s]*([A-Z0-9\-_]+)\b", text, re.IGNORECASE)
+        po_match = re.search(
+            r"\b(?:PO\b|Purchase\s+Order\b)[ \t]*(?:#|Number\b|No\b|No\.\B|Num\b|Num\.\B|Ref\b|Ref\.\B|Reference\b|:)[ \t:#]*(?!Box\b|Date\b|Due\b|Notes?\b|Total\b|Summary\b|Details?\b)([A-Z0-9][A-Z0-9\-_]*)\b",
+            text,
+            re.IGNORECASE,
+        )
         po_reference = po_match.group(1) if po_match else None
 
         # Extract Date

@@ -2,7 +2,7 @@
 
 **Completed full-run follow-up:** [PS-1 live acceptance results](PS1_LIVE_ACCEPTANCE_RESULTS.md) supersedes the expired-AWS/full-extraction blocker below. A fresh isolated environment and project-scoped model credential exercised all five prepared cases successfully. Setup/app fixes, measured usage, retention caveat and cleanup are documented there. Historical subset results below remain unchanged.
 
-6 November 2026 (Asia/Calcutta). This supersedes the earlier **no setup authorization/designated workspace** blocker in [the prepared acceptance plan](PROVIDER_ACCEPTANCE.md). The user authorized new disposable setup. A separate provider project was created and used, then deleted. **Full extraction/matching acceptance remains blocked by expired AWS account sessions, not by lack of setup permission.**
+6 November 2026 (Asia/Calcutta). This supersedes the earlier **no setup authorization/designated workspace** blocker in the prepared acceptance plan (`docs/inspection-evidence/provider-acceptance/local_checks.json`). The user authorized new disposable setup. A separate provider project was created and used, then deleted. **Full extraction/matching acceptance remains blocked by expired AWS account sessions, not by lack of setup permission.**
 
 ## Environment actually created and exercised
 

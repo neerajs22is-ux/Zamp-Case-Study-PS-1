@@ -20,6 +20,7 @@ class DocumentType(str, Enum):
 
 class DecisionState(str, Enum):
     AUTO_APPROVED = "AUTO_APPROVED"
+    MANUALLY_APPROVED = "MANUALLY_APPROVED"
     FLAGGED_HITL_REVIEW = "FLAGGED_HITL_REVIEW"
     REJECTED = "REJECTED"
 
@@ -106,6 +107,7 @@ class PurchaseOrder(BaseModel):
     vendor_name: str = Field(..., min_length=1)
     authorized_amount: float = Field(..., gt=0)
     invoiced_amount: float = Field(default=0.0, ge=0)
+    currency: str = Field(default="USD", min_length=3, max_length=3)
     status: Literal["OPEN", "PARTIALLY_INVOICED", "CLOSED", "EXHAUSTED"] = "OPEN"
     line_items: List[POLineItem] = Field(default_factory=list)
 
@@ -163,6 +165,8 @@ class DecisionAudit(BaseModel):
     invoice_number: Optional[str] = Field(None, description="Vendor invoice number")
     vendor_name: str
     po_number: Optional[str] = None
+    total_amount: Optional[float] = None
+    currency: Optional[str] = "USD"
     decision: DecisionState
     overall_confidence: float
     reasons: List[str]
