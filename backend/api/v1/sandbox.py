@@ -25,9 +25,8 @@ import uuid
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Security, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Security, UploadFile, status
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, func, select
 from sqlalchemy.orm import Session
@@ -49,7 +48,11 @@ from backend.core.auth import (
 )
 from backend.core.config import AppEnv, settings
 from backend.core.database import SessionLocal, get_db, set_tenant_context
-from backend.core.pipeline import execute_document_pipeline
+from backend.core.pipeline import (
+    claim_ingestion_job,
+    execute_document_pipeline,
+    process_document_pipeline_background,
+)
 from backend.core.processing_events import append_checkpoint, lease_now, processing_snapshot
 from backend.core.storage import build_tenant_storage_path, storage_adapter
 from backend.models.domain import (
@@ -82,7 +85,30 @@ logger = logging.getLogger("sandbox_api")
 router = APIRouter(prefix="/sandbox", tags=["AP Command Center Sandbox"])
 
 SANDBOX_ORG_ID = "org_sme_eval"
-CORPUS_DIR = os.path.join("tests", "evaluation_corpus_v2", "invoices")
+
+# Reliable application-relative fixture paths (works in local repo and containerized runtime)
+APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+DEMO_FIXTURES_DIR = os.path.join(APP_ROOT, "engine", "demo_fixtures")
+FALLBACK_CORPUS_DIR = os.path.join(APP_ROOT, "tests", "evaluation_corpus_v2", "invoices")
+CORPUS_DIR = DEMO_FIXTURES_DIR if os.path.exists(DEMO_FIXTURES_DIR) else FALLBACK_CORPUS_DIR
+
+
+def get_scenario_pdf_path(filename: str) -> str:
+    """Resolves scenario fixture path reliably across local repo and production Docker container."""
+    p_demo = os.path.join(DEMO_FIXTURES_DIR, filename)
+    if os.path.exists(p_demo):
+        return p_demo
+    p_fallback = os.path.join(FALLBACK_CORPUS_DIR, filename)
+    if os.path.exists(p_fallback):
+        return p_fallback
+    rel_demo = os.path.join("engine", "demo_fixtures", filename)
+    if os.path.exists(rel_demo):
+        return rel_demo
+    rel_tests = os.path.join("tests", "evaluation_corpus_v2", "invoices", filename)
+    if os.path.exists(rel_tests):
+        return rel_tests
+    raise HTTPException(status_code=500, detail=f"Scenario fixture file missing: {filename}")
+
 
 # -----------------------------------------------------------------------------
 # Genuine Scenario Metadata (Unified with Flagship Evaluation Corpus)
@@ -208,7 +234,7 @@ GENUINE_SCENARIOS = [
 def _get_sandbox_user() -> AuthenticatedUser:
     """Returns the default evaluation user for programmatic sandbox tests."""
     return AuthenticatedUser(
-        id="usr_sme_associate",
+        id="usr_sme_assoc_01",
         org_id=SANDBOX_ORG_ID,
         email="sme_associate@company.internal",
         name="SME Evaluation Associate",
@@ -217,60 +243,192 @@ def _get_sandbox_user() -> AuthenticatedUser:
     )
 
 
-def _resolve_sse_user(
-    auth_token: Optional[str] = Query(None),
-    credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),
-    db: Session = Depends(get_db),
-) -> AuthenticatedUser:
-    """Authenticates SSE stream requests via Bearer header or query token parameter."""
-    token = None
-    if credentials and credentials.credentials:
-        token = credentials.credentials
-    elif auth_token:
-        token = auth_token
+def _build_duplicate_response(
+    existing_doc: Document,
+    inv: Optional[Invoice],
+    sha256: str,
+    start_time: float,
+) -> Dict[str, Any]:
+    """Constructs a deterministic, non-destructive duplicate rejection response."""
+    return {
+        "status": "COMPLETED",
+        "duplicate_detected": True,
+        "document_id": existing_doc.id,
+        "invoice_id": existing_doc.invoice_id,
+        "decision": "REJECTED",
+        "stage": "ACTION_REQUIRED",
+        "decision_reason": f"Duplicate invoice detected: identical SHA-256 hash ({sha256[:12]}...) was processed previously. Rejection safeguard prevents duplicate payment.",
+        "is_live_mantle": False,
+        "inference_provider": "Deterministic Hash Guard",
+        "latency_ms": round((time.perf_counter() - start_time) * 1000, 2),
+        "match_gates": [
+            {
+                "gate_number": 7,
+                "gate_name": "Duplicate Invoice Check",
+                "status": "FAIL",
+                "notes": f"Duplicate document detected (Hash: {sha256[:12]}...)",
+            }
+        ],
+        "invoice": {
+            "id": existing_doc.invoice_id,
+            "invoice_number": inv.invoice_number if inv else "DUPLICATE",
+            "vendor_name": inv.vendor_name if inv else "Unknown Vendor",
+            "vendor_gstin": inv.vendor_gstin if inv else None,
+            "po_reference": inv.po_reference if inv else None,
+            "subtotal": float(inv.subtotal_amount or 0.0) if inv else 0.0,
+            "tax_amount": float(inv.tax_amount or 0.0) if inv else 0.0,
+            "total_amount": float(inv.total_amount or 0.0) if inv else 0.0,
+            "net_payable": float(inv.net_payable_amount or 0.0) if inv else 0.0,
+            "currency": inv.currency if inv else "INR",
+            "stage": "ACTION_REQUIRED",
+            "decision": "REJECTED",
+            "decision_reason": f"Duplicate invoice detected: identical SHA-256 hash ({sha256[:12]}...) was processed previously.",
+        },
+        "line_items": [],
+        "procurement": {"po": None, "grn": None, "qc": None},
+        "grounding": {"tripwire_passed": True, "unverified_fields": []},
+        "reasons": [f"Duplicate invoice detected: identical SHA-256 hash ({sha256[:12]}...) was processed previously."],
+    }
 
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required for SSE stream. Provide Bearer header or auth_token query parameter.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 
-    claims, hint_org, hint_role = verify_token_claims(token)
-    user_id = claims["sub"]
-    email = claims["email"]
-    name = claims.get("name") or email.split("@")[0]
-    issuer = claims.get("iss") or ("test" if settings.APP_ENV == AppEnv.TEST else None)
+def _get_invoice_sandbox_view(
+    db: Session,
+    inv_id: str,
+    org_id: str,
+    scenario: Optional[Dict[str, Any]] = None,
+    latency_ms: float = 0.0,
+) -> Dict[str, Any]:
+    """Retrieves full authoritative 3-pane operational data from persisted PostgreSQL entities."""
+    db.expire_all()
+    inv = db.scalar(select(Invoice).where(Invoice.id == inv_id, Invoice.org_id == org_id))
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice record not found.")
 
-    org_id, org_name, role, is_provisioned, available_orgs, member_id, is_owner = resolve_server_side_membership(
-        auth_user_id=user_id,
-        email=email,
-        requested_org_id=hint_org,
-        db=db,
-        hint_org_id=hint_org,
-        hint_role=hint_role,
-        issuer=issuer,
+    doc = db.scalar(select(Document).where(Document.invoice_id == inv_id, Document.org_id == org_id))
+    lines_records = db.scalars(
+        select(InvoiceLine).where(InvoiceLine.invoice_id == inv_id, InvoiceLine.org_id == org_id).order_by(InvoiceLine.line_number)
+    ).all()
+    match_run = db.scalar(
+        select(MatchRun).where(MatchRun.invoice_id == inv_id, MatchRun.org_id == org_id).order_by(desc(MatchRun.evaluated_at))
     )
+    saved_checks = []
+    if match_run:
+        saved_checks = db.scalars(
+            select(MatchGateCheck).where(
+                MatchGateCheck.match_run_id == match_run.id,
+                MatchGateCheck.org_id == org_id,
+            ).order_by(MatchGateCheck.gate_number)
+        ).all()
 
-    if not is_provisioned or not org_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is not provisioned in an active organisation.",
-        )
+    if saved_checks:
+        match_gates = [
+            {
+                "gate_number": c.gate_number,
+                "gate_name": c.gate_name,
+                "status": c.status,
+                "notes": c.evidence_notes,
+            }
+            for c in saved_checks
+        ]
+    else:
+        run = reevaluate_match_gates(db, inv, org_id)
+        saved_checks = db.scalars(
+            select(MatchGateCheck).where(
+                MatchGateCheck.match_run_id == run.id,
+                MatchGateCheck.org_id == org_id,
+            ).order_by(MatchGateCheck.gate_number)
+        ).all()
+        match_gates = [
+            {
+                "gate_number": c.gate_number,
+                "gate_name": c.gate_name,
+                "status": c.status,
+                "notes": c.evidence_notes,
+            }
+            for c in saved_checks
+        ]
 
-    set_tenant_context(db, org_id)
-    return AuthenticatedUser(
-        id=member_id or user_id,
-        auth_subject=user_id,
-        identity_issuer=issuer,
-        email=email,
-        name=name,
-        role=role,
-        org_id=org_id,
-        org_name=org_name,
-        is_provisioned=is_provisioned,
-        is_owner=is_owner,
-    )
+    # Procurement references
+    wo = db.scalar(select(WorkOrderSnapshot).where(WorkOrderSnapshot.po_number == inv.po_reference, WorkOrderSnapshot.org_id == org_id)) if inv.po_reference else None
+    grn = None
+    qc = None
+    if wo:
+        grn = db.scalar(select(GoodsReceiptSnapshot).where(GoodsReceiptSnapshot.po_number == wo.po_number, GoodsReceiptSnapshot.org_id == org_id))
+        if grn:
+            qc = db.scalar(select(QualityControlSnapshot).where(QualityControlSnapshot.grn_number == grn.grn_number, QualityControlSnapshot.org_id == org_id))
+
+    # Extraction Run for Provider info
+    ext_run = db.scalar(select(ExtractionRun).where(ExtractionRun.document_id == doc.id).order_by(desc(ExtractionRun.extracted_at))) if doc else None
+    is_live = bool(ext_run and ("qwen" in (ext_run.parser_version or "").lower() or "mantle" in (ext_run.parser_version or "").lower()))
+    inf_provider = "AWS Bedrock Mantle (Qwen 235B)" if is_live else ("Deterministic AP Engine" if (ext_run and ext_run.parser_version != "NONE_ROUTED_HITL") else "Deterministic Tripwire")
+
+    is_hitl = inv.decision == "FLAGGED_HITL_REVIEW"
+
+    return {
+        "status": "COMPLETED",
+        "document_id": doc.id if doc else None,
+        "invoice_id": inv.id,
+        "job_id": None,
+        "filename": doc.filename if doc else None,
+        "mode": "LIVE_INFERENCE" if is_live else "DETERMINISTIC_RULES",
+        "is_live_mantle": is_live,
+        "inference_provider": inf_provider,
+        "model_id": ext_run.parser_version if ext_run else None,
+        "latency_ms": latency_ms,
+        "decision": inv.decision,
+        "stage": inv.stage,
+        "decision_reason": inv.decision_reason,
+        "scenario": scenario,
+        "invoice": {
+            "id": inv.id,
+            "invoice_number": inv.invoice_number or "UNKNOWN",
+            "vendor_name": inv.vendor_name or "Unknown Supplier",
+            "vendor_gstin": inv.vendor_gstin,
+            "po_reference": inv.po_reference,
+            "subtotal": float(inv.subtotal_amount or 0.0),
+            "tax_amount": float(inv.tax_amount or 0.0),
+            "total_amount": float(inv.total_amount or 0.0),
+            "net_payable": float(inv.net_payable_amount or 0.0),
+            "currency": inv.currency or "INR",
+            "stage": inv.stage,
+            "decision": inv.decision,
+            "decision_reason": inv.decision_reason,
+        },
+        "line_items": [
+            {
+                "id": l.id,
+                "line_number": l.line_number,
+                "description": l.description,
+                "billed_quantity": float(l.billed_quantity or 0.0),
+                "billed_unit_rate": float(l.billed_unit_rate or 0.0),
+                "billed_line_total": float(l.billed_line_total or 0.0),
+            }
+            for l in lines_records
+        ],
+        "procurement": {
+            "po": {
+                "po_number": wo.po_number,
+                "vendor_code": wo.vendor_code,
+                "total_authorized_amount": float(wo.total_authorized_amount or 0.0),
+                "remaining_balance": float(wo.remaining_balance or 0.0),
+                "status": wo.status,
+            } if wo else None,
+            "grn": {
+                "grn_number": grn.grn_number,
+                "received_date": grn.received_date.isoformat() if grn.received_date else None,
+            } if grn else None,
+            "qc": {
+                "qc_certificate_number": qc.qc_certificate_number,
+                "overall_status": qc.overall_status,
+            } if qc else None,
+        },
+        "match_gates": match_gates,
+        "grounding": {
+            "tripwire_passed": not (is_hitl and "grounding" in (inv.decision_reason or "").lower()),
+            "unverified_fields": ["scanned_document_no_text"] if is_hitl and "raster" in (inv.decision_reason or "").lower() else [],
+        },
+        "reasons": [inv.decision_reason] if inv.decision_reason else [],
+    }
 
 
 def _execute_pipeline_core(
@@ -298,43 +456,29 @@ def _execute_pipeline_core(
     )
     if existing_doc and force_duplicate_check:
         inv = db.scalar(select(Invoice).where(Invoice.id == existing_doc.invoice_id, Invoice.org_id == org_id))
-        return {
-            "status": "COMPLETED",
-            "duplicate_detected": True,
-            "document_id": existing_doc.id,
-            "invoice_id": existing_doc.invoice_id,
-            "decision": "REJECTED",
-            "stage": "ACTION_REQUIRED",
-            "decision_reason": f"Duplicate invoice detected: identical SHA-256 hash ({sha256[:12]}...) was processed previously.",
-            "is_live_mantle": False,
-            "latency_ms": round((time.perf_counter() - start_time) * 1000, 2),
-            "match_gates": [
-                {"gate_number": 7, "gate_name": "Duplicate Invoice Check", "status": "FAIL", "notes": f"Duplicate document detected (Hash: {sha256[:12]}...)"}
-            ],
-            "invoice": {
-                "id": existing_doc.invoice_id,
-                "invoice_number": inv.invoice_number if inv else "DUPLICATE",
-                "vendor_name": inv.vendor_name if inv else "Unknown Vendor",
-                "vendor_gstin": inv.vendor_gstin if inv else None,
-                "po_reference": inv.po_reference if inv else None,
-                "subtotal": float(inv.subtotal_amount or 0.0) if inv else 0.0,
-                "tax_amount": float(inv.tax_amount or 0.0) if inv else 0.0,
-                "total_amount": float(inv.total_amount or 0.0) if inv else 0.0,
-                "net_payable": float(inv.net_payable_amount or 0.0) if inv else 0.0,
-                "currency": inv.currency if inv else "INR",
-                "stage": "ACTION_REQUIRED",
-                "decision": "REJECTED",
-                "decision_reason": f"Duplicate invoice detected: identical SHA-256 hash ({sha256[:12]}...) was processed previously.",
-            },
-            "line_items": [],
-            "procurement": {"po": None, "grn": None, "qc": None},
-            "grounding": {"tripwire_passed": True, "unverified_fields": []},
-            "reasons": [f"Duplicate invoice detected: identical SHA-256 hash ({sha256[:12]}...) was processed previously."],
-        }
+        actor_id = user.id if user else "usr_sme_assoc_01"
+        actor_role = user.role.value if (user and user.role) else "AP_ASSOCIATE"
+        db.add(AuditEvent(
+            id=f"evt_{uuid.uuid4().hex[:12]}",
+            org_id=org_id,
+            invoice_id=existing_doc.invoice_id,
+            actor_id=actor_id,
+            actor_role=actor_role,
+            action="DUPLICATE_INTAKE_REJECTED",
+            reason=f"Duplicate invoice intake rejected by SHA-256 collision guard ({sha256[:12]}...).",
+            after_state={"stage": "ACTION_REQUIRED", "decision": "REJECTED", "sha256": sha256},
+            timestamp=datetime.datetime.utcnow(),
+        ))
+        db.commit()
+        return _build_duplicate_response(existing_doc, inv, sha256, start_time)
+    elif existing_doc and not force_duplicate_check:
+        # Mark previous document version as superseded to allow idempotent re-evaluation in test/pipeline runs
+        existing_doc.is_deleted = True
+        db.flush()
 
     # 2. Persist File in Tenant-Isolated Object Storage
-    doc_id = existing_doc.id if existing_doc else f"doc_sbx_{uuid.uuid4().hex[:10]}"
-    inv_id = existing_doc.invoice_id if existing_doc else f"inv_sbx_{uuid.uuid4().hex[:10]}"
+    doc_id = f"doc_sbx_{uuid.uuid4().hex[:10]}"
+    inv_id = f"inv_sbx_{uuid.uuid4().hex[:10]}"
     job_id = f"job_sbx_{uuid.uuid4().hex[:10]}"
 
     storage_path = build_tenant_storage_path(org_id, doc_id, filename)
@@ -352,44 +496,41 @@ def _execute_pipeline_core(
             detail="Secure storage persistence failed.",
         )
 
-    # 3. Create or Update Ingestion Entities in Tenant Workspace
-    actor_id = user.id if user else "usr_sme_associate"
+    # 3. Create Ingestion Entities in Tenant Workspace
+    actor_id = user.id if user else "usr_sme_assoc_01"
     actor_role = user.role.value if (user and user.role) else "AP_ASSOCIATE"
 
-    inv = db.scalar(select(Invoice).where(Invoice.id == inv_id, Invoice.org_id == org_id))
-    if not inv:
-        inv = Invoice(
-            id=inv_id,
-            org_id=org_id,
-            source_channel="SANDBOX_EXPERIENCE",
-            stage="RECEIVED",
-            decision="NEEDS_REVIEW",
-            decision_reason="Uploaded via Sandbox. Awaiting authoritative pipeline execution.",
-            currency="INR",
-            created_at=now_utc,
-            updated_at=now_utc,
-            owner_user_id=actor_id,
-        )
-        db.add(inv)
-        db.flush()
+    inv = Invoice(
+        id=inv_id,
+        org_id=org_id,
+        source_channel="SANDBOX_EXPERIENCE",
+        stage="RECEIVED",
+        decision="NEEDS_REVIEW",
+        decision_reason="Uploaded via Sandbox. Awaiting authoritative pipeline execution.",
+        currency="INR",
+        created_at=now_utc,
+        updated_at=now_utc,
+        owner_user_id=actor_id,
+    )
+    db.add(inv)
+    db.flush()
 
-    if not existing_doc:
-        doc = Document(
-            id=doc_id,
-            org_id=org_id,
-            invoice_id=inv_id,
-            filename=filename,
-            mime_type="application/pdf",
-            file_size_bytes=len(pdf_bytes),
-            sha256_hash=sha256,
-            storage_provider=storage_meta["storage_provider"],
-            storage_key=storage_meta["storage_key"],
-            is_original=True,
-            is_deleted=False,
-            uploaded_at=now_utc,
-        )
-        db.add(doc)
-        db.flush()
+    doc = Document(
+        id=doc_id,
+        org_id=org_id,
+        invoice_id=inv_id,
+        filename=filename,
+        mime_type="application/pdf",
+        file_size_bytes=len(pdf_bytes),
+        sha256_hash=sha256,
+        storage_provider=storage_meta["storage_provider"],
+        storage_key=storage_meta["storage_key"],
+        is_original=True,
+        is_deleted=False,
+        uploaded_at=now_utc,
+    )
+    db.add(doc)
+    db.flush()
 
     lock_token = uuid.uuid4().hex
     job = IngestionJob(
@@ -427,110 +568,7 @@ def _execute_pipeline_core(
     )
 
     latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
-
-    # 5. Fetch Authoritative Persisted Records
-    db.expire_all()
-    inv = db.scalar(select(Invoice).where(Invoice.id == inv_id, Invoice.org_id == org_id))
-    lines_records = db.scalars(
-        select(InvoiceLine).where(InvoiceLine.invoice_id == inv_id, InvoiceLine.org_id == org_id).order_by(InvoiceLine.line_number)
-    ).all()
-    match_run = db.scalar(
-        select(MatchRun).where(MatchRun.invoice_id == inv_id, MatchRun.org_id == org_id).order_by(desc(MatchRun.evaluated_at))
-    )
-    saved_checks = []
-    if match_run:
-        saved_checks = db.scalars(
-            select(MatchGateCheck).where(
-                MatchGateCheck.match_run_id == match_run.id,
-                MatchGateCheck.org_id == org_id,
-            ).order_by(MatchGateCheck.gate_number)
-        ).all()
-
-    ext_run = db.scalar(
-        select(ExtractionRun).where(ExtractionRun.document_id == doc_id, ExtractionRun.org_id == org_id)
-    )
-
-    is_live = bool(ext_run and ("qwen" in (ext_run.parser_version or "").lower() or "mantle" in (ext_run.parser_version or "").lower()))
-
-    # Procurement references
-    wo = db.scalar(select(WorkOrderSnapshot).where(WorkOrderSnapshot.po_number == inv.po_reference, WorkOrderSnapshot.org_id == org_id)) if (inv and inv.po_reference) else None
-    grn = db.scalar(select(GoodsReceiptSnapshot).where(GoodsReceiptSnapshot.po_number == inv.po_reference, GoodsReceiptSnapshot.org_id == org_id)) if (inv and inv.po_reference) else None
-    qc = db.scalar(select(QualityControlSnapshot).where(QualityControlSnapshot.grn_number == grn.grn_number, QualityControlSnapshot.org_id == org_id)) if grn else None
-
-    # Tripwire & reasoning flags
-    is_hitl = inv.decision == "FLAGGED_HITL_REVIEW" if inv else False
-
-    return {
-        "status": "COMPLETED",
-        "document_id": doc_id,
-        "invoice_id": inv_id,
-        "job_id": job_id,
-        "filename": filename,
-        "mode": "LIVE_INFERENCE" if is_live else "DETERMINISTIC_RULES",
-        "is_live_mantle": is_live,
-        "inference_provider": "AWS Bedrock Mantle (Qwen 235B)" if is_live else "Deterministic AP Engine",
-        "model_id": ext_run.parser_version if ext_run else None,
-        "latency_ms": latency_ms,
-        "decision": inv.decision if inv else "UNKNOWN",
-        "stage": inv.stage if inv else "UNKNOWN",
-        "decision_reason": inv.decision_reason if inv else "",
-        "invoice": {
-            "id": inv.id if inv else inv_id,
-            "invoice_number": inv.invoice_number if inv else "UNKNOWN",
-            "vendor_name": inv.vendor_name if inv else "Unknown Supplier",
-            "vendor_gstin": inv.vendor_gstin if inv else None,
-            "po_reference": inv.po_reference if inv else None,
-            "subtotal": float(inv.subtotal_amount or 0.0) if inv else 0.0,
-            "tax_amount": float(inv.tax_amount or 0.0) if inv else 0.0,
-            "total_amount": float(inv.total_amount or 0.0) if inv else 0.0,
-            "net_payable": float(inv.net_payable_amount or 0.0) if inv else 0.0,
-            "currency": inv.currency if inv else "INR",
-            "stage": inv.stage if inv else "UNKNOWN",
-            "decision": inv.decision if inv else "UNKNOWN",
-            "decision_reason": inv.decision_reason if inv else "",
-        },
-        "line_items": [
-            {
-                "line_number": l.line_number,
-                "description": l.description,
-                "billed_quantity": float(l.billed_quantity),
-                "billed_unit_rate": float(l.billed_unit_rate),
-                "billed_line_total": float(l.billed_line_total),
-            }
-            for l in lines_records
-        ],
-        "procurement": {
-            "po": {
-                "po_number": wo.po_number,
-                "vendor_code": wo.vendor_code,
-                "total_authorized_amount": float(wo.total_authorized_amount),
-                "remaining_balance": float(wo.remaining_balance),
-                "status": wo.status,
-            } if wo else None,
-            "grn": {
-                "grn_number": grn.grn_number,
-                "received_date": grn.received_date.isoformat() if grn.received_date else None,
-            } if grn else None,
-            "qc": {
-                "qc_certificate_number": qc.qc_certificate_number,
-                "overall_status": qc.overall_status,
-            } if qc else None,
-        },
-        "match_gates": [
-            {
-                "gate_number": g.gate_number,
-                "gate_name": g.gate_name,
-                "status": g.status,
-                "notes": g.evidence_notes,
-            }
-            for g in saved_checks
-        ],
-        "grounding": {
-            "tripwire_passed": not (is_hitl and "grounding" in (inv.decision_reason or "").lower()),
-            "unverified_fields": ["scanned_document_no_text"] if is_hitl and "raster" in (inv.decision_reason or "").lower() else [],
-        },
-        "reasons": [inv.decision_reason] if inv and inv.decision_reason else [],
-    }
+    return _get_invoice_sandbox_view(db, inv_id, org_id, latency_ms=latency_ms)
 
 
 # -----------------------------------------------------------------------------
@@ -548,13 +586,22 @@ def list_sandbox_scenarios(
 @router.post("/run-scenario/{scenario_id}")
 def run_sandbox_scenario(
     scenario_id: str,
+    background_tasks: BackgroundTasks,
+    sync: bool = False,
     current_user: AuthenticatedUser = Depends(
         require_role([UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
     ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Executes a genuine test scenario through the flagship AP Command Center engine."""
-    # Validate scenario identifier format
+    """Executes a genuine test scenario through the authoritative flagship AP Command Center engine."""
+    # 1. Enforce Evaluation Workspace Guard (Requirement 5)
+    if current_user.org_id != SANDBOX_ORG_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Demonstration scenarios are restricted to authorized evaluation workspaces ('org_sme_eval').",
+        )
+
+    # 2. Validate scenario identifier format
     if not re.match(r"^SCN-[A-Za-z0-9_-]+$", scenario_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -565,52 +612,192 @@ def run_sandbox_scenario(
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
 
-    pdf_path = os.path.join(CORPUS_DIR, scenario["pdf_filename"])
-    if not os.path.exists(pdf_path):
-        raise HTTPException(status_code=500, detail=f"Fixture file missing: {pdf_path}")
-
+    pdf_path = get_scenario_pdf_path(scenario["pdf_filename"])
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
 
-    force_dup = scenario["scenario_type"] == "DUPLICATE_INVOICE"
-    result = _execute_pipeline_core(
-        pdf_bytes=pdf_bytes,
-        filename=scenario["pdf_filename"],
-        db=db,
-        org_id=current_user.org_id,
-        user=current_user,
-        force_duplicate_check=force_dup,
+    # 3. Synchronous execution path (for programmatic test clients)
+    if sync:
+        res = _execute_pipeline_core(
+            pdf_bytes=pdf_bytes,
+            filename=scenario["pdf_filename"],
+            db=db,
+            org_id=current_user.org_id,
+            user=current_user,
+            force_duplicate_check=(scenario["scenario_type"] == "DUPLICATE_INVOICE"),
+        )
+        res["scenario"] = scenario
+        return res
+
+    # 4. Asynchronous Intake (Requirements 2, 4, 5)
+    sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+    set_tenant_context(db, current_user.org_id)
+
+    existing_doc = db.scalar(
+        select(Document).where(
+            Document.sha256_hash == sha256,
+            Document.org_id == current_user.org_id,
+            Document.is_deleted == False,
+        )
     )
-    result["scenario"] = scenario
-    return result
+
+    # Duplicate scenario (SCN-06)
+    if scenario["scenario_type"] == "DUPLICATE_INVOICE":
+        if existing_doc:
+            inv = db.scalar(select(Invoice).where(Invoice.id == existing_doc.invoice_id, Invoice.org_id == current_user.org_id))
+            db.add(AuditEvent(
+                id=f"evt_{uuid.uuid4().hex[:12]}",
+                org_id=current_user.org_id,
+                invoice_id=existing_doc.invoice_id,
+                actor_id=current_user.id,
+                actor_role=current_user.role.value,
+                action="DUPLICATE_INTAKE_REJECTED",
+                reason=f"Duplicate invoice intake rejected by SHA-256 collision guard ({sha256[:12]}...).",
+                after_state={"stage": "ACTION_REQUIRED", "decision": "REJECTED", "sha256": sha256},
+                timestamp=datetime.datetime.utcnow(),
+            ))
+            db.commit()
+            dup_res = _build_duplicate_response(existing_doc, inv, sha256, time.perf_counter())
+            dup_res["scenario"] = scenario
+            return dup_res
+        else:
+            # Baseline execution if SCN-01 hasn't been ingested yet
+            res = _execute_pipeline_core(
+                pdf_bytes=pdf_bytes,
+                filename=scenario["pdf_filename"],
+                db=db,
+                org_id=current_user.org_id,
+                user=current_user,
+                force_duplicate_check=False,
+            )
+            res["scenario"] = scenario
+            return res
+
+    # Standard scenarios (SCN-01 to SCN-05)
+    if existing_doc:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "status": "DUPLICATE_DETECTED",
+                "detail": f"Duplicate document detected: scenario file '{scenario['pdf_filename']}' already exists as invoice '{existing_doc.invoice_id}'.",
+                "document_id": existing_doc.id,
+                "invoice_id": existing_doc.invoice_id,
+                "sha256": sha256,
+            },
+        )
+
+    # Unique document persistence
+    doc_id = f"doc_sbx_{uuid.uuid4().hex[:10]}"
+    inv_id = f"inv_sbx_{uuid.uuid4().hex[:10]}"
+    job_id = f"job_sbx_{uuid.uuid4().hex[:10]}"
+    storage_path = build_tenant_storage_path(current_user.org_id, doc_id, scenario["pdf_filename"])
+    storage_meta = storage_adapter.save_file(
+        content=pdf_bytes,
+        filename=scenario["pdf_filename"],
+        mime_type="application/pdf",
+        storage_key=storage_path,
+    )
+
+    now_utc = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    inv = Invoice(
+        id=inv_id,
+        org_id=current_user.org_id,
+        source_channel="SANDBOX_EXPERIENCE",
+        stage="RECEIVED",
+        decision="NEEDS_REVIEW",
+        decision_reason="Scenario intake accepted. Awaiting pipeline execution.",
+        currency="INR",
+        created_at=now_utc,
+        updated_at=now_utc,
+        owner_user_id=current_user.id,
+    )
+    db.add(inv)
+    db.flush()
+
+    doc = Document(
+        id=doc_id,
+        org_id=current_user.org_id,
+        invoice_id=inv_id,
+        filename=scenario["pdf_filename"],
+        mime_type="application/pdf",
+        file_size_bytes=len(pdf_bytes),
+        sha256_hash=sha256,
+        storage_provider=storage_meta["storage_provider"],
+        storage_key=storage_meta["storage_key"],
+        is_original=True,
+        is_deleted=False,
+        uploaded_at=now_utc,
+    )
+    db.add(doc)
+    db.flush()
+
+    job = IngestionJob(
+        id=job_id,
+        org_id=current_user.org_id,
+        document_id=doc_id,
+        idempotency_key=f"sbx_{sha256[:12]}_{uuid.uuid4().hex[:6]}",
+        source_channel="SANDBOX_EXPERIENCE",
+        status="QUEUED",
+        created_at=now_utc,
+    )
+    db.add(job)
+    db.flush()
+
+    append_checkpoint(
+        db, job, 'INTAKE', 'QUEUED',
+        f"Scenario intake accepted: {scenario['pdf_filename']}",
+        attempt=0,
+        invoice_id=inv_id,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        action="DOCUMENT_UPLOADED",
+        source_reference=storage_meta['storage_key'],
+    )
+    db.commit()
+
+    claimed = claim_ingestion_job(db, org_id=current_user.org_id)
+    if claimed:
+        c_job_id, c_org_id, c_doc_id, c_token = claimed
+        background_tasks.add_task(process_document_pipeline_background, c_job_id, c_token, c_org_id)
+
+    return {
+        "status": "QUEUED",
+        "document_id": doc_id,
+        "invoice_id": inv_id,
+        "job_id": job.id,
+        "filename": scenario["pdf_filename"],
+        "scenario": scenario,
+        "message": f"Scenario {scenario_id} accepted and queued for processing.",
+    }
 
 
 @router.post("/upload")
 async def upload_sandbox_invoice(
     file: UploadFile = File(...),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    sync: bool = False,
     current_user: AuthenticatedUser = Depends(
         require_role([UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN])
     ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Uploads a live custom invoice PDF and executes the authoritative pipeline."""
+    """Uploads a live custom invoice PDF and executes the authoritative pipeline asynchronously."""
     filename = file.filename or "unknown.pdf"
     filename = filename.replace("\\", "/").rsplit("/", 1)[-1]
 
     # Validate filename length and characters
     if len(filename) > 200 or any(ord(c) < 32 or ord(c) == 127 for c in filename):
         raise HTTPException(status_code=400, detail="Invalid document filename.")
-
-    # Validate file extension
     if not filename.lower().endswith(".pdf"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Unsupported file format: Only PDF documents are supported for ingestion.",
         )
+    if file.content_type and file.content_type not in ("application/pdf", "application/octet-stream"):
+        raise HTTPException(status_code=400, detail="Unsupported document content type.")
 
-    # Read bytes with bounded limit (15 MB for sandbox)
-    MAX_BYTES = 15 * 1024 * 1024
     CHUNK_SIZE = 1024 * 1024
+    max_bytes = settings.MAX_UPLOAD_FILE_SIZE_BYTES
     chunks = []
     total_read = 0
 
@@ -619,18 +806,15 @@ async def upload_sandbox_invoice(
         if not chunk:
             break
         total_read += len(chunk)
-        if total_read > MAX_BYTES:
+        if total_read > max_bytes:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File exceeds maximum permitted size of {MAX_BYTES // (1024 * 1024)} MB.",
+                detail=f"File exceeds maximum permitted size of {max_bytes // (1024 * 1024)} MB.",
             )
         chunks.append(chunk)
 
     if total_read == 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Uploaded file is empty.",
-        )
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     content = b"".join(chunks)
 
@@ -648,20 +832,136 @@ async def upload_sandbox_invoice(
     except InvalidPDF as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    result = _execute_pipeline_core(
-        pdf_bytes=content,
-        filename=filename,
-        db=db,
-        org_id=current_user.org_id,
-        user=current_user,
+    sha256 = hashlib.sha256(content).hexdigest()
+    set_tenant_context(db, current_user.org_id)
+
+    # Tenant duplicate detection
+    existing_doc = db.scalar(
+        select(Document).where(
+            Document.sha256_hash == sha256,
+            Document.org_id == current_user.org_id,
+            Document.is_deleted == False,
+        )
     )
-    return result
+    if existing_doc:
+        return JSONResponse(
+            status_code=status.HTTP_409_CONFLICT,
+            content={
+                "status": "DUPLICATE_DETECTED",
+                "detail": f"Duplicate document detected: file '{existing_doc.filename}' already exists as invoice '{existing_doc.invoice_id}'.",
+                "document_id": existing_doc.id,
+                "invoice_id": existing_doc.invoice_id,
+                "sha256": sha256,
+            },
+        )
+
+    if sync:
+        return _execute_pipeline_core(
+            pdf_bytes=content,
+            filename=filename,
+            db=db,
+            org_id=current_user.org_id,
+            user=current_user,
+        )
+
+    doc_id = f"doc_sbx_{uuid.uuid4().hex[:10]}"
+    inv_id = f"inv_sbx_{uuid.uuid4().hex[:10]}"
+    job_id = f"job_sbx_{uuid.uuid4().hex[:10]}"
+    storage_path = build_tenant_storage_path(current_user.org_id, doc_id, filename)
+    storage_meta = storage_adapter.save_file(
+        content=content,
+        filename=filename,
+        mime_type="application/pdf",
+        storage_key=storage_path,
+    )
+
+    now_utc = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    inv = Invoice(
+        id=inv_id,
+        org_id=current_user.org_id,
+        source_channel="SANDBOX_EXPERIENCE",
+        stage="RECEIVED",
+        decision="NEEDS_REVIEW",
+        decision_reason="Custom upload accepted. Awaiting pipeline execution.",
+        currency="INR",
+        created_at=now_utc,
+        updated_at=now_utc,
+        owner_user_id=current_user.id,
+    )
+    db.add(inv)
+    db.flush()
+
+    doc = Document(
+        id=doc_id,
+        org_id=current_user.org_id,
+        invoice_id=inv_id,
+        filename=filename,
+        mime_type="application/pdf",
+        file_size_bytes=len(content),
+        sha256_hash=sha256,
+        storage_provider=storage_meta["storage_provider"],
+        storage_key=storage_meta["storage_key"],
+        is_original=True,
+        is_deleted=False,
+        uploaded_at=now_utc,
+    )
+    db.add(doc)
+    db.flush()
+
+    job = IngestionJob(
+        id=job_id,
+        org_id=current_user.org_id,
+        document_id=doc_id,
+        idempotency_key=f"sbx_{sha256[:12]}_{uuid.uuid4().hex[:6]}",
+        source_channel="SANDBOX_EXPERIENCE",
+        status="QUEUED",
+        created_at=now_utc,
+    )
+    db.add(job)
+    db.flush()
+
+    append_checkpoint(
+        db, job, 'INTAKE', 'QUEUED',
+        f"Custom document upload accepted: {filename}",
+        attempt=0,
+        invoice_id=inv_id,
+        actor_id=current_user.id,
+        actor_role=current_user.role.value,
+        action="DOCUMENT_UPLOADED",
+        source_reference=storage_meta['storage_key'],
+    )
+    db.commit()
+
+    claimed = claim_ingestion_job(db, org_id=current_user.org_id)
+    if claimed:
+        c_job_id, c_org_id, c_doc_id, c_token = claimed
+        background_tasks.add_task(process_document_pipeline_background, c_job_id, c_token, c_org_id)
+
+    return {
+        "status": "QUEUED",
+        "document_id": doc_id,
+        "invoice_id": inv_id,
+        "job_id": job.id,
+        "filename": filename,
+        "message": "Custom document uploaded and queued for processing.",
+    }
+
+
+@router.get("/invoices/{invoice_id}/result")
+def get_sandbox_invoice_result(
+    invoice_id: str,
+    current_user: AuthenticatedUser = Depends(require_active_membership),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Retrieves authoritative structured results for a completed sandbox invoice."""
+    set_tenant_context(db, current_user.org_id)
+    return _get_invoice_sandbox_view(db, invoice_id, current_user.org_id)
 
 
 @router.get("/stream-scenario/{scenario_id}")
 async def stream_sandbox_scenario(
     scenario_id: str,
-    current_user: AuthenticatedUser = Depends(_resolve_sse_user),
+    current_user: AuthenticatedUser = Depends(require_active_membership),
     db: Session = Depends(get_db),
 ):
     """Server-Sent Events (SSE) streaming endpoint deriving real-time events from genuine checkpoints."""
@@ -672,14 +972,10 @@ async def stream_sandbox_scenario(
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
 
-    pdf_path = os.path.join(CORPUS_DIR, scenario["pdf_filename"])
-    if not os.path.exists(pdf_path):
-        raise HTTPException(status_code=500, detail=f"Fixture file missing: {pdf_path}")
-
+    pdf_path = get_scenario_pdf_path(scenario["pdf_filename"])
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
 
-    # Execute authoritative pipeline
     res = _execute_pipeline_core(
         pdf_bytes=pdf_bytes,
         filename=scenario["pdf_filename"],
@@ -691,7 +987,6 @@ async def stream_sandbox_scenario(
     res["scenario"] = scenario
     invoice_id = res["invoice_id"]
 
-    # Retrieve genuine persisted checkpoints from AuditEvent
     snapshot = processing_snapshot(db, invoice_id, current_user.org_id)
     jobs = snapshot.get("jobs", [])
     events = []
@@ -699,10 +994,7 @@ async def stream_sandbox_scenario(
         events = jobs[0].get("events", [])
 
     async def event_generator():
-        # Emit initial scenario context
         yield f"data: {json.dumps({'event': 'INIT', 'scenario_id': scenario_id, 'title': scenario['title'], 'invoice_id': invoice_id})}\n\n"
-
-        # Stream genuine persisted checkpoints recorded by append_checkpoint
         for ck in events:
             event_payload = {
                 "event": "CHECKPOINT",
@@ -711,14 +1003,12 @@ async def stream_sandbox_scenario(
                 "sequence": ck.get("sequence"),
                 "message": ck.get("message"),
                 "timestamp": ck.get("timestamp"),
+                "outcome": ck.get("outcome"),
             }
             yield f"data: {json.dumps(event_payload)}\n\n"
 
-        # Emit matching gates summary
         gates = res.get("match_gates", [])
         yield f"data: {json.dumps({'event': 'MATCHING_GATES', 'gates': gates, 'pass_count': sum(1 for g in gates if g.get('status') == 'PASS')})}\n\n"
-
-        # Emit final decision
         yield f"data: {json.dumps({'event': 'DECISION_FINAL', 'decision': res.get('decision'), 'stage': res.get('stage'), 'reason': res.get('decision_reason'), 'result': res})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
@@ -756,7 +1046,8 @@ def get_sandbox_runs(
     ).all()
 
     total = len(invs)
-    auto_app = sum(1 for i in invs if i.decision in ("AUTO_APPROVED", "MATCH_CANDIDATE"))
+    matched_candidates = sum(1 for i in invs if i.decision == "MATCH_CANDIDATE" and i.stage != "APPROVED")
+    approved_count = sum(1 for i in invs if i.stage == "APPROVED" or i.decision == "AUTO_APPROVED")
     exc_count = sum(1 for i in invs if i.decision == "FLAGGED_EXCEPTION")
     hitl_count = sum(1 for i in invs if i.decision == "FLAGGED_HITL_REVIEW")
     rej_count = sum(1 for i in invs if i.decision == "REJECTED")
@@ -781,11 +1072,13 @@ def get_sandbox_runs(
     return {
         "metrics": {
             "total_runs": total,
-            "match_candidates": auto_app,
+            "match_candidates": matched_candidates,
+            "approved_count": approved_count,
             "exceptions_flagged": exc_count,
             "reviews_flagged": hitl_count,
             "rejected": rej_count,
-            "straight_through_rate_pct": round((auto_app / total * 100), 1) if total > 0 else 0.0,
+            "straight_through_rate_pct": round((approved_count / total * 100), 1) if total > 0 else 0.0,
+            "match_candidate_rate_pct": round((matched_candidates / total * 100), 1) if total > 0 else 0.0,
             "exception_rate_pct": round(((exc_count + hitl_count + rej_count) / total * 100), 1) if total > 0 else 0.0,
             "total_value_inr": round(total_val, 2),
         },
@@ -800,7 +1093,17 @@ def reset_sandbox_data(
     ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Restores the sandbox evaluation workspace to clean baseline fixtures."""
-    from backend.api.v1.system import reset_evaluation_fixtures
+    """Restores baseline line items on evaluation tenant 'org_sme_eval' without altering immutable audit records."""
+    if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sandbox reset is disabled in production and staging environments.",
+        )
+    if current_user.org_id != SANDBOX_ORG_ID:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Sandbox reset is strictly restricted to the 'org_sme_eval' evaluation workspace.",
+        )
+    from backend.api.v1.system import reset_demo_state
     set_tenant_context(db, current_user.org_id)
-    return reset_evaluation_fixtures(current_user=current_user, db=db)
+    return reset_demo_state(current_user=current_user, db=db)

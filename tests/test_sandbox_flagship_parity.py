@@ -130,13 +130,27 @@ def test_parity_scenario_01_happy_path(db_session):
     with open(pdf_path, "rb") as f:
         pdf_bytes = f.read()
 
+    # Ensure clean evaluation state for Happy Path (Requirement 7: require 0 duplicate vouchers)
+    prior_vouchers = db_session.scalars(
+        select(Invoice).where(
+            Invoice.org_id == SANDBOX_ORG_ID,
+            Invoice.invoice_number == "AP-26-001",
+        )
+    ).all()
+    for pv in prior_vouchers:
+        pv.invoice_number = f"AP-26-001-ARCHIVED-{pv.id[-4:]}"
+        pv.stage = "REJECTED"
+        pv.decision = "REJECTED"
+    db_session.flush()
+
     res = _execute_pipeline_core(pdf_bytes, "01_invoice_AP_26_001.pdf", db_session)
     assert res["status"] == "COMPLETED"
     assert res["invoice"]["currency"] == "INR"
-    assert res["decision"] in ("MATCH_CANDIDATE", "FLAGGED_EXCEPTION")
-    # Gates 1 to 5 must pass unconditionally
+    assert res["decision"] == "MATCH_CANDIDATE"
+    assert res["stage"] == "PENDING_APPROVAL"
+    # All 7 deterministic policy gates must pass unconditionally for Happy Path
     passed_gates = {g["gate_number"] for g in res["match_gates"] if g["status"] == "PASS"}
-    assert {1, 2, 3, 4, 5}.issubset(passed_gates)
+    assert {1, 2, 3, 4, 5, 6, 7}.issubset(passed_gates)
 
 
 def test_parity_scenario_02_price_variance(db_session):

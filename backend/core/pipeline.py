@@ -116,7 +116,7 @@ class _ProviderLease:
                 self.lost.set()
 
 
-def _checkpoint(job_id, token, org_id, stage, status, message, session=None, failure=False):
+def _checkpoint(job_id, token, org_id, stage, status, message, session=None, failure=False, outcome=None):
     """Short fenced transaction; stale workers cannot record progress or retry."""
     db = session if session is not None else SessionLocal()
     try:
@@ -128,7 +128,7 @@ def _checkpoint(job_id, token, org_id, stage, status, message, session=None, fai
         if job is None or job.lease_expires_at <= lease_now(db):
             db.rollback()
             return False
-        append_checkpoint(db, job, stage, status, message)
+        append_checkpoint(db, job, stage, status, message, outcome=outcome)
         if failure:
             job.retry_count += 1
             job.status = 'FAILED' if job.retry_count >= 3 else 'QUEUED'
@@ -386,7 +386,13 @@ def execute_document_pipeline(
         keeper.stop()
         if not keeper.valid:
             return {'status': 'ABORTED', 'reason': 'Provider lease lost or budget exhausted; returned result discarded.'}
-        if not _checkpoint(job_id, lock_token, org_id, 'EXTRACTION', 'SUCCEEDED', 'Extraction adapter returned; financial acceptance is evaluated separately.', checkpoint_session):
+        extraction_outcome = "SKIPPED" if getattr(processing_result, "inference_provider", None) == "NONE_ROUTED_HITL" else "EXTRACTED"
+        extraction_msg = (
+            "Degraded scan tripwire triggered; LLM inference skipped to avoid ungrounded hallucinations."
+            if extraction_outcome == "SKIPPED"
+            else f"Live Mantle Qwen 235B extraction completed ({len(processing_result.line_items)} line items)."
+        )
+        if not _checkpoint(job_id, lock_token, org_id, 'EXTRACTION', 'SUCCEEDED', extraction_msg, checkpoint_session, outcome=extraction_outcome):
             return {'status': 'ABORTED'}
         if not _checkpoint(job_id, lock_token, org_id, 'MATCHING', 'STARTED', 'Evaluating tenant source records and persisting the processing outcome.', checkpoint_session):
             return {'status': 'ABORTED'}

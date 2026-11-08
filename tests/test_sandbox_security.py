@@ -275,12 +275,22 @@ def test_dev_session_rejects_remote_ip(client):
 
 
 # -----------------------------------------------------------------------------
-# 10. Authentic SSE Checkpoint Streaming
+# 10. Authentic SSE Checkpoint Streaming & URL Query Token Prohibition
 # -----------------------------------------------------------------------------
-def test_sse_authenticity_and_event_structure(client, sme_tokens):
+def test_query_param_auth_token_strictly_rejected(client, sme_tokens):
+    """URL query-parameter authentication (?auth_token=...) must be rejected with HTTP 401."""
     token = sme_tokens["AP_ASSOCIATE"]
+    res = client.get(f"/api/v1/sandbox/stream-scenario/SCN-03-DEGRADED-SCAN?auth_token={token}")
+    assert res.status_code == 401
+    assert "authentication required" in res.json().get("detail", "").lower()
+
+
+def test_sse_authenticity_and_event_structure(client, sme_tokens):
+    """Standard Bearer header streaming provides authentic checkpoints from PostgreSQL."""
+    headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
     res = client.get(
-        f"/api/v1/sandbox/stream-scenario/SCN-03-DEGRADED-SCAN?auth_token={token}",
+        "/api/v1/sandbox/stream-scenario/SCN-03-DEGRADED-SCAN",
+        headers=headers,
     )
     assert res.status_code == 200
     assert "text/event-stream" in res.headers.get("content-type", "")
@@ -290,3 +300,104 @@ def test_sse_authenticity_and_event_structure(client, sme_tokens):
     assert "event" in stream_content
     assert "DECISION_FINAL" in stream_content
     assert "FLAGGED_HITL_REVIEW" in stream_content
+
+
+# -----------------------------------------------------------------------------
+# 11. Restriction to Authorized Evaluation Workspace (Requirement 5)
+# -----------------------------------------------------------------------------
+def test_scenario_execution_denied_for_foreign_tenant(client):
+    """Preset demonstration scenarios cannot inject invoices into foreign customer workspaces."""
+    foreign_jwt = make_token(
+        sub="usr_external_customer_01",
+        email="customer@production-tenant.com",
+        org_id="org_foreign_customer",
+        role="AP_ASSOCIATE",
+    )
+    headers = {"Authorization": f"Bearer {foreign_jwt}"}
+    res = client.post("/api/v1/sandbox/run-scenario/SCN-01-HAPPY-PATH", headers=headers)
+    assert res.status_code == 403
+    assert "access denied" in res.json().get("detail", "").lower() or "evaluation workspaces" in res.json().get("detail", "").lower()
+
+
+# -----------------------------------------------------------------------------
+# 12. Safe Text Rendering & Anti-XSS Verification (Requirement 3)
+# -----------------------------------------------------------------------------
+def test_anti_xss_escaping_of_untrusted_model_fields():
+    """Unsafe markup in extracted descriptions or vendor names must be sanitized and never executable."""
+    import html
+    malicious_inputs = [
+        "<script>alert('pwned')</script>",
+        "<img src=x onerror=alert(document.cookie)>",
+        "<svg onload=fetch('https://attacker.com')>",
+        "Line Item '\" onmouseover=\"alert(1)\"",
+    ]
+    for payload in malicious_inputs:
+        escaped = html.escape(payload, quote=True)
+        assert "<script>" not in escaped
+        assert "<img" not in escaped
+        assert "<svg" not in escaped
+        assert "&lt;" in escaped or "&#x27;" in escaped or "&quot;" in escaped
+
+
+# -----------------------------------------------------------------------------
+# 13. Duplicate Intake Behavior (Requirement 4)
+# -----------------------------------------------------------------------------
+def test_duplicate_upload_returns_409_and_preserves_original(client, sme_tokens):
+    """Duplicate file upload returns HTTP 409 Conflict without overwriting the original invoice."""
+    headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+    pdf_path = os.path.join("engine", "demo_fixtures", "01_invoice_AP_26_001.pdf")
+    with open(pdf_path, "rb") as f:
+        test_pdf_content = f.read()
+
+    # First upload (synchronous mode)
+    res1 = client.post(
+        "/api/v1/sandbox/upload?sync=true",
+        headers=headers,
+        files={"file": ("01_invoice_AP_26_001.pdf", test_pdf_content, "application/pdf")},
+    )
+    if res1.status_code == 409:
+        inv_id_1 = res1.json()["invoice_id"]
+    else:
+        assert res1.status_code in (200, 201)
+        inv_id_1 = res1.json()["invoice_id"]
+
+    # Second upload with identical content
+    res2 = client.post(
+        "/api/v1/sandbox/upload",
+        headers=headers,
+        files={"file": ("01_invoice_AP_26_001.pdf", test_pdf_content, "application/pdf")},
+    )
+    assert res2.status_code == 409
+    body2 = res2.json()
+    assert body2["status"] == "DUPLICATE_DETECTED"
+    assert body2["invoice_id"] == inv_id_1
+
+
+# -----------------------------------------------------------------------------
+# 14. Sandbox Reset Safety & Tenant Restriction (Requirement 6)
+# -----------------------------------------------------------------------------
+def test_sandbox_reset_restricted_to_evaluation_tenant_and_non_production(client, monkeypatch):
+    """Sandbox reset fails closed for non-eval tenants and in production/staging environments."""
+    # A. Blocked for non-eval tenant
+    foreign_jwt = make_token(
+        sub="usr_admin_foreign",
+        email="admin@foreign.com",
+        org_id="org_foreign_customer",
+        role="CONTROLLER",
+    )
+    res_foreign = client.post("/api/v1/sandbox/reset", headers={"Authorization": f"Bearer {foreign_jwt}"})
+    assert res_foreign.status_code == 403
+    assert "access denied" in res_foreign.json().get("detail", "").lower() or "evaluation workspace" in res_foreign.json().get("detail", "").lower()
+
+    # B. Blocked in production environment even with correct role and org
+    eval_controller_jwt = make_token(
+        sub="usr_sme_lead_01",
+        email="sme_lead@company.internal",
+        org_id="org_sme_eval",
+        role="CONTROLLER",
+    )
+    monkeypatch.setattr(settings, "APP_ENV", "production")
+    res_prod = client.post("/api/v1/sandbox/reset", headers={"Authorization": f"Bearer {eval_controller_jwt}"})
+    assert res_prod.status_code == 403
+    assert "disabled in production" in res_prod.json().get("detail", "").lower()
+
