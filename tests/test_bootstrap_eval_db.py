@@ -145,18 +145,61 @@ def test_bootstrap_safety_passes_with_matching_expected_db_name():
     verify_evaluation_database_safety(mock_session, VALID_KEY, expected_db_name="zamp_eval_isolated")
 
 
-def test_bootstrap_safety_fails_if_rls_disable_denied():
-    """Bootstrap fails closed if PostgreSQL role lacks privileges to disable RLS."""
+def test_bootstrap_safety_fails_if_postgresql_role_lacks_bypass_rls():
+    """Bootstrap fails closed if PostgreSQL role lacks BYPASSRLS or superuser on RLS tables."""
     mock_session = MagicMock()
     mock_session.bind.dialect.name = "postgresql"
 
     def mock_execute(statement, *args, **kwargs):
-        stmt_str = str(statement)
+        stmt_str = str(statement).strip()
         if "current_database" in stmt_str:
             ret = MagicMock()
             ret.scalar.return_value = "zamp_eval_isolated"
             return ret
-        if "current_user" in stmt_str:
+        if "pg_roles" in stmt_str:
+            ret = MagicMock()
+            ret.first.return_value = (False, False)  # rolsuper=False, rolbypassrls=False
+            return ret
+        if "SELECT current_user" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "restricted_app_user"
+            return ret
+        if "alembic_version" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = EXPECTED_MIGRATION_REVISION
+            return ret
+        if "pg_class" in stmt_str:
+            ret = MagicMock()
+            ret.first.return_value = (True, True)  # relrowsecurity=True, relforcerowsecurity=True
+            return ret
+        if "pg_tables" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "postgres_admin"  # table owner is not current_user
+            return ret
+        return MagicMock()
+
+    mock_session.execute.side_effect = mock_execute
+
+    with pytest.raises(RuntimeError, match="lacks BYPASSRLS or superuser privileges on table 'organisations'"):
+        verify_evaluation_database_safety(mock_session, VALID_KEY)
+
+
+def test_bootstrap_safety_fails_if_rls_disable_denied():
+    """Bootstrap fails closed if PostgreSQL parameter row_security cannot be set."""
+    mock_session = MagicMock()
+    mock_session.bind.dialect.name = "postgresql"
+
+    def mock_execute(statement, *args, **kwargs):
+        stmt_str = str(statement).strip()
+        if "current_database" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "zamp_eval_isolated"
+            return ret
+        if "pg_roles" in stmt_str:
+            ret = MagicMock()
+            ret.first.return_value = (True, True)
+            return ret
+        if "SELECT current_user" in stmt_str:
             ret = MagicMock()
             ret.scalar.return_value = "restricted_user"
             return ret
@@ -164,14 +207,61 @@ def test_bootstrap_safety_fails_if_rls_disable_denied():
             ret = MagicMock()
             ret.scalar.return_value = EXPECTED_MIGRATION_REVISION
             return ret
+        if "pg_class" in stmt_str:
+            ret = MagicMock()
+            ret.first.return_value = (True, True)
+            return ret
+        if "pg_tables" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "restricted_user"
+            return ret
         if "row_security" in stmt_str:
             raise RuntimeError("permission denied to set parameter row_security")
         return MagicMock()
 
     mock_session.execute.side_effect = mock_execute
 
-    with pytest.raises(RuntimeError, match="Connection role lacks privileges to disable Row-Level Security"):
+    with pytest.raises(RuntimeError, match="Failed to verify RLS bypass permissions on role 'restricted_user'"):
         verify_evaluation_database_safety(mock_session, VALID_KEY)
+
+
+def test_bootstrap_safety_passes_for_privileged_postgresql_role():
+    """Bootstrap succeeds when connected role has rolbypassrls=True on PostgreSQL."""
+    mock_session = MagicMock()
+    mock_session.bind.dialect.name = "postgresql"
+
+    def mock_execute(statement, *args, **kwargs):
+        stmt_str = str(statement).strip()
+        if "current_database" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "zamp_eval_isolated"
+            return ret
+        if "pg_roles" in stmt_str:
+            ret = MagicMock()
+            ret.first.return_value = (True, True)  # rolsuper=True, rolbypassrls=True
+            return ret
+        if "SELECT current_user" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "postgres_superuser"
+            return ret
+        if "alembic_version" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = EXPECTED_MIGRATION_REVISION
+            return ret
+        if "pg_class" in stmt_str:
+            ret = MagicMock()
+            ret.first.return_value = (True, True)
+            return ret
+        if "pg_tables" in stmt_str:
+            ret = MagicMock()
+            ret.scalar.return_value = "postgres_superuser"
+            return ret
+        return MagicMock()
+
+    mock_session.execute.side_effect = mock_execute
+    mock_session.scalars.return_value.all.side_effect = [[], []]
+
+    verify_evaluation_database_safety(mock_session, VALID_KEY, expected_db_name="zamp_eval_isolated")
 
 
 def test_bootstrap_workspace_transactional_rollback_on_failure_injection():

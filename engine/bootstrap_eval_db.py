@@ -133,17 +133,55 @@ def verify_evaluation_database_safety(
             f"FATAL SAFETY VIOLATION: Could not verify database migration status: {exc}. Aborting fails closed."
         ) from exc
 
-    # 3. Verify RLS bypass permissions
-    try:
-        session.execute(text("SET LOCAL row_security = OFF;"))
-    except Exception as exc:
-        err_str = str(exc).lower()
-        if "permission denied" in err_str or "must be superuser" in err_str or dialect_name == "postgresql":
+    # 3. Verify RLS bypass permissions and role authority
+    if dialect_name == "postgresql":
+        try:
+            # Query role privileges from pg_roles
+            role_row = session.execute(
+                text("SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+            ).first()
+            is_super = bool(role_row[0]) if role_row else False
+            has_bypass = bool(role_row[1]) if role_row else False
+
+            # Inspect table RLS settings from pg_class
+            class_row = session.execute(
+                text("SELECT relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname = 'organisations'")
+            ).first()
+            rls_enabled = bool(class_row[0]) if class_row else False
+            rls_forced = bool(class_row[1]) if class_row else False
+
+            # Inspect table owner from pg_tables
+            owner_row = session.execute(
+                text("SELECT tableowner FROM pg_tables WHERE schemaname = 'public' AND tablename = 'organisations'")
+            ).scalar()
+            is_owner = (owner_row == db_user) if (owner_row and db_user) else False
+
+            if rls_enabled:
+                # When FORCE ROW LEVEL SECURITY is set, even table owners are subject to RLS
+                can_bypass = is_super or has_bypass or (is_owner and not rls_forced)
+                if not can_bypass:
+                    raise RuntimeError(
+                        f"FATAL SAFETY VIOLATION: Database role '{db_user}' lacks BYPASSRLS or superuser privileges on table 'organisations'. "
+                        "Row-Level Security (RLS) is active (FORCE ROW LEVEL SECURITY) and could silently omit foreign tenant rows. "
+                        "Bootstrap preflight must execute with a role possessing BYPASSRLS or superuser privileges."
+                    )
+
+            # Set row_security = OFF: under Postgres, if any query is affected by RLS for this role,
+            # Postgres raises error 42501 ('query would be affected by row-level security policy')
+            # rather than silently omitting rows.
+            session.execute(text("SET LOCAL row_security = OFF;"))
+        except Exception as exc:
+            if "FATAL SAFETY VIOLATION" in str(exc):
+                raise
             raise RuntimeError(
-                "FATAL SAFETY VIOLATION: Connection role lacks privileges to disable Row-Level Security (RLS). "
-                "RLS may mask foreign customer/production organisations. Run with table owner or superuser credentials."
+                f"FATAL SAFETY VIOLATION: Failed to verify RLS bypass permissions on role '{db_user}': {exc}. Aborting fails closed."
             ) from exc
-        logger.debug(f"row_security parameter unsupported on dialect '{dialect_name}'; proceeding.")
+    else:
+        # SQLite or non-PostgreSQL dialect fallback
+        try:
+            session.execute(text("SET LOCAL row_security = OFF;"))
+        except Exception:
+            logger.debug(f"row_security parameter unsupported on dialect '{dialect_name}'; proceeding.")
 
     # 4. Check for foreign organisations (bypassing RLS with migration session)
     try:
