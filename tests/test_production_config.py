@@ -155,3 +155,28 @@ def test_production_rejects_local_auth_bypass():
             LOCAL_AUTH_BYPASS=True,
             _env_file=None,
         )
+
+def test_production_rejects_allow_synthetic_seeding():
+    """Production mode fails closed if ALLOW_SYNTHETIC_SEEDING is enabled."""
+    with pytest.raises((ConfigurationError, ValidationError), match="ALLOW_SYNTHETIC_SEEDING cannot be enabled"):
+        Settings(
+            APP_ENV=AppEnv.PRODUCTION,
+            DATABASE_URL="postgresql://user:pass@ep-live.aws.supabase.com:6543/postgres",
+            SECRET_KEY="a-very-secure-random-secret-key-32chars-long-prod",
+            STORAGE_BUCKET_NAME="invoices",
+            ALLOW_SYNTHETIC_SEEDING=True,
+            _env_file=None,
+        )
+
+
+def test_staging_rejects_allow_synthetic_seeding():
+    """Staging mode fails closed if ALLOW_SYNTHETIC_SEEDING is enabled."""
+    with pytest.raises((ConfigurationError, ValidationError), match="ALLOW_SYNTHETIC_SEEDING cannot be enabled"):
+        Settings(
+            APP_ENV=AppEnv.STAGING,
+            DATABASE_URL="postgresql://user:pass@ep-staging.aws.supabase.com:6543/postgres",
+            SECRET_KEY="a-very-secure-random-secret-key-32chars-long-stage",
+            STORAGE_BUCKET_NAME="invoices",
+            ALLOW_SYNTHETIC_SEEDING=True,
+            _env_file=None,
+        )

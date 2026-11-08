@@ -114,7 +114,7 @@ flowchart TD
    - In accordance with institutional AP security, degraded scans are routed to human review rather than subjected to unverified vision model guessing. (Palmyra Vision was evaluated in a dedicated benchmark harness [`engine/palmyra_benchmark_runner.py`](engine/palmyra_benchmark_runner.py) and remains feature-flagged OFF in production).
 4. **Institutional Security & Governance:**
    - **ASVS Level 2 Security Headers:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`.
-   - **PostgreSQL Row-Level Security (RLS):** Physical multi-tenant isolation enforcing zero cross-tenant leakage.
+   - **PostgreSQL Row-Level Security (RLS):** Logical multi-tenant isolation enforcing zero cross-tenant leakage within shared PostgreSQL persistence.
    - **Anti-Fraud Telephone Verification Gate:** Manual overrides of bank account mismatches are blocked (HTTP 403) unless operator audit notes explicitly confirm out-of-band telephone callback verification.
    - **Dual-Control Authorization:** High-value invoices exceeding ₹5,00,000 INR require secondary controller sign-off with anti-self-approval protection.
 

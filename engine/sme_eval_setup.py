@@ -133,9 +133,73 @@ def assert_seeding_permitted() -> None:
         )
 
 
+def assert_database_target_safe(db: Any) -> None:
+    """Restricts synthetic seeding to explicitly authorized, isolated evaluation databases.
+
+    Multi-Layered Fail-Closed Invariants:
+    1. Environment Guard: Requires DEVELOPMENT or TEST environment via assert_seeding_permitted().
+    2. Authorization Guard: Requires explicit ALLOW_SYNTHETIC_SEEDING=true setting.
+    3. Session Validity: Rejects None, unconfigured, or disconnected database sessions.
+    4. Foreign Tenant Check: Rejects any database containing organisations other than 'org_sme_eval'.
+    5. Isolation Marker Check: Requires explicit isolation setting or session marker.
+    6. Credential Privacy: Zero connection URLs, passwords, or hosts are logged or surfaced in errors.
+    """
+    assert_seeding_permitted()
+
+    is_explicitly_allowed = (
+        getattr(settings, "ALLOW_SYNTHETIC_SEEDING", False)
+        or os.environ.get("ALLOW_SYNTHETIC_SEEDING", "").strip().lower() in ("true", "1")
+    )
+    if not is_explicitly_allowed:
+        raise RuntimeError(
+            "CRITICAL DATABASE SAFETY VIOLATION: Synthetic fixture seeding is disabled by default. "
+            "Requires explicit ALLOW_SYNTHETIC_SEEDING=true configuration."
+        )
+
+    if db is None:
+        raise RuntimeError(
+            "CRITICAL DATABASE SAFETY VIOLATION: Database session is unconfigured or None. "
+            "Cannot verify target database identity."
+        )
+
+    # 1. Foreign Tenant Contamination Check
+    try:
+        from sqlalchemy import func
+        foreign_orgs = db.scalar(
+            select(func.count(Organisation.id)).where(Organisation.id != ORG_ID)
+        ) or 0
+        if foreign_orgs > 0:
+            raise RuntimeError(
+                f"CRITICAL DATABASE SAFETY VIOLATION: Target database contains {foreign_orgs} non-evaluation organisation(s). "
+                "Synthetic seeding is strictly barred on shared, production, or customer databases."
+            )
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        logger.debug("Organisations check skipped (table may be uninitialized): %s", type(exc).__name__)
+
+    # 2. Explicit Isolation Marker Check
+    has_marker = False
+    if hasattr(db, "info") and db.info.get("is_isolated_test_db") is True:
+        has_marker = True
+    else:
+        try:
+            val = db.scalar(text("SELECT current_setting('app.is_isolated_test_db', true)"))
+            if val and str(val).strip().lower() == "true":
+                has_marker = True
+        except Exception:
+            has_marker = False
+
+    if not has_marker:
+        raise RuntimeError(
+            "CRITICAL DATABASE SAFETY VIOLATION: Target database lacks verified isolation marker. "
+            "Target database must set 'app.is_isolated_test_db = true' or provide isolated test session."
+        )
+
+
 def provision_tenant_and_users(db) -> None:
     """Provisions org_sme_eval and user role assignments idempotently."""
-    assert_seeding_permitted()
+    assert_database_target_safe(db)
     logger.info(f"Provisioning tenant '{ORG_ID}'...")
     org = db.scalar(select(Organisation).where(Organisation.id == ORG_ID))
     if not org:
@@ -175,7 +239,7 @@ def provision_tenant_and_users(db) -> None:
 
 def provision_synthetic_vendors(db) -> None:
     """Seeds synthetic vendors into org_sme_eval."""
-    assert_seeding_permitted()
+    assert_database_target_safe(db)
     supplier_csv = os.path.join("tests", "evaluation_corpus_v2", "fictional_supplier_master.csv")
     if not os.path.exists(supplier_csv):
         logger.warning(f"Supplier CSV not found at {supplier_csv}")
@@ -221,7 +285,7 @@ def process_scenario_document(
     target_user_id: str = "usr_sme_assoc_01",
 ) -> Dict[str, Any]:
     """Ingests, extracts, matches and records a single scenario document into the database."""
-    assert_seeding_permitted()
+    assert_database_target_safe(db)
     invoices_dir = os.path.join("tests", "evaluation_corpus_v2", "invoices")
     file_path = os.path.join(invoices_dir, filename)
 
@@ -557,7 +621,7 @@ def provision_synthetic_purchase_orders(db) -> None:
 
     STRICT SAFETY RULE: Never executes in production.
     """
-    assert_seeding_permitted()
+    assert_database_target_safe(db)
 
     csv_path = "tests/evaluation_corpus_v2/reference_data/purchase_orders.csv"
     if not os.path.exists(csv_path):
@@ -609,7 +673,7 @@ def provision_synthetic_purchase_orders(db) -> None:
 
 def provision_synthetic_goods_receipts(db) -> None:
     """Seeds synthetic goods receipts and lines into org_sme_eval."""
-    assert_seeding_permitted()
+    assert_database_target_safe(db)
 
     csv_path = "tests/evaluation_corpus_v2/reference_data/goods_receipts.csv"
     if not os.path.exists(csv_path):
@@ -665,7 +729,7 @@ def provision_synthetic_goods_receipts(db) -> None:
 
 def provision_synthetic_quality_controls(db) -> None:
     """Seeds synthetic quality control inspection records into org_sme_eval."""
-    assert_seeding_permitted()
+    assert_database_target_safe(db)
 
     csv_path = "tests/evaluation_corpus_v2/reference_data/quality_inspections.csv"
     if not os.path.exists(csv_path):
@@ -727,6 +791,7 @@ def run_sme_eval_setup() -> Dict[str, Any]:
     }
 
     with SessionLocal() as db:
+        assert_database_target_safe(db)
         provision_tenant_and_users(db)
         provision_synthetic_vendors(db)
         provision_synthetic_purchase_orders(db)

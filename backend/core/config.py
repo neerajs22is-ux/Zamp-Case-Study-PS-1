@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     OIDC_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/callback"
     OIDC_AUDIENCE: Optional[str] = None
     LOCAL_AUTH_BYPASS: bool = False
+    ALLOW_SYNTHETIC_SEEDING: bool = False  # Development/isolated test only; strictly barred in production
     ENABLE_DEV_SESSION: bool = False  # Development-only session minting flag; strictly False by default
     # Comma-separated authenticated identity subjects allowed to operate platform-wide services.
     PLATFORM_OPERATOR_SUBJECTS: str = ""
@@ -201,6 +202,10 @@ class Settings(BaseSettings):
                 )
 
             # Invariant 2: Local Auth Bypass is barred
+            if self.ALLOW_SYNTHETIC_SEEDING:
+                raise ConfigurationError(
+                    f"Security violation: ALLOW_SYNTHETIC_SEEDING cannot be enabled in '{self.APP_ENV.value}'."
+                )
             if self.LOCAL_AUTH_BYPASS:
                 raise ConfigurationError(
                     f"Security violation: LOCAL_AUTH_BYPASS cannot be enabled in '{self.APP_ENV.value}'."

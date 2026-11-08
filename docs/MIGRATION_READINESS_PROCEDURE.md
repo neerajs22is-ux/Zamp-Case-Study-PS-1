@@ -100,11 +100,23 @@ pg_dump `
   --file="backups/pre_migration_011_013_$(Get-Date -Format 'yyyyMMdd_HHmmss').dump"
 ```
 
-### Step 2: Backup Restore Verification
-Test the backup integrity by restoring schema into an ephemeral local container:
+### Step 2: Actual Restore Verification Against Isolated Target
+> [!IMPORTANT]
+> Archive readability (e.g. `pg_restore --list`) is **not** sufficient proof of recoverability. Corrupted blocks, missing roles, or broken extensions can still cause restore failures.
+> Recoverability must be validated by performing an actual restore into an isolated disposable database:
 ```powershell
-# Verify backup header and readability without modifying persistent database
-pg_restore --list "backups/pre_migration_011_013_*.dump" | Select-String "alembic_version"
+# 1. Restore the dump into an authorized isolated staging / test database
+pg_restore `
+  --host=127.0.0.1 `
+  --port=5432 `
+  --username=postgres `
+  --dbname=ap_isolated_test `
+  --clean --if-exists `
+  --verbose `
+  "backups/pre_migration_011_013_backup.dump"
+
+# 2. Verify schema and row counts on the restored target
+python -c "from sqlalchemy import create_engine, text; eng = create_engine('postgresql://postgres:test@127.0.0.1:5432/ap_isolated_test'); conn = eng.connect(); print('Restored Revision:', conn.execute(text('SELECT version_num FROM alembic_version')).scalar()); conn.close()"
 ```
 
 ### Step 3: Offline SQL Dry-Run Inspection
@@ -141,9 +153,19 @@ def downgrade():
 **Why Unsafe Drops Are Rejected:**
 Dropping `revoked_access_tokens` deletes the session revocation ledger. Any compromised JWTs revoked by operators would immediately become valid again, compromising system security.
 
+### Transaction Boundaries & Realistic Failure Behavior:
+> [!WARNING]
+> Do **not** assume that any migration failure magically restores the database to revision `010_identity_memberships`.
+> Transaction boundaries depend strictly on execution granularity:
+> 1. **Batch Execution (`alembic upgrade head`):** Alembic wraps the entire migration run in a single `context.begin_transaction()` block. If an unhandled PostgreSQL DDL error occurs midway through 013, PostgreSQL rolls back all uncommitted DDL within that active transaction, returning the schema to the state prior to that command.
+> 2. **Incremental Execution:** If migrations are applied incrementally (e.g. upgrading to 011, then 012, then 013 in separate commands), revisions 011 and 012 have already committed. A subsequent failure during 013 rolls back *only* 013, leaving the database at revision `012_invitation_utc_expiry`.
+> 3. **Connection Dropped / Network Abortion:** If a TCP connection drops mid-DDL or the database pooler kills a session, PostgreSQL automatically aborts in-flight uncommitted transactions, but locks may linger. The database state must be affirmatively verified via `python -m alembic current` rather than assumed.
+
 ### Safe Forward-Repair Recovery Procedure:
-1. **Automatic Transactional Rollback:**
-   Alembic runs within `with context.begin_transaction():`. In PostgreSQL, all DDL (including table creation and index creation) is fully transactional. If migration 013 fails at any point during execution, the entire transaction automatically rolls back. No partial tables remain, and `alembic_version` remains at revision 010.
+1. **Never Drop Revocation Ledger:**
+   Never execute `DROP TABLE revoked_access_tokens CASCADE` or manually tamper with `alembic_version`. This avoids destroying the session revocation audit trail.
+2. **Forward-Fix Migration:**
+   If a post-migration defect is identified, deploy a forward migration (e.g. revision `014_...`) that corrects the constraint or policy while preserving audit trails and token revocations.
 2. **Forward-Fix Migration:**
    If a post-migration issue is detected in staging or testing, the correct enterprise response is to deploy a forward migration (e.g. `014_fix_...`) that addresses the issue without destroying audit trails or revocation state.
 3. **Disaster Recovery (Full Restore):**
