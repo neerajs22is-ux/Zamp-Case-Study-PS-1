@@ -43,6 +43,21 @@ const ConnectionsRedirect: React.FC = () => {
   return <Navigate to={`/settings/connections${search ? `?${search}` : ''}`} replace />;
 };
 
+// Route Wrapper for Sandbox Experience redirect
+const SandboxRedirect: React.FC = () => {
+  useEffect(() => {
+    window.location.href = '/sandbox';
+  }, []);
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+      <div className="flex items-center space-x-3">
+        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+        <span>Redirecting to AP Command Center Sandbox...</span>
+      </div>
+    </div>
+  );
+};
+
 export const AppContent: React.FC = () => {
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [health, setHealth] = useState<HealthResponse | null>(null);
@@ -172,6 +187,9 @@ export const AppContent: React.FC = () => {
         <Route path="/vendors" element={<Navigate to="/settings/reference-data" replace />} />
         <Route path="/source-records" element={<Navigate to="/settings/reference-data" replace />} />
         <Route path="/access-management" element={<Navigate to="/settings/team" replace />} />
+
+        {/* Sandbox Demonstration Route */}
+        <Route path="/sandbox" element={<SandboxRedirect />} />
 
         {/* Catch-all fallback */}
         <Route path="*" element={<Navigate to="/today" replace />} />

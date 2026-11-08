@@ -16,6 +16,7 @@ import {
   Wrench,
   Sliders,
   HelpCircle,
+  PlayCircle,
 } from "lucide-react";
 import { useTour } from "../context/TourContext";
 import type { AuthenticatedUser, HealthResponse } from "../types";
@@ -275,6 +276,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </NavLink>
               );
             })}
+          </div>
+
+          {/* Unified Experiences Demonstration Group */}
+          <div className="space-y-1 pt-2 border-t border-slate-100 dark:border-slate-900">
+            <div className="px-3 pb-1 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              Demonstration
+            </div>
+            <a
+              href="/sandbox"
+              className="group relative flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 hover:text-indigo-600 dark:hover:text-indigo-300 transition-all duration-150"
+              title="Open AP Decision Sandbox"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <PlayCircle className="w-4 h-4 text-indigo-500" />
+                <span className="truncate">Decision Sandbox</span>
+              </div>
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                LIVE
+              </span>
+            </a>
           </div>
         </div>
 

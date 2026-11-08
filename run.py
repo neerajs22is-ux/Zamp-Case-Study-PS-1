@@ -1,10 +1,13 @@
-"""Root launcher for AP Digital Employee & AP Command Center.
+"""Unified Launcher for Zamp PS-1 AP Command Center.
+
+One authoritative processing engine. Two user experiences:
+1. Flagship AP Command Center (Primary enterprise multi-tenant application)
+2. AP Command Center Sandbox (Simplified interactive demonstration)
 
 Usage:
-  python run.py               # Starts the PS-1 AP Digital Employee on http://127.0.0.1:8001 (Recommended, zero credentials)
-  python run.py --enterprise  # Starts the Multi-Tenant Enterprise Command Center on http://127.0.0.1:8001
-  python run.py --legacy      # Alias for PS-1 AP Digital Employee
-  python run.py --test        # Runs verification test suite before starting server
+  python run.py             # Starts unified server defaulting to Flagship AP Command Center on http://127.0.0.1:8001
+  python run.py --sandbox   # Starts unified server with focus on the Sandbox Experience (http://127.0.0.1:8001/sandbox)
+  python run.py --test      # Runs verification test suite before launch
 """
 
 import sys
@@ -21,43 +24,53 @@ def main():
     if "--test" in sys.argv:
         import pytest
         print("\n=======================================================")
-        print("[*] Running Pytest Verification Suite before launch...")
+        print("[*] Running Verification Suite before launch...")
         print("=======================================================\n")
-        exit_code = pytest.main(["tests/test_engine.py", "-v"])
+        exit_code = pytest.main(["tests/test_sandbox_flagship_parity.py", "-v"])
         if exit_code != 0:
             print("\n[!] Tests failed. Halting server launch.")
             sys.exit(exit_code)
         print("\n[+] Verification tests passed!\n")
 
-    if "--enterprise" in sys.argv:
+    is_sandbox_focus = "--sandbox" in sys.argv or "--legacy" in sys.argv
+
+    if is_sandbox_focus:
         print("""
 =============================================================================
-   [AP COMMAND CENTER] - ENTERPRISE MULTI-TENANT ARCHITECTURE
-   FastAPI application with PostgreSQL RLS, Supabase Auth, and React UI
+   [ZAMP AP COMMAND CENTER] - SANDBOX DEMONSTRATION EXPERIENCE
+   Powered by the Single Authoritative Processing Engine (Decimal INR + Mantle)
 =============================================================================
-   * Command Center UI:     http://127.0.0.1:8001
-   * API Docs (Swagger UI): http://127.0.0.1:8001/docs
-   * System Health:         http://127.0.0.1:8001/api/v1/health
-   * Invoices Inbox:        http://127.0.0.1:8001/api/v1/inbox
-   * Operational Approvals: http://127.0.0.1:8001/api/v1/approvals
+   * Sandbox Experience:     http://127.0.0.1:8001/sandbox
+   * Flagship Command Center:http://127.0.0.1:8001/today
+   * API Documentation:      http://127.0.0.1:8001/docs
+   * System Health:          http://127.0.0.1:8001/api/v1/health
+   * Sandbox Runs & Metrics: http://127.0.0.1:8001/api/v1/sandbox/runs
+=============================================================================
+   One Engine. Two Experiences.
+   - Upload any invoice PDF or select one of 6 genuine scenario fixtures.
+   - Watch Bedrock Mantle extraction, GST verification, and 7 policy gates.
 =============================================================================
         """)
-        uvicorn.run("backend.main:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
     else:
         print("""
 =============================================================================
-   [AI SOLUTIONS ASSOCIATE] - PS-1 AP DIGITAL EMPLOYEE
-   Autonomous Accounts Payable (AP) Decision Engine & Live Execution Server
+   [ZAMP AP COMMAND CENTER] - FLAGSHIP ENTERPRISE EXPERIENCE (PRIMARY)
+   Autonomous Accounts Payable Ingestion, Matching, and Decision Engine
 =============================================================================
-   * Interactive UI:        http://127.0.0.1:8001
-   * API Docs (Swagger UI): http://127.0.0.1:8001/docs
-   * System Health:         http://127.0.0.1:8001/api/health
-   * Test Scenarios:        http://127.0.0.1:8001/api/scenarios
-   * Real-Time Stream:      http://127.0.0.1:8001/api/stream-scenario/HP-01-Happy-Path
-   * Run History Dashboard: http://127.0.0.1:8001/api/runs
+   * Flagship Command Center:http://127.0.0.1:8001/
+   * Invoices Inbox:         http://127.0.0.1:8001/invoices
+   * Approvals Queue:        http://127.0.0.1:8001/approvals
+   * Sandbox Experience:     http://127.0.0.1:8001/sandbox
+   * API Documentation:      http://127.0.0.1:8001/docs
+   * System Health:          http://127.0.0.1:8001/api/v1/health
+=============================================================================
+   One Engine. Two Experiences.
+   - Enterprise Multi-Tenant RLS + Supabase Auth + Dual-Control Governance.
+   - Authoritative 7-Gate Matching with Decimal INR & Indian GST validation.
 =============================================================================
         """)
-        uvicorn.run("engine.server:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
+
+    uvicorn.run("backend.main:app", host="127.0.0.1", port=8001, reload=False, log_level="info")
 
 
 if __name__ == "__main__":

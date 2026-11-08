@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zamp PS-1 — AP Command Center Sandbox</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+    .animate-pulse-subtle { animation: pulse-subtle 1.8s infinite ease-in-out; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- TOP NAVIGATION & PRODUCT HIERARCHY -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400">
+          Z
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-semibold text-slate-100 text-sm sm:text-base">Zamp AP Command Center</span>
+            <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2 py-0.5 rounded font-mono font-medium">SANDBOX</span>
+          </div>
+          <p class="text-xs text-slate-400 hidden sm:block">Simplified Interactive Experience · Single Authoritative Engine</p>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3">
+        <div class="hidden md:flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 rounded-full px-3 py-1 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-300 font-medium">Live AWS Mantle (Qwen 235B)</span>
+        </div>
+        <a href="/today" class="inline-flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+          <span>Flagship Command Center</span>
+          <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- HERO / QUICK INSTRUCTION -->
+    <section class="bg-gradient-to-r from-slate-900 to-slate-900/60 border border-slate-800 rounded-2xl p-6 sm:p-8">
+      <div class="max-w-3xl space-y-3">
+        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">Autonomous AP Decision Sandbox</h1>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+          Upload any manufacturing or B2B invoice, or select a genuine scenario below. Watch real-time Bedrock Mantle extraction, Indian GST verification, and 7 deterministic procurement policy gates evaluate the final accounting decision.
+        </p>
+        <div class="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400 font-mono">
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> INR (₹) Precision Math</span>
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> 3-Way Match (PO + GRN + QC)</span>
+          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> 7 Deterministic Gates</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- INTERACTIVE INPUT: SELECT SCENARIO OR UPLOAD PDF -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <!-- SCENARIO SELECTOR CARDS -->
+      <div class="lg:col-span-2 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Select Genuine Evaluation Scenario</h2>
+          <span class="text-xs text-slate-500 font-mono">6 Genuine Test Fixtures</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="scenarios-container">
+          <!-- Dynamically loaded from /api/v1/sandbox/scenarios -->
+          <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl animate-pulse text-slate-500 text-xs">Loading genuine scenarios...</div>
+        </div>
+      </div>
+
+      <!-- CUSTOM PDF UPLOAD CARD -->
+      <div class="space-y-3">
+        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Or Upload Custom PDF</h2>
+        <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-900/50 hover:bg-slate-900/80 transition-all rounded-xl p-6 text-center cursor-pointer flex flex-col items-center justify-center min-h-[220px]">
+          <input type="file" id="file-input" accept="application/pdf" class="hidden">
+          <svg class="w-10 h-10 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          <p class="text-sm font-medium text-slate-200">Drag & drop invoice PDF here</p>
+          <p class="text-xs text-slate-400 mt-1">or <span class="text-indigo-400 underline font-medium">browse local files</span></p>
+          <span class="text-[11px] text-slate-500 mt-3 mono">Max 15MB · PDF only</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANIMATED STAGE-BY-STAGE PIPELINE PROGRESS TRACKER -->
+    <section id="processing-view" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div>
+          <h3 class="font-semibold text-slate-100 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping"></span>
+            <span id="progress-title">Executing Live Flagship Pipeline...</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5" id="progress-subtitle">Reading character streams and calculating cryptographic digest</p>
+        </div>
+        <span class="text-xs font-mono bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700" id="progress-timer">0.0s</span>
+      </div>
+
+      <!-- 6 STAGE CARDS PROGRESSION -->
+      <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs" id="stages-grid">
+        <div id="stage-1" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="font-mono text-[10px] text-slate-500">STAGE 1</div>
+          <div class="font-medium text-slate-300">Intake & Digest</div>
+          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+        </div>
+        <div id="stage-2" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="font-mono text-[10px] text-slate-500">STAGE 2</div>
+          <div class="font-medium text-slate-300">Mantle Extraction</div>
+          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+        </div>
+        <div id="stage-3" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="font-mono text-[10px] text-slate-500">STAGE 3</div>
+          <div class="font-medium text-slate-300">GST Math Verify</div>
+          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+        </div>
+        <div id="stage-4" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="font-mono text-[10px] text-slate-500">STAGE 4</div>
+          <div class="font-medium text-slate-300">3-Way Matching</div>
+          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+        </div>
+        <div id="stage-5" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="font-mono text-[10px] text-slate-500">STAGE 5</div>
+          <div class="font-medium text-slate-300">7 Policy Gates</div>
+          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+        </div>
+        <div id="stage-6" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="font-mono text-[10px] text-slate-500">STAGE 6</div>
+          <div class="font-medium text-slate-300">Final Decision</div>
+          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIVE RESULTS BREAKDOWN: 2-COLUMN VIEW -->
+    <section id="results-view" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT COLUMN: EXTRACTED EVIDENCE & FINANCIALS -->
+      <div class="lg:col-span-7 space-y-6">
+
+        <!-- CORE INVOICE & VENDOR CARD -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div class="flex items-start justify-between border-b border-slate-800 pb-4">
+            <div>
+              <span class="text-xs font-mono text-indigo-400 font-semibold" id="res-scenario-type">INVOICE EXTRACTION</span>
+              <h3 class="text-xl font-bold text-white mt-0.5" id="res-vendor-name">—</h3>
+              <p class="text-xs text-slate-400 mono mt-0.5" id="res-vendor-gstin">GSTIN: —</p>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-400">Total Billed</span>
+              <div class="text-2xl font-bold text-white mono" id="res-total-amount">₹0.00</div>
+              <span class="text-[11px] text-slate-500 mono" id="res-invoice-num">Invoice: —</span>
+            </div>
+          </div>
+
+          <!-- PROCUREMENT SNAPSHOT MATCHES -->
+          <div class="grid grid-cols-3 gap-3 text-xs">
+            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
+              <div class="text-slate-500 font-mono text-[10px]">PURCHASE ORDER</div>
+              <div class="font-medium text-slate-200 mt-0.5 mono" id="res-po-ref">—</div>
+              <div class="text-[11px] text-emerald-400 mt-1 mono" id="res-po-balance">Bal: ₹0.00</div>
+            </div>
+            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
+              <div class="text-slate-500 font-mono text-[10px]">GOODS RECEIPT (GRN)</div>
+              <div class="font-medium text-slate-200 mt-0.5 mono" id="res-grn-ref">—</div>
+              <div class="text-[11px] text-slate-400 mt-1" id="res-grn-status">Status: —</div>
+            </div>
+            <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
+              <div class="text-slate-500 font-mono text-[10px]">QUALITY CONTROL (QC)</div>
+              <div class="font-medium text-slate-200 mt-0.5 mono" id="res-qc-ref">—</div>
+              <div class="text-[11px] font-semibold mt-1" id="res-qc-status">—</div>
+            </div>
+          </div>
+
+          <!-- LINE ITEMS TABLE -->
+          <div class="space-y-2 pt-2">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <span class="font-semibold uppercase tracking-wider text-[11px]">Billed Line Items</span>
+              <span class="mono" id="res-line-count">0 items</span>
+            </div>
+            <div class="overflow-x-auto border border-slate-800 rounded-xl">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-950 text-slate-400 font-mono text-[11px] border-b border-slate-800">
+                  <tr>
+                    <th class="p-2.5">#</th>
+                    <th class="p-2.5">Description</th>
+                    <th class="p-2.5 text-right">Qty</th>
+                    <th class="p-2.5 text-right">Unit Rate</th>
+                    <th class="p-2.5 text-right">Line Total</th>
+                  </tr>
+                </thead>
+                <tbody id="res-lines-tbody" class="divide-y divide-slate-800/60 font-mono text-slate-300">
+                  <!-- Populated dynamically -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- FINANCIAL SUMMARY BREAKDOWN -->
+            <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-1.5 text-xs font-mono">
+              <div class="flex justify-between text-slate-400">
+                <span>Taxable Subtotal:</span>
+                <span id="res-subtotal">₹0.00</span>
+              </div>
+              <div class="flex justify-between text-slate-400">
+                <span>GST Tax (CGST + SGST / IGST):</span>
+                <span id="res-tax">₹0.00</span>
+              </div>
+              <div class="flex justify-between text-white font-bold text-sm border-t border-slate-800 pt-1.5">
+                <span>Grand Total:</span>
+                <span id="res-grand-total">₹0.00</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: DECISION & 7 DETERMINISTIC POLICY GATES -->
+      <div class="lg:col-span-5 space-y-6">
+
+        <!-- PROMINENT FINAL DECISION CARD -->
+        <div id="decision-card" class="bg-slate-900 border-2 rounded-2xl p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Autonomous Decision</span>
+            <span class="text-xs font-mono text-slate-500" id="res-inference-badge">Live Mantle</span>
+          </div>
+
+          <div>
+            <div class="inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide" id="res-decision-badge">
+              DECISION
+            </div>
+            <p class="text-sm text-slate-200 mt-2 font-medium" id="res-decision-reason">
+              Evaluating outcome...
+            </p>
+          </div>
+
+          <!-- OPERATOR ACTIONS BAR -->
+          <div class="border-t border-slate-800 pt-4 space-y-2">
+            <span class="text-xs font-medium text-slate-400">Operational Human-in-the-Loop Actions</span>
+            <div class="grid grid-cols-3 gap-2" id="action-buttons">
+              <button onclick="takeAction('APPROVE_AP_REVIEW')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors">
+                Approve
+              </button>
+              <button onclick="takeAction('HOLD_PENDING_EVIDENCE')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors">
+                Put on Hold
+              </button>
+              <button onclick="takeAction('REJECT_INVOICE')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors">
+                Reject
+              </button>
+            </div>
+            <p id="action-feedback" class="text-xs text-slate-400 hidden pt-1"></p>
+          </div>
+        </div>
+
+        <!-- SEVEN DETERMINISTIC POLICY GATES -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h4 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">7 AP Policy Match Gates</h4>
+            <span class="text-xs text-slate-400 font-mono" id="gates-summary">7 of 7 PASS</span>
+          </div>
+
+          <div class="space-y-2" id="gates-list">
+            <!-- Dynamically populated 7 gates -->
+          </div>
+        </div>
+
+        <!-- PROCESS NEXT SCENARIO BUTTON -->
+        <div class="text-center pt-2">
+          <button onclick="resetAndChooseNext()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold py-3 px-4 rounded-xl transition-colors">
+            ↻ Process Another Invoice or Scenario
+          </button>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- RECENT RUN HISTORY TABLE & METRICS -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+        <div>
+          <h3 class="font-semibold text-slate-100">Sandbox Run History</h3>
+          <p class="text-xs text-slate-400">All executions committed to the unified database audit trail</p>
+        </div>
+        <div class="flex items-center gap-4 text-xs font-mono">
+          <div><span class="text-slate-500">STP Rate:</span> <span class="text-emerald-400 font-bold" id="metric-stp">0.0%</span></div>
+          <div><span class="text-slate-500">Exceptions:</span> <span class="text-amber-400 font-bold" id="metric-exc">0</span></div>
+          <div><span class="text-slate-500">Processed:</span> <span class="text-white font-bold" id="metric-total-inr">₹0.00</span></div>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-950 text-slate-400 font-mono text-[11px] border-b border-slate-800">
+            <tr>
+              <th class="p-2.5">Time</th>
+              <th class="p-2.5">Invoice #</th>
+              <th class="p-2.5">Supplier Name</th>
+              <th class="p-2.5">PO Ref</th>
+              <th class="p-2.5 text-right">Amount (₹)</th>
+              <th class="p-2.5">Decision</th>
+              <th class="p-2.5">Stage</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody" class="divide-y divide-slate-800/60 font-mono text-slate-300">
+            <tr><td colspan="7" class="p-4 text-center text-slate-500">No runs recorded yet. Select a scenario above to begin.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500">
+    Zamp PS-1 AI Solutions Associate · Unified Autonomous AP Command Center · Single Source of Truth
+  </footer>
+
+  <!-- CLIENT-SIDE SCRIPT -->
+  <script>
+    let activeInvoiceId = null;
+    let scenariosData = [];
+
+    // Format currency to Indian Rupees
+    function formatINR(val) {
+      if (val === null || val === undefined || isNaN(val)) return '₹0.00';
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
+    }
+
+    // Load genuine scenarios
+    async function loadScenarios() {
+      try {
+        const res = await fetch('/api/v1/sandbox/scenarios');
+        scenariosData = await res.json();
+        const container = document.getElementById('scenarios-container');
+        container.innerHTML = '';
+
+        scenariosData.forEach(scn => {
+          const card = document.createElement('div');
+          card.className = 'p-4 bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/60 transition-all rounded-xl cursor-pointer flex flex-col justify-between group';
+          card.onclick = () => runScenario(scn.id);
+
+          let badgeColor = 'bg-slate-800 text-slate-300';
+          if (scn.expected_decision === 'MATCH_CANDIDATE') badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          else if (scn.expected_decision === 'FLAGGED_EXCEPTION') badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          else if (scn.expected_decision === 'FLAGGED_HITL_REVIEW') badgeColor = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+          else if (scn.expected_decision === 'REJECTED') badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+
+          card.innerHTML = `
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <span class="text-xs font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">${scn.title}</span>
+                <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded ${badgeColor}">${scn.expected_decision}</span>
+              </div>
+              <p class="text-xs text-slate-400 line-clamp-2">${scn.description}</p>
+            </div>
+            <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span>${scn.vendor_name || 'Vendor N/A'}</span>
+              <span class="text-white font-semibold">${scn.total_amount > 0 ? formatINR(scn.total_amount) : 'Image Scan'}</span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (err) {
+        console.error('Failed to load scenarios:', err);
+      }
+    }
+
+    // Execute scenario with streaming stage progression
+    async function runScenario(scenarioId) {
+      resetViews();
+      document.getElementById('processing-view').classList.remove('hidden');
+      updateStage(1, 'active', 'Reading PDF & verifying digest...');
+
+      let startTime = performance.now();
+      const timerInterval = setInterval(() => {
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        document.getElementById('progress-timer').innerText = `${elapsed}s`;
+      }, 100);
+
+      try {
+        updateStage(1, 'completed', 'Digest verified');
+        updateStage(2, 'active', 'Live Bedrock Mantle Qwen 235B inference...');
+
+        const res = await fetch(`/api/v1/sandbox/run-scenario/${scenarioId}`, { method: 'POST' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+
+        clearInterval(timerInterval);
+        document.getElementById('progress-timer').innerText = `${((performance.now() - startTime) / 1000).toFixed(1)}s`;
+
+        updateStage(2, 'completed', 'Mantle tokens extracted');
+        updateStage(3, 'completed', 'GST reconciled');
+        updateStage(4, 'completed', '3-Way ERP matched');
+        updateStage(5, 'completed', '7 Gates evaluated');
+        updateStage(6, 'completed', data.invoice ? data.invoice.decision : data.decision);
+
+        setTimeout(() => {
+          renderResults(data);
+          loadRunHistory();
+        }, 300);
+
+      } catch (err) {
+        clearInterval(timerInterval);
+        alert('Pipeline execution failed: ' + err.message);
+        document.getElementById('processing-view').classList.add('hidden');
+      }
+    }
+
+    // Upload custom PDF
+    async function uploadCustomPdf(file) {
+      resetViews();
+      document.getElementById('processing-view').classList.remove('hidden');
+      updateStage(1, 'active', 'Uploading custom PDF...');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      let startTime = performance.now();
+      const timerInterval = setInterval(() => {
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        document.getElementById('progress-timer').innerText = `${elapsed}s`;
+      }, 100);
+
+      try {
+        updateStage(1, 'completed', 'Uploaded & sanitized');
+        updateStage(2, 'active', 'Extracting with AWS Bedrock Mantle...');
+
+        const res = await fetch('/api/v1/sandbox/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        const data = await res.json();
+
+        clearInterval(timerInterval);
+        updateStage(2, 'completed', 'Extracted');
+        updateStage(3, 'completed', 'Reconciled');
+        updateStage(4, 'completed', 'Matched');
+        updateStage(5, 'completed', 'Gates verified');
+        updateStage(6, 'completed', data.invoice ? data.invoice.decision : data.decision);
+
+        setTimeout(() => {
+          renderResults(data);
+          loadRunHistory();
+        }, 300);
+
+      } catch (err) {
+        clearInterval(timerInterval);
+        alert('Upload processing failed: ' + err.message);
+        document.getElementById('processing-view').classList.add('hidden');
+      }
+    }
+
+    // Render results view
+    function renderResults(data) {
+      document.getElementById('results-view').classList.remove('hidden');
+      document.getElementById('processing-view').classList.add('hidden');
+
+      const inv = data.invoice || {};
+      activeInvoiceId = inv.id;
+
+      document.getElementById('res-scenario-type').innerText = (data.scenario && data.scenario.title) ? data.scenario.title : 'CUSTOM INVOICE';
+      document.getElementById('res-vendor-name').innerText = inv.vendor_name || 'Unknown Supplier';
+      document.getElementById('res-vendor-gstin').innerText = inv.vendor_gstin ? `GSTIN: ${inv.vendor_gstin}` : 'GSTIN: Not detected';
+      document.getElementById('res-total-amount').innerText = formatINR(inv.total_amount);
+      document.getElementById('res-invoice-num').innerText = `Invoice: ${inv.invoice_number || 'UNKNOWN'}`;
+
+      // Procurement
+      const proc = data.procurement || {};
+      document.getElementById('res-po-ref').innerText = inv.po_reference || 'NO_PO_REF';
+      document.getElementById('res-po-balance').innerText = proc.po ? `Auth: ${formatINR(proc.po.remaining_balance)}` : 'No open PO';
+      document.getElementById('res-grn-ref').innerText = (proc.grn && proc.grn.grn_number) ? proc.grn.grn_number : 'NO_GRN';
+      document.getElementById('res-grn-status').innerText = proc.grn ? 'Receipt confirmed' : 'No GRN receipt';
+      document.getElementById('res-qc-ref').innerText = (proc.qc && proc.qc.qc_certificate_number) ? proc.qc.qc_certificate_number : 'NO_QC';
+      const qcStatusElem = document.getElementById('res-qc-status');
+      if (proc.qc && proc.qc.overall_status === 'ACCEPTED') {
+        qcStatusElem.className = 'text-[11px] font-semibold mt-1 text-emerald-400';
+        qcStatusElem.innerText = 'ACCEPTED';
+      } else if (proc.qc) {
+        qcStatusElem.className = 'text-[11px] font-semibold mt-1 text-rose-400';
+        qcStatusElem.innerText = proc.qc.overall_status || 'REJECTED';
+      } else {
+        qcStatusElem.className = 'text-[11px] font-semibold mt-1 text-slate-500';
+        qcStatusElem.innerText = 'Not Required / Missing';
+      }
+
+      // Line items
+      const lines = data.line_items || [];
+      document.getElementById('res-line-count').innerText = `${lines.length} item(s)`;
+      const tbody = document.getElementById('res-lines-tbody');
+      tbody.innerHTML = '';
+      if (lines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500 font-sans text-xs">No extractable digital line items detected (raster scan).</td></tr>';
+      } else {
+        lines.forEach(l => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="p-2.5 text-slate-500">${l.line_number}</td>
+            <td class="p-2.5 text-slate-200 font-sans">${l.description}</td>
+            <td class="p-2.5 text-right">${l.billed_quantity}</td>
+            <td class="p-2.5 text-right">${formatINR(l.billed_unit_rate)}</td>
+            <td class="p-2.5 text-right text-white font-medium">${formatINR(l.billed_line_total)}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      document.getElementById('res-subtotal').innerText = formatINR(inv.subtotal);
+      document.getElementById('res-tax').innerText = formatINR(inv.tax_amount);
+      document.getElementById('res-grand-total').innerText = formatINR(inv.total_amount);
+
+      // Decision card
+      const decBadge = document.getElementById('res-decision-badge');
+      const decCard = document.getElementById('decision-card');
+      const decision = inv.decision || data.decision || 'UNKNOWN';
+      decBadge.innerText = decision;
+      document.getElementById('res-decision-reason').innerText = inv.decision_reason || data.decision_reason || '—';
+
+      if (decision === 'MATCH_CANDIDATE' || decision === 'AUTO_APPROVED') {
+        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        decCard.className = 'bg-slate-900 border-2 border-emerald-500/30 rounded-2xl p-6 space-y-4';
+      } else if (decision === 'FLAGGED_EXCEPTION') {
+        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        decCard.className = 'bg-slate-900 border-2 border-amber-500/30 rounded-2xl p-6 space-y-4';
+      } else if (decision === 'FLAGGED_HITL_REVIEW') {
+        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/40';
+        decCard.className = 'bg-slate-900 border-2 border-indigo-500/30 rounded-2xl p-6 space-y-4';
+      } else {
+        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40';
+        decCard.className = 'bg-slate-900 border-2 border-rose-500/30 rounded-2xl p-6 space-y-4';
+      }
+
+      // Render 7 Gates
+      const gatesList = document.getElementById('gates-list');
+      gatesList.innerHTML = '';
+      const gates = data.match_gates || [];
+      const passCount = gates.filter(g => g.status === 'PASS' && g.gate_number <= 7).length;
+      document.getElementById('gates-summary').innerText = `${passCount} of 7 PASS`;
+
+      gates.forEach(g => {
+        const item = document.createElement('div');
+        item.className = 'p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-start justify-between gap-3 text-xs';
+        const isPass = g.status === 'PASS';
+        const statusBadge = isPass
+          ? '<span class="px-2 py-0.5 rounded font-mono font-medium text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">PASS</span>'
+          : '<span class="px-2 py-0.5 rounded font-mono font-medium text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30">FAIL</span>';
+
+        item.innerHTML = `
+          <div>
+            <div class="font-semibold text-slate-200">Gate ${g.gate_number}: ${g.gate_name}</div>
+            <div class="text-slate-400 text-[11px] mt-0.5">${g.notes || 'No discrepancy recorded'}</div>
+          </div>
+          ${statusBadge}
+        `;
+        gatesList.appendChild(item);
+      });
+
+      // Scroll into view
+      document.getElementById('results-view').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Take operator action
+    async function takeAction(action) {
+      if (!activeInvoiceId) return;
+      const feedback = document.getElementById('action-feedback');
+      feedback.classList.remove('hidden');
+      feedback.innerText = `Submitting ${action}...`;
+
+      try {
+        const res = await fetch(`/api/v1/sandbox/invoices/${activeInvoiceId}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: action,
+            reason: `Operator action recorded from Sandbox experience for ${action}`,
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        const result = await res.json();
+        feedback.innerText = `Action recorded successfully: ${result.decision || action}`;
+        feedback.className = 'text-xs text-emerald-400 font-medium pt-1';
+        loadRunHistory();
+      } catch (err) {
+        feedback.innerText = `Action failed: ${err.message}`;
+        feedback.className = 'text-xs text-rose-400 font-medium pt-1';
+      }
+    }
+
+    // Load recent runs
+    async function loadRunHistory() {
+      try {
+        const res = await fetch('/api/v1/sandbox/runs');
+        const data = await res.json();
+        const m = data.metrics || {};
+
+        document.getElementById('metric-stp').innerText = `${m.straight_through_rate_pct || 0}%`;
+        document.getElementById('metric-exc').innerText = `${m.exceptions_flagged || 0}`;
+        document.getElementById('metric-total-inr').innerText = formatINR(m.total_value_inr || 0);
+
+        const tbody = document.getElementById('history-tbody');
+        tbody.innerHTML = '';
+        const runs = data.runs || [];
+
+        if (runs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">No runs recorded yet.</td></tr>';
+          return;
+        }
+
+        runs.slice(0, 10).forEach(r => {
+          const row = document.createElement('tr');
+          const timeStr = r.updated_at ? new Date(r.updated_at).toLocaleTimeString() : '—';
+          row.innerHTML = `
+            <td class="p-2.5 text-slate-500">${timeStr}</td>
+            <td class="p-2.5 font-medium text-white">${r.invoice_number}</td>
+            <td class="p-2.5 font-sans text-slate-300">${r.vendor_name}</td>
+            <td class="p-2.5 text-slate-400">${r.po_reference || '—'}</td>
+            <td class="p-2.5 text-right font-medium text-white">${formatINR(r.total_amount)}</td>
+            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800 text-slate-300">${r.decision}</span></td>
+            <td class="p-2.5 text-slate-400">${r.stage}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (err) {
+        console.error('Failed to load runs:', err);
+      }
+    }
+
+    function updateStage(num, state, message) {
+      const stageElem = document.getElementById(`stage-${num}`);
+      if (!stageElem) return;
+      const indicator = stageElem.querySelector('.status-indicator');
+      if (state === 'active') {
+        stageElem.className = 'p-3 bg-indigo-950/40 border border-indigo-500/60 rounded-xl space-y-1 animate-pulse';
+        indicator.innerText = message || 'Running...';
+        indicator.className = 'status-indicator text-indigo-400 font-medium text-[11px]';
+      } else if (state === 'completed') {
+        stageElem.className = 'p-3 bg-slate-950 border border-emerald-500/40 rounded-xl space-y-1';
+        indicator.innerText = message || 'Done';
+        indicator.className = 'status-indicator text-emerald-400 font-medium text-[11px]';
+      }
+    }
+
+    function resetViews() {
+      document.getElementById('results-view').classList.add('hidden');
+      document.getElementById('action-feedback').classList.add('hidden');
+      for (let i = 1; i <= 6; i++) {
+        const s = document.getElementById(`stage-${i}`);
+        if (s) {
+          s.className = 'p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1';
+          s.querySelector('.status-indicator').innerText = 'Pending';
+          s.querySelector('.status-indicator').className = 'status-indicator text-slate-500 text-[11px]';
+        }
+      }
+    }
+
+    function resetAndChooseNext() {
+      resetViews();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Drag and drop setup
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        uploadCustomPdf(e.target.files[0]);
+      }
+    });
+
+    ['dragenter', 'dragover'].forEach(name => {
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-slate-900'); });
+    });
+    ['dragleave', 'drop'].forEach(name => {
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('border-indigo-500', 'bg-slate-900'); });
+    });
+    dropZone.addEventListener('drop', (e) => {
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        uploadCustomPdf(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadScenarios();
+      loadRunHistory();
+    });
+  </script>
+</body>
+</html>

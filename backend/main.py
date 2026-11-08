@@ -29,6 +29,7 @@ from backend.api.v1.health import router as health_router
 from backend.api.v1.inbox import router as inbox_router
 from backend.api.v1.integrations_gmail import router as gmail_router
 from backend.api.v1.invoices import router as invoices_router
+from backend.api.v1.sandbox import router as sandbox_router
 from backend.api.v1.source_records import router as source_records_router
 from backend.api.v1.system import router as system_router
 from backend.core.config import AppEnv, settings
@@ -93,6 +94,17 @@ app.include_router(source_records_router, prefix="/api/v1")
 app.include_router(audit_router, prefix="/api/v1")
 app.include_router(backup_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
+app.include_router(sandbox_router, prefix="/api/v1")
+
+
+@app.get("/sandbox")
+@app.get("/sandbox/")
+async def serve_sandbox_ui():
+    """Serves the unified, interactive AP Command Center Sandbox experience."""
+    sandbox_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "engine", "templates", "sandbox.html")
+    if os.path.exists(sandbox_path):
+        return FileResponse(sandbox_path, media_type="text/html")
+    return JSONResponse(status_code=404, content={"detail": "Sandbox template not found."})
 
 # Mount frontend assets and provide SPA fallback
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")

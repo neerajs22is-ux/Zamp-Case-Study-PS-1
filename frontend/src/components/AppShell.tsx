@@ -208,6 +208,18 @@ export const AppShell: React.FC<AppShellProps> = ({
               </button>
             )}
 
+            {/* AP Command Center Sandbox Link */}
+            <a
+              href="/sandbox"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors cursor-pointer"
+              title="Switch to the Simplified AP Decision Sandbox experience"
+              aria-label="Open Sandbox Experience"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span className="hidden sm:inline">Sandbox</span>
+              <span className="sm:hidden">Sandbox</span>
+            </a>
+
             {/* Interactive Showcase Tour Launcher */}
             <button
               onClick={() => setShowcaseOpen(true)}

@@ -7,65 +7,68 @@
 
 ---
 
-## 🎯 Case Study Deliverables & Evaluation Strategy
+## 🎯 Unified Product Strategy: One Engine, Two Experiences
 
-This submission is architected around two coordinated applications with distinct, well-defined roles:
+There is **one Zamp PS-1 invoice automation product, offered through two seamless experiences** powered by the exact same authoritative processing engine:
 
-1. **Primary Product — AP Command Center (`backend/` + `frontend/`):**
-   - **Primary Evaluation Target:** The flagship full-stack application evaluated for production architecture, real multi-tenant persistence, 3-way procurement matching, and human-in-the-loop triage.
-   - **Video Demonstration:** The mandatory 5-minute video walkthrough demonstrates this React 19 application.
-   - **Planned Public Hosted URL:** The primary deployment target for safe, interactive evaluator access across 4 pre-configured personas (`AP_LEAD`, `CONTROLLER`, `AUDITOR`, `AP_ASSOCIATE`) in the pre-seeded `org_sme_eval` workspace once P0 deployment is complete. Local execution is currently verified on `127.0.0.1:8001`.
-2. **Auxiliary Tool — Standalone Rules Sandbox (`engine/`):**
-   - **Offline Evaluation Sandbox:** A lightweight, single-process execution tool with an in-memory mock ERP and single-file HTML/Tailwind UI.
-   - **Purpose:** Enables local code reviewers to test deterministic policy gates, regex layouts, and millisecond Server-Sent Event (SSE) streaming offline without provisioning PostgreSQL, Supabase, or AWS credentials.
+1. **Flagship AP Command Center (Primary Product):**
+   - **Target Experience:** The complete, enterprise-grade multi-tenant accounts payable application (`backend/` + `frontend/`).
+   - **Primary Live URL:** `http://127.0.0.1:8001/` (React 19 SPA serving `/today`, `/invoices`, `/approvals`, `/audit`).
+   - **Video Demonstration:** The primary 5-minute evaluation video walkthrough demonstrates this application.
+   - **Enterprise Capabilities:** PostgreSQL Row-Level Security (RLS), Supabase Auth session rotation, immutable append-only audit trail, dual-control high-value approval governance, and 4 pre-configured personas (`AP_LEAD`, `CONTROLLER`, `AUDITOR`, `AP_ASSOCIATE`) in `org_sme_eval`.
+2. **AP Command Center Sandbox (Interactive Demonstration):**
+   - **Target Experience:** A streamlined, genuinely working single-invoice interactive demonstration of that exact flagship system.
+   - **Direct URL:** `http://127.0.0.1:8001/sandbox` (Single-page responsive Tailwind UI).
+   - **Workflow:** **Upload invoice → Watch real-time processing → Understand decision → Take action.**
+   - **Authoritative Business Engine:** Consumes the exact same hybrid Bedrock Mantle Qwen 235B extractor, Decimal INR financial math, Indian GST calculations, 7 deterministic matching policy gates, and audit persistence as the flagship.
 
 ---
 
 ## 1. Quick Start & Launcher Guide
 
-The repository supports both the flagship production platform and the offline rules sandbox.
+The platform uses a unified launcher where both experiences run on the authoritative FastAPI backend:
 
-### Option A: Launch the Flagship AP Command Center (Primary)
-The flagship runs a FastAPI application serving the compiled React 19 SPA, backed by PostgreSQL and private object storage:
-
+### Launch the Platform (Defaults to Flagship AP Command Center)
 ```powershell
-# 1. Ensure dependencies and frontend are built
+# 1. Install dependencies and compile frontend
 pip install -r requirements.txt
 npm --prefix frontend install && npm --prefix frontend run build
 
-# 2. Launch the Flagship AP Command Center
-python run.py --enterprise
-```
-👉 Open your browser to: **`http://127.0.0.1:8001`**  
-👉 Click **"AP Lead"** on the local evaluation portal for 1-click access to the pre-seeded `org_sme_eval` tenant.
-
-> [!IMPORTANT] Local & Hosted Evaluation Prerequisites:
-> - **Database Schema:** PostgreSQL connected with all migrations through `013_revoke_access_tokens` applied.
-> - **Environment & Host:** Local development environment (`APP_ENV=development`) accessed via loopback (`127.0.0.1` / `localhost`). The `dev-session` quick-login endpoint strictly bars non-loopback connections with HTTP 403.
-> - **Demo Fixtures & Bootstrap:** Local fixtures are initialized via `python -m engine.sme_eval_setup` for tenant `org_sme_eval`. Hosted cloud evaluation databases are initialized safely out-of-band via `EVAL_BOOTSTRAP_SECRET_KEY=<KEY> python -m engine.bootstrap_eval_db --confirm-isolated-eval-database --expected-db-name <staging_db>` (reading the secret key exclusively from the environment to prevent exposure in process lists and shell history).
-> - **Evaluator Authentication:** Hosted evaluation uses provider-supported Supabase Passwordless Email OTP (`create_user: false`) or Google OAuth; unprovisioned emails are barred with HTTP 403.
-
-### Option B: Launch the Standalone Rules Sandbox (Auxiliary Tool)
-For offline exploration of deterministic policy gates without database setup (requires Python packages in `requirements.txt`):
-
-```powershell
+# 2. Launch the Unified AP Command Center
 python run.py
 ```
-👉 Open your browser to: **`http://127.0.0.1:8001`**  
-*(Note: In the current repository snapshot, `python run.py` defaults to this standalone sandbox, while `Dockerfile` deploys the flagship. The upcoming P0 milestone will align the CLI launcher so `python run.py` launches the flagship by default and `python run.py --sandbox` launches the sandbox).*
+👉 Open your browser to:
+- **Flagship Command Center:** **`http://127.0.0.1:8001/`** (Click **"AP Lead"** for 1-click evaluation access)
+- **Interactive Sandbox:** **`http://127.0.0.1:8001/sandbox`** (Upload or select any of 6 genuine scenarios)
+- **Interactive API Docs:** **`http://127.0.0.1:8001/docs`**
+
+### Launch with Sandbox Focus Prominent
+```powershell
+python run.py --sandbox
+```
+👉 Direct console and browser focus to: **`http://127.0.0.1:8001/sandbox`**
+
+> [!IMPORTANT] Production-Grade Security & Verification Invariants:
+> - **Unified Source of Truth:** Zero USD mock rules. Both Flagship and Sandbox run through `reevaluate_match_gates()`, `IndianAPRuleEngine`, and `HybridAPExtractor`.
+> - **Database Schema:** PostgreSQL connected with all migrations through `013_revoke_access_tokens` applied.
+> - **RLS Verification:** Runtime enforcement verifies `ap_app_user` lacks `BYPASSRLS` privileges; foreign tenant queries return zero rows fail-closed.
+> - **Audit Immutability:** PL/pgSQL database triggers strictly prohibit `UPDATE` or `DELETE` on `audit_events`.
+> - **Parity Verification:** Verified with 100% pass rate in `tests/test_sandbox_flagship_parity.py`.
 
 ---
 
-## 2. The 4 Core Evaluation Scenarios (Pre-Seeded in `org_sme_eval`)
+## 2. The 6 Core Evaluation Scenarios (Pre-Seeded in `org_sme_eval`)
 
-The flagship AP Command Center is pre-configured with four commercial accounts payable scenarios demonstrating autonomous matching, exception triage, and fail-closed safety:
+Both the flagship AP Command Center and the Decision Sandbox share the exact same 6 authentic commercial test scenarios:
 
-| # | Scenario Name | Test Reference | Flagship Decision | Operational Consequence & Governance |
-|---|---|---|---|---|
-| **1** | **Touchless 3-Way Match** | `APTC-001` / `AP-26-009` | `MATCH_CANDIDATE` | **Golden Path:** Invoice perfectly matches PO-26-2001, GRN-26-601, and Quality Inspection QC-26-601. All 7 deterministic gates pass; ready for 1-click AP Lead sign-off (**never auto-disbursed**). |
-| **2** | **Line Rate Variance Hold** | `APTC-030` / `KF-26-016` | `FLAGGED_EXCEPTION` | **Margin Creep Defense:** Unit price bills at ₹185.00 vs contracted PO rate of ₹170.00 (+8.8% spike). Exceeds 1.5% policy tolerance; system flags exception, blocks payment, and auto-generates debit note recommendation. |
-| **3** | **Degraded Scan Safety** | `APTC-036` / `POS-26-112` | `FLAGGED_HITL_REVIEW` | **Fail-Closed OCR Guard:** Low-contrast mobile scan ($\sigma < 10.0$) fails extraction pre-screening. Routed to human-in-the-loop review queue; zero ungrounded financial values are guessed. |
-| **4** | **Commercial Non-Invoice** | `APTC-038` / `RCPT-26-088` | `QUARANTINE_NON_INVOICE` | **False Liability Defense:** Inbound supplier payment receipt intercepted by classifier. Quarantined in security vault with zero General Ledger liability creation. |
+| # | Scenario ID | Document Reference | Decision Code | Target Stage | Key Operational & Policy Mechanism |
+|---|---|---|---|---|---|
+| **1** | `SCN-01-HAPPY-PATH` | `01_invoice_AP_26_001.pdf` | `MATCH_CANDIDATE` | `PENDING_APPROVAL` | **Clean 3-Way Match:** Perfectly matches PO-26-1001, GRN-26-501, and accepted QC certificate with 0.00% variance. All 7 deterministic policy gates pass. Ready for AP Lead sign-off. |
+| **2** | `SCN-02-PRICE-VARIANCE` | `30_invoice_AP_26_011.pdf` | `FLAGGED_EXCEPTION` | `ACTION_REQUIRED` | **Price & Qty Variance:** Supplier bills unit price ₹220.00 vs contracted PO rate ₹185.00 (+18.92% variance vs 1.5% limit) and bills 100 units vs 80 accepted on GRN-26-621. Fails Gate 6 & Gate 3. |
+| **3** | `SCN-03-DEGRADED-SCAN` | `36_invoice_POS_26_112.pdf` | `FLAGGED_HITL_REVIEW` | `ACTION_REQUIRED` | **Degraded Scan Safety:** Raster-only image document with zero digital text tokens. Grounding tripwire trips; LLM inference skipped to avoid hallucinations; routed to human specialist review. |
+| **4** | `SCN-04-QUARANTINE-QC` | `11_invoice_MC_26_090.pdf` | `FLAGGED_EXCEPTION` | `ACTION_REQUIRED` | **Quarantined Inspection:** Factory goods receipt GRN-26-603 has inspection status HOLD. Fails Gate 4 deterministically; blocks payment on defective materials. |
+| **5** | `SCN-05-NON-PAYABLE` | `38_payment_receipt_RCPT_26_088.pdf` | `REJECTED` | `REJECTED` | **Non-Payable Commercial Doc:** Document classified as `PAYMENT_RECEIPT`; `is_payable_invoice` evaluates to False. Autonomously rejected without generating an open liability. |
+| **6** | `SCN-06-DUPLICATE` | `01_invoice_AP_26_001.pdf` | `REJECTED` | `ACTION_REQUIRED` | **Duplicate Resubmission:** Identical voucher number or SHA-256 hash collision with active ledger record. Gate 7 fails deterministically; prevents duplicate payment disbursements. |
 
 ---
 

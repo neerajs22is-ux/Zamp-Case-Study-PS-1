@@ -14,7 +14,8 @@ This document provides an authoritative, truthful accounting of completed milest
 | **Phase D** | Production readiness hardening, modality classification separation, grounding verification. | Digital text vs scanned image separation, contrast pre-screening. | **COMPLETED** | 100% Pass (15 tests) |
 | **Palmyra Vision**| Multimodal visual extraction evaluation (writer.palmyra-vision-7b) on degraded scans. | Live Palmyra API calls, latency and cost benchmarking, fail-closed rule. | **COMPLETED** | Feature-flagged OFF by default |
 | **Phase E** | Controlled SME acceptance testing on evaluation tenant `org_sme_eval` & security hardening. | Real browser-level Playwright tests, enterprise JWT auth, dual-control policy. | **COMPLETED** | 100% Pass (244 tests) |
-| **Render Deploy** | Production container deployment on Render Web Service. | Production deployment. | **ON HOLD** | Awaiting user sign-off |
+| **Phase U** | **Unified Engine & Dual Experiences (Sandbox + Flagship):** Retire USD mock rules; establish Flagship as sole authoritative business engine; rebuild sandbox to consume shared APIs. | Parity testing suite `tests/test_sandbox_flagship_parity.py`, Decimal INR, 7 gates, 6 genuine scenarios. | **COMPLETED** | 100% Pass (11 tests, 482 total) |
+| **Render Deploy** | Production container deployment on Render Web Service. | Production deployment. | **READY FOR DEPLOY** | All gates verified |
 
 ---
 

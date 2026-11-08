@@ -44,10 +44,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from backend.api.v1.sandbox import router as unified_sandbox_router
+app.include_router(unified_sandbox_router, prefix="/api/v1")
+
 @app.get("/", response_class=HTMLResponse)
+@app.get("/sandbox", response_class=HTMLResponse)
 async def serve_dashboard():
-    """Serve the interactive PS-1 live demo dashboard."""
-    template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
+    """Serve the interactive unified AP Command Center Sandbox demo."""
+    template_path = os.path.join(os.path.dirname(__file__), "templates", "sandbox.html")
+    if not os.path.exists(template_path):
+        template_path = os.path.join(os.path.dirname(__file__), "templates", "index.html")
     if not os.path.exists(template_path):
         raise HTTPException(status_code=404, detail="Dashboard template not found")
     with open(template_path, "r", encoding="utf-8") as f:

@@ -904,6 +904,7 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str, preserve_exte
         db.add(mg)
         if gstatus == "FAIL" and first_failure is None:
             first_failure = (gnum, gname, gnotes)
+    db.flush()
 
     # Update invoice state
     if all_passed:
