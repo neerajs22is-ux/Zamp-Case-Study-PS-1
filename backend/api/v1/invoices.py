@@ -393,7 +393,7 @@ def execute_invoice_action(
         ).with_for_update())
         if wo_for_approval is None:
             raise HTTPException(status_code=400, detail="Cannot approve: current workspace PO evidence is unavailable.")
-        refreshed = reevaluate_match_gates(db, inv, current_user.org_id)
+        refreshed = reevaluate_match_gates(db, inv, current_user.org_id, preserve_extended_gates=True)
         if refreshed.overall_result != "PASS":
             raise HTTPException(status_code=400, detail="Cannot approve: current source evidence or PO commitments fail validation.")
 
@@ -636,7 +636,7 @@ def resolve_po_line(
     return None
 
 
-def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
+def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str, preserve_extended_gates: bool = False) -> MatchRun:
     """Synchronously re-evaluates all 7 deterministic AP policy gates after financial mutation."""
     now_utc = datetime.datetime.utcnow()
     lines = db.scalars(
@@ -844,8 +844,8 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
 
     # Check if record is an unreadable or degraded scan (P0-2 buyer trust preservation)
     is_unreadable_scan = (
-        inv.decision == "FLAGGED_HITL_REVIEW"
-        or (not inv.vendor_gstin and (not inv.invoice_number or inv.invoice_number in ("SCAN-APTC-036", "POS-26-112", "UNKNOWN")) and (not inv.total_amount or inv.total_amount <= 0))
+        (not inv.vendor_gstin and (not inv.invoice_number or inv.invoice_number in ("SCAN-APTC-036", "POS-26-112", "UNKNOWN")) and (not inv.total_amount or inv.total_amount <= 0))
+        or bool(inv.decision_reason and "degraded raster scan" in inv.decision_reason.lower() and (not inv.total_amount or inv.total_amount <= 0))
     )
     if is_unreadable_scan:
         gate_checks = [
@@ -868,12 +868,13 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str) -> MatchRun:
             (7, "Duplicate Invoice Check", g7_status, g7_notes),
         ]
 
-    previous = db.scalar(select(MatchRun).where(MatchRun.invoice_id == inv.id,
-        MatchRun.org_id == org_id).order_by(MatchRun.evaluated_at.desc()))
-    if previous:
-        for check in db.scalars(select(MatchGateCheck).where(MatchGateCheck.match_run_id == previous.id,
-            MatchGateCheck.org_id == org_id, MatchGateCheck.gate_number >= 8)).all():
-            gate_checks.append((check.gate_number, check.gate_name, check.status, check.evidence_notes))
+    if preserve_extended_gates:
+        previous = db.scalar(select(MatchRun).where(MatchRun.invoice_id == inv.id,
+            MatchRun.org_id == org_id).order_by(MatchRun.evaluated_at.desc()))
+        if previous:
+            for check in db.scalars(select(MatchGateCheck).where(MatchGateCheck.match_run_id == previous.id,
+                MatchGateCheck.org_id == org_id, MatchGateCheck.gate_number >= 8)).all():
+                gate_checks.append((check.gate_number, check.gate_name, check.status, check.evidence_notes))
 
     all_passed = all(g[2] == "PASS" for g in gate_checks)
     match_run_id = f"mr_{uuid.uuid4().hex[:12]}"

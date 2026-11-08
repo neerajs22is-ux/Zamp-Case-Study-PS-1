@@ -110,8 +110,15 @@ def set_tenant_context(session: Session, org_id: str) -> None:
 
 @event.listens_for(Session, "after_begin")
 def enforce_transaction_tenant_context(session, transaction, connection):
-    """Enforces transaction-local tenant context isolation on PostgreSQL connections."""
+    """Enforces transaction-local tenant context isolation and role restriction on PostgreSQL connections."""
     if connection.dialect.name == "postgresql":
+        if not session.info.get("skip_role_restriction", False):
+            try:
+                connection.execute(text("SET LOCAL ROLE ap_app_user;"))
+            except Exception as role_exc:
+                logger.error(f"Failed to enforce restricted database role 'ap_app_user': {role_exc}")
+                raise RuntimeError("Database security violation: cannot set local role to ap_app_user") from role_exc
+
         org_id = session.info.get("tenant_org_id", "")
         connection.execute(
             text("SELECT set_config('app.current_org_id', :org_id, true)"),
@@ -180,10 +187,16 @@ def check_db_health() -> dict:
                                     "Configure DATABASE_URL with restricted 'ap_app_user' for zero-trust RLS enforcement."
                                 )
                                 logger.warning(health_payload["role_warning"])
+                                if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
+                                    health_payload["readiness"] = False
+                                    health_payload["status"] = "UNENFORCED_RLS"
                             else:
                                 health_payload["role_security"] = "ENFORCED"
                     except Exception as role_exc:
                         health_payload["role_inspection_error"] = str(role_exc)
+                        if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
+                            health_payload["readiness"] = False
+                            health_payload["status"] = "ROLE_INSPECTION_FAILED"
                 return health_payload
             return {
                 "status": "DEGRADED",

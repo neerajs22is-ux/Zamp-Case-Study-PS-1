@@ -25,7 +25,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import select, text
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.core.config import settings
@@ -466,6 +466,12 @@ def execute_document_pipeline(
 
         # 3. Persist Extracted Lines
         if invoice_id and processing_result.line_items:
+            persist_db.execute(
+                delete(InvoiceLine).where(
+                    InvoiceLine.invoice_id == invoice_id,
+                    InvoiceLine.org_id == org_id,
+                )
+            )
             for idx, line in enumerate(processing_result.line_items, start=1):
                 desc = (
                     getattr(line, "item_description", None)
@@ -524,12 +530,13 @@ def execute_document_pipeline(
         match_run = reevaluate_match_gates(persist_db, inv, org_id)
         is_scanned_or_review = (
             processing_result.document_type == "SCANNED_IMAGE"
-            or processing_result.final_decision == "FLAGGED_HITL_REVIEW"
             or processing_result.extraction_status in ("NOT_EVALUATED", "DEGRADED_SCAN")
         )
         rejection = (
             not is_scanned_or_review
-            and (not processing_result.is_payable_invoice or processing_result.final_decision == "REJECTED")
+            and (not processing_result.is_payable_invoice or processing_result.document_type in (
+                "PAYMENT_RECEIPT", "PURCHASE_ORDER", "DELIVERY_CHALLAN", "PROFORMA_INVOICE"
+            ))
         )
         extraction_blocked = (
             rejection
@@ -539,7 +546,6 @@ def execute_document_pipeline(
             or processing_result.currency != "INR"
             or processing_result.document_type not in ("INVOICE", "DEBIT_NOTE")
             or getattr(processing_result, "extraction_requires_review", False)
-            or processing_result.final_decision != "MATCH_CANDIDATE"
         )
         if extraction_blocked:
             persist_db.add(MatchGateCheck(id=f"mg_{match_run.id}_8", org_id=org_id,
@@ -572,6 +578,12 @@ def execute_document_pipeline(
                     inv.stage = "PENDING_APPROVAL"
                     inv.decision = "MATCH_CANDIDATE"
                     inv.decision_reason = "All 7 deterministic policy gates passed. Ready for approval."
+                    persist_db.execute(
+                        delete(ExceptionRecord).where(
+                            ExceptionRecord.invoice_id == invoice_id,
+                            ExceptionRecord.org_id == org_id,
+                        )
+                    )
                 else:
                     gnum, gname, gnotes = failed_gate
                     inv.stage = "ACTION_REQUIRED"
@@ -582,18 +594,30 @@ def execute_document_pipeline(
                         inv.decision = "FLAGGED_EXCEPTION"
                         inv.decision_reason = f"Gate {gnum} ({gname}) failed: {gnotes}"
 
-                    # Create Exception Record
-                    exc_record = ExceptionRecord(
-                        id=f"exc_{invoice_id}",
-                        org_id=org_id,
-                        invoice_id=invoice_id,
-                        blocking_gate_number=gnum,
-                        blocking_gate_name=gname,
-                        exposure_amount_inr=inv.total_amount or 0.0,
-                        status="OPEN",
-                        created_at=now_utc,
+                    # Create or update Exception Record
+                    existing_exc = persist_db.scalar(
+                        select(ExceptionRecord).where(
+                            ExceptionRecord.invoice_id == invoice_id,
+                            ExceptionRecord.org_id == org_id,
+                        )
                     )
-                    persist_db.add(exc_record)
+                    if existing_exc:
+                        existing_exc.blocking_gate_number = gnum
+                        existing_exc.blocking_gate_name = gname
+                        existing_exc.exposure_amount_inr = inv.total_amount or 0.0
+                        existing_exc.status = "OPEN"
+                    else:
+                        exc_record = ExceptionRecord(
+                            id=f"exc_{invoice_id}",
+                            org_id=org_id,
+                            invoice_id=invoice_id,
+                            blocking_gate_number=gnum,
+                            blocking_gate_name=gname,
+                            exposure_amount_inr=inv.total_amount or 0.0,
+                            status="OPEN",
+                            created_at=now_utc,
+                        )
+                        persist_db.add(exc_record)
 
                 if rejection:
                     inv.stage = "REJECTED"

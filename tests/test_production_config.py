@@ -276,3 +276,29 @@ def test_check_db_health_confirms_enforced_rls_for_ap_app_user(monkeypatch):
     assert health["bypasses_rls"] is False
     assert health.get("role_security") == "ENFORCED"
     assert "role_warning" not in health
+
+
+def test_check_db_health_fails_closed_in_production_when_runtime_role_bypasses_rls(monkeypatch):
+    """In production, check_db_health fails closed (readiness: False, status: UNENFORCED_RLS) if role has BYPASSRLS."""
+    from unittest.mock import MagicMock
+    from backend.core import database
+    from backend.core.config import settings
+
+    monkeypatch.setattr(settings, "APP_ENV", AppEnv.PRODUCTION)
+    monkeypatch.setattr(settings, "DATABASE_URL", "postgresql://postgres:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres")
+
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value.scalar.return_value = 1
+    mock_conn.execute.return_value.first.return_value = ("postgres", False, True)  # rolbypassrls = True
+
+    mock_engine = MagicMock()
+    mock_engine.url = "postgresql://postgres:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
+    mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+    monkeypatch.setattr(database, "engine", mock_engine)
+
+    health = database.check_db_health()
+    assert health["readiness"] is False
+    assert health["status"] == "UNENFORCED_RLS"
+    assert health["bypasses_rls"] is True
+    assert "role_warning" in health

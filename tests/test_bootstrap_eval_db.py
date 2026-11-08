@@ -395,3 +395,50 @@ def test_bootstrap_workspace_with_seed_scenarios_invokes_golden_scenarios():
         assert "APTC-038" in seeded_doc_ids
         # Confirm APTC-001 is NOT seeded
         assert "APTC-001" not in seeded_doc_ids
+
+
+def test_process_scenario_document_fails_closed_on_storage_failure(monkeypatch):
+    """If object storage fails during scenario ingestion, process_scenario_document fails closed."""
+    from unittest.mock import MagicMock, patch
+    from engine.sme_eval_setup import process_scenario_document
+
+    monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
+    monkeypatch.setenv("ALLOW_SYNTHETIC_SEEDING", "true")
+
+    mock_db = MagicMock()
+    mock_db.scalar.return_value = None  # No pre-existing document
+    mock_extractor = MagicMock()
+
+    with patch("engine.sme_eval_setup.storage_adapter.save_file", side_effect=RuntimeError("Storage connection timed out")),          patch("engine.sme_eval_setup.assert_database_target_safe"):
+
+        with pytest.raises(RuntimeError, match="FATAL STORAGE VIOLATION"):
+            process_scenario_document(
+                db=mock_db,
+                extractor=mock_extractor,
+                doc_id="APTC-009",
+                filename="09_invoice_AP_26_009.pdf",
+                scenario_type="CLEAN_3WAY_MATCH",
+            )
+
+
+def test_procurement_provisioning_includes_po_1001_grn_and_qc(monkeypatch):
+    """Goods receipt GRN-26-501 and QC inspection for PO-26-1001 are not skipped."""
+    from engine.sme_eval_setup import provision_synthetic_goods_receipts, provision_synthetic_quality_controls
+
+    monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
+    monkeypatch.setenv("ALLOW_SYNTHETIC_SEEDING", "true")
+
+    added_objects = []
+    mock_db = MagicMock()
+    mock_db.scalar.return_value = None  # simulate no existing record
+    mock_db.add.side_effect = lambda obj: added_objects.append(obj)
+
+    with patch("engine.sme_eval_setup.assert_database_target_safe"):
+        provision_synthetic_goods_receipts(mock_db)
+        grn_numbers = [getattr(obj, "grn_number", None) for obj in added_objects if hasattr(obj, "grn_number")]
+        assert "GRN-26-501" in grn_numbers, "GRN-26-501 must be provisioned for PO-26-1001"
+
+        added_objects.clear()
+        provision_synthetic_quality_controls(mock_db)
+        grn_refs = [getattr(obj, "grn_number", None) for obj in added_objects if hasattr(obj, "grn_number")]
+        assert "GRN-26-501" in grn_refs, "QC certificate for GRN-26-501 must be provisioned"

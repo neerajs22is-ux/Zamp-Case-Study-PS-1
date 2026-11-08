@@ -80,8 +80,24 @@ def verify_extracted_evidence(
         value = getattr(extraction, name)
         if value:
             locate(name, value)
-    for name in ('taxable_value', 'cgst_amount', 'sgst_amount', 'igst_amount', 'total_tax_amount'):
+    for name in ('taxable_value', 'cgst_amount', 'sgst_amount', 'igst_amount'):
         locate(name, getattr(extraction, name), numeric=True, required=False)
+
+    # For total_tax_amount: verify either direct token occurrence or constituent GST breakdown grounding
+    tax_val = getattr(extraction, 'total_tax_amount', None)
+    if tax_val:
+        locate('total_tax_amount', tax_val, numeric=True, required=False)
+        if 'total_tax_amount' in unverified:
+            # If the calculated tax matches verified CGST + SGST + IGST, it is mathematically grounded
+            cgst_v = getattr(extraction, 'cgst_amount', None) or 0
+            sgst_v = getattr(extraction, 'sgst_amount', None) or 0
+            igst_v = getattr(extraction, 'igst_amount', None) or 0
+            if (cgst_v or sgst_v or igst_v) and Decimal(str(tax_val)) == Decimal(str(cgst_v)) + Decimal(str(sgst_v)) + Decimal(str(igst_v)):
+                if 'cgst_amount' not in unverified and 'sgst_amount' not in unverified and 'igst_amount' not in unverified:
+                    unverified.remove('total_tax_amount')
+                    evidence['total_tax_amount'].is_verified = True
+                    evidence['total_tax_amount'].raw_snippet = f"Derived: CGST({cgst_v}) + SGST({sgst_v}) + IGST({igst_v})"
+
     # Grand total is always required and must match a complete numeric token.
     locate('grand_total', extraction.grand_total, numeric=True)
     if not extraction.line_items:
