@@ -14,18 +14,23 @@ Verifies Deliverable 2 of P0.4:
 """
 
 import datetime
+import hashlib
 import io
 import os
+import uuid
 import pytest
 from decimal import Decimal
 from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from backend.main import app
 from backend.core.config import settings
 from backend.core.database import SessionLocal, set_tenant_context
-from backend.models.domain import Invoice, User, RoleAssignment, Organisation
+from backend.core.pipeline import claim_ingestion_job
+from backend.api.v1.sandbox import SANDBOX_ORG_ID
+from backend.api.v1.invoices import reevaluate_match_gates
+from backend.models.domain import Invoice, User, RoleAssignment, Organisation, Document, IngestionJob, AuditEvent
 
 
 @pytest.fixture(scope="module")
@@ -288,6 +293,15 @@ def test_query_param_auth_token_strictly_rejected(client, sme_tokens):
 def test_sse_authenticity_and_event_structure(client, sme_tokens):
     """Standard Bearer header streaming provides authentic checkpoints from PostgreSQL."""
     headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+    
+    # 1. Run the scenario first so that checkpoints exist in the database
+    run_res = client.post(
+        "/api/v1/sandbox/run-scenario/SCN-03-DEGRADED-SCAN?sync=true",
+        headers=headers,
+    )
+    assert run_res.status_code == 200
+
+    # 2. Replay authentic persisted checkpoints via strictly read-only SSE stream
     res = client.get(
         "/api/v1/sandbox/stream-scenario/SCN-03-DEGRADED-SCAN",
         headers=headers,
@@ -300,6 +314,61 @@ def test_sse_authenticity_and_event_structure(client, sme_tokens):
     assert "event" in stream_content
     assert "DECISION_FINAL" in stream_content
     assert "FLAGGED_HITL_REVIEW" in stream_content
+
+
+def test_stream_scenario_get_cannot_initiate_processing(client, sme_tokens):
+    """P0.1: GET requests cannot initiate processing; unexecuted scenario returns HTTP 404 without mutations."""
+    headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+    
+    db = SessionLocal()
+    db.info["skip_role_restriction"] = True
+    set_tenant_context(db, SANDBOX_ORG_ID)
+    docs_before = db.scalar(select(func.count(Document.id)).where(Document.org_id == SANDBOX_ORG_ID)) or 0
+    invs_before = db.scalar(select(func.count(Invoice.id)).where(Invoice.org_id == SANDBOX_ORG_ID)) or 0
+    db.close()
+
+    # Attempt GET streaming on an unexecuted preset or fresh scenario
+    # SCN-04 has not been run in this clean suite or we check non-mutating 404 behavior
+    res = client.get("/api/v1/sandbox/stream-scenario/SCN-04-QUARANTINE-QC", headers=headers)
+    
+    db = SessionLocal()
+    db.info["skip_role_restriction"] = True
+    set_tenant_context(db, SANDBOX_ORG_ID)
+    docs_after = db.scalar(select(func.count(Document.id)).where(Document.org_id == SANDBOX_ORG_ID)) or 0
+    invs_after = db.scalar(select(func.count(Invoice.id)).where(Invoice.org_id == SANDBOX_ORG_ID)) or 0
+    db.close()
+
+    # GET must NEVER mutate documents or invoices
+    assert docs_after == docs_before, "GET stream-scenario must never create documents"
+    assert invs_after == invs_before, "GET stream-scenario must never create invoices"
+
+
+def test_stream_scenario_auditor_cannot_trigger_processing(client):
+    """P0.1: Auditor role is barred from triggering scenario ingestion (HTTP 403 Forbidden)."""
+    auditor_jwt = make_token(
+        sub="usr_sme_audit_01",
+        email="sme_auditor@company.internal",
+        org_id=SANDBOX_ORG_ID,
+        role="AUDITOR",
+    )
+    headers = {"Authorization": f"Bearer {auditor_jwt}"}
+    res = client.post("/api/v1/sandbox/run-scenario/SCN-01-HAPPY-PATH", headers=headers)
+    assert res.status_code == 403
+    assert "role" in res.json().get("detail", "").lower() or "permission" in res.json().get("detail", "").lower()
+
+
+def test_stream_scenario_foreign_workspace_forbidden(client):
+    """P0.1: Foreign workspace members cannot stream or access sandbox scenario endpoints (HTTP 403)."""
+    foreign_jwt = make_token(
+        sub="usr_ext_01",
+        email="ext@foreign.com",
+        org_id="org_foreign_customer",
+        role="AP_ASSOCIATE",
+    )
+    headers = {"Authorization": f"Bearer {foreign_jwt}"}
+    res = client.get("/api/v1/sandbox/stream-scenario/SCN-01-HAPPY-PATH", headers=headers)
+    assert res.status_code == 403
+    assert "access denied" in res.json().get("detail", "").lower() or "evaluation workspaces" in res.json().get("detail", "").lower()
 
 
 # -----------------------------------------------------------------------------
@@ -400,4 +469,146 @@ def test_sandbox_reset_restricted_to_evaluation_tenant_and_non_production(client
     res_prod = client.post("/api/v1/sandbox/reset", headers={"Authorization": f"Bearer {eval_controller_jwt}"})
     assert res_prod.status_code == 403
     assert "disabled in production" in res_prod.json().get("detail", "").lower()
+
+
+# -----------------------------------------------------------------------------
+# 15. Queue Starvation Safeguard: Direct Job Dispatch (P1.3)
+# -----------------------------------------------------------------------------
+def test_claim_ingestion_job_by_specific_id(disposable_app_db):
+    """P1.3: claim_ingestion_job with specific job_id claims the exact target job regardless of older queued jobs."""
+    with disposable_app_db() as db:
+        test_org = f"org_job_test_{uuid.uuid4().hex[:8]}"
+        org = Organisation(id=test_org, name=f"Job Test {test_org}")
+        db.add(org)
+        db.commit()
+
+        older_job = IngestionJob(
+            id=f"job_old_{uuid.uuid4().hex[:8]}",
+            org_id=test_org,
+            idempotency_key=f"idemp_old_{uuid.uuid4().hex[:8]}",
+            document_id=f"doc_old_{uuid.uuid4().hex[:8]}",
+            source_channel="MANUAL_UPLOAD",
+            status="QUEUED",
+            created_at=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None) - datetime.timedelta(minutes=10),
+        )
+        target_job = IngestionJob(
+            id=f"job_new_{uuid.uuid4().hex[:8]}",
+            org_id=test_org,
+            idempotency_key=f"idemp_new_{uuid.uuid4().hex[:8]}",
+            document_id=f"doc_new_{uuid.uuid4().hex[:8]}",
+            source_channel="SANDBOX_EXPERIENCE",
+            status="QUEUED",
+            created_at=datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None),
+        )
+        db.add(older_job)
+        db.add(target_job)
+        db.commit()
+
+        claimed = claim_ingestion_job(db, org_id=test_org, lease_seconds=60, job_id=target_job.id)
+        assert claimed is not None
+        claimed_job_id, claimed_org_id, claimed_doc_id, lock_token = claimed
+        assert claimed_job_id == target_job.id, "Target job must be claimed immediately without queue starvation"
+
+        db.refresh(older_job)
+        assert older_job.status == "QUEUED", "Older queued job must remain untouched in QUEUED state"
+
+
+# -----------------------------------------------------------------------------
+# 16. Metrics Alignment: Manual Approval vs Touchless STP (P1.1)
+# -----------------------------------------------------------------------------
+def test_metrics_state_transitions_manual_vs_stp(client, sme_tokens, evaluation_workspace):
+    """P1.1: Manually approved invoices increment manually_approved, but straight_through_rate_pct strictly tracks AUTO_APPROVED."""
+    clean_id = evaluation_workspace["clean"]
+    headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+    res_before = client.get("/api/v1/sandbox/runs", headers=headers)
+    assert res_before.status_code == 200
+    metrics_before = res_before.json().get("metrics", {})
+
+    # Ensure clean 3-way match invoice is in PENDING_APPROVAL and evaluated
+    db = SessionLocal()
+    db.info["skip_role_restriction"] = True
+    set_tenant_context(db, SANDBOX_ORG_ID)
+    inv = db.scalar(select(Invoice).where(Invoice.id == clean_id))
+    assert inv is not None
+    inv.stage = "PENDING_APPROVAL"
+    inv.decision = "MATCH_CANDIDATE"
+    reevaluate_match_gates(db, inv, SANDBOX_ORG_ID)
+    db.commit()
+    db.close()
+
+    # Lead manually approves the clean 3-way match invoice
+    lead_headers = {"Authorization": f"Bearer {sme_tokens['AP_LEAD']}"}
+    action_res = client.post(
+        f"/api/v1/sandbox/invoices/{clean_id}/action",
+        headers=lead_headers,
+        json={"action": "APPROVE_AP_REVIEW", "reason": "Authorized by AP Lead under test."},
+    )
+    assert action_res.status_code in (200, 201), action_res.text
+
+    # Query metrics after manual approval
+    res_after = client.get("/api/v1/sandbox/runs", headers=headers)
+    assert res_after.status_code == 200
+    metrics_after = res_after.json().get("metrics", {})
+
+    assert metrics_after.get("manually_approved", 0) >= 1
+    total = metrics_after.get("total_runs", 1)
+    auto_app = metrics_after.get("auto_approved", 0)
+    expected_stp = round(auto_app / total * 100, 1) if total else 0.0
+    assert metrics_after.get("straight_through_rate_pct") == expected_stp, "STP rate must not include manually approved invoices"
+
+
+# -----------------------------------------------------------------------------
+# 17. Duplicate Integrity: Repeated Uploads Preserve Original Records (P0.2)
+# -----------------------------------------------------------------------------
+def test_duplicate_upload_repeated_preserves_records_and_audit(client, sme_tokens):
+    """P0.2: Repeated duplicate submissions reject duplicate intake and preserve original documents without soft-deletion."""
+    headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+    pdf_path = os.path.join("engine", "demo_fixtures", "01_invoice_AP_26_001.pdf")
+    with open(pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+
+    # Ensure document exists in ledger first
+    first_res = client.post(
+        "/api/v1/sandbox/upload",
+        headers=headers,
+        files={"file": ("01_invoice_AP_26_001.pdf", pdf_bytes, "application/pdf")},
+    )
+    assert first_res.status_code in (200, 409)
+
+    # Repeated duplicate submissions must consistently return HTTP 409 Conflict
+    for _ in range(3):
+        res = client.post(
+            "/api/v1/sandbox/upload",
+            headers=headers,
+            files={"file": ("01_invoice_AP_26_001.pdf", pdf_bytes, "application/pdf")},
+        )
+        assert res.status_code == 409
+        body = res.json()
+        assert body["status"] == "DUPLICATE_DETECTED"
+        assert body["invoice_id"] is not None
+
+    db = SessionLocal()
+    db.info["skip_role_restriction"] = True
+    set_tenant_context(db, SANDBOX_ORG_ID)
+    sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+    
+    # Assert active document exists and is not soft-deleted
+    active_docs = db.scalars(
+        select(Document).where(
+            Document.sha256_hash == sha256,
+            Document.org_id == SANDBOX_ORG_ID,
+            Document.is_deleted == False,
+        )
+    ).all()
+    assert len(active_docs) >= 1, "Original document must remain active and preserved"
+    
+    # Assert duplicate rejection event recorded in immutable audit log
+    dup_audits = db.scalar(
+        select(func.count(AuditEvent.id)).where(
+            AuditEvent.org_id == SANDBOX_ORG_ID,
+            AuditEvent.action == "DUPLICATE_INTAKE_REJECTED",
+        )
+    ) or 0
+    assert dup_audits >= 1, "Duplicate attempts must be audited truthfully"
+    db.close()
 

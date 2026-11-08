@@ -67,4 +67,5 @@ def processing_snapshot(db: Session, invoice_id: str, org_id: str):
         lease_expired=bool(job.status == 'PROCESSING' and job.lease_expires_at and job.lease_expires_at <= now),
         completed_at=job.completed_at.isoformat() + 'Z' if job.completed_at else None,
         error_recorded=bool(job.error_message),
+        error_message=job.error_message,
         events=sorted(by_job[job.id], key=lambda event: event['sequence'])) for job in rows])

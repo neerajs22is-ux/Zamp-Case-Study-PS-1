@@ -175,8 +175,15 @@ def claim_ingestion_job(
     db: Session,
     org_id: Optional[str] = None,
     lease_seconds: int = 180,
+    job_id: Optional[str] = None,
 ) -> Optional[Tuple[str, str, str, str]]:
     """Atomically claims a queued or expired ingestion job using FOR UPDATE SKIP LOCKED.
+
+    Args:
+        db: Active database session.
+        org_id: Optional tenant isolation filter.
+        lease_seconds: Worker lease duration in seconds.
+        job_id: Optional specific job identifier to claim. If provided, claims this exact job.
 
     Returns:
         Tuple of (job_id, org_id, document_id, lock_token) or None if no job available.
@@ -190,6 +197,8 @@ def claim_ingestion_job(
     )
     if org_id:
         stmt = stmt.where(IngestionJob.org_id == org_id)
+    if job_id:
+        stmt = stmt.where(IngestionJob.id == job_id)
 
     stmt = stmt.order_by(IngestionJob.created_at.asc()).with_for_update(skip_locked=True).limit(1)
     job = db.scalar(stmt.execution_options(populate_existing=True))

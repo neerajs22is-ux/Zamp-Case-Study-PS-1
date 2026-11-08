@@ -103,13 +103,16 @@
       <div class="flex items-center justify-between border-b border-slate-800 pb-4">
         <div>
           <h3 class="font-semibold text-slate-100 flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" id="progress-ping"></span>
             <span id="progress-title">Executing Live Flagship Pipeline...</span>
           </h3>
           <p class="text-xs text-slate-400 mt-0.5" id="progress-subtitle">Persisting checkpoints and streaming live execution telemetry</p>
         </div>
         <span class="text-xs font-mono bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700" id="progress-timer">0.0s</span>
       </div>
+
+      <!-- ERROR / NOTICE BANNER -->
+      <div id="processing-notice" class="hidden rounded-xl text-xs"></div>
 
       <!-- 6 STAGE CARDS PROGRESSION -->
       <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs" id="stages-grid">
@@ -148,6 +151,15 @@
 
     <!-- DETAILED DECISION & 3-WAY MATCH RESULTS VIEW -->
     <section id="results-view" class="hidden space-y-6">
+      
+      <!-- STORED LEDGER RUN BANNER -->
+      <div id="res-stored-banner" class="hidden p-4 rounded-xl text-xs bg-amber-950/30 border border-amber-500/40 text-amber-200 flex items-start gap-3">
+        <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+          <span class="font-semibold text-amber-100 uppercase tracking-wider text-[11px]">Authoritative Stored Ledger Run</span>
+          <p class="text-xs text-amber-300/90 mt-0.5" id="res-stored-notice">This scenario was previously ingested and finalized in the database ledger. Displaying authentic persisted audit records. Live Mantle inference was skipped to preserve idempotency.</p>
+        </div>
+      </div>
       
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
@@ -303,9 +315,10 @@
           <p class="text-xs text-slate-400">All executions committed to the unified database audit trail</p>
         </div>
         <div class="flex flex-wrap items-center gap-4 text-xs font-mono">
-          <div><span class="text-slate-500">Clean Match Candidates:</span> <span class="text-emerald-400 font-bold" id="metric-match-candidates">0</span></div>
-          <div><span class="text-slate-500">STP Approved:</span> <span class="text-indigo-400 font-bold" id="metric-stp">0.0%</span></div>
-          <div><span class="text-slate-500">Exceptions:</span> <span class="text-amber-400 font-bold" id="metric-exc">0</span></div>
+          <div><span class="text-slate-500">Match Candidates:</span> <span class="text-emerald-400 font-bold" id="metric-match-candidates">0</span></div>
+          <div><span class="text-slate-500">Touchless STP:</span> <span class="text-indigo-400 font-bold" id="metric-stp">0.0%</span></div>
+          <div><span class="text-slate-500">Manual Approved:</span> <span class="text-cyan-400 font-bold" id="metric-manual">0</span></div>
+          <div><span class="text-slate-500">Exceptions/Reviews:</span> <span class="text-amber-400 font-bold" id="metric-exc">0</span></div>
           <div><span class="text-slate-500">Processed:</span> <span class="text-white font-bold" id="metric-total-inr">₹0.00</span></div>
         </div>
       </div>
@@ -567,16 +580,56 @@
     // Authentic polling driven directly by PostgreSQL AuditEvent checkpoints
     function pollProcessingStatus(invoiceId, scenario, startTime) {
       if (pollInterval) clearInterval(pollInterval);
+      let consecutive5xx = 0;
 
       pollInterval = setInterval(async () => {
         try {
           const res = await fetch(`/api/v1/invoices/${invoiceId}/processing`, {
             headers: getAuthHeaders(),
           });
+
+          if (res.status === 401) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            stopTimer();
+            sessionStorage.removeItem('sandbox_active_invoice');
+            sessionStorage.removeItem('sandbox_active_start');
+            updateStage(1, 'failed', 'Session Expired');
+            renderAuthExpiredNotice();
+            return;
+          }
+
+          if (res.status === 403) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            stopTimer();
+            sessionStorage.removeItem('sandbox_active_invoice');
+            sessionStorage.removeItem('sandbox_active_start');
+            updateStage(1, 'failed', 'Access Denied');
+            renderAccessDeniedNotice();
+            return;
+          }
+
+          if (res.status >= 500) {
+            consecutive5xx++;
+            if (consecutive5xx >= 3) {
+              clearInterval(pollInterval);
+              pollInterval = null;
+              stopTimer();
+              updateStage(1, 'failed', `Server Error (${res.status})`);
+              renderServerErrorNotice(invoiceId, scenario);
+              return;
+            }
+            console.warn(`Polling status HTTP ${res.status} (${consecutive5xx}/3)`);
+            return;
+          }
+
           if (!res.ok) {
             console.warn(`Polling status HTTP ${res.status}`);
             return;
           }
+          consecutive5xx = 0;
+
           const snapshot = await res.json();
           const jobs = snapshot.jobs || [];
           if (jobs.length === 0) return;
@@ -643,13 +696,81 @@
             stopTimer();
             sessionStorage.removeItem('sandbox_active_invoice');
             sessionStorage.removeItem('sandbox_active_start');
-            updateStage(6, 'failed', job.error_message || 'Processing failed');
-            alert('Pipeline execution failed: ' + (job.error_message || 'Unknown processing error recorded in audit log.'));
+            const failedEvt = events.slice().reverse().find(e => e.status === 'FAILED');
+            const errorMsg = (failedEvt && (failedEvt.notes || failedEvt.message)) || job.error_message || 'Processing failed';
+            updateStage(6, 'failed', errorMsg);
+            renderFailureNotice(errorMsg);
           }
         } catch (err) {
           console.error('Error polling processing status:', err);
         }
       }, 500);
+    }
+
+    function renderAuthExpiredNotice() {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+      document.getElementById('progress-title').textContent = 'Authentication Session Expired';
+      document.getElementById('progress-subtitle').textContent = 'Your JWT token has expired or is invalid. Sign in to resume operations.';
+      notice.className = 'p-4 rounded-xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center justify-between';
+      notice.innerHTML = `
+        <div>
+          <span class="font-semibold text-rose-100">Session Expired (HTTP 401)</span>
+          <p class="text-[11px] text-rose-300 mt-0.5">Please refresh your authentication token or sign in again to continue.</p>
+        </div>
+        <a href="/login" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium text-xs transition-colors">Sign In</a>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderAccessDeniedNotice() {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+      document.getElementById('progress-title').textContent = 'Workspace Access Forbidden';
+      document.getElementById('progress-subtitle').textContent = 'Your role or organization does not have permission to access this invoice.';
+      notice.className = 'p-4 rounded-xl text-xs bg-amber-950/60 border border-amber-500/40 text-amber-200';
+      notice.innerHTML = `
+        <span class="font-semibold text-amber-100">Access Denied (HTTP 403)</span>
+        <p class="text-[11px] text-amber-300 mt-0.5">This invoice belongs to another tenant or your role has insufficient privileges.</p>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderServerErrorNotice(invoiceId, scenario) {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+      document.getElementById('progress-title').textContent = 'Server Unavailable';
+      document.getElementById('progress-subtitle').textContent = 'Persistent server errors encountered while polling database checkpoints.';
+      notice.className = 'p-4 rounded-xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center justify-between';
+      notice.innerHTML = `
+        <div>
+          <span class="font-semibold text-rose-100">Server Error (5xx)</span>
+          <p class="text-[11px] text-rose-300 mt-0.5">Failed to query backend processing status after 3 attempts.</p>
+        </div>
+        <button onclick="pollProcessingStatus('${invoiceId}', ${scenario ? `'${scenario.id || scenario}'` : 'null'}, performance.now())" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-lg font-medium text-xs transition-colors">Retry Polling</button>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderFailureNotice(errorMsg) {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+      document.getElementById('progress-title').textContent = 'Pipeline Execution Failed';
+      document.getElementById('progress-subtitle').textContent = 'Authoritative processing failed. Audit event logged in PostgreSQL.';
+      notice.className = 'p-4 rounded-xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200';
+      notice.innerHTML = `
+        <span class="font-semibold text-rose-100">Processing Error</span>
+        <p class="text-[11px] text-rose-300 mt-0.5">${escapeHtml(errorMsg)}</p>
+      `;
+      notice.classList.remove('hidden');
     }
 
     // Render results view with safe DOM methods
@@ -659,6 +780,28 @@
 
       const inv = data.invoice || {};
       activeInvoiceId = inv.id;
+
+      // Authoritative stored run presentation
+      const storedBanner = document.getElementById('res-stored-banner');
+      const infBadge = document.getElementById('res-inference-badge');
+      if (data.is_previous_run || data.mode === 'STORED_RESULT') {
+        if (storedBanner) {
+          storedBanner.classList.remove('hidden');
+          if (data.notice) {
+            document.getElementById('res-stored-notice').textContent = data.notice;
+          }
+        }
+        if (infBadge) {
+          infBadge.textContent = 'Stored Run (DB Ledger)';
+          infBadge.className = 'text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded';
+        }
+      } else {
+        if (storedBanner) storedBanner.classList.add('hidden');
+        if (infBadge) {
+          infBadge.textContent = data.inference_provider || 'Live Bedrock Mantle';
+          infBadge.className = 'text-xs font-mono text-slate-500';
+        }
+      }
 
       document.getElementById('res-scenario-type').textContent = (data.scenario && data.scenario.title) ? data.scenario.title : 'INVOICE EXTRACTION';
       document.getElementById('res-vendor-name').textContent = inv.vendor_name || 'Unknown Supplier';
@@ -831,6 +974,7 @@
         const m = data.metrics || {};
         document.getElementById('metric-match-candidates').textContent = `${m.match_candidates || 0}`;
         document.getElementById('metric-stp').textContent = `${m.straight_through_rate_pct || 0}%`;
+        document.getElementById('metric-manual').textContent = `${m.manually_approved || 0}`;
         document.getElementById('metric-exc').textContent = `${m.exceptions_flagged || 0}`;
         document.getElementById('metric-total-inr').textContent = formatINR(m.total_value_inr || 0);
 
@@ -897,6 +1041,20 @@
     function resetViews() {
       document.getElementById('results-view').classList.add('hidden');
       document.getElementById('action-feedback').classList.add('hidden');
+      
+      const procNotice = document.getElementById('processing-notice');
+      if (procNotice) {
+        procNotice.classList.add('hidden');
+        procNotice.innerHTML = '';
+      }
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping';
+      document.getElementById('progress-title').textContent = 'Executing Live Flagship Pipeline...';
+      document.getElementById('progress-subtitle').textContent = 'Persisting checkpoints and streaming live execution telemetry';
+      
+      const storedBanner = document.getElementById('res-stored-banner');
+      if (storedBanner) storedBanner.classList.add('hidden');
+
       for (let i = 1; i <= 6; i++) {
         const s = document.getElementById(`stage-${i}`);
         if (s) {
