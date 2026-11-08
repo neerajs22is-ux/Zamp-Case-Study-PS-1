@@ -14,7 +14,7 @@ This submission is architected around two coordinated applications with distinct
 1. **Primary Product — AP Command Center (`backend/` + `frontend/`):**
    - **Primary Evaluation Target:** The flagship full-stack application evaluated for production architecture, real multi-tenant persistence, 3-way procurement matching, and human-in-the-loop triage.
    - **Video Demonstration:** The mandatory 5-minute video walkthrough demonstrates this React 19 application.
-   - **Public Hosted URL:** Hosted for safe, interactive evaluator access across 4 pre-configured personas (`AP_LEAD`, `CONTROLLER`, `AUDITOR`, `AP_ASSOCIATE`) in the pre-seeded `org_sme_eval` workspace.
+   - **Planned Public Hosted URL:** The primary deployment target for safe, interactive evaluator access across 4 pre-configured personas (`AP_LEAD`, `CONTROLLER`, `AUDITOR`, `AP_ASSOCIATE`) in the pre-seeded `org_sme_eval` workspace once P0 deployment is complete. Local execution is currently verified on `127.0.0.1:8001`.
 2. **Auxiliary Tool — Standalone Rules Sandbox (`engine/`):**
    - **Offline Evaluation Sandbox:** A lightweight, single-process execution tool with an in-memory mock ERP and single-file HTML/Tailwind UI.
    - **Purpose:** Enables local code reviewers to test deterministic policy gates, regex layouts, and millisecond Server-Sent Event (SSE) streaming offline without provisioning PostgreSQL, Supabase, or AWS credentials.
@@ -37,10 +37,16 @@ npm --prefix frontend install && npm --prefix frontend run build
 python run.py --enterprise
 ```
 👉 Open your browser to: **`http://127.0.0.1:8001`**  
-👉 Click **"AP Lead"** on the evaluation portal for instant 1-click access to the pre-seeded `org_sme_eval` tenant.
+👉 Click **"AP Lead"** on the local evaluation portal for 1-click access to the pre-seeded `org_sme_eval` tenant.
+
+> [!IMPORTANT] Local Evaluation Prerequisites:
+> - **Database Schema:** PostgreSQL connected with all migrations through `013_revoke_access_tokens` applied.
+> - **Environment & Host:** Local development environment (`APP_ENV=development`) accessed via loopback (`127.0.0.1` / `localhost`). The `dev-session` endpoint strictly bars non-loopback connections with HTTP 403.
+> - **Demo Fixtures:** Workspace fixtures pre-seeded via `python -m engine.sme_eval_setup` for tenant `org_sme_eval`.
+> - **Public Deployment Note:** Public unauthenticated access is barred; a dedicated tenant-fenced demo authentication route will be provided in Milestone P0 for hosted evaluation.
 
 ### Option B: Launch the Standalone Rules Sandbox (Auxiliary Tool)
-For zero-dependency offline exploration of deterministic policy gates without database setup:
+For offline exploration of deterministic policy gates without database setup (requires Python packages in `requirements.txt`):
 
 ```powershell
 python run.py
@@ -101,11 +107,11 @@ flowchart TD
 
 1. **Deterministic Financial Policy:**
    - Language models (Qwen-235B via AWS Bedrock Mantle) are confined strictly to semantic text reading and structuring.
-   - **Zero-Hallucination Invariant:** Cent-level arithmetic, 3-way matching against PO/GRN/QC records, GST tax distribution, and approval decisions are executed exclusively by deterministic Python rules.
+   - **Bounded Deterministic Invariant:** Cent-level arithmetic, 3-way matching against PO/GRN/QC records, GST tax distribution, and approval decisions are executed exclusively by deterministic Python rules.
 2. **Mathematical Source Grounding:**
    - Every extracted financial figure is validated against page text coordinates. If an extracted amount cannot be grounded directly in source evidence, the grounding tripwire fails closed to `FLAGGED_HITL_REVIEW`.
 3. **Fail-Closed Scan Handling:**
-   - In accordance with institutional AP security, degraded scans are routed to human review rather than subjected to unverified vision model guessing. (Palmyra Vision was evaluated in a dedicated benchmark harness [`engine/palmyra_benchmark_runner.py`](file:///c:/Zamp%20Casse%20Study/engine/palmyra_benchmark_runner.py) and remains feature-flagged OFF in production).
+   - In accordance with institutional AP security, degraded scans are routed to human review rather than subjected to unverified vision model guessing. (Palmyra Vision was evaluated in a dedicated benchmark harness [`engine/palmyra_benchmark_runner.py`](engine/palmyra_benchmark_runner.py) and remains feature-flagged OFF in production).
 4. **Institutional Security & Governance:**
    - **ASVS Level 2 Security Headers:** `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`.
    - **PostgreSQL Row-Level Security (RLS):** Physical multi-tenant isolation enforcing zero cross-tenant leakage.
@@ -149,12 +155,12 @@ python -m pytest tests/
 
 ## 7. Submission Documentation Index
 
-- [`docs/CASE_STUDY_PRODUCT_STRATEGY.md`](file:///c:/Zamp%20Casse%20Study/docs/CASE_STUDY_PRODUCT_STRATEGY.md): Authoritative product strategy establishing the AP Command Center as the primary flagship submission and defining application boundaries.
-- [`docs/FLAGSHIP_READINESS_AUDIT.md`](file:///c:/Zamp%20Casse%20Study/docs/FLAGSHIP_READINESS_AUDIT.md): Evidence-based technical audit verifying repository findings, deployment configurations, database migrations, and P0/P1/P2 remediation milestones.
-- [`docs/AP_BUSINESS_RULES.md`](file:///c:/Zamp%20Casse%20Study/docs/AP_BUSINESS_RULES.md): Comprehensive definitions of the 7 deterministic procurement match gates and statutory GST rules.
-- [`docs/DATABASE_AND_MIGRATIONS.md`](file:///c:/Zamp%20Casse%20Study/docs/DATABASE_AND_MIGRATIONS.md): Multi-tenant PostgreSQL schema, RLS policies, and Alembic migration ledger.
-- [`docs/SECURITY_AND_RBAC.md`](file:///c:/Zamp%20Casse%20Study/docs/SECURITY_AND_RBAC.md): Institutional security controls, ASVS Level 2 compliance, and server-side RBAC entitlements.
-- [`docs/TESTING_AND_EVALUATION.md`](file:///c:/Zamp%20Casse%20Study/docs/TESTING_AND_EVALUATION.md): Guide for evaluating the flagship Command Center and reproducing verified test suites.
+- [`docs/CASE_STUDY_PRODUCT_STRATEGY.md`](docs/CASE_STUDY_PRODUCT_STRATEGY.md): Authoritative product strategy establishing the AP Command Center as the primary flagship submission and defining application boundaries.
+- [`docs/FLAGSHIP_READINESS_AUDIT.md`](docs/FLAGSHIP_READINESS_AUDIT.md): Evidence-based technical audit verifying repository findings, deployment configurations, database migrations, and P0/P1/P2 remediation milestones.
+- [`docs/AP_BUSINESS_RULES.md`](docs/AP_BUSINESS_RULES.md): Comprehensive definitions of the 7 deterministic procurement match gates and statutory GST rules.
+- [`docs/DATABASE_AND_MIGRATIONS.md`](docs/DATABASE_AND_MIGRATIONS.md): Multi-tenant PostgreSQL schema, RLS policies, and Alembic migration ledger.
+- [`docs/SECURITY_AND_RBAC.md`](docs/SECURITY_AND_RBAC.md): Institutional security controls, ASVS Level 2 compliance, and server-side RBAC entitlements.
+- [`docs/TESTING_AND_EVALUATION.md`](docs/TESTING_AND_EVALUATION.md): Guide for evaluating the flagship Command Center and reproducing verified test suites.
 
 ---
 *Developed for Zamp Problem Statement 1 (PS-1: Autonomous Accounts Payable Digital Employee) Evaluation.*

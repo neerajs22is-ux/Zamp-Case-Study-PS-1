@@ -103,13 +103,13 @@ This document provides an authoritative, truthful accounting of completed milest
 ## 8. Current Readiness & Product Strategy Assessment (8 November 2026)
 
 ### Product Strategy Realignment:
-- **Primary Flagship Target:** The **Autonomous AP Command Center** (`backend/` + `frontend/`) is the central product, 5-minute video walkthrough target, and primary evaluation link for the Zamp PS-1 submission.
-- **Auxiliary Tool:** The standalone engine (`engine/`) is an optional, secondary offline evaluation sandbox for local algorithmic inspection.
+- **Primary Flagship Target:** The **Autonomous AP Command Center** (`backend/` + `frontend/`) is the central product, 5-minute video walkthrough target, and primary planned hosted deployment for the Zamp PS-1 submission (currently verified on local loopback `127.0.0.1:8001`, pending P0 public cloud launch).
+- **Auxiliary Tool:** The standalone engine (`engine/`) is an optional, secondary offline evaluation sandbox for local algorithmic inspection without cloud credentials.
 
 ### Current Technical Verification & Findings Ledger:
 1. **Provider Acceptance Report (Nov 6):** **`[HISTORICALLY VERIFIED]`** Real execution of 5 cases using 4 live AWS Mantle Qwen-235B calls; resources were ephemerally cleaned up.
 2. **`render.yaml` Configuration:** **`[CONFIRMED]`** Currently omits production-required `STORAGE_BUCKET_NAME`; must be added before public Render deployment.
-3. **Database Migration State:** **`[CONFIRMED]`** Persistent Supabase PostgreSQL database is at migration `010_identity_memberships`. Applying migrations `011`–`013` is a P0 blocker to resolve `revoked_access_tokens` UndefinedTable 503 errors.
+3. **Database Migration State:** **`[CONFIRMED]`** (Observed 8 November 2026) Persistent Supabase PostgreSQL database reported migration `010_identity_memberships`. Applying migrations `011`–`013` is a P0 blocker to resolve `revoked_access_tokens` UndefinedTable 503 errors. (Distinct from the ephemeral Nov 6 acceptance database).
 4. **Safety Guard in `sme_eval_setup.py`:** **`[CONFIRMED]`** Checks nonexistent `settings.ENVIRONMENT` instead of `settings.APP_ENV`; must be corrected.
 5. **Evaluator Authentication:** **`[CONFIRMED]`** Public `dev-session` is strictly disabled by design; a dedicated, safe hosted demo evaluation mode scoped to `org_sme_eval` will be implemented.
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
@@ -119,6 +119,18 @@ This document provides an authoritative, truthful accounting of completed milest
 10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
 
 ### Prioritized Roadmap to Submission:
-- **P0 (Immediate Blockers):** Apply Alembic migration 013, add `STORAGE_BUCKET_NAME` to `render.yaml`, fix `APP_ENV` check, design safe hosted evaluator access, and align `run.py` default.
-- **P1 (Evaluator Experience & Polish):** Pre-seed `org_sme_eval` golden scenarios, prepare 5-minute video recording, and synchronize documentation.
-- **P2 (Deployment & Secondary Sandbox):** Public cloud hosting, secondary sandbox launcher (`--sandbox`), and UI density polish.
+- **P0 (Production Readiness & Primary Public Deployment):**
+  1. Safe database migration (011–013) & authenticated API functionality (`revoked_access_tokens`).
+  2. Production configuration correctness (`STORAGE_BUCKET_NAME` in `render.yaml`).
+  3. Safe evaluator authentication & tenant isolation (`org_sme_eval`).
+  4. Real PDF ingestion to decision execution.
+  5. Primary public flagship deployment (Cloud Run / Render).
+  6. Browser-based happy-path & edge-case acceptance tests.
+- **P1 (Evaluator Experience & Polish):**
+  1. Pre-seed `org_sme_eval` golden scenarios & repeatable demo reset design.
+  2. 5-Minute video walkthrough recording & defense narrative.
+  3. Documentation synchronization & test suite reconciliation.
+  4. Clarify Palmyra Vision / degraded scan modality boundary.
+- **P2 (Auxiliary Tooling & Enhancements):**
+  1. Standalone sandbox secondary deployment (`--sandbox`).
+  2. Secondary UI density polish and nonessential keyboard shortcuts.
