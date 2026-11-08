@@ -250,12 +250,13 @@ export async function refreshAccessToken(
 export async function supabaseLogout(
   supabaseUrl: string,
   anonKey: string,
-  accessToken: string
+  accessToken: string,
+  scope: 'global' | 'local' = 'global'
 ): Promise<boolean> {
   if (!supabaseUrl || !anonKey || !accessToken) return false;
 
   try {
-    const endpoint = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1/logout`;
+    const endpoint = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1/logout?scope=${scope}`;
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {

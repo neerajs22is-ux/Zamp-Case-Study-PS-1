@@ -130,7 +130,7 @@ python -m pytest tests/
 ```
 
 ### Verified Test Results Summary:
-- **Full Project Local Test Suite:** **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest tests/`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **459 passing tests**.  
+- **Full Project Local Test Suite:** **456 passed, 43 skipped, 0 failed** in 64.45s (`python -m pytest tests/`, 499 collected), plus **12 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **468 passing tests**.  
   *(Skipped tests require live PostgreSQL isolation fixtures or external Gmail network probes).*
 - **Hardening & Remediation Suite:** **27 passed, 0 failed** in 2.31s (`tests/test_hardening.py`)
   - Degradation scan boundary with authentic watermark stamps and zero typed artifact strings

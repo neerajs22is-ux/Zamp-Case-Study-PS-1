@@ -157,12 +157,12 @@ This audit inspects the current repository snapshot across Python source code, d
        - Frontend sends OTP via Supabase Auth REST API (`POST /auth/v1/otp`) with `create_user: false`. This guarantees that unauthorized visitors cannot register arbitrary unprovisioned accounts in the identity provider.
        - Evaluator enters the 6-digit code received via email; the frontend verifies it via `POST /auth/v1/verify` (type `email`) to receive an authentic, cryptographically signed Supabase session (`access_token` and `refresh_token`).
        - Server-side membership resolution (`resolve_server_side_membership`) verifies that the email is pre-provisioned in `users` and assigned to `org_sme_eval`. Unknown or unassigned emails are barred with HTTP 403.
-     - **Session Lifecycle & Token Rotation:**
-       - The API client (`frontend/src/api/client.ts`) securely tracks `refresh_token` and token expiration.
-       - On encountering HTTP 401 Unauthorized, the client intercepts the failure and initiates refresh token rotation via Supabase GoTrue (`POST /auth/v1/token?grant_type=refresh_token`).
-       - Concurrent 401 requests are deduplicated behind a single active refresh promise to eliminate race conditions.
-       - If refresh token rotation succeeds, original requests are seamlessly retried. If the refresh token is expired or revoked, session state is wiped and the user is redirected to the login screen with zero infinite retry loops.
-       - Logout invokes both Supabase Auth (`POST /auth/v1/logout`) and the backend token revocation store (`POST /api/v1/auth/logout`) before clearing local storage.
+     - **Session Lifecycle & Differentiated 401 Handling:**
+       - The API client (`frontend/src/api/client.ts`) distinguishes between normal token expiration and explicit session revocation.
+       - **Session Revocation Safeguard:** If an HTTP 401 error contains details indicating token revocation (`Session token has been revoked`, `deactivated`, `older than the recovery security cutoff`), the client **strictly refuses to refresh the token**. It immediately purges `localStorage` session state (`clearSession()`) and terminates the session. This guarantees that backend token revocation cannot be circumvented by obtaining a new access token from Supabase GoTrue.
+       - **Token Rotation & Multi-Tab Synchronization:** For standard expired tokens, the client deduplicates in-flight refresh requests into a single promise, coordinates across browser tabs via timestamp storage mutex (`ap_command_center_refresh_lock`), and calls Supabase GoTrue `POST /auth/v1/token?grant_type=refresh_token`.
+       - **Sanitized Session Parsing:** `getAuthToken()` and `getRefreshToken()` strictly validate values, rejecting `'undefined'`, `'null'`, and whitespace strings.
+       - **Dual-Termination Logout:** Logout invokes Supabase Auth `POST /auth/v1/logout?scope=global` (invalidating provider refresh sessions) and backend `POST /api/v1/auth/logout` (recording the access token hash in `revoked_access_tokens`) before clearing local storage.
      - **Secondary: Google OAuth.** Available for evaluators using corporate Google accounts where Google provider is enabled.
      - **Local Only: Dev-Session Quick Login.** Restricted strictly to loopback IP (`127.0.0.1`, `localhost`) when `APP_ENV=development`. Barred on public hosts.
 - **Readiness Implication:** Evaluator access is authentic, individual, standards-compliant, and does not rely on shared credentials or URL token shortcuts.
@@ -191,24 +191,24 @@ This audit inspects the current repository snapshot across Python source code, d
   1. A critical architectural tension existed: the runtime container running in production mode (`APP_ENV=production`) strictly disallows synthetic seeding and blocks all cloud hostnames to prevent data contamination.
   2. However, hosted evaluator acceptance requires an isolated cloud database instance pre-loaded with baseline procurement fixtures (vendors, POs, GRNs, QC inspection records).
   3. Attempting to seed via runtime web endpoints (`/api/v1/system/reset-demo`) would violate zero-trust production posture.
-- **Remediation Implemented:**
+- **Remediation Implemented & Hardened:**
   - Implemented a dedicated administrative out-of-band CLI tool: `python -m engine.bootstrap_eval_db`.
   - Multi-factor safety gates enforced before any SQL write:
-    1. CLI requires explicit flag `--confirm-isolated-eval-database`.
-    2. CLI requires `--auth-key` matching `EVAL_BOOTSTRAP_SECRET_KEY` (minimum 32 characters).
-    3. Configuration must explicitly set `IS_DEDICATED_EVALUATION_DATABASE=True`.
-    4. Database query check ensures zero foreign organizations exist (`count(id != 'org_sme_eval') == 0`).
-    5. Database query check ensures zero foreign users exist (`count(email NOT LIKE '%@sme.eval' AND email NOT LIKE '%@eval.local') == 0`).
-    6. Alembic version check verifies schema is at target migration `013_revoke_access_tokens`.
-    7. Fail-closed error handling: any query failure (e.g. database disconnect, permission error) immediately aborts execution without modifying data.
-- **Readiness Implication:** Cloud evaluation environments can be safely initialized out-of-band while runtime web containers remain strictly read-only and protected against unauthorized mutation.
+    1. **Explicit CLI Flag:** Requires `--confirm-isolated-eval-database`.
+    2. **Secret Exposure Safeguards:** Secret key is read from environment variable `EVAL_BOOTSTRAP_SECRET_KEY` (minimum 32 characters). CLI emits a security warning if passed as a command argument to prevent leakage in process tables or shell history.
+    3. **Explicit Database Identity & Production Blacklist:** Inspects `SELECT current_database()` and matches against `--expected-db-name`. Known default production identifiers (`"production"`, `"prod"`, `"main"`, `"live"`) are blocked unless explicitly confirmed.
+    4. **RLS Bypass Privilege Check:** Executes `SET LOCAL row_security = OFF;` to confirm connection has privileges to bypass Row-Level Security; fails closed if restricted privileges could hide foreign customer records.
+    5. **Zero Foreign Organizations & Users:** Verifies target contains zero organizations other than `org_sme_eval` and zero non-evaluation users.
+    6. **Alembic Migration Gate:** Confirms target schema revision is at `013_revoke_access_tokens`.
+    7. **Dry-Run Mode:** Supports `--dry-run` (or `--verify-only`) to run all inspection gates in read-only mode without modifying data.
+- **Limitation Notice:** Local mock verification proves code logic correctness but does not independently establish cloud physical isolation. An out-of-band operator preflight check against the targeted Supabase project ref remains mandatory prior to staging evaluation.
 
 ---
 
 ## 3. Test Evidence Classifications & Unverified Hosted Runtime Matrix
 
 ### A. Classification of Test Evidence
-- **Local Unit & Mocked Integration Suite:** **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total 459 passed tests.
+- **Local Unit & Mocked Integration Suite:** **456 passed, 43 skipped, 0 failed** in 64.45s (`python -m pytest`, 499 collected), plus **12 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **468 passing tests**.
   - These tests execute against isolated in-memory SQLite fixtures, local loopback connections, and mocked third-party adapters (Mantle LLM, Supabase Storage, Gmail API, SAP ERP).
   - They provide high confidence in deterministic rule math, RLS policies, audit immutability, schema consistency, and safety guards.
   - **They do NOT constitute live external-service verification.**
@@ -341,42 +341,59 @@ Before declaring the flagship AP Command Center ready for live evaluation, all o
 
 ---
 
-## 7. Step-by-Step Primary HR Browser Acceptance Walkthrough
+## 7. Planned Primary HR Browser Acceptance Walkthrough (Staging Procedure)
 
-This step-by-step walkthrough defines the acceptance script for external HR/evaluators testing the hosted AP Command Center:
+> [!NOTE]
+> **Walkthrough Scope & Status:** This document describes the planned acceptance procedure for external HR/evaluators testing the hosted AP Command Center once deployed to staging. It is **not** a report of a completed browser acceptance test. Pre-seeded golden scenarios (`APTC-001` through `APTC-038`) in `org_sme_eval` demonstrate baseline reference states; genuine acceptance requires uploading fresh invoice documents.
 
 ```
   ┌────────────────────────────────────────────────────────────────────────┐
-  │ 1. Evaluator Authentication                                            │
-  │    - Visit the primary public URL in a fresh incognito browser window. │
-  │    - Enter pre-provisioned evaluator email (e.g. ap-lead@sme.eval).    │
+  │ 1. Evaluator Authentication & Session Management                       │
+  │    - Visit the primary public staging URL in a fresh incognito window. │
+  │    - Enter deliverable evaluator email (e.g. evaluator.zamp@gmail.com; │
+  │      note: email identity must be provisioned in auth.users at staging)│
   │    - Frontend calls POST /auth/v1/otp (create_user: false).            │
-  │    - Enter 6-digit OTP received via email.                             │
-  │    - Frontend verifies OTP via POST /auth/v1/verify and stores session.│
+  │    - Enter 6-digit OTP received via email -> Receive JWT session.      │
   │    - Server verifies user membership in org_sme_eval (AP_LEAD role).   │
-  │    - (Any unprovisioned email is rejected with HTTP 403 Forbidden).    │
+  │    - If access token expires, client performs automatic refresh token   │
+  │      rotation; if session is revoked, client immediately terminates.   │
   └───────────────────────────────────┬────────────────────────────────────┘
                                       │
                                       ▼
   ┌────────────────────────────────────────────────────────────────────────┐
-  │ 2. Fresh Multi-Page PDF Ingestion & Real-Time Processing Timeline      │
+  │ 2. Fresh Multi-Page PDF Ingestion & Persisted Checkpoints              │
   │    - Evaluator clicks 'Upload Invoice' and selects a test invoice PDF. │
-  │    - Frontend streams live Server-Sent Events (SSE) showing pipeline:  │
+  │    - File is uploaded to private Supabase bucket 'invoices'.           │
+  │    - Document is ingested with SHA-256 cryptographic payload hash.     │
+  │    - Flagship streams progress via HTTP polling (pollRun query to      │
+  │      GET /api/v1/invoices/{id}/processing), reading persisted          │
+  │      PostgreSQL AuditEvent checkpoints:                                │
   │      • Stage 1: Classification & Optical Contrast Pre-screening.       │
-  │      • Stage 2: Structured Entity Extraction.                          │
+  │      • Stage 2: Structured Entity Extraction (AWS Bedrock Mantle).     │
   │      • Stage 3: Mathematical Grounding Tripwires (bounding boxes).     │
   │      • Stage 4: Procurement Cross-Reference (Vendor, PO, GRN, QC).     │
   │      • Stage 5: Deterministic Policy Engine (7 Match Gates).           │
-  │    - Processing run view confirms persistence via real AuditEvents.    │
+  │    (Note: The standalone engine uses SSE; the flagship uses persisted  │
+  │     checkpoints and API polling).                                      │
   └───────────────────────────────────┬────────────────────────────────────┘
                                       │
                                       ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │ 3. 3-Pane Reconciliation Workspace Inspection                          │
-  │    - Left Pane: High-fidelity rendered PDF document via signed URL.    │
+  │    - Left Pane: High-fidelity rendered PDF document via authenticated  │
+  │      Supabase Storage signed URL (900s TTL).                           │
   │    - Middle Pane: Extracted Line Items, Contracted PO Reference, and   │
-  │      Indian GST Math (CGST+SGST vs IGST with ₹20 rounding tolerance).  │
-  │    - Right Pane: Match Gates Status, Policy Checks, and Audit Trail.   │
+  │      Indian GST Math (CGST+SGST vs IGST within ₹20 tolerance).         │
+  │    - Right Pane: The 7 Deterministic Matching Gates:                   │
+  │      1. Active Vendor Master / GSTIN Registration                      │
+  │      2. Purchase Order Authorization (Valid status, currency, supplier)│
+  │      3. Goods Receipt Note (GRN) Receipt Confirmed                     │
+  │      4. Quality Control (QC) Inspection Accepted                       │
+  │      5. GST Arithmetic Reconciled (Subtotal+Tax==Total within ₹20.00,  │
+  │         Line Total==Qty*Rate within ₹0.01; ungrounded lines block)     │
+  │      6. PO Price & Quantity Tolerances (±1.50% rate, 0.00% over-qty,   │
+  │         cumulative line drawdown, and total remaining PO balance)      │
+  │      7. Duplicate Invoice Check (Vendor GSTIN + normalized invoice no) │
   └───────────────────────────────────┬────────────────────────────────────┘
                                       │
                                       ▼
@@ -384,34 +401,40 @@ This step-by-step walkthrough defines the acceptance script for external HR/eval
   │ 4. Financial Governance & Approvals Execution                          │
   │                                                                        │
   │  • Single Approval Flow (Invoice Amount < ₹5,00,000 INR):              │
-  │    - Example: APTC-001 (Amount: ₹4,10,000 INR).                        │
-  │    - AP Lead reviews 3-way match evidence and clicks 'Approve Invoice'.│
-  │    - Status immediately transitions to APPROVED; GL voucher is staged; │
-  │      audit record is permanently committed to immutable audit log.     │
+  │    - Example: APTC-001 (Amount: ₹4,10,000 INR, clean 3-way match).     │
+  │    - AP Lead reviews evidence and clicks 'Approve Invoice'.            │
+  │    - Transition: stage -> INTERNAL_APPROVAL_COMPLETE,                  │
+  │                  decision -> MANUALLY_APPROVED.                        │
+  │    - Immutable AuditEvent is permanently committed to PostgreSQL.      │
+  │    - (Note: ERP GL voucher export is an offline/batch capability;      │
+  │       no live GL vouchers table mutation occurs in the database).      │
   │                                                                        │
   │  • Strict Dual-Control Flow (Invoice Amount ≥ ₹5,00,000 INR):          │
   │    - Example: High-value commercial invoice exceeding threshold.       │
-  │    - Step 1: AP Lead signs off -> Status: PENDING_SECOND_APPROVAL.     │
-  │    - Step 2: Controller or Finance Director signs off -> APPROVED.     │
+  │    - Step 1: AP Lead signs off -> stage: ACTION_REQUIRED,              │
+  │              workflow_substatus: PENDING_SECOND_APPROVAL.              │
+  │    - Step 2: Controller signs off -> stage: INTERNAL_APPROVAL_COMPLETE,│
+  │              decision: MANUALLY_APPROVED.                              │
   │    - Anti-Self-Approval Enforcement: System strictly prohibits the     │
-  │      first approver from granting second approval (HTTP 403).          │
+  │      first approver from granting second approval (HTTP 403 Forbidden).│
   └───────────────────────────────────┬────────────────────────────────────┘
                                       │
                                       ▼
   ┌────────────────────────────────────────────────────────────────────────┐
   │ 5. Exception Triage & Margin Protection (APTC-030)                     │
   │    - Evaluator inspects APTC-030 (unit rate ₹185.00 vs PO ₹170.00).    │
-  │    - System flags +8.8% rate spike exceeding 1.5% policy tolerance.    │
-  │    - Payment is automatically blocked; system generates recommended    │
-  │      debit note for the ₹15/unit variance.                             │
-  │    - Evaluator can place on hold, adjust line item, or reject.         │
+  │    - System flags +8.8% rate spike exceeding ±1.50% policy tolerance.  │
+  │    - Payment is blocked; system generates recommended debit note for   │
+  │      the ₹15/unit variance.                                            │
+  │    - Evaluator can place on hold (HOLD_PENDING_EVIDENCE) or reject.    │
   └───────────────────────────────────┬────────────────────────────────────┘
                                       │
                                       ▼
   ┌────────────────────────────────────────────────────────────────────────┐
-  │ 6. Audit Trail & Non-Repudiation Verification                          │
+  │ 6. Audit Trail & Immutability Verification                             │
   │    - Evaluator inspects the immutable Audit Trail ledger.              │
-  │    - Verifies SHA-256 payload digests, user attribution, and UTC event │
-  │      timestamps confirming full non-repudiation.                       │
+  │    - Verifies append-only integrity protected by PostgreSQL database-  │
+  │      level triggers (prevent_audit_events_mutation) and ORM listeners, │
+  │      with actor attribution, before/after states, and UTC timestamps.  │
   └────────────────────────────────────────────────────────────────────────┘
 ```

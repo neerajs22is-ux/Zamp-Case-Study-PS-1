@@ -64,16 +64,16 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-- **Total Test Items Collected:** 495 items in pytest
-- **Passed (Python):** 452 passed, 0 failed
-- **Passed (Node.js):** 7 passed, 0 failed (`node --test frontend/src/tests/auth_lifecycle.test.mjs`)
-- **Total Passing Tests:** 459 passed
+- **Total Test Items Collected:** 499 items in pytest
+- **Passed (Python):** 456 passed, 0 failed
+- **Passed (Node.js):** 12 passed, 0 failed (`node --test frontend/src/tests/auth_lifecycle.test.mjs`)
+- **Total Passing Tests:** 468 passed
 - **Skipped:** 43 (PostgreSQL-specific isolation fixtures, live Gmail Pub/Sub network probes)
 - **Failed:** 0
 - **Standalone PS-1 Engine Suite:** 28 passed, 0 failed in 0.25s (`tests/test_engine.py`)
 - **Audit Invariants & Approval Safety Suite:** 6 passed, 0 failed in 1.82s (`tests/test_audit_invariants_and_safety.py`)
-- **Execution Time:** ~37 seconds
-- **Frontend Build:** `npm run build` in `frontend/` completes with 0 errors.
+- **Execution Time:** ~64 seconds
+- **Frontend Build:** `npm run build` in `frontend/` completes in ~600ms with 0 errors.
 
 ---
 
@@ -117,9 +117,9 @@ This document provides an authoritative, truthful accounting of completed milest
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
 7. **Persisted Processing Run View:** **`[CONFIRMED]`** `InvoiceRunView.tsx` consumes actual persisted PostgreSQL audit checkpoints from `backend/core/processing_events.py`.
 8. **Modality Boundary:** **`[CONFIRMED]`** Production hybrid pipeline routes degraded scans fail-closed to `FLAGGED_HITL_REVIEW`. Palmyra Vision was evaluated in a separate benchmark harness and remains feature-flagged OFF in production.
-9. **Test Suite Accounting:** Current canonical local regression test results: **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest tests/`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **459 passing tests**.
+9. **Test Suite Accounting:** Current canonical local regression test results: **456 passed, 43 skipped, 0 failed** in 64.45s (`python -m pytest tests/`, 499 collected), plus **12 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **468 passing tests**.
 10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
-11. **Evaluation Database Bootstrap Tool:** **`[CONFIRMED & IMPLEMENTED]`** Administrative out-of-band CLI tool `engine/bootstrap_eval_db.py` enforces 6 safety gates (`IS_DEDICATED_EVALUATION_DATABASE=True`, `EVAL_BOOTSTRAP_SECRET_KEY` ≥ 32 chars, `--confirm-isolated-eval-database`, zero foreign orgs/users, Alembic migration 013 verified, fail-closed on any error).
+11. **Evaluation Database Bootstrap Tool:** **`[CONFIRMED & HARDENED]`** Administrative out-of-band CLI tool `engine/bootstrap_eval_db.py` enforces multi-layer safety invariants (`IS_DEDICATED_EVALUATION_DATABASE=True`, `EVAL_BOOTSTRAP_SECRET_KEY` ≥ 32 chars from env, `--confirm-isolated-eval-database`, database target verification against `--expected-db-name`, production blacklist guard, RLS bypass privilege check, zero foreign orgs/users, Alembic migration 013 verified, `--dry-run` mode, fail-closed on any error).
 
 ### Prioritized Roadmap to Submission:
 - **P0 (Production Readiness & Primary Public Deployment):**

@@ -116,3 +116,72 @@ def test_assert_database_target_safe_blocks_cloud_host_if_bootstrap_key_too_shor
 
     with pytest.raises(RuntimeError, match="Bootstrap of a dedicated evaluation database requires explicit IS_DEDICATED_EVALUATION_DATABASE=true and a valid EVAL_BOOTSTRAP_SECRET_KEY"):
         assert_database_target_safe(mock_db)
+
+
+def test_bootstrap_safety_rejects_db_name_mismatch():
+    """Bootstrap fails closed if connected database name does not match expected_db_name."""
+    mock_session = MagicMock()
+    # First call: current_database, second: current_user, third: alembic revision
+    mock_session.execute.return_value.scalar.side_effect = [
+        "different_db",
+        "eval_user",
+        "013_revoke_access_tokens",
+    ]
+    mock_session.scalars.return_value.all.side_effect = [[], []]
+
+    valid_key = "secure-bootstrap-authorization-token-32chars"
+    with pytest.raises(RuntimeError, match="does not match expected evaluation database name"):
+        verify_evaluation_database_safety(mock_session, valid_key, expected_db_name="target_eval_db")
+
+
+def test_bootstrap_safety_rejects_designated_production_db_name():
+    """Bootstrap fails closed if database name is 'production' or 'main' without explicit confirmation."""
+    mock_session = MagicMock()
+    mock_session.execute.return_value.scalar.side_effect = [
+        "production",
+        "prod_user",
+        "013_revoke_access_tokens",
+    ]
+    mock_session.scalars.return_value.all.side_effect = [[], []]
+
+    valid_key = "secure-bootstrap-authorization-token-32chars"
+    with pytest.raises(RuntimeError, match="is a designated production identifier"):
+        verify_evaluation_database_safety(mock_session, valid_key, expected_db_name=None)
+
+
+def test_bootstrap_safety_passes_with_matching_expected_db_name():
+    """Bootstrap passes when connected database name exactly matches expected_db_name."""
+    mock_session = MagicMock()
+    mock_session.execute.return_value.scalar.side_effect = [
+        "zamp_eval_isolated",
+        "eval_user",
+        "013_revoke_access_tokens",
+    ]
+    mock_session.scalars.return_value.all.side_effect = [[], []]
+
+    valid_key = "secure-bootstrap-authorization-token-32chars"
+    verify_evaluation_database_safety(mock_session, valid_key, expected_db_name="zamp_eval_isolated")
+
+
+def test_bootstrap_safety_fails_if_rls_disable_denied():
+    """Bootstrap fails closed if PostgreSQL role lacks privileges to disable RLS."""
+    mock_session = MagicMock()
+    mock_session.execute.return_value.scalar.side_effect = [
+        "zamp_eval_isolated",
+        "restricted_user",
+        "013_revoke_access_tokens",
+    ]
+    # Simulate SET LOCAL row_security = OFF raising permission denied
+    def mock_execute(statement, *args, **kwargs):
+        stmt_str = str(statement)
+        if "row_security" in stmt_str:
+            raise RuntimeError("permission denied to set parameter row_security")
+        ret = MagicMock()
+        ret.scalar.return_value = "013_revoke_access_tokens"
+        return ret
+
+    mock_session.execute.side_effect = mock_execute
+
+    valid_key = "secure-bootstrap-authorization-token-32chars"
+    with pytest.raises(RuntimeError, match="Connection role lacks privileges to disable Row-Level Security"):
+        verify_evaluation_database_safety(mock_session, valid_key)

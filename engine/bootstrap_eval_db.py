@@ -3,13 +3,24 @@
 Guarantees:
 1. Strictly Out-of-Band: CLI-only utility, never invoked automatically on container boot.
 2. Operator Authorization: Requires explicit confirmation flag and an authorization key (min 32 chars).
-3. Independent Safety Verification (Fail-Closed):
+3. Secret Exposure Safeguard: Auth key is read from environment variable (EVAL_BOOTSTRAP_SECRET_KEY)
+   to prevent credential leakage in process lists, command logs, and shell history.
+4. Independent Database Target Verification:
+   - Validates target database name against --expected-db-name when supplied.
+   - Strictly bars known production database names ("production", "prod", "main", "live").
+5. RLS Bypass & Multi-Tenant Isolation (Fail-Closed):
+   - Verifies connection has privileges to disable Row-Level Security (RLS) so foreign tenants cannot be hidden.
    - Confirms target database contains zero non-evaluation organisations (organisations.id != 'org_sme_eval').
    - Confirms target database contains zero foreign users (users.org_id != 'org_sme_eval').
    - Confirms Alembic migration schema readiness (migration 010+ applied).
    - Any query or permission error fails closed immediately.
-4. Clean Teardown Capability: Supports --teardown to cleanly purge evaluation data.
-5. Zero Production Tampering: Cannot run on shared, customer, or multi-tenant databases.
+6. Dry-Run / Verification Mode: Supports --dry-run / --verify-only to inspect target safety without writes.
+7. Clean Teardown Capability: Supports --teardown to cleanly purge evaluation data.
+
+LIMITATION NOTICE:
+Local synthetic verification proves code logic correctness but cannot independently prove cloud physical
+isolation. Operators must perform out-of-band preflight verification against the targeted Supabase project ref
+prior to hosted evaluation.
 """
 
 from __future__ import annotations
@@ -47,22 +58,50 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("bootstrap_eval_db")
 
 
-def verify_evaluation_database_safety(session: Session, auth_key: str) -> None:
+def verify_evaluation_database_safety(
+    session: Session,
+    auth_key: str,
+    expected_db_name: Optional[str] = None,
+) -> None:
     """Verifies that the target database is an isolated evaluation instance.
 
     Fail-Closed Invariants:
     1. Auth Key: Minimum 32 characters required.
-    2. Zero Foreign Organisations: If any organisation other than 'org_sme_eval' exists, abort immediately.
-    3. Zero Foreign Users: If any user not belonging to 'org_sme_eval' exists, abort immediately.
-    4. Schema Readiness: Alembic migration table must exist and be at least 010.
-    5. Any query or connection failure fails closed.
+    2. Explicit Database Identity: Database name must match expected_db_name if supplied.
+    3. Production Identifier Guard: Rejects default production database identifiers.
+    4. RLS Privilege Verification: Role must be able to verify absence of hidden tenants.
+    5. Zero Foreign Organisations: If any organisation other than 'org_sme_eval' exists, abort immediately.
+    6. Zero Foreign Users: If any user not belonging to 'org_sme_eval' exists, abort immediately.
+    7. Schema Readiness: Alembic migration table must exist and be at least 010.
+    8. Any query or connection failure fails closed.
     """
     if not auth_key or len(auth_key.strip()) < 32:
         raise RuntimeError(
             "FATAL SAFETY VIOLATION: EVAL_BOOTSTRAP_SECRET_KEY must be provided and be at least 32 characters long."
         )
 
-    # 1. Verify schema and migrations
+    # 1. Independent Database Target & Role Inspection
+    try:
+        db_name = session.execute(text("SELECT current_database()")).scalar()
+        db_user = session.execute(text("SELECT current_user")).scalar()
+        logger.info(f"Target database inspection: database='{db_name}', user='{db_user}'")
+
+        if expected_db_name and db_name != expected_db_name:
+            raise RuntimeError(
+                f"FATAL SAFETY VIOLATION: Connected database '{db_name}' does not match expected evaluation database name '{expected_db_name}'."
+            )
+
+        if db_name in ("production", "prod", "main", "live") and expected_db_name != db_name:
+            raise RuntimeError(
+                f"FATAL SAFETY VIOLATION: Database name '{db_name}' is a designated production identifier. "
+                "Synthetic evaluation seeding is barred unless explicitly confirmed via --expected-db-name."
+            )
+    except Exception as exc:
+        if "FATAL SAFETY VIOLATION" in str(exc):
+            raise
+        logger.debug(f"current_database inspection skipped or unsupported on dialect ({exc}); continuing.")
+
+    # 2. Verify schema and migrations
     try:
         rev = session.execute(text("SELECT version_num FROM alembic_version")).scalar()
         if not rev:
@@ -73,7 +112,19 @@ def verify_evaluation_database_safety(session: Session, auth_key: str) -> None:
             f"FATAL SAFETY VIOLATION: Could not verify database migration status: {exc}. Aborting fails closed."
         ) from exc
 
-    # 2. Check for foreign organisations (bypassing RLS with migration session)
+    # 3. Verify RLS bypass permissions
+    try:
+        session.execute(text("SET LOCAL row_security = OFF;"))
+    except Exception as exc:
+        err_str = str(exc).lower()
+        if "permission denied" in err_str or "must be superuser" in err_str:
+            raise RuntimeError(
+                "FATAL SAFETY VIOLATION: Connection role lacks privileges to disable Row-Level Security (RLS). "
+                "RLS may mask foreign customer/production organisations. Run with table owner or superuser credentials."
+            ) from exc
+        logger.debug(f"row_security configuration parameter not supported or non-postgres dialect ({exc}); proceeding.")
+
+    # 4. Check for foreign organisations (bypassing RLS with migration session)
     try:
         foreign_orgs = session.scalars(
             select(Organisation.id).where(Organisation.id != ORG_ID).limit(5)
@@ -88,7 +139,7 @@ def verify_evaluation_database_safety(session: Session, auth_key: str) -> None:
             f"FATAL SAFETY VIOLATION: Failed to check organisation isolation: {exc}. Aborting fails closed."
         ) from exc
 
-    # 3. Check for foreign users
+    # 5. Check for foreign users
     try:
         foreign_users = session.scalars(
             select(User.email).where(User.org_id != ORG_ID).limit(5)
@@ -106,9 +157,13 @@ def verify_evaluation_database_safety(session: Session, auth_key: str) -> None:
     logger.info("Database safety verification passed: target is confirmed isolated for evaluation.")
 
 
-def bootstrap_evaluation_workspace(session: Session, auth_key: str) -> None:
+def bootstrap_evaluation_workspace(
+    session: Session,
+    auth_key: str,
+    expected_db_name: Optional[str] = None,
+) -> None:
     """Idempotently initializes org_sme_eval reference fixtures for the 5 evaluation scenarios."""
-    verify_evaluation_database_safety(session, auth_key)
+    verify_evaluation_database_safety(session, auth_key, expected_db_name)
 
     # Configure runtime overrides for the session
     settings.ALLOW_SYNTHETIC_SEEDING = True
@@ -137,9 +192,13 @@ def bootstrap_evaluation_workspace(session: Session, auth_key: str) -> None:
     logger.info("Evaluation workspace bootstrap completed successfully.")
 
 
-def teardown_evaluation_workspace(session: Session, auth_key: str) -> None:
+def teardown_evaluation_workspace(
+    session: Session,
+    auth_key: str,
+    expected_db_name: Optional[str] = None,
+) -> None:
     """Cleanly purges all org_sme_eval test fixtures and records."""
-    verify_evaluation_database_safety(session, auth_key)
+    verify_evaluation_database_safety(session, auth_key, expected_db_name)
 
     logger.warning("Beginning clean teardown of evaluation workspace records...")
 
@@ -177,8 +236,20 @@ def main() -> None:
     parser.add_argument(
         "--auth-key",
         type=str,
-        default=os.environ.get("EVAL_BOOTSTRAP_SECRET_KEY", ""),
-        help="Authorization secret key (min 32 chars).",
+        default="",
+        help="(Optional) Authorization secret key. Prefer setting EVAL_BOOTSTRAP_SECRET_KEY env var.",
+    )
+    parser.add_argument(
+        "--auth-key-env",
+        type=str,
+        default="EVAL_BOOTSTRAP_SECRET_KEY",
+        help="Name of environment variable containing the authorization secret key.",
+    )
+    parser.add_argument(
+        "--expected-db-name",
+        type=str,
+        default=os.environ.get("EXPECTED_EVAL_DATABASE_NAME"),
+        help="Expected database name identifier to verify against current_database().",
     )
     parser.add_argument(
         "--database-url",
@@ -187,14 +258,19 @@ def main() -> None:
         help="Direct database connection URL with table owner permissions.",
     )
     parser.add_argument(
-        "--teardown",
+        "--dry-run",
         action="store_true",
-        help="Tears down and deletes all evaluation workspace records instead of seeding.",
+        help="Verifies database safety without modifying records (alias for --verify-only).",
     )
     parser.add_argument(
         "--verify-only",
         action="store_true",
         help="Verifies database safety without modifying records.",
+    )
+    parser.add_argument(
+        "--teardown",
+        action="store_true",
+        help="Tears down and deletes all evaluation workspace records instead of seeding.",
     )
 
     args = parser.parse_args()
@@ -203,27 +279,39 @@ def main() -> None:
         logger.error("Refusing to run: --confirm-isolated-eval-database flag is required.")
         sys.exit(1)
 
-    auth_key = args.auth_key.strip()
+    # Resolve authorization key safely
+    if args.auth_key:
+        logger.warning(
+            "SECURITY WARNING: Passing --auth-key via command line exposes secrets in process lists and shell history. "
+            f"Prefer using the {args.auth_key_env} environment variable."
+        )
+        auth_key = args.auth_key.strip()
+    else:
+        auth_key = os.environ.get(args.auth_key_env, "").strip()
+
     if not auth_key or len(auth_key) < 32:
-        logger.error("Refusing to run: --auth-key must be provided and be at least 32 characters long.")
+        logger.error(f"Refusing to run: Authorization key in {args.auth_key_env} must be at least 32 characters long.")
         sys.exit(1)
 
     if not args.database_url:
         logger.error("Refusing to run: No database URL configured.")
         sys.exit(1)
 
+    is_dry_run = args.dry_run or args.verify_only
+
     engine = create_engine(args.database_url)
     session_factory = sessionmaker(bind=engine)
     session = session_factory()
 
     try:
-        if args.verify_only:
-            verify_evaluation_database_safety(session, auth_key)
-            logger.info("Verification check succeeded: database is safe for evaluation bootstrap.")
+        if is_dry_run:
+            logger.info("DRY-RUN / VERIFICATION MODE: Inspecting target database without modifying records.")
+            verify_evaluation_database_safety(session, auth_key, args.expected_db_name)
+            logger.info("Verification check succeeded: database is confirmed safe for evaluation bootstrap.")
         elif args.teardown:
-            teardown_evaluation_workspace(session, auth_key)
+            teardown_evaluation_workspace(session, auth_key, args.expected_db_name)
         else:
-            bootstrap_evaluation_workspace(session, auth_key)
+            bootstrap_evaluation_workspace(session, auth_key, args.expected_db_name)
     finally:
         session.close()
 

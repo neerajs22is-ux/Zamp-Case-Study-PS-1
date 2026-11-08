@@ -5,24 +5,29 @@ import type {
 } from '../types';
 import type { ProcessingSnapshot } from '../components/InvoiceRunView';
 
-import { refreshAccessToken } from '../utils/oauth';
+import { refreshAccessToken } from '../utils/oauth.ts';
 
 const AUTH_STORAGE_KEY = 'ap_command_center_auth_token';
 const REFRESH_STORAGE_KEY = 'ap_command_center_refresh_token';
 const EXPIRY_STORAGE_KEY = 'ap_command_center_token_expiry';
+const REFRESH_MUTEX_KEY = 'ap_command_center_refresh_lock';
 
 export function getAuthToken(): string | null {
-  return localStorage.getItem(AUTH_STORAGE_KEY);
+  const token = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!token || token === 'undefined' || token === 'null' || !token.trim()) return null;
+  return token.trim();
 }
 
 export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_STORAGE_KEY);
+  const token = localStorage.getItem(REFRESH_STORAGE_KEY);
+  if (!token || token === 'undefined' || token === 'null' || !token.trim()) return null;
+  return token.trim();
 }
 
 export function setSession(accessToken: string, refreshToken?: string | null, expiresInSeconds?: number): void {
-  localStorage.setItem(AUTH_STORAGE_KEY, accessToken);
-  if (refreshToken) {
-    localStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
+  localStorage.setItem(AUTH_STORAGE_KEY, accessToken.trim());
+  if (refreshToken && refreshToken !== 'undefined' && refreshToken !== 'null' && refreshToken.trim()) {
+    localStorage.setItem(REFRESH_STORAGE_KEY, refreshToken.trim());
   }
   if (expiresInSeconds) {
     const expiryTime = Date.now() + expiresInSeconds * 1000;
@@ -38,6 +43,7 @@ export function clearSession(): void {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   localStorage.removeItem(REFRESH_STORAGE_KEY);
   localStorage.removeItem(EXPIRY_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_MUTEX_KEY);
 }
 
 export function clearAuthToken(): void {
@@ -47,6 +53,7 @@ export function clearAuthToken(): void {
 let activeRefreshPromise: Promise<string | null> | null = null;
 
 export async function refreshActiveSession(): Promise<string | null> {
+  const initialToken = getAuthToken();
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
@@ -54,9 +61,24 @@ export async function refreshActiveSession(): Promise<string | null> {
 
   activeRefreshPromise = (async () => {
     try {
+      // Cross-tab coordination: check if another tab has updated the session in localStorage
+      const currentStoredToken = getAuthToken();
+      if (currentStoredToken && currentStoredToken !== initialToken) {
+        return currentStoredToken;
+      }
+
+      // Check cross-tab refresh mutex
+      const lastRefresh = Number(localStorage.getItem(REFRESH_MUTEX_KEY) || '0');
+      const now = Date.now();
+      if (now - lastRefresh < 3000 && currentStoredToken) {
+        return currentStoredToken;
+      }
+      localStorage.setItem(REFRESH_MUTEX_KEY, now.toString());
+
       const statusRes = await fetch('/api/v1/auth/status').then(r => r.json()).catch(() => null);
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || statusRes?.supabase_url;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || statusRes?.supabase_anon_key;
+      const metaEnv = (import.meta as any)?.env;
+      const supabaseUrl = metaEnv?.VITE_SUPABASE_URL || statusRes?.supabase_url;
+      const anonKey = metaEnv?.VITE_SUPABASE_ANON_KEY || statusRes?.supabase_anon_key;
 
       if (!supabaseUrl || !anonKey) {
         clearSession();
@@ -100,13 +122,40 @@ async function request<T>(endpoint: string, options: RequestInit & { _isRetry?: 
 
   if (response.status === 401) {
     const isAuthExempt = endpoint.includes('/auth/status') || endpoint.includes('/auth/dev-session') || endpoint.includes('/auth/logout');
+    
+    // Parse error detail to differentiate explicit revocation from normal expiration
+    let errorDetail = '';
+    try {
+      const errClone = response.clone();
+      const errJson = await errClone.json().catch(() => ({}));
+      errorDetail = String(errJson.detail || '');
+    } catch {
+      errorDetail = '';
+    }
+
+    const detailLower = errorDetail.toLowerCase();
+    const isExplicitRevocation = detailLower.includes('revoked') || 
+                                 detailLower.includes('deactivated') ||
+                                 detailLower.includes('cutoff') ||
+                                 detailLower.includes('malformed jwt') ||
+                                 detailLower.includes('invalid authentication token');
+
+    if (isExplicitRevocation) {
+      // Crucial Security Rule: Explicit revocation must NOT be defeated by refresh!
+      clearSession();
+      const err = new Error(errorDetail || 'Session has been revoked. Please re-authenticate.');
+      throw Object.assign(err, { status: 401, isRevoked: true });
+    }
+
     if (!options._isRetry && !isAuthExempt && getRefreshToken()) {
       const newToken = await refreshActiveSession();
       if (newToken) {
         return request<T>(endpoint, { ...options, _isRetry: true });
       }
     }
-    throw Object.assign(new Error('Authentication required. Missing or expired enterprise session token.'), { status: response.status });
+
+    clearSession();
+    throw Object.assign(new Error(errorDetail || 'Authentication required. Missing or expired enterprise session token.'), { status: response.status });
   }
 
   if (!response.ok) {
