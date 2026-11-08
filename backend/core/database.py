@@ -156,13 +156,35 @@ def check_db_health() -> dict:
             result = conn.execute(text("SELECT 1"))
             row = result.scalar()
             if row == 1:
-                db_type = "PostgreSQL" if "postgresql" in str(engine.url) else "SQLite (Test-Only)"
-                return {
+                is_postgres = "postgresql" in str(engine.url)
+                db_type = "PostgreSQL" if is_postgres else "SQLite (Test-Only)"
+                health_payload = {
                     "status": "CONNECTED",
                     "message": "Database connectivity verified.",
                     "database_type": db_type,
                     "readiness": True,
                 }
+                if is_postgres:
+                    try:
+                        role_info = conn.execute(
+                            text("SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+                        ).first()
+                        if role_info:
+                            role_name, is_super, has_bypass = role_info[0], bool(role_info[1]), bool(role_info[2])
+                            health_payload["runtime_role"] = role_name
+                            health_payload["bypasses_rls"] = is_super or has_bypass
+                            if is_super or has_bypass:
+                                health_payload["role_warning"] = (
+                                    f"Runtime role '{role_name}' has BYPASSRLS/SUPERUSER privileges. "
+                                    "Tenant RLS policies declared TO ap_app_user are not enforced at database layer. "
+                                    "Configure DATABASE_URL with restricted 'ap_app_user' for zero-trust RLS enforcement."
+                                )
+                                logger.warning(health_payload["role_warning"])
+                            else:
+                                health_payload["role_security"] = "ENFORCED"
+                    except Exception as role_exc:
+                        health_payload["role_inspection_error"] = str(role_exc)
+                return health_payload
             return {
                 "status": "DEGRADED",
                 "message": "Unexpected response from database ping query.",

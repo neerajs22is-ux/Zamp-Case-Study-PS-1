@@ -220,6 +220,7 @@ def bootstrap_evaluation_workspace(
     session: Session,
     auth_key: str,
     expected_db_name: Optional[str] = None,
+    seed_scenarios: bool = False,
 ) -> None:
     """Atomically initializes org_sme_eval reference fixtures for the evaluation scenarios in a single transaction."""
     verify_evaluation_database_safety(session, auth_key, expected_db_name)
@@ -260,6 +261,23 @@ def bootstrap_evaluation_workspace(
         logger.info("Initializing synthetic quality inspections (QCs)...")
         provision_synthetic_quality_controls(session)
 
+        if seed_scenarios:
+            logger.info("Initializing baseline demonstration invoice scenarios...")
+            from engine.sme_eval_setup import (
+                process_scenario_document, DuplicateDetector, IndianAPRuleEngine, HybridAPExtractor
+            )
+            duplicate_detector = DuplicateDetector()
+            rule_engine = IndianAPRuleEngine()
+            extractor = HybridAPExtractor(
+                rule_engine=rule_engine,
+                duplicate_detector=duplicate_detector,
+            )
+            process_scenario_document(session, extractor, "APTC-009", "09_invoice_AP_26_009.pdf", "CLEAN_3WAY_MATCH")
+            process_scenario_document(session, extractor, "APTC-030", "30_invoice_AP_26_011.pdf", "RATE_QTY_VARIANCE")
+            process_scenario_document(session, extractor, "APTC-036", "36_invoice_POS_26_112.pdf", "DEGRADED_SCAN")
+            process_scenario_document(session, extractor, "APTC-038", "38_payment_receipt_RCPT_26_088.pdf", "NON_PAYABLE_RECEIPT")
+            logger.info("Baseline demonstration scenarios initialized. Unseeded fresh acceptance sample: APTC-001 (01_invoice_AP_26_001.pdf).")
+
         session.commit()
         logger.info("Evaluation workspace bootstrap completed successfully in a single atomic transaction.")
     except Exception as exc:
@@ -296,9 +314,14 @@ def teardown_evaluation_workspace(
         audit_count = session.execute(
             text("SELECT count(*) FROM audit_events WHERE org_id = :org_id"),
             {"org_id": ORG_ID}
-        ).scalar() or 0
-    except Exception:
-        audit_count = 0
+        ).scalar()
+        if audit_count is None:
+            audit_count = 0
+    except Exception as exc:
+        raise RuntimeError(
+            f"FATAL SAFETY VIOLATION: Failed to inspect audit_events count for teardown: {exc}. "
+            "Aborting teardown to protect audit trail immutability."
+        ) from exc
 
     if audit_count > 0:
         raise RuntimeError(
@@ -380,6 +403,11 @@ def main() -> None:
         action="store_true",
         help="Tears down baseline fixtures if no immutable audit events exist.",
     )
+    parser.add_argument(
+        "--seed-golden-scenarios",
+        action="store_true",
+        help="Pre-ingests baseline demonstration scenarios (APTC-009, APTC-030, APTC-036, APTC-038). Preserves APTC-001 unseeded for fresh acceptance.",
+    )
 
     args = parser.parse_args()
 
@@ -419,7 +447,7 @@ def main() -> None:
         elif args.teardown:
             teardown_evaluation_workspace(session, auth_key, args.expected_db_name)
         else:
-            bootstrap_evaluation_workspace(session, auth_key, args.expected_db_name)
+            bootstrap_evaluation_workspace(session, auth_key, args.expected_db_name, seed_scenarios=args.seed_golden_scenarios)
     finally:
         session.close()
 

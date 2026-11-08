@@ -306,6 +306,26 @@ def test_teardown_refused_when_immutable_audit_events_exist():
         teardown_evaluation_workspace(mock_session, VALID_KEY)
 
 
+def test_teardown_fails_closed_when_audit_count_query_errors():
+    """Teardown fails closed immediately if inspecting audit_events count raises an error."""
+    mock_session = MagicMock()
+    mock_session.execute.return_value.scalar.side_effect = [
+        "eval_db",
+        "eval_user",
+        EXPECTED_MIGRATION_REVISION,
+        RuntimeError("Database connection lost during audit_events count query"),
+    ]
+    mock_session.scalars.return_value.all.side_effect = [[], []]
+
+    with pytest.raises(RuntimeError, match="Failed to inspect audit_events count for teardown"):
+        teardown_evaluation_workspace(mock_session, VALID_KEY)
+
+    # Verify that NO delete statements were ever executed
+    executed_statements = [str(call[0][0]) for call in mock_session.execute.call_args_list]
+    for stmt in executed_statements:
+        assert "DELETE FROM" not in stmt, "Teardown must not execute any deletions when audit query fails"
+
+
 def test_teardown_cleans_up_when_zero_audit_events_exist():
     """Teardown proceeds cleanly when zero audit events exist, without mutating audit_events table."""
     mock_session = MagicMock()
@@ -339,3 +359,39 @@ def test_assert_database_target_safe_allows_cloud_host_with_dedicated_bootstrap_
     mock_db.scalar.return_value = 0
 
     assert_database_target_safe(mock_db)  # Must not raise
+
+def test_bootstrap_workspace_with_seed_scenarios_invokes_golden_scenarios():
+    """Bootstrap with seed_scenarios=True calls process_scenario_document for demonstration cases."""
+    mock_session = MagicMock()
+    mock_session.execute.return_value.scalar.side_effect = [
+        "eval_db",
+        "eval_user",
+        EXPECTED_MIGRATION_REVISION,
+    ]
+    mock_session.scalars.return_value.all.side_effect = [[], []]
+
+    with patch("engine.bootstrap_eval_db.provision_tenant_and_users") as m_users, \
+         patch("engine.bootstrap_eval_db.provision_synthetic_vendors") as m_vendors, \
+         patch("engine.bootstrap_eval_db.provision_synthetic_purchase_orders") as m_pos, \
+         patch("engine.bootstrap_eval_db.provision_synthetic_goods_receipts") as m_grns, \
+         patch("engine.bootstrap_eval_db.provision_synthetic_quality_controls") as m_qcs, \
+         patch("engine.sme_eval_setup.process_scenario_document") as m_scenario:
+
+        bootstrap_evaluation_workspace(mock_session, VALID_KEY, seed_scenarios=True)
+
+        m_users.assert_called_once()
+        m_vendors.assert_called_once()
+        m_pos.assert_called_once()
+        m_grns.assert_called_once()
+        m_qcs.assert_called_once()
+        mock_session.commit.assert_called_once()
+
+        # Verify scenario invocations
+        assert m_scenario.call_count == 4
+        seeded_doc_ids = [call[0][2] for call in m_scenario.call_args_list]
+        assert "APTC-009" in seeded_doc_ids
+        assert "APTC-030" in seeded_doc_ids
+        assert "APTC-036" in seeded_doc_ids
+        assert "APTC-038" in seeded_doc_ids
+        # Confirm APTC-001 is NOT seeded
+        assert "APTC-001" not in seeded_doc_ids

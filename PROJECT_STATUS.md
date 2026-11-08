@@ -48,14 +48,14 @@ This document provides an authoritative, truthful accounting of completed milest
    - PostgreSQL 15 schema with Alembic migrations.
    - Connection separation: Port 6543 (transaction pooler) vs Port 5432 (direct DDL / migrations).
    - PostgreSQL trigger `prevent_audit_events_mutation()` enforcing database-level audit immutability.
-   - Supabase Storage integration with private bucket `invoices` and signed URLs (900s TTL).
+   - Supabase Storage integration with private bucket `invoices` and signed URLs (300s TTL).
 
 ---
 
 ## 3. What Has Been Verified Against Live Services
 
 - **Live PostgreSQL Database:** Verified against Supabase PostgreSQL on `aws-0-ap-south-1.pooler.supabase.com:6543/postgres`. Connection health, schema migrations, and trigger immutability verified.
-- **Live Supabase Private Storage:** Verified file uploads, SHA-256 integrity, and signed URL generation (900s TTL) against private bucket `invoices`.
+- **Live Supabase Private Storage:** Verified file uploads, SHA-256 integrity, and signed URL generation (300s TTL) against private bucket `invoices`.
 - **Live AWS Bedrock Mantle Endpoint:** Verified inference against model `qwen.qwen3-235b-a22b-2507-v1:0` in `ap-south-1`. Latency 2.9s–3.1s, cost $0.0022 USD/call. Zero mock fallbacks.
 - **Live AWS Bedrock Palmyra Vision Endpoint:** Verified API authentication and vision inference against model `writer.palmyra-vision-7b` in `us-east-1`. Latency 4.1s, cost $0.0018 USD/call.
 - **Real Browser Automation (Playwright & Edge):** Verified all 4 commercial SME acceptance scenarios, 3-pane UI rendering, hold controls, and quarantine views in headless Microsoft Edge.
@@ -117,7 +117,7 @@ This document provides an authoritative, truthful accounting of completed milest
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
 7. **Persisted Processing Run View:** **`[CONFIRMED]`** `InvoiceRunView.tsx` consumes actual persisted PostgreSQL audit checkpoints from `backend/core/processing_events.py`.
 8. **Modality Boundary:** **`[CONFIRMED]`** Production hybrid pipeline routes degraded scans fail-closed to `FLAGGED_HITL_REVIEW`. Palmyra Vision was evaluated in a separate benchmark harness and remains feature-flagged OFF in production.
-9. **Test Suite Accounting:** Current canonical local regression test results: **458 passed, 43 skipped, 0 failed** in ~150s (`python -m pytest tests/`, 501 collected), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **472 passing tests**.
+9. **Test Suite Accounting:** Current canonical local regression test results: **464 passed, 43 skipped, 0 failed** in ~43s (`python -m pytest tests/`, 507 collected), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **478 passing tests**.
 10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
 11. **Evaluation Database Bootstrap Tool & Disposable Lifecycle:** **`[CONFIRMED & HARDENED]`** Administrative out-of-band CLI tool `engine/bootstrap_eval_db.py` enforces multi-layer safety invariants (`IS_DEDICATED_EVALUATION_DATABASE=True`, `EVAL_BOOTSTRAP_SECRET_KEY` ≥ 32 chars from env, `--confirm-isolated-eval-database`, database target verification against `--expected-db-name` or `EXPECTED_EVAL_DATABASE_NAME`, fail-closed query inspection, production blacklist guard, RLS bypass privilege check, zero foreign orgs/users, exact Alembic migration revision `013_revoke_access_tokens` enforced, single atomic transaction with complete rollback on error, disposable database lifecycle respecting trigger `trg_audit_events_immutable`, `--dry-run` mode, and environment state restoration).
 12. **Multi-Tab Refresh Race Resolution:** **`[CONFIRMED & REMEDIATED]`** Cross-tab coordination in `frontend/src/api/client.ts` uses active token polling (`tokenNow !== initialToken`), 4000ms crash takeover, and logout abort checks, eliminating premature session drops during simultaneous requests.

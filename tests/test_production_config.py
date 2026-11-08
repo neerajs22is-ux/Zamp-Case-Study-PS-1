@@ -223,3 +223,56 @@ def test_auth_status_exposes_public_anon_key_and_url(monkeypatch):
     data = resp.json()
     assert data["supabase_url"] == "https://xyzcompany.supabase.co"
     assert data["supabase_anon_key"] == "sb_publishable_test_anon_key_12345"
+
+def test_check_db_health_warns_on_privileged_postgresql_runtime_role(monkeypatch):
+    """check_db_health detects when PostgreSQL runtime connection uses privileged BYPASSRLS/super role."""
+    from unittest.mock import MagicMock
+    from backend.core import database
+    from backend.core.config import settings
+
+    monkeypatch.setattr(settings, "DATABASE_URL", "postgresql://postgres:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres")
+    
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value.scalar.return_value = 1
+    # role_info: (current_user, rolsuper, rolbypassrls)
+    mock_conn.execute.return_value.first.return_value = ("postgres", True, True)
+
+    mock_engine = MagicMock()
+    mock_engine.url = "postgresql://postgres:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
+    mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+    monkeypatch.setattr(database, "engine", mock_engine)
+
+    health = database.check_db_health()
+    assert health["status"] == "CONNECTED"
+    assert health["runtime_role"] == "postgres"
+    assert health["bypasses_rls"] is True
+    assert "role_warning" in health
+    assert "Tenant RLS policies declared TO ap_app_user are not enforced" in health["role_warning"]
+
+
+def test_check_db_health_confirms_enforced_rls_for_ap_app_user(monkeypatch):
+    """check_db_health confirms ENFORCED role security when connecting as restricted ap_app_user."""
+    from unittest.mock import MagicMock
+    from backend.core import database
+    from backend.core.config import settings
+
+    monkeypatch.setattr(settings, "DATABASE_URL", "postgresql://ap_app_user:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres")
+    
+    mock_conn = MagicMock()
+    mock_conn.execute.return_value.scalar.return_value = 1
+    # role_info: ap_app_user is NOSUPERUSER, NOBYPASSRLS
+    mock_conn.execute.return_value.first.return_value = ("ap_app_user", False, False)
+
+    mock_engine = MagicMock()
+    mock_engine.url = "postgresql://ap_app_user:secret@aws-0-ap-south-1.pooler.supabase.com:6543/postgres"
+    mock_engine.connect.return_value.__enter__.return_value = mock_conn
+
+    monkeypatch.setattr(database, "engine", mock_engine)
+
+    health = database.check_db_health()
+    assert health["status"] == "CONNECTED"
+    assert health["runtime_role"] == "ap_app_user"
+    assert health["bypasses_rls"] is False
+    assert health.get("role_security") == "ENFORCED"
+    assert "role_warning" not in health

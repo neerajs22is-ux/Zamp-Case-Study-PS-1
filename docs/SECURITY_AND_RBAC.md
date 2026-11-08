@@ -78,5 +78,5 @@ To prevent unauthorized access while allowing frictionless local development, th
 ## 4. Secret Hygiene & Storage Security
 
 - **Server-Side Secret Containment:** All master keys (`SUPABASE_JWT_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `MANTLE_API_KEY`, `GMAIL_CLIENT_SECRET`) reside exclusively in server-side environment variables.
-- **Zero Frontend Leakage:** The React frontend bundle contains zero references to server-side keys. All document retrieval utilizes signed URLs generated server-side with a strict 900-second (15-minute) TTL.
+- **Zero Frontend Leakage:** The React frontend bundle contains zero references to server-side keys. All document retrieval utilizes signed URLs generated server-side with a strict 300-second (5-minute) TTL.
 - **Git Shielding:** `.gitignore` excludes `.env`, `*.token`, `*.jwt`, `*.key`, and `scratch/` directories.

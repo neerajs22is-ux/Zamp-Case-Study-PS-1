@@ -252,10 +252,50 @@ This audit inspects the current repository snapshot across Python source code, d
 
 ---
 
+### Finding 17: Runtime PostgreSQL Role & RLS Tenant Policy Target
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`backend/core/database.py`](../backend/core/database.py), [`backend/migrations/versions/002_tenant_isolation_and_rls.py`](../backend/migrations/versions/002_tenant_isolation_and_rls.py), and [`render.yaml`](../render.yaml).
+- **Finding Analysis:**
+  1. Migration 002 creates `tenant_isolation_policy` explicitly targeted `TO ap_app_user`.
+  2. If the runtime container connects to PostgreSQL as `postgres` or `postgres.[PROJECT_REF]` (which possesses `BYPASSRLS` or superuser privileges in Supabase), tenant isolation policies are bypassed and not enforced at the database layer.
+  3. Administrative migrations (DDL) require direct connection on port 5432 using administrative credentials (`postgres`).
+  4. The runtime FastAPI application (DML) must connect as the restricted role `ap_app_user` on transaction pooler port 6543 to guarantee zero-trust database-level RLS enforcement.
+- **Remediation Implemented:**
+  - Hardened `check_db_health()` in `backend/core/database.py` to inspect `current_user`, `rolsuper`, and `rolbypassrls`.
+  - In production and staging, if the runtime connection runs as a role with `BYPASSRLS=true`, `check_db_health()` logs an alert and flags `role_warning`.
+  - Updated `render.yaml` documentation to explicitly specify `ap_app_user` for `DATABASE_URL` (runtime pooler port 6543) and separate it from administrative migration credentials.
+
+---
+
+### Finding 18: Bootstrap Teardown Fail-Closed Safety & Disposable Database Lifecycle
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`engine/bootstrap_eval_db.py`](../engine/bootstrap_eval_db.py) and [`tests/test_bootstrap_eval_db.py`](../tests/test_bootstrap_eval_db.py).
+- **Finding Analysis:**
+  1. Previously, `teardown_evaluation_workspace` caught all exceptions during `SELECT count(*) FROM audit_events` and defaulted `audit_count = 0`.
+  2. If an error occurred querying audit events (e.g. permission error, network glitch), teardown failed open and proceeded to execute deletions.
+- **Remediation Implemented:**
+  - Made the audit inspection query strictly fail closed. Any exception raises `FATAL SAFETY VIOLATION` immediately, preventing all delete statements.
+  - Formally documented that once audit events exist, in-place teardown is prohibited by `trg_audit_events_immutable`. Staging environments must use a disposable database lifecycle (drop/branch recreate in Supabase).
+
+---
+
+### Finding 19: Baseline Scenario Seeding vs Fresh Acceptance Ingestion
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`engine/bootstrap_eval_db.py`](../engine/bootstrap_eval_db.py) and [`tests/test_bootstrap_eval_db.py`](../tests/test_bootstrap_eval_db.py).
+- **Finding Analysis:**
+  1. Default bootstrap (`bootstrap_evaluation_workspace`) initializes structural reference fixtures (tenant, users, vendors, POs, GRNs, QCs) with zero audit events.
+  2. Evaluator acceptance requires seeing baseline demonstration scenarios in the inbox upon login, while preserving unseeded fresh invoices for live upload testing.
+- **Remediation Implemented:**
+  - Added `--seed-golden-scenarios` CLI flag to `engine/bootstrap_eval_db.py`.
+  - Pre-ingests 4 reference demonstration cases: `APTC-009` (clean match reference), `APTC-030` (rate variance exception), `APTC-036` (degraded scan queue), and `APTC-038` (payment receipt quarantine).
+  - Strictly reserves `APTC-001` (`01_invoice_AP_26_001.pdf`) and `APTC-002` (`02_invoice_AP_26_002.pdf`) as **unseeded, fresh acceptance documents** for the evaluator to upload and verify live in the hosted web UI.
+
+---
+
 ## 3. Test Evidence Classifications & Unverified Hosted Runtime Matrix
 
 ### A. Classification of Test Evidence
-- **Local Unit & Mocked Integration Suite:** **458 passed, 43 skipped, 0 failed** in ~150s (`python -m pytest`, 501 collected), plus **14 passed, 0 failed** in Node.js (`npm test` / `node --experimental-strip-types --test src/tests/auth_lifecycle.test.mjs`). Total **472 passing tests**.
+- **Local Unit & Mocked Integration Suite:** **464 passed, 43 skipped, 0 failed** in ~43s (`python -m pytest`, 507 collected), plus **14 passed, 0 failed** in Node.js (`npm test` / `node --experimental-strip-types --test src/tests/auth_lifecycle.test.mjs`). Total **478 passing tests**.
   - These tests execute against isolated in-memory SQLite fixtures, local loopback connections, and mocked third-party adapters (Mantle LLM, Supabase Storage, Gmail API, SAP ERP).
   - They provide high confidence in deterministic rule math, RLS policies, audit immutability, schema consistency, and safety guards.
   - **They do NOT constitute live external-service verification.**
@@ -428,7 +468,7 @@ Before declaring the flagship AP Command Center ready for live evaluation, all o
   ┌────────────────────────────────────────────────────────────────────────┐
   │ 3. 3-Pane Reconciliation Workspace Inspection                          │
   │    - Left Pane: High-fidelity rendered PDF document via authenticated  │
-  │      Supabase Storage signed URL (900s TTL).                           │
+  │      Supabase Storage signed URL (300s TTL).                           │
   │    - Middle Pane: Extracted Line Items, Contracted PO Reference, and   │
   │      Indian GST Math (CGST+SGST vs IGST within ₹20 tolerance).         │
   │    - Right Pane: The 7 Deterministic Matching Gates:                   │

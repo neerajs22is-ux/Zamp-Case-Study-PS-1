@@ -6,10 +6,10 @@ This document details the test suites, evaluation corpora, benchmark procedures,
 
 ## 1. Automated Test Suite Architecture
 
-The repository contains 501 automated test items executed via `pytest`. Current regression status: **458 passed, 43 skipped, 0 failed** in ~150s (`python -m pytest tests/`), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **472 passing tests**.
+The repository contains 507 automated test items executed via `pytest`. Current regression status: **464 passed, 43 skipped, 0 failed** in ~43s (`python -m pytest tests/`), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **478 passing tests**.
 
 > [!NOTE]
-> **Evidence Classification Standard:** The 458 passing Python tests and 14 passing Node.js tests execute against isolated fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, differentiated 401 revocation handling, multi-tab session mechanics, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 staging launch.
+> **Evidence Classification Standard:** The 464 passing Python tests and 14 passing Node.js tests execute against isolated fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, differentiated 401 revocation handling, multi-tab session mechanics, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 staging launch.
 
 ```
 tests/
@@ -109,7 +109,7 @@ python scratch/test_browser_acceptance.py
    - Evaluator uploads a test multi-page invoice PDF to private Supabase Storage bucket 'invoices'.
    - Observes processing checkpoints via HTTP polling (`pollRun` querying `GET /api/v1/invoices/{id}/processing`) reading persisted PostgreSQL `AuditEvent` records across 5 pipeline stages: Classification, Entity Extraction, Grounding Tripwires, Procurement Cross-Reference, and Deterministic Policy Engine. (Note: Standalone engine uses SSE; flagship Command Center uses persisted checkpoints and API polling).
 4. **3-Pane Review Workspace:**
-   - Left: Source PDF rendering via private signed URL (900s TTL).
+   - Left: Source PDF rendering via private signed URL (300s TTL).
    - Center: Line item reconciliation, contracted PO references, and Indian GST tax math (CGST+SGST vs IGST with ₹20 rounding tolerance).
    - Right: Policy gate checks, grounding coordinates, and immutable audit history.
 5. **Financial Governance & Approvals:**

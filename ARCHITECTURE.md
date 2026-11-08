@@ -139,7 +139,7 @@ frontend/src/
 
 ### 3-Pane Inspection Architecture
 The flagship user interface view is the 3-Pane Review Workspace (`InvoiceDetailPage.tsx`):
-- **Pane 1 (Left):** Document Evidence. Embeds the original vendor PDF via signed Supabase storage URL (900s expiration).
+- **Pane 1 (Left):** Document Evidence. Embeds the original vendor PDF via signed Supabase storage URL (300s expiration).
 - **Pane 2 (Center):** Line Reconciliation. Maps extracted invoice line items against PO line items, showing billed vs contracted rates, calculated GST tax amounts, and net payable.
 - **Pane 3 (Right):** Match Decision Gates & Human Actions. Displays the real-time status of all 7 deterministic policy gates, exception explanations, and operational action buttons (`APPROVE_AP_REVIEW`, `HOLD_PENDING_EVIDENCE`, `REJECT_INVOICE`).
 

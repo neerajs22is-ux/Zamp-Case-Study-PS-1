@@ -38,10 +38,13 @@ services:
         sync: false
         # Generate via: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 
-      # Supabase Free PostgreSQL Connection (Transaction Pooler, Port 6543)
+      # Supabase PostgreSQL Connection (Transaction Pooler, Port 6543)
+      # RUNTIME ROLE: Must connect as restricted 'ap_app_user' so tenant RLS policies (Migration 002)
+      # are strictly enforced at the database layer.
+      # (Administrative migrations and DDL require direct port 5432 using 'postgres' admin credentials).
       - key: DATABASE_URL
         sync: false
-        # Format: postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
+        # Format (Runtime): postgresql://ap_app_user:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?sslmode=require
 
       # Supabase Auth & JWT Verification (Asymmetric JWKS)
       - key: SUPABASE_URL
