@@ -5,21 +5,84 @@ import type {
 } from '../types';
 import type { ProcessingSnapshot } from '../components/InvoiceRunView';
 
+import { refreshAccessToken } from '../utils/oauth';
+
 const AUTH_STORAGE_KEY = 'ap_command_center_auth_token';
+const REFRESH_STORAGE_KEY = 'ap_command_center_refresh_token';
+const EXPIRY_STORAGE_KEY = 'ap_command_center_token_expiry';
 
 export function getAuthToken(): string | null {
   return localStorage.getItem(AUTH_STORAGE_KEY);
 }
 
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_STORAGE_KEY);
+}
+
+export function setSession(accessToken: string, refreshToken?: string | null, expiresInSeconds?: number): void {
+  localStorage.setItem(AUTH_STORAGE_KEY, accessToken);
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_STORAGE_KEY, refreshToken);
+  }
+  if (expiresInSeconds) {
+    const expiryTime = Date.now() + expiresInSeconds * 1000;
+    localStorage.setItem(EXPIRY_STORAGE_KEY, expiryTime.toString());
+  }
+}
+
 export function setAuthToken(token: string): void {
-  localStorage.setItem(AUTH_STORAGE_KEY, token);
+  setSession(token);
+}
+
+export function clearSession(): void {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  localStorage.removeItem(REFRESH_STORAGE_KEY);
+  localStorage.removeItem(EXPIRY_STORAGE_KEY);
 }
 
 export function clearAuthToken(): void {
-  localStorage.removeItem(AUTH_STORAGE_KEY);
+  clearSession();
 }
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+let activeRefreshPromise: Promise<string | null> | null = null;
+
+export async function refreshActiveSession(): Promise<string | null> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  if (activeRefreshPromise) return activeRefreshPromise;
+
+  activeRefreshPromise = (async () => {
+    try {
+      const statusRes = await fetch('/api/v1/auth/status').then(r => r.json()).catch(() => null);
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || statusRes?.supabase_url;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || statusRes?.supabase_anon_key;
+
+      if (!supabaseUrl || !anonKey) {
+        clearSession();
+        return null;
+      }
+
+      const res = await refreshAccessToken(supabaseUrl, anonKey, refreshToken);
+      if (res.success && res.accessToken) {
+        setSession(res.accessToken, res.refreshToken, res.expiresIn);
+        return res.accessToken;
+      } else {
+        clearSession();
+        return null;
+      }
+    } catch {
+      clearSession();
+      return null;
+    } finally {
+      activeRefreshPromise = null;
+    }
+  })();
+
+  return activeRefreshPromise;
+}
+
+async function request<T>(endpoint: string, options: RequestInit & { _isRetry?: boolean } = {}): Promise<T> {
   const headers = new Headers(options.headers || {});
   const token = getAuthToken();
   if (token) {
@@ -36,6 +99,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   });
 
   if (response.status === 401) {
+    const isAuthExempt = endpoint.includes('/auth/status') || endpoint.includes('/auth/dev-session') || endpoint.includes('/auth/logout');
+    if (!options._isRetry && !isAuthExempt && getRefreshToken()) {
+      const newToken = await refreshActiveSession();
+      if (newToken) {
+        return request<T>(endpoint, { ...options, _isRetry: true });
+      }
+    }
     throw Object.assign(new Error('Authentication required. Missing or expired enterprise session token.'), { status: response.status });
   }
 

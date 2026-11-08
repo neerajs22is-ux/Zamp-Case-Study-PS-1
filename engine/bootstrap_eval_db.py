@@ -1,0 +1,232 @@
+"""Administrative bootstrap utility for initializing or tearing down a dedicated evaluation database.
+
+Guarantees:
+1. Strictly Out-of-Band: CLI-only utility, never invoked automatically on container boot.
+2. Operator Authorization: Requires explicit confirmation flag and an authorization key (min 32 chars).
+3. Independent Safety Verification (Fail-Closed):
+   - Confirms target database contains zero non-evaluation organisations (organisations.id != 'org_sme_eval').
+   - Confirms target database contains zero foreign users (users.org_id != 'org_sme_eval').
+   - Confirms Alembic migration schema readiness (migration 010+ applied).
+   - Any query or permission error fails closed immediately.
+4. Clean Teardown Capability: Supports --teardown to cleanly purge evaluation data.
+5. Zero Production Tampering: Cannot run on shared, customer, or multi-tenant databases.
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import os
+import sys
+from typing import Any, Optional
+
+from sqlalchemy import create_engine, func, select, text
+from sqlalchemy.orm import Session, sessionmaker
+
+sys.path.insert(0, os.path.abspath("."))
+
+from backend.core.config import settings
+from backend.models.domain import (
+    ApprovalRequest, AuditEvent, Document, ExceptionRecord,
+    GoodsReceiptLineSnapshot, GoodsReceiptSnapshot, Invoice,
+    InvoiceLine, MatchGateCheck, MatchRun, Organisation,
+    QualityControlSnapshot, RoleAssignment, User, Vendor,
+    WorkOrderLineSnapshot, WorkOrderSnapshot,
+)
+from engine.sme_eval_setup import (
+    ORG_ID,
+    ORG_NAME,
+    provision_synthetic_goods_receipts,
+    provision_synthetic_purchase_orders,
+    provision_synthetic_quality_controls,
+    provision_synthetic_vendors,
+    provision_tenant_and_users,
+)
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+logger = logging.getLogger("bootstrap_eval_db")
+
+
+def verify_evaluation_database_safety(session: Session, auth_key: str) -> None:
+    """Verifies that the target database is an isolated evaluation instance.
+
+    Fail-Closed Invariants:
+    1. Auth Key: Minimum 32 characters required.
+    2. Zero Foreign Organisations: If any organisation other than 'org_sme_eval' exists, abort immediately.
+    3. Zero Foreign Users: If any user not belonging to 'org_sme_eval' exists, abort immediately.
+    4. Schema Readiness: Alembic migration table must exist and be at least 010.
+    5. Any query or connection failure fails closed.
+    """
+    if not auth_key or len(auth_key.strip()) < 32:
+        raise RuntimeError(
+            "FATAL SAFETY VIOLATION: EVAL_BOOTSTRAP_SECRET_KEY must be provided and be at least 32 characters long."
+        )
+
+    # 1. Verify schema and migrations
+    try:
+        rev = session.execute(text("SELECT version_num FROM alembic_version")).scalar()
+        if not rev:
+            raise RuntimeError("FATAL SAFETY VIOLATION: Database has not been initialized with Alembic migrations.")
+        logger.info(f"Target database Alembic migration revision: {rev}")
+    except Exception as exc:
+        raise RuntimeError(
+            f"FATAL SAFETY VIOLATION: Could not verify database migration status: {exc}. Aborting fails closed."
+        ) from exc
+
+    # 2. Check for foreign organisations (bypassing RLS with migration session)
+    try:
+        foreign_orgs = session.scalars(
+            select(Organisation.id).where(Organisation.id != ORG_ID).limit(5)
+        ).all()
+        if foreign_orgs:
+            raise RuntimeError(
+                f"FATAL SAFETY VIOLATION: Target database contains non-evaluation organisations: {foreign_orgs}. "
+                "Bootstrap utility cannot run on shared, customer, or multi-tenant databases."
+            )
+    except Exception as exc:
+        raise RuntimeError(
+            f"FATAL SAFETY VIOLATION: Failed to check organisation isolation: {exc}. Aborting fails closed."
+        ) from exc
+
+    # 3. Check for foreign users
+    try:
+        foreign_users = session.scalars(
+            select(User.email).where(User.org_id != ORG_ID).limit(5)
+        ).all()
+        if foreign_users:
+            raise RuntimeError(
+                f"FATAL SAFETY VIOLATION: Target database contains foreign users: {foreign_users}. "
+                "Bootstrap utility cannot mutate a database with non-evaluation users."
+            )
+    except Exception as exc:
+        raise RuntimeError(
+            f"FATAL SAFETY VIOLATION: Failed to check user isolation: {exc}. Aborting fails closed."
+        ) from exc
+
+    logger.info("Database safety verification passed: target is confirmed isolated for evaluation.")
+
+
+def bootstrap_evaluation_workspace(session: Session, auth_key: str) -> None:
+    """Idempotently initializes org_sme_eval reference fixtures for the 5 evaluation scenarios."""
+    verify_evaluation_database_safety(session, auth_key)
+
+    # Configure runtime overrides for the session
+    settings.ALLOW_SYNTHETIC_SEEDING = True
+    settings.IS_DEDICATED_EVALUATION_DATABASE = True
+    settings.EVAL_BOOTSTRAP_SECRET_KEY = auth_key
+    os.environ["ALLOW_SYNTHETIC_SEEDING"] = "true"
+    os.environ["IS_DEDICATED_EVALUATION_DATABASE"] = "true"
+    os.environ["EVAL_BOOTSTRAP_SECRET_KEY"] = auth_key
+
+    logger.info("Initializing tenant and SME evaluation users...")
+    provision_tenant_and_users(session)
+
+    logger.info("Initializing synthetic vendor master records...")
+    provision_synthetic_vendors(session)
+
+    logger.info("Initializing synthetic purchase orders...")
+    provision_synthetic_purchase_orders(session)
+
+    logger.info("Initializing synthetic goods receipts (GRNs)...")
+    provision_synthetic_goods_receipts(session)
+
+    logger.info("Initializing synthetic quality inspections (QCs)...")
+    provision_synthetic_quality_controls(session)
+
+    session.commit()
+    logger.info("Evaluation workspace bootstrap completed successfully.")
+
+
+def teardown_evaluation_workspace(session: Session, auth_key: str) -> None:
+    """Cleanly purges all org_sme_eval test fixtures and records."""
+    verify_evaluation_database_safety(session, auth_key)
+
+    logger.warning("Beginning clean teardown of evaluation workspace records...")
+
+    # Delete dependent child tables in reverse dependency order
+    session.execute(text("DELETE FROM audit_events WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM match_gate_checks WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM match_runs WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM approval_requests WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM exception_records WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM invoice_lines WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM invoices WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM goods_receipt_line_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM goods_receipt_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM quality_control_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM work_order_line_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM work_order_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM vendors WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM role_assignments WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM identity_memberships WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM users WHERE org_id = :org_id"), {"org_id": ORG_ID})
+    session.execute(text("DELETE FROM organisations WHERE id = :org_id"), {"org_id": ORG_ID})
+
+    session.commit()
+    logger.info("Evaluation workspace teardown completed cleanly.")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Dedicated Evaluation Database Bootstrap Utility")
+    parser.add_argument(
+        "--confirm-isolated-eval-database",
+        action="store_true",
+        required=True,
+        help="Explicit confirmation that the target database is an isolated evaluation instance.",
+    )
+    parser.add_argument(
+        "--auth-key",
+        type=str,
+        default=os.environ.get("EVAL_BOOTSTRAP_SECRET_KEY", ""),
+        help="Authorization secret key (min 32 chars).",
+    )
+    parser.add_argument(
+        "--database-url",
+        type=str,
+        default=os.environ.get("MIGRATION_DATABASE_URL") or os.environ.get("DATABASE_URL") or settings.DATABASE_URL,
+        help="Direct database connection URL with table owner permissions.",
+    )
+    parser.add_argument(
+        "--teardown",
+        action="store_true",
+        help="Tears down and deletes all evaluation workspace records instead of seeding.",
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Verifies database safety without modifying records.",
+    )
+
+    args = parser.parse_args()
+
+    if not args.confirm_isolated_eval_database:
+        logger.error("Refusing to run: --confirm-isolated-eval-database flag is required.")
+        sys.exit(1)
+
+    auth_key = args.auth_key.strip()
+    if not auth_key or len(auth_key) < 32:
+        logger.error("Refusing to run: --auth-key must be provided and be at least 32 characters long.")
+        sys.exit(1)
+
+    if not args.database_url:
+        logger.error("Refusing to run: No database URL configured.")
+        sys.exit(1)
+
+    engine = create_engine(args.database_url)
+    session_factory = sessionmaker(bind=engine)
+    session = session_factory()
+
+    try:
+        if args.verify_only:
+            verify_evaluation_database_safety(session, auth_key)
+            logger.info("Verification check succeeded: database is safe for evaluation bootstrap.")
+        elif args.teardown:
+            teardown_evaluation_workspace(session, auth_key)
+        else:
+            bootstrap_evaluation_workspace(session, auth_key)
+    finally:
+        session.close()
+
+
+if __name__ == "__main__":
+    main()

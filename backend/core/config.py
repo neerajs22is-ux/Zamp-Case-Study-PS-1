@@ -91,6 +91,8 @@ class Settings(BaseSettings):
     ALLOW_SYNTHETIC_SEEDING: bool = False  # Development/isolated test only; strictly barred in production
     IS_DISPOSABLE_TEST_DATABASE: bool = False  # Ephemeral test database flag; strictly barred in production
     DEMO_SEEDING_AUTHORIZATION_KEY: Optional[str] = None  # Explicit secret required to seed disposable networked databases
+    IS_DEDICATED_EVALUATION_DATABASE: bool = False  # Out-of-band evaluation database bootstrap override
+    EVAL_BOOTSTRAP_SECRET_KEY: Optional[str] = None  # Operator secret for dedicated evaluation bootstrap (min 32 chars)
     ENABLE_DEV_SESSION: bool = False  # Development-only session minting flag; strictly False by default
     # Comma-separated authenticated identity subjects allowed to operate platform-wide services.
     PLATFORM_OPERATOR_SUBJECTS: str = ""

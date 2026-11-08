@@ -6,10 +6,10 @@ This document details the test suites, evaluation corpora, benchmark procedures,
 
 ## 1. Automated Test Suite Architecture
 
-The repository contains 484 automated test items executed via `pytest`. Current regression status: **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest tests/`).
+The repository contains 495 automated test items executed via `pytest`. Current regression status: **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest tests/`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **459 passing tests**.
 
 > [!NOTE]
-> **Evidence Classification Standard:** The 441 passing tests execute against isolated in-memory SQLite fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 launch.
+> **Evidence Classification Standard:** The 452 passing Python tests and 7 passing Node.js tests execute against isolated fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, session lifecycle mechanics, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 launch.
 
 ```
 tests/
@@ -32,8 +32,14 @@ tests/
 │   ├── test_modality_classification.py    # Digital PDF vs raster scan pre-screening
 │   └── test_grounding_verification.py     # Source page coordinate grounding
 │
-└── phase_e/                               # Phase E Acceptance & Security Hardening
-    └── test_security_and_financial_controls.py # Dev session sandbox, JWT claims, dual control
+├── phase_e/                               # Phase E Acceptance & Security Hardening
+│   └── test_security_and_financial_controls.py # Dev session sandbox, JWT claims, dual control
+│
+├── test_auth_and_session_lifecycle.py     # Unknown email rejection & dual-control anti-self-approval
+└── test_bootstrap_eval_db.py              # Out-of-band evaluation database bootstrap invariants
+
+frontend/src/tests/
+└── auth_lifecycle.test.mjs                # Client OTP, token rotation, deduplication, error handling
 ```
 
 ---
@@ -76,21 +82,40 @@ Evaluation metrics are logged to `docs/project-history/full_40_evaluation_report
 
 ---
 
-## 4. End-to-End Browser Verification (Playwright)
+## 4. End-to-End Browser Verification & Evaluator Acceptance Walkthrough
 
-Automated browser tests verify the complete frontend and backend workflow using headless Microsoft Edge (`msedge`):
+The primary evaluation target is the flagship AP Command Center (`backend/` + `frontend/`). Evaluator testing and browser automation verify the end-to-end workflow:
 
 ```bash
+# Run client auth lifecycle regression
+node --test frontend/src/tests/auth_lifecycle.test.mjs
+
+# Run automated browser verification (headless Edge/Chromium)
 python scratch/test_browser_acceptance.py
 ```
 
-The script exercises:
-1. Enterprise login screen and dev-session token acquisition.
-2. Operational dashboard with real-time KPI metrics.
-3. Invoice inbox table filtering.
-4. 3-Pane Review Workspace on `APTC-001` with human sign-off (`APPROVE_AP_REVIEW`).
-5. Unit rate variance inspection on `APTC-030` with query hold (`HOLD_PENDING_EVIDENCE`).
-6. Degraded scan handling on `APTC-037` with fail-closed HITL review.
-7. Quarantined document inspection on `APTC-038` in Connections view.
+### Complete Primary HR Acceptance Sequence:
+1. **Authentication & Session Lifecycle:**
+   - Evaluator navigates to the public portal in an incognito window.
+   - Signs in using Email OTP (`POST /auth/v1/otp`, `create_user: false`). Unknown or unprovisioned emails are rejected with HTTP 403 Forbidden.
+   - Enters 6-digit OTP to receive cryptographically signed session tokens. Token rotation via refresh tokens is verified on token expiration.
+2. **Operational Dashboard & Inbox:**
+   - Evaluator inspects live KPI metrics (ingested invoice volume, pending reviews, blocked exposure).
+   - Filters inbox by status (`MATCH_CANDIDATE`, `FLAGGED_EXCEPTION`, `FLAGGED_HITL_REVIEW`, `QUARANTINE_NON_INVOICE`).
+3. **Fresh PDF Ingestion & Real-Time Processing:**
+   - Evaluator uploads a test multi-page invoice PDF.
+   - Observes real-time SSE progress events through 5 pipeline checkpoints: Classification, Entity Extraction, Grounding Tripwires, Procurement Cross-Reference, and Deterministic Policy Engine.
+4. **3-Pane Review Workspace:**
+   - Left: Source PDF rendering via private signed URL (900s TTL).
+   - Center: Line item reconciliation, contracted PO references, and Indian GST tax math (CGST+SGST vs IGST with ₹20 rounding tolerance).
+   - Right: Policy gate checks, grounding coordinates, and immutable audit history.
+5. **Financial Governance & Approvals:**
+   - **Single Approval (< ₹5,00,000 INR):** Evaluator reviews `APTC-001` (₹4,10,000 INR) and clicks 'Approve Invoice'. System immediately moves invoice to `APPROVED` and stages GL voucher.
+   - **Strict Dual-Control (≥ ₹5,00,000 INR):** Evaluator reviews high-value invoices (`DUAL_APPROVAL_THRESHOLD_INR`). AP Lead grants Step 1 approval (`PENDING_SECOND_APPROVAL`). Controller grants Step 2 approval (`APPROVED`). The system strictly forbids the first approver from granting second approval (anti-self-approval protection).
+6. **Exception Triage & Margin Protection:**
+   - Evaluator reviews `APTC-030` (+8.8% unit rate spike exceeding 1.5% policy tolerance).
+   - System flags variance exception, blocks payment, and recommends a ₹15/unit debit note. Evaluator places invoice on query hold (`HOLD_PENDING_EVIDENCE`).
+7. **Immutable Audit Verification:**
+   - Evaluator verifies audit trail entries backed by PostgreSQL `AuditEvent` rows with SHA-256 payload hashes and user attribution.
 
 Full-resolution screenshots are captured in [`docs/images/browser_verification/`](./images/browser_verification/).

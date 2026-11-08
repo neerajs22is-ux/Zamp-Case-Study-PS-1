@@ -14,8 +14,8 @@ import { SourceRecordsPage } from './pages/SourceRecordsPage';
 import { AuditPage } from './pages/AuditPage';
 import { AccessManagementPage } from './pages/AccessManagementPage';
 import { OnboardingPage } from './pages/OnboardingPage';
-import { api, clearAuthToken, setAuthToken, getAuthToken } from './api/client';
-import { oauthCallbackParams } from './utils/oauth';
+import { api, clearSession, setSession, getAuthToken } from './api/client';
+import { oauthCallbackParams, supabaseLogout } from './utils/oauth';
 import type { AuthenticatedUser, HealthResponse } from './types';
 
 // Route Wrapper for Invoice Detail with URL parameter binding
@@ -68,9 +68,9 @@ export const AppContent: React.FC = () => {
 
   useEffect(() => {
     // 1. Check for OAuth callback in URL hash (from Supabase Auth Google sign-in)
-    const { accessToken } = oauthCallbackParams(window.location.search, window.location.hash);
+    const { accessToken, refreshToken } = oauthCallbackParams(window.location.search, window.location.hash);
     if (accessToken) {
-      setAuthToken(accessToken);
+      setSession(accessToken, refreshToken);
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
 
@@ -81,12 +81,21 @@ export const AppContent: React.FC = () => {
 
   const handleLogout = async () => {
     let logoutError: string | null = null;
+    const currentToken = getAuthToken();
     try {
+      if (currentToken) {
+        const authStatus = await api.getAuthStatus().catch(() => null);
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || authStatus?.supabase_url;
+        const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || authStatus?.supabase_anon_key;
+        if (supabaseUrl && anonKey) {
+          await supabaseLogout(supabaseUrl, anonKey, currentToken).catch(() => null);
+        }
+      }
       await api.logout();
     } catch {
       logoutError = 'Local session cleared, but server-side token revocation failed. The access token may remain valid until expiry.';
     } finally {
-      clearAuthToken();
+      clearSession();
       setUser(null);
       setAuthError(logoutError);
       navigate('/today');
@@ -105,7 +114,7 @@ export const AppContent: React.FC = () => {
     try {
       setAuthLoading(true);
       const res = await api.getDevSession(email, user?.org_id || 'org_sme_eval');
-      setAuthToken(res.access_token);
+      setSession(res.access_token);
       await fetchUserProfile();
     } catch (err: any) {
       console.error('Role switch failed:', err);

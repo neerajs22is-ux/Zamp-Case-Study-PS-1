@@ -12,7 +12,7 @@ import {
   Mail,
 } from "lucide-react";
 
-import { api, setAuthToken } from "../api/client";
+import { api, setAuthToken, setSession } from "../api/client";
 
 import type { AuthenticatedUser, AccessRequest } from "../types";
 
@@ -183,7 +183,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           text: res.error || "Invalid or expired verification code.",
         });
       } else {
-        setAuthToken(res.accessToken);
+        setSession(res.accessToken, res.refreshToken, res.expiresIn);
         setActionMessage({
           type: "success",
           text: "Verification successful! Opening workspace...",

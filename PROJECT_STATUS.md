@@ -64,13 +64,15 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-- **Total Test Items Collected:** 436
-- **Passed:** 393
+- **Total Test Items Collected:** 495 items in pytest
+- **Passed (Python):** 452 passed, 0 failed
+- **Passed (Node.js):** 7 passed, 0 failed (`node --test frontend/src/tests/auth_lifecycle.test.mjs`)
+- **Total Passing Tests:** 459 passed
 - **Skipped:** 43 (PostgreSQL-specific isolation fixtures, live Gmail Pub/Sub network probes)
 - **Failed:** 0
 - **Standalone PS-1 Engine Suite:** 28 passed, 0 failed in 0.25s (`tests/test_engine.py`)
 - **Audit Invariants & Approval Safety Suite:** 6 passed, 0 failed in 1.82s (`tests/test_audit_invariants_and_safety.py`)
-- **Execution Time:** ~38 seconds
+- **Execution Time:** ~37 seconds
 - **Frontend Build:** `npm run build` in `frontend/` completes with 0 errors.
 
 ---
@@ -111,12 +113,13 @@ This document provides an authoritative, truthful accounting of completed milest
 2. **`render.yaml` Configuration:** **`[CONFIRMED & REMEDIATED in commit d6f03d0]`** Added `STORAGE_BUCKET_NAME: invoices` to render.yaml.
 3. **Database Migration State:** **`[CONFIRMED]`** Persistent Supabase PostgreSQL database reported migration `010_identity_memberships`. Applying migrations `011`–`013` per `docs/MIGRATION_READINESS_PROCEDURE.md` is a P0 requirement before live traffic to resolve `revoked_access_tokens`.
 4. **Safety Guard in `sme_eval_setup.py`:** **`[CONFIRMED & REMEDIATED in commits d6f03d0 & 8979bce & current]`** Checks `settings.APP_ENV`, requires `ALLOW_SYNTHETIC_SEEDING=True`, enforces cloud host blocklist, and restricts non-loopback databases to verified disposable targets with authentication keys.
-5. **Evaluator Authentication:** **`[CONFIRMED & REMEDIATED]`** Shared-JWT URL links rejected. Frontend implements provider-supported Supabase Email OTP and Google OAuth; loopback `dev-session` strictly barred in production.
+5. **Evaluator Authentication:** **`[CONFIRMED & REMEDIATED]`** Shared-JWT URL links rejected. Frontend implements provider-supported Supabase Email OTP (`create_user: false`), refresh token rotation (`grant_type=refresh_token`), deduplicated 401 retry, clean logout, and unknown-email 403 gating; loopback `dev-session` strictly barred in production.
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
 7. **Persisted Processing Run View:** **`[CONFIRMED]`** `InvoiceRunView.tsx` consumes actual persisted PostgreSQL audit checkpoints from `backend/core/processing_events.py`.
 8. **Modality Boundary:** **`[CONFIRMED]`** Production hybrid pipeline routes degraded scans fail-closed to `FLAGGED_HITL_REVIEW`. Palmyra Vision was evaluated in a separate benchmark harness and remains feature-flagged OFF in production.
-9. **Test Suite Accounting:** Current canonical local regression test results: **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest tests/`).
+9. **Test Suite Accounting:** Current canonical local regression test results: **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest tests/`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **459 passing tests**.
 10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
+11. **Evaluation Database Bootstrap Tool:** **`[CONFIRMED & IMPLEMENTED]`** Administrative out-of-band CLI tool `engine/bootstrap_eval_db.py` enforces 6 safety gates (`IS_DEDICATED_EVALUATION_DATABASE=True`, `EVAL_BOOTSTRAP_SECRET_KEY` ≥ 32 chars, `--confirm-isolated-eval-database`, zero foreign orgs/users, Alembic migration 013 verified, fail-closed on any error).
 
 ### Prioritized Roadmap to Submission:
 - **P0 (Production Readiness & Primary Public Deployment):**

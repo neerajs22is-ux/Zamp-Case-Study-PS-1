@@ -113,9 +113,20 @@ def assert_seeding_permitted() -> None:
 
     Fail-Closed Invariants:
     - Synthetic seeding is permitted strictly in DEVELOPMENT and TEST environments.
-    - Explicitly blocks PRODUCTION and STAGING.
+    - Explicitly blocks PRODUCTION and STAGING unless dedicated operator evaluation bootstrap is active.
     - Fails closed (raises RuntimeError) on unrecognized, None, or unconfigured environments.
     """
+    is_eval_bootstrap = (
+        getattr(settings, "IS_DEDICATED_EVALUATION_DATABASE", False)
+        or os.environ.get("IS_DEDICATED_EVALUATION_DATABASE", "").strip().lower() in ("true", "1")
+    )
+    bootstrap_key = (
+        getattr(settings, "EVAL_BOOTSTRAP_SECRET_KEY", None)
+        or os.environ.get("EVAL_BOOTSTRAP_SECRET_KEY", "")
+    )
+    if is_eval_bootstrap and bootstrap_key and len(bootstrap_key) >= 32:
+        return
+
     app_env = getattr(settings, "APP_ENV", None)
     if app_env is None:
         raise RuntimeError("CRITICAL SAFETY VIOLATION: APP_ENV is not configured. Seeding fails closed!")
@@ -158,12 +169,13 @@ def assert_database_target_safe(db: Any) -> None:
        - SQLite (in-memory or local file) is verified safe for local execution.
        - Disallowed Cloud Hosts: Strictly rejects connections to any cloud database host
          (Supabase, AWS RDS, Render, Neon, Cloud SQL, etc.), preventing accidental production
-         contamination even if APP_ENV=development.
+         contamination unless an authorized operator bootstrap is verified (IS_DEDICATED_EVALUATION_DATABASE=true
+         and EVAL_BOOTSTRAP_SECRET_KEY >= 32 chars).
        - Local Loopback: Allows local PostgreSQL (localhost, 127.0.0.1, ::1).
        - Disposable Test Containers: Non-loopback networked databases require BOTH
          IS_DISPOSABLE_TEST_DATABASE=true and a matching DEMO_SEEDING_AUTHORIZATION_KEY.
-    5. Tenant Multi-Tenancy Guard: Rejects any database containing organisations other than 'org_sme_eval'.
-       (Note: Multi-tenancy check is defense-in-depth, as RLS can filter tenant queries).
+    5. Tenant & User Multi-Tenancy Guard: Rejects any database containing organisations other than 'org_sme_eval'
+       or foreign users. Fails closed on any query error.
     6. Credential Privacy: Zero connection URLs, passwords, or secrets are logged or surfaced in errors.
     """
     assert_seeding_permitted()
@@ -217,10 +229,21 @@ def assert_database_target_safe(db: Any) -> None:
                 host = raw_url.split("@")[-1].split("/")[0].split(":")[0].strip().lower()
 
         if any(pattern in host for pattern in CLOUD_HOST_DISALLOW_PATTERNS):
-            raise RuntimeError(
-                f"CRITICAL DATABASE SAFETY VIOLATION: Target database host matches cloud/production host signature '{host}'. "
-                "Synthetic fixture seeding into remote cloud or production databases is strictly barred."
+            is_eval_bootstrap = (
+                getattr(settings, "IS_DEDICATED_EVALUATION_DATABASE", False)
+                or os.environ.get("IS_DEDICATED_EVALUATION_DATABASE", "").strip().lower() in ("true", "1")
             )
+            bootstrap_key = (
+                getattr(settings, "EVAL_BOOTSTRAP_SECRET_KEY", None)
+                or os.environ.get("EVAL_BOOTSTRAP_SECRET_KEY", "")
+            )
+            if not (is_eval_bootstrap and bootstrap_key and len(bootstrap_key) >= 32):
+                raise RuntimeError(
+                    f"CRITICAL DATABASE SAFETY VIOLATION: Target database host matches cloud/production host signature '{host}'. "
+                    "Synthetic fixture seeding into remote cloud or production databases is strictly barred. "
+                    "Bootstrap of a dedicated evaluation database requires explicit IS_DEDICATED_EVALUATION_DATABASE=true "
+                    "and a valid EVAL_BOOTSTRAP_SECRET_KEY (min 32 chars)."
+                )
 
         is_loopback = host in ("localhost", "127.0.0.1", "::1", "testclient")
         if not is_loopback:
@@ -229,7 +252,15 @@ def assert_database_target_safe(db: Any) -> None:
                 or os.environ.get("IS_DISPOSABLE_TEST_DATABASE", "").strip().lower() in ("true", "1")
             )
             auth_key = getattr(settings, "DEMO_SEEDING_AUTHORIZATION_KEY", None) or os.environ.get("DEMO_SEEDING_AUTHORIZATION_KEY", "")
-            if not (is_disposable and auth_key and len(auth_key) >= 16):
+            is_eval_bootstrap = (
+                getattr(settings, "IS_DEDICATED_EVALUATION_DATABASE", False)
+                or os.environ.get("IS_DEDICATED_EVALUATION_DATABASE", "").strip().lower() in ("true", "1")
+            )
+            bootstrap_key = (
+                getattr(settings, "EVAL_BOOTSTRAP_SECRET_KEY", None)
+                or os.environ.get("EVAL_BOOTSTRAP_SECRET_KEY", "")
+            )
+            if not ((is_disposable and auth_key and len(auth_key) >= 16) or (is_eval_bootstrap and bootstrap_key and len(bootstrap_key) >= 32)):
                 sanitized_host = host or "unknown-remote-host"
                 raise RuntimeError(
                     f"CRITICAL DATABASE SAFETY VIOLATION: Networked database host '{sanitized_host}' is not a local loopback target. "
@@ -237,7 +268,7 @@ def assert_database_target_safe(db: Any) -> None:
                     "and a valid DEMO_SEEDING_AUTHORIZATION_KEY (min 16 chars)."
                 )
 
-    # 3. Foreign Tenant Contamination Check
+    # 3. Foreign Tenant Contamination Check (Non-Bypassable, Fails Closed)
     try:
         from sqlalchemy import func
         foreign_orgs = db.scalar(
@@ -251,7 +282,29 @@ def assert_database_target_safe(db: Any) -> None:
     except RuntimeError:
         raise
     except Exception as exc:
-        logger.debug("Organisations check skipped (table may be uninitialized): %s", type(exc).__name__)
+        raise RuntimeError(
+            f"CRITICAL DATABASE SAFETY VIOLATION: Failed to verify organisation isolation: {type(exc).__name__}. "
+            "Seeding fails closed."
+        ) from exc
+
+    # 4. Foreign User Check (Non-Bypassable, Fails Closed)
+    try:
+        from sqlalchemy import func
+        foreign_users = db.scalar(
+            select(func.count(User.id)).where(User.org_id != ORG_ID)
+        ) or 0
+        if foreign_users > 0:
+            raise RuntimeError(
+                f"CRITICAL DATABASE SAFETY VIOLATION: Target database contains {foreign_users} foreign user(s). "
+                "Seeding fails closed."
+            )
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            f"CRITICAL DATABASE SAFETY VIOLATION: Failed to verify user isolation: {type(exc).__name__}. "
+            "Seeding fails closed."
+        ) from exc
 
 
 def provision_tenant_and_users(db) -> None:

@@ -143,16 +143,28 @@ This audit inspects the current repository snapshot across Python source code, d
 
 ### Finding 11: Rejection of Shared Bearer-Token Links & Selection of Real Evaluator Auth
 - **Status:** **`[CONFIRMED & REMEDIATED]`**
-- **Evidence:** [`frontend/src/components/AuthScreen.tsx`](../frontend/src/components/AuthScreen.tsx) and [`frontend/src/utils/oauth.ts`](../frontend/src/utils/oauth.ts).
+- **Evidence:** [`frontend/src/components/AuthScreen.tsx`](../frontend/src/components/AuthScreen.tsx), [`frontend/src/utils/oauth.ts`](../frontend/src/utils/oauth.ts), and [`frontend/src/api/client.ts`](../frontend/src/api/client.ts).
 - **Finding Analysis:**
-  1. Distributing pre-minted bearer tokens via URL fragments (`https://app/#access_token=...`) is an anti-pattern:
-     - URL-embedded tokens leak into web server logs, proxy access logs, browser history, and HTTP `Referer` headers.
-     - Token sharing destroys non-repudiation: all evaluator actions (approvals, audit logs) collapse into a single synthetic identity.
-     - Pre-minted tokens expire (typically 1 hour), causing evaluator lockouts, while long-lived tokens create indefinite replay vulnerabilities.
-  2. Evaluator Authentication Architecture Selected:
-     - **Primary:** Supabase Auth Passwordless Email OTP / Magic Link. Works with any work email without requiring a Google account or custom OAuth setup. Frontend sends OTP via Supabase Auth REST API (`POST /auth/v1/otp`) and verifies code via `POST /auth/v1/verify` to receive an authentic, signed Supabase session.
-     - **Secondary:** Google OAuth for evaluators with Google accounts when Google provider is enabled.
-     - **Local Only:** Development quick-login (`/api/v1/auth/dev-session`) is strictly restricted to loopback clients and barred when `APP_ENV != development`.
+  1. Distributing pre-minted bearer tokens via URLs (`https://app/#access_token=...`) is an anti-pattern:
+     - **Client-Side Mechanics Clarification:** URL fragments (`#...`) are processed purely by the client browser DOM and are never transmitted across the network in HTTP request headers to the server.
+     - However, placing bearer tokens in URL fragments remains an unsafe credential distribution mechanism:
+       - Fragment-bearing URLs persist in browser navigation history, bookmarks, and clipboard logs.
+       - URL links are easily forwarded, leaked via chat logs, or exposed to shoulder-surfing.
+       - Distributing a shared token destroys non-repudiation: all evaluator actions (approvals, exception overrides, audit logs) collapse into a single synthetic identity.
+       - Pre-minted tokens expire (typically 1 hour), causing evaluator lockouts, while long-lived tokens create indefinite replay vulnerabilities without revocation capability.
+  2. Evaluator Authentication Architecture Implemented:
+     - **Primary: Supabase Auth Passwordless Email OTP.**
+       - Frontend sends OTP via Supabase Auth REST API (`POST /auth/v1/otp`) with `create_user: false`. This guarantees that unauthorized visitors cannot register arbitrary unprovisioned accounts in the identity provider.
+       - Evaluator enters the 6-digit code received via email; the frontend verifies it via `POST /auth/v1/verify` (type `email`) to receive an authentic, cryptographically signed Supabase session (`access_token` and `refresh_token`).
+       - Server-side membership resolution (`resolve_server_side_membership`) verifies that the email is pre-provisioned in `users` and assigned to `org_sme_eval`. Unknown or unassigned emails are barred with HTTP 403.
+     - **Session Lifecycle & Token Rotation:**
+       - The API client (`frontend/src/api/client.ts`) securely tracks `refresh_token` and token expiration.
+       - On encountering HTTP 401 Unauthorized, the client intercepts the failure and initiates refresh token rotation via Supabase GoTrue (`POST /auth/v1/token?grant_type=refresh_token`).
+       - Concurrent 401 requests are deduplicated behind a single active refresh promise to eliminate race conditions.
+       - If refresh token rotation succeeds, original requests are seamlessly retried. If the refresh token is expired or revoked, session state is wiped and the user is redirected to the login screen with zero infinite retry loops.
+       - Logout invokes both Supabase Auth (`POST /auth/v1/logout`) and the backend token revocation store (`POST /api/v1/auth/logout`) before clearing local storage.
+     - **Secondary: Google OAuth.** Available for evaluators using corporate Google accounts where Google provider is enabled.
+     - **Local Only: Dev-Session Quick Login.** Restricted strictly to loopback IP (`127.0.0.1`, `localhost`) when `APP_ENV=development`. Barred on public hosts.
 - **Readiness Implication:** Evaluator access is authentic, individual, standards-compliant, and does not rely on shared credentials or URL token shortcuts.
 
 ---
@@ -172,10 +184,31 @@ This audit inspects the current repository snapshot across Python source code, d
 
 ---
 
+### Finding 13: Out-of-Band Evaluation Database Bootstrap Architecture
+- **Status:** **`[CONFIRMED & IMPLEMENTED]`**
+- **Evidence:** [`engine/bootstrap_eval_db.py`](../engine/bootstrap_eval_db.py) and [`tests/test_bootstrap_eval_db.py`](../tests/test_bootstrap_eval_db.py).
+- **Finding Analysis:**
+  1. A critical architectural tension existed: the runtime container running in production mode (`APP_ENV=production`) strictly disallows synthetic seeding and blocks all cloud hostnames to prevent data contamination.
+  2. However, hosted evaluator acceptance requires an isolated cloud database instance pre-loaded with baseline procurement fixtures (vendors, POs, GRNs, QC inspection records).
+  3. Attempting to seed via runtime web endpoints (`/api/v1/system/reset-demo`) would violate zero-trust production posture.
+- **Remediation Implemented:**
+  - Implemented a dedicated administrative out-of-band CLI tool: `python -m engine.bootstrap_eval_db`.
+  - Multi-factor safety gates enforced before any SQL write:
+    1. CLI requires explicit flag `--confirm-isolated-eval-database`.
+    2. CLI requires `--auth-key` matching `EVAL_BOOTSTRAP_SECRET_KEY` (minimum 32 characters).
+    3. Configuration must explicitly set `IS_DEDICATED_EVALUATION_DATABASE=True`.
+    4. Database query check ensures zero foreign organizations exist (`count(id != 'org_sme_eval') == 0`).
+    5. Database query check ensures zero foreign users exist (`count(email NOT LIKE '%@sme.eval' AND email NOT LIKE '%@eval.local') == 0`).
+    6. Alembic version check verifies schema is at target migration `013_revoke_access_tokens`.
+    7. Fail-closed error handling: any query failure (e.g. database disconnect, permission error) immediately aborts execution without modifying data.
+- **Readiness Implication:** Cloud evaluation environments can be safely initialized out-of-band while runtime web containers remain strictly read-only and protected against unauthorized mutation.
+
+---
+
 ## 3. Test Evidence Classifications & Unverified Hosted Runtime Matrix
 
 ### A. Classification of Test Evidence
-- **Local Unit & Mocked Integration Suite:** **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest`).
+- **Local Unit & Mocked Integration Suite:** **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total 459 passed tests.
   - These tests execute against isolated in-memory SQLite fixtures, local loopback connections, and mocked third-party adapters (Mantle LLM, Supabase Storage, Gmail API, SAP ERP).
   - They provide high confidence in deterministic rule math, RLS policies, audit immutability, schema consistency, and safety guards.
   - **They do NOT constitute live external-service verification.**
@@ -294,7 +327,7 @@ The following runtime capabilities remain unverified until public cloud deployme
 
 ---
 
-## 4. Concrete Acceptance Criteria for Deployment Readiness
+## 6. Concrete Acceptance Criteria for Deployment Readiness
 
 Before declaring the flagship AP Command Center ready for live evaluation, all of the following criteria must be met:
 
@@ -304,3 +337,81 @@ Before declaring the flagship AP Command Center ready for live evaluation, all o
 4. **Safe Evaluator Access:** An evaluator visiting the planned primary public URL can authenticate into `org_sme_eval` via a tenant-fenced demo auth flow, view the 4 golden scenarios, inspect 3-pane evidence, and execute approvals without exposing development credentials.
 5. **Launcher Truth:** `python run.py` launches the Flagship AP Command Center by default; `python run.py --sandbox` launches the standalone rules sandbox.
 6. **Bounded Deterministic Safeguards:** All matching, tax math, and approval decisions are strictly governed by deterministic rules; degraded scans route fail-closed to `FLAGGED_HITL_REVIEW` with verified grounding boundaries.
+
+
+---
+
+## 7. Step-by-Step Primary HR Browser Acceptance Walkthrough
+
+This step-by-step walkthrough defines the acceptance script for external HR/evaluators testing the hosted AP Command Center:
+
+```
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 1. Evaluator Authentication                                            │
+  │    - Visit the primary public URL in a fresh incognito browser window. │
+  │    - Enter pre-provisioned evaluator email (e.g. ap-lead@sme.eval).    │
+  │    - Frontend calls POST /auth/v1/otp (create_user: false).            │
+  │    - Enter 6-digit OTP received via email.                             │
+  │    - Frontend verifies OTP via POST /auth/v1/verify and stores session.│
+  │    - Server verifies user membership in org_sme_eval (AP_LEAD role).   │
+  │    - (Any unprovisioned email is rejected with HTTP 403 Forbidden).    │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 2. Fresh Multi-Page PDF Ingestion & Real-Time Processing Timeline      │
+  │    - Evaluator clicks 'Upload Invoice' and selects a test invoice PDF. │
+  │    - Frontend streams live Server-Sent Events (SSE) showing pipeline:  │
+  │      • Stage 1: Classification & Optical Contrast Pre-screening.       │
+  │      • Stage 2: Structured Entity Extraction.                          │
+  │      • Stage 3: Mathematical Grounding Tripwires (bounding boxes).     │
+  │      • Stage 4: Procurement Cross-Reference (Vendor, PO, GRN, QC).     │
+  │      • Stage 5: Deterministic Policy Engine (7 Match Gates).           │
+  │    - Processing run view confirms persistence via real AuditEvents.    │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 3. 3-Pane Reconciliation Workspace Inspection                          │
+  │    - Left Pane: High-fidelity rendered PDF document via signed URL.    │
+  │    - Middle Pane: Extracted Line Items, Contracted PO Reference, and   │
+  │      Indian GST Math (CGST+SGST vs IGST with ₹20 rounding tolerance).  │
+  │    - Right Pane: Match Gates Status, Policy Checks, and Audit Trail.   │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 4. Financial Governance & Approvals Execution                          │
+  │                                                                        │
+  │  • Single Approval Flow (Invoice Amount < ₹5,00,000 INR):              │
+  │    - Example: APTC-001 (Amount: ₹4,10,000 INR).                        │
+  │    - AP Lead reviews 3-way match evidence and clicks 'Approve Invoice'.│
+  │    - Status immediately transitions to APPROVED; GL voucher is staged; │
+  │      audit record is permanently committed to immutable audit log.     │
+  │                                                                        │
+  │  • Strict Dual-Control Flow (Invoice Amount ≥ ₹5,00,000 INR):          │
+  │    - Example: High-value commercial invoice exceeding threshold.       │
+  │    - Step 1: AP Lead signs off -> Status: PENDING_SECOND_APPROVAL.     │
+  │    - Step 2: Controller or Finance Director signs off -> APPROVED.     │
+  │    - Anti-Self-Approval Enforcement: System strictly prohibits the     │
+  │      first approver from granting second approval (HTTP 403).          │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 5. Exception Triage & Margin Protection (APTC-030)                     │
+  │    - Evaluator inspects APTC-030 (unit rate ₹185.00 vs PO ₹170.00).    │
+  │    - System flags +8.8% rate spike exceeding 1.5% policy tolerance.    │
+  │    - Payment is automatically blocked; system generates recommended    │
+  │      debit note for the ₹15/unit variance.                             │
+  │    - Evaluator can place on hold, adjust line item, or reject.         │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 6. Audit Trail & Non-Repudiation Verification                          │
+  │    - Evaluator inspects the immutable Audit Trail ledger.              │
+  │    - Verifies SHA-256 payload digests, user attribution, and UTC event │
+  │      timestamps confirming full non-repudiation.                       │
+  └────────────────────────────────────────────────────────────────────────┘
+```

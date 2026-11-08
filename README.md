@@ -39,11 +39,11 @@ python run.py --enterprise
 👉 Open your browser to: **`http://127.0.0.1:8001`**  
 👉 Click **"AP Lead"** on the local evaluation portal for 1-click access to the pre-seeded `org_sme_eval` tenant.
 
-> [!IMPORTANT] Local Evaluation Prerequisites:
+> [!IMPORTANT] Local & Hosted Evaluation Prerequisites:
 > - **Database Schema:** PostgreSQL connected with all migrations through `013_revoke_access_tokens` applied.
-> - **Environment & Host:** Local development environment (`APP_ENV=development`) accessed via loopback (`127.0.0.1` / `localhost`). The `dev-session` endpoint strictly bars non-loopback connections with HTTP 403.
-> - **Demo Fixtures:** Workspace fixtures pre-seeded via `python -m engine.sme_eval_setup` for tenant `org_sme_eval`.
-> - **Public Deployment Note:** Public unauthenticated access is barred; a dedicated tenant-fenced demo authentication route will be provided in Milestone P0 for hosted evaluation.
+> - **Environment & Host:** Local development environment (`APP_ENV=development`) accessed via loopback (`127.0.0.1` / `localhost`). The `dev-session` quick-login endpoint strictly bars non-loopback connections with HTTP 403.
+> - **Demo Fixtures & Bootstrap:** Local fixtures are initialized via `python -m engine.sme_eval_setup` for tenant `org_sme_eval`. Hosted cloud evaluation databases are initialized safely out-of-band via `python -m engine.bootstrap_eval_db --confirm-isolated-eval-database --auth-key <KEY>`.
+> - **Evaluator Authentication:** Hosted evaluation uses provider-supported Supabase Passwordless Email OTP (`create_user: false`) or Google OAuth; unprovisioned emails are barred with HTTP 403.
 
 ### Option B: Launch the Standalone Rules Sandbox (Auxiliary Tool)
 For offline exploration of deterministic policy gates without database setup (requires Python packages in `requirements.txt`):
@@ -130,7 +130,7 @@ python -m pytest tests/
 ```
 
 ### Verified Test Results Summary:
-- **Full Project Local Test Suite:** **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest tests/`)  
+- **Full Project Local Test Suite:** **452 passed, 43 skipped, 0 failed** in 36.91s (`python -m pytest tests/`), plus **7 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **459 passing tests**.  
   *(Skipped tests require live PostgreSQL isolation fixtures or external Gmail network probes).*
 - **Hardening & Remediation Suite:** **27 passed, 0 failed** in 2.31s (`tests/test_hardening.py`)
   - Degradation scan boundary with authentic watermark stamps and zero typed artifact strings

@@ -5,12 +5,20 @@ export function googleAuthorizeUrl(supabaseUrl: string, origin: string): string 
   return url.toString();
 }
 
-export function oauthCallbackParams(search: string, hash: string): { accessToken: string | null; error: string | null } {
+export function oauthCallbackParams(
+  search: string,
+  hash: string
+): { accessToken: string | null; refreshToken: string | null; error: string | null } {
   const query = new URLSearchParams(search);
   const fragment = new URLSearchParams(hash.replace(/^#/, ''));
   return {
     accessToken: fragment.get('access_token'),
-    error: query.get('error_description') || query.get('error') || fragment.get('error_description') || fragment.get('error'),
+    refreshToken: fragment.get('refresh_token'),
+    error:
+      query.get('error_description') ||
+      query.get('error') ||
+      fragment.get('error_description') ||
+      fragment.get('error'),
   };
 }
 
@@ -24,17 +32,20 @@ export interface VerifyOtpResult {
   success: boolean;
   accessToken?: string;
   refreshToken?: string;
+  expiresIn?: number;
   user?: any;
   error?: string;
 }
 
 /**
- * Requests a 6-digit OTP code to be sent to the user's email via Supabase Auth REST API.
+ * Requests a 6-digit OTP code to be sent to a pre-provisioned evaluator email via Supabase Auth REST API.
+ * Enforces create_user: false so that unauthorized third parties cannot register arbitrary accounts.
  */
 export async function sendEmailOtp(
   supabaseUrl: string,
   anonKey: string,
-  email: string
+  email: string,
+  createUser: boolean = false
 ): Promise<OtpResult> {
   if (!supabaseUrl || !anonKey) {
     return {
@@ -61,7 +72,7 @@ export async function sendEmailOtp(
       },
       body: JSON.stringify({
         email: cleanEmail,
-        create_user: true,
+        create_user: createUser,
       }),
     });
 
@@ -69,7 +80,11 @@ export async function sendEmailOtp(
       let errMsg = `Request failed (HTTP ${res.status})`;
       try {
         const data = await res.json();
-        errMsg = data.msg || data.message || data.error_description || errMsg;
+        if (data.msg && (data.msg.includes('Signups not allowed') || data.msg.includes('User not found') || data.error_code === 'signup_disabled')) {
+          errMsg = 'This email is not an authorized evaluation account. Please contact your administrator or use a pre-provisioned email.';
+        } else {
+          errMsg = data.msg || data.message || data.error_description || errMsg;
+        }
       } catch {
         // default fallback
       }
@@ -89,7 +104,7 @@ export async function sendEmailOtp(
 }
 
 /**
- * Verifies a 6-digit OTP code against Supabase Auth REST API and retrieves an authentic session access_token.
+ * Verifies a 6-digit OTP code against Supabase Auth REST API and retrieves an authentic session.
  */
 export async function verifyEmailOtp(
   supabaseUrl: string,
@@ -133,7 +148,11 @@ export async function verifyEmailOtp(
       let errMsg = `Verification failed (HTTP ${res.status})`;
       try {
         const data = await res.json();
-        errMsg = data.msg || data.message || data.error_description || errMsg;
+        if (data.msg && (data.msg.includes('expired') || data.msg.includes('invalid'))) {
+          errMsg = 'The verification code has expired or is invalid. Please request a new code.';
+        } else {
+          errMsg = data.msg || data.message || data.error_description || errMsg;
+        }
       } catch {
         // default fallback
       }
@@ -152,6 +171,7 @@ export async function verifyEmailOtp(
       success: true,
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
+      expiresIn: data.expires_in,
       user: data.user,
     };
   } catch (err: any) {
@@ -159,5 +179,93 @@ export async function verifyEmailOtp(
       success: false,
       error: err.message || 'Network error verifying authentication code.',
     };
+  }
+}
+
+/**
+ * Rotates an expired access token using a stored Supabase refresh token.
+ */
+export async function refreshAccessToken(
+  supabaseUrl: string,
+  anonKey: string,
+  refreshToken: string
+): Promise<VerifyOtpResult> {
+  if (!supabaseUrl || !anonKey || !refreshToken) {
+    return {
+      success: false,
+      error: 'Missing required credentials to refresh session.',
+    };
+  }
+
+  try {
+    const endpoint = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1/token?grant_type=refresh_token`;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+      },
+      body: JSON.stringify({
+        refresh_token: refreshToken.trim(),
+      }),
+    });
+
+    if (!res.ok) {
+      let errMsg = `Refresh failed (HTTP ${res.status})`;
+      try {
+        const data = await res.json();
+        errMsg = data.error_description || data.msg || data.message || errMsg;
+      } catch {
+        // default fallback
+      }
+      return { success: false, error: errMsg };
+    }
+
+    const data = await res.json();
+    if (!data.access_token) {
+      return {
+        success: false,
+        error: 'Provider returned invalid refresh response.',
+      };
+    }
+
+    return {
+      success: true,
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresIn: data.expires_in,
+      user: data.user,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'Network error refreshing session.',
+    };
+  }
+}
+
+/**
+ * Terminates the active session on the Supabase Identity Provider.
+ */
+export async function supabaseLogout(
+  supabaseUrl: string,
+  anonKey: string,
+  accessToken: string
+): Promise<boolean> {
+  if (!supabaseUrl || !anonKey || !accessToken) return false;
+
+  try {
+    const endpoint = `${supabaseUrl.replace(/\/+$/, '')}/auth/v1/logout`;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: anonKey,
+        Authorization: `Bearer ${accessToken.trim()}`,
+      },
+    });
+    return res.ok;
+  } catch {
+    return false;
   }
 }
