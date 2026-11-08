@@ -26,9 +26,6 @@ import { PolicyChecksGrouped } from "../components/PolicyChecksGrouped";
 import { ConsequenceAwareActionModal } from "../components/ConsequenceAwareActionModal";
 import {
   Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
   CardContent,
   Button,
   Badge,
@@ -434,16 +431,16 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
       )}
 
-      {/* 3. Main 50/50 Workspace (Rossum Split Layout) - Prioritized immediately at the top */}
+      {/* 3. Balanced Two-Column Workspace (Sticky PDF + Review Hierarchy) */}
       <div
         data-tour="workspace-split"
         className="review-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
       >
-        {/* Left Pane: Original Document Viewer (5 cols on lg) */}
-        <div className="lg:col-span-5 space-y-2">
-          <Card className="review-document overflow-hidden flex flex-col h-[650px]">
+        {/* Left Pane: Persistent Original Document Viewer (~42% desktop width) */}
+        <div className="lg:col-span-5 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[620px] max-h-[920px]">
+          <Card className="review-document overflow-hidden flex flex-col h-full border border-slate-200 dark:border-slate-800 shadow-2xs">
             {/* Document Toolbar */}
-            <div className="review-document-toolbar p-2 sm:px-3 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs">
+            <div className="review-document-toolbar p-2 sm:px-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
               <span className="font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 truncate">
                 <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                 <span className="truncate">Original invoice</span>
@@ -453,7 +450,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setZoomLevel((z) => Math.max(70, z - 15))}
-                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
                   title="Zoom Out"
                   aria-label="Zoom out"
                 >
@@ -465,7 +462,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setZoomLevel((z) => Math.min(180, z + 15))}
-                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
                   title="Zoom In"
                   aria-label="Zoom in"
                 >
@@ -476,7 +473,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                     href={previewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300"
+                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer"
                     title="Open in new window"
                     aria-label="Open invoice in new window"
                   >
@@ -486,8 +483,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               </div>
             </div>
 
-            {/* Document Render Area */}
-            <div className="review-document-canvas flex-1 overflow-auto bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-2 relative">
+            {/* Document Render Canvas: fills available viewport height */}
+            <div className="review-document-canvas flex-1 min-h-0 overflow-auto bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-2 relative">
               {previewUrl ? (
                 previewUrl.endsWith(".pdf") || previewUrl.includes(".pdf?") ? (
                   <iframe
@@ -528,19 +525,47 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               )}
             </div>
 
-            <div className="review-document-help">
-              <span>
-                If the preview is blank or unavailable, open the document
-                separately or refresh its link.
-              </span>
-              <div>
+            {/* Sleek Document Footer */}
+            <div className="review-document-footer p-2 px-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-500 shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                {Boolean(data?.document && (data.document.sha256 || data.document.sha256_hash)) && (
+                  <div className="flex items-center gap-1.5 font-mono text-[10px] text-slate-400">
+                    <span
+                      className="truncate max-w-[130px]"
+                      title={(data?.document?.sha256 || data?.document?.sha256_hash) ?? ""}
+                    >
+                      SHA: {((data?.document?.sha256 || data?.document?.sha256_hash) ?? "").slice(0, 12)}...
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleCopySha(
+                          (data?.document?.sha256 || data?.document?.sha256_hash) ?? "",
+                        )
+                      }
+                      className="hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
+                      title="Copy full SHA-256 fingerprint"
+                    >
+                      {copiedSha ? (
+                        <Check className="w-3 h-3 text-emerald-500" />
+                      ) : (
+                        <Copy className="w-3 h-3" />
+                      )}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5 shrink-0">
                 {previewUrl && (
                   <a
                     href={previewUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    className="text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-medium text-[11px]"
                   >
-                    Open document
+                    <span>Open document</span>
+                    <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
                 {data?.document?.document_id && (
@@ -549,52 +574,26 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                     size="xs"
                     onClick={handleRefreshSignedUrl}
                     isLoading={refreshingDocUrl}
+                    className="text-[10.5px] h-6 px-1.5 text-slate-500"
                   >
                     Refresh link
                   </Button>
                 )}
               </div>
-              {documentError && <span role="alert">{documentError}</span>}
             </div>
 
-            {/* Document Fingerprint Footer */}
-            {Boolean(data?.document && (data.document.sha256 || data.document.sha256_hash)) && (
-              <div className="review-document-hash p-2 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400">
-                <span
-                  className="truncate max-w-[200px]"
-                  title={(data?.document?.sha256 || data?.document?.sha256_hash) ?? ""}
-                >
-                  SHA:{" "}
-                  {((data?.document?.sha256 || data?.document?.sha256_hash) ?? "").slice(
-                    0,
-                    16,
-                  )}
-                  ...
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleCopySha(
-                      (data?.document?.sha256 || data?.document?.sha256_hash) ?? "",
-                    )
-                  }
-                  className="flex items-center gap-1 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
-                >
-                  {copiedSha ? (
-                    <Check className="w-3 h-3 text-emerald-500" />
-                  ) : (
-                    <Copy className="w-3 h-3" />
-                  )}
-                  <span>{copiedSha ? "Copied" : "Copy"}</span>
-                </button>
+            {documentError && (
+              <div className="p-2 bg-rose-50 dark:bg-rose-950/40 border-t border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-center justify-between" role="alert">
+                <span>{documentError}</span>
+                <button onClick={() => setDocumentError(null)} className="text-rose-600 hover:text-rose-800 text-sm font-bold">&times;</button>
               </div>
             )}
           </Card>
         </div>
 
-        {/* Right Pane: Structured Verification & Reconciliation (7 cols on lg) */}
+        {/* Right Pane: Scrollable Invoice Review Workspace (~58% desktop width) */}
         <div className="lg:col-span-7 space-y-4">
-          {/* Verdict Strip */}
+          {/* Step 1: Seven-Gate Matching Overview & Discrepancies */}
           <CaseSummaryCard
             invoice={invoice}
             matchGates={matchGates}
@@ -610,82 +609,236 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
           />
 
-          {/* Tab Navigation: Line Matching vs History */}
-          <div className="review-tabs flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-1">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveTab("reconciliation")}
-                aria-pressed={activeTab === "reconciliation"}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  activeTab === "reconciliation"
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                Compare line items ({invoiceLines.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("history")}
-                aria-pressed={activeTab === "history"}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                  activeTab === "history"
-                    ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-2xs"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                Audit Trail ({auditEvents.length})
-              </button>
+          {/* Step 2: Line-by-Line Invoice vs PO Comparison & Procurement Evidence */}
+          <div data-tour="reconciliation-flow" className="space-y-4">
+            <ProcurementVerificationFlow
+              invoice={invoice}
+              lines={invoiceLines}
+              poSnapshot={poSnapshot}
+              rateTolerancePercent={rateTolerancePercent}
+              onOpenGlossary={openGlossaryWithTerm}
+              onCorrectLine={handleCorrectLine}
+              isAuditor={isAuditor}
+            />
+          </div>
+
+          {/* Step 3: Unified Decision, Discrepancy Context & Operator Actions */}
+          <Card className="review-decision-card border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 rounded-xl overflow-hidden">
+            {/* Verdict Header */}
+            <div className="p-4 bg-slate-50/80 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                    Recorded Decision Verdict
+                  </span>
+                  <Badge
+                    tone={
+                      invoice.decision === "INTERNAL_APPROVAL_COMPLETE"
+                        ? "success"
+                        : hasFailedGates
+                        ? "error"
+                        : "warning"
+                    }
+                    size="sm"
+                    className="font-bold"
+                  >
+                    {invoice.decision
+                      ? invoice.decision.replace(/_/g, " ")
+                      : "DECISION PENDING"}
+                  </Badge>
+                  {isDualApprovalRequired && (
+                    <Badge tone="purple" size="sm">
+                      Dual approval ≥ {formatINR(dualApprovalThreshold)}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">
+                  {invoice.decision_reason ||
+                    "Read the original document, compare the figures and inspect named records before recording an internal decision."}
+                </p>
+              </div>
+
+              {(invoice.job_status === "QUEUED" ||
+                invoice.job_status === "PROCESSING") &&
+                currentUser?.role &&
+                [
+                  "AP_ASSOCIATE",
+                  "AP_LEAD",
+                  "CONTROLLER",
+                  "SYSTEM_ADMIN",
+                ].includes(currentUser.role) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={actionLoading}
+                    onClick={async () => {
+                      setActionLoading(true);
+                      setActionError(null);
+                      try {
+                        await api.processNextDocument();
+                        await loadDetail();
+                      } catch (err: any) {
+                        setActionError(
+                          err.message ||
+                            "Could not resume processing. Try again.",
+                        );
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }}
+                  >
+                    Resume workspace queue
+                  </Button>
+                )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] text-slate-400 hidden sm:inline">
-                Verified by automatic checks • Verification Status
-              </span>
+            {/* Explanations & Truth Disclosures */}
+            <div className="p-4 space-y-2.5 text-xs text-slate-600 dark:text-slate-300 border-b border-slate-200/60 dark:border-slate-800/60">
+              {invoice.workflow_substatus === "SUPPLIER_CORRECTION_REQUESTED" && (
+                <div className="p-2.5 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200">
+                  <strong>Supplier follow-up recorded internally:</strong> Your
+                  team must contact the supplier outside this app; no correction
+                  email or revised-document link is created automatically.
+                </div>
+              )}
+
+              <p className="text-[11.5px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Evaluated against authoritative procurement reference snapshots. Live SAP S/4HANA synchronization is not configured. Processing checkpoints above show only persisted events; missing events do not establish completion. Read the original document, compare the figures and inspect named records before recording an internal decision.
+              </p>
+            </div>
+
+            {/* Operator Actions Bar */}
+            {!isAuditor ? (
+              <div className="p-3.5 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-xs text-slate-500 hidden sm:block">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">
+                    Next Action:
+                  </span>{" "}
+                  Choose an action based on verified evidence.
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  {/* Secondary Actions Dropdown */}
+                  <div className="relative">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
+                      aria-expanded={actionsMenuOpen}
+                      rightIcon={<MoreVertical className="w-3.5 h-3.5" />}
+                    >
+                      Other Actions
+                    </Button>
+
+                    {actionsMenuOpen && (
+                      <div
+                        className="absolute right-0 bottom-full mb-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-30 text-xs"
+                        onMouseLeave={() => setActionsMenuOpen(false)}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            setSelectedAction("HOLD_PENDING_EVIDENCE");
+                            setActionReason("");
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                        >
+                          Hold Pending Evidence
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            setSelectedAction("REQUEST_SUPPLIER_CORRECTION");
+                            setActionReason("");
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                        >
+                          Request Supplier Correction
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            setSelectedAction("RAISE_DEBIT_NOTE");
+                            setActionReason("");
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer"
+                        >
+                          Raise Debit Note
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            setSelectedAction("QUARANTINE");
+                            setActionReason("");
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-purple-700 dark:text-purple-300 cursor-pointer"
+                        >
+                          Set Aside (Quarantine Non-Invoice)
+                        </button>
+                        <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActionsMenuOpen(false);
+                            setSelectedAction("REJECT_INVOICE");
+                            setActionReason("");
+                          }}
+                          className="w-full text-left px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold cursor-pointer"
+                        >
+                          Reject Invoice
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Primary Action Button */}
+                  {primaryActionBtn}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950 text-xs text-slate-500">
+                Read-only role: inspect evidence and history.
+              </div>
+            )}
+          </Card>
+
+          {/* Step 4: Collapsible Audit Trail & Activity Log */}
+          <Card className="border border-slate-200 dark:border-slate-800 shadow-2xs rounded-xl overflow-hidden">
+            <div className="p-3.5 bg-slate-50/70 dark:bg-slate-850 flex items-center justify-between gap-2 border-b border-slate-200/60 dark:border-slate-800/60">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                  Invoice Activity & Audit Log ({auditEvents.length} events)
+                </span>
+                <span className="text-[11px] text-slate-400 hidden sm:inline">
+                  • Verified by automatic checks • Verification Status
+                </span>
+              </div>
               <Button
                 variant="ghost"
                 size="xs"
-                onClick={() => openGlossaryWithTerm()}
-                className="text-slate-500"
+                onClick={() =>
+                  setActiveTab(
+                    activeTab === "history" ? "reconciliation" : "history",
+                  )
+                }
+                className="text-xs cursor-pointer"
               >
-                Glossary
+                {activeTab === "history" ? "Collapse Audit Trail" : "View Audit Trail"}
               </Button>
             </div>
-          </div>
 
-          {/* Tab Content 1: 4-Way Reconciliation Table */}
-          {activeTab === "reconciliation" && (
-            <div data-tour="reconciliation-flow" className="space-y-4">
-              <ProcurementVerificationFlow
-                invoice={invoice}
-                lines={invoiceLines}
-                poSnapshot={poSnapshot}
-                rateTolerancePercent={rateTolerancePercent}
-                onOpenGlossary={openGlossaryWithTerm}
-                onCorrectLine={handleCorrectLine}
-                isAuditor={isAuditor}
-              />
-            </div>
-          )}
-
-          {/* Tab Content 2: Immutable Audit Trail */}
-          {activeTab === "history" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Invoice Activity & Audit Log</CardTitle>
-                <CardDescription>
-                  Chronological record of OCR extraction, policy checks,
-                  corrections, and approvals.
-                </CardDescription>
-              </CardHeader>
+            {activeTab === "history" && (
               <CardContent className="p-0">
                 {auditEvents.length === 0 ? (
-                  <div className="text-center py-8 text-xs text-slate-400">
+                  <div className="text-center py-6 text-xs text-slate-400">
                     No recorded events for this invoice yet.
                   </div>
                 ) : (
-                  <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  <div className="divide-y divide-slate-100 dark:divide-slate-800 text-xs max-h-80 overflow-auto">
                     {auditEvents.map((event: any) => (
                       <div
                         key={event.event_id || event.id}
@@ -715,168 +868,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                   </div>
                 )}
               </CardContent>
-            </Card>
-          )}
-
-          {/* Sticky Decision & Action Footer */}
-          {!isAuditor && (
-            <Card className="review-decision sticky bottom-3 shadow-lg border-indigo-200/80 dark:border-indigo-900/50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md">
-              <div className="p-3.5 flex items-center justify-between gap-3">
-                <div className="text-xs text-slate-500 hidden sm:block">
-                  <span className="font-medium text-slate-800 dark:text-slate-200">
-                    Next action:
-                  </span>{" "}
-                  Inspect the evidence before recording an internal decision.
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  {/* Secondary Actions Dropdown Trigger */}
-                  <div className="relative">
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      onClick={() => setActionsMenuOpen(!actionsMenuOpen)}
-                      aria-expanded={actionsMenuOpen}
-                      rightIcon={<MoreVertical className="w-3.5 h-3.5" />}
-                    >
-                      Other Actions
-                    </Button>
-
-                    {actionsMenuOpen && (
-                      <div
-                        className="absolute right-0 bottom-full mb-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl py-1 z-30 text-xs"
-                        onMouseLeave={() => setActionsMenuOpen(false)}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionsMenuOpen(false);
-                            setSelectedAction("HOLD_PENDING_EVIDENCE");
-                            setActionReason("");
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                        >
-                          Hold Pending Evidence
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionsMenuOpen(false);
-                            setSelectedAction("REQUEST_SUPPLIER_CORRECTION");
-                            setActionReason("");
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                        >
-                          Request Supplier Correction
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionsMenuOpen(false);
-                            setSelectedAction("RAISE_DEBIT_NOTE");
-                            setActionReason("");
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
-                        >
-                          Raise Debit Note
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionsMenuOpen(false);
-                            setSelectedAction("QUARANTINE");
-                            setActionReason("");
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-slate-50 dark:hover:bg-slate-800 text-purple-700 dark:text-purple-300"
-                        >
-                          Set Aside (Quarantine Non-Invoice)
-                        </button>
-                        <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActionsMenuOpen(false);
-                            setSelectedAction("REJECT_INVOICE");
-                            setActionReason("");
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-700 dark:text-rose-400 font-semibold"
-                        >
-                          Reject Invoice
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Primary Action Button */}
-                  {primaryActionBtn}
-                </div>
-              </div>
-            </Card>
-          )}
+            )}
+          </Card>
         </div>
       </div>
-
-      {/* 4. Recorded Decision & Procurement Reference Details (Placed below workspace) */}
-      <section
-        className="review-recorded-outcome"
-        aria-label="Recorded decision and next step"
-      >
-        <div>
-          <h2>Recorded decision & next steps</h2>
-          {(invoice.job_status === "QUEUED" || invoice.job_status === "PROCESSING") && currentUser?.role && ["AP_ASSOCIATE", "AP_LEAD", "CONTROLLER", "SYSTEM_ADMIN"].includes(currentUser.role) && (
-            <Button variant="outline" disabled={actionLoading} onClick={async () => {
-              setActionLoading(true);
-              setActionError(null);
-              try {
-                await api.processNextDocument();
-                await loadDetail();
-              } catch (err: any) {
-                setActionError(err.message || "Could not resume processing. Try again.");
-              } finally {
-                setActionLoading(false);
-              }
-            }}>Resume workspace queue</Button>
-          )}
-          <strong>
-            {invoice.decision
-              ? invoice.decision.toLowerCase().replace(/_/g, " ")
-              : "Decision unavailable"}
-          </strong>
-          {invoice.decision_reason?.startsWith("Processing failed:") ? (
-            <>
-              <p>
-                The document could not be processed. Inspect the source and
-                available check results.
-              </p>
-              <details>
-                <summary>Technical processing details</summary>
-                <p>{invoice.decision_reason}</p>
-              </details>
-            </>
-          ) : (
-            <p>
-              {invoice.decision_reason ||
-                "No decision reason was returned. Inspect the available checks and evidence before making a decision."}
-            </p>
-          )}
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
-            Matching uses workspace procurement snapshots. Their source and freshness are not independently verified; confirm current records before deciding. Processing checkpoints show persisted events; missing events do not establish completion.
-          </p>
-          {invoice.workflow_substatus === "SUPPLIER_CORRECTION_REQUESTED" && (
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-              Supplier follow-up is recorded internally. Your team must contact
-              the supplier outside this app; no correction email or
-              revised-document link is created automatically.
-            </p>
-          )}
-        </div>
-        <div className="flex flex-col items-end gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => setPolicyDrawerOpen(true)}>
-            Inspect all checks
-          </Button>
-          {isAuditor && <p className="text-xs text-slate-400">Read-only role: inspect evidence and history.</p>}
-        </div>
-      </section>
 
       {/* Slide-Over Drawer: Policy Validation Gates */}
       <Drawer
