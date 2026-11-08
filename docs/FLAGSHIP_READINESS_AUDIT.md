@@ -184,9 +184,9 @@ This audit inspects the current repository snapshot across Python source code, d
 
 ---
 
-### Finding 13: Out-of-Band Evaluation Database Bootstrap Architecture
-- **Status:** **`[CONFIRMED & IMPLEMENTED]`**
-- **Evidence:** [`engine/bootstrap_eval_db.py`](../engine/bootstrap_eval_db.py) and [`tests/test_bootstrap_eval_db.py`](../tests/test_bootstrap_eval_db.py).
+### Finding 13: Out-of-Band Evaluation Database Bootstrap Architecture & Disposable Lifecycle
+- **Status:** **`[CONFIRMED & HARDENED]`**
+- **Evidence:** [`engine/bootstrap_eval_db.py`](../engine/bootstrap_eval_db.py), [`engine/sme_eval_setup.py`](../engine/sme_eval_setup.py), and [`tests/test_bootstrap_eval_db.py`](../tests/test_bootstrap_eval_db.py).
 - **Finding Analysis:**
   1. A critical architectural tension existed: the runtime container running in production mode (`APP_ENV=production`) strictly disallows synthetic seeding and blocks all cloud hostnames to prevent data contamination.
   2. However, hosted evaluator acceptance requires an isolated cloud database instance pre-loaded with baseline procurement fixtures (vendors, POs, GRNs, QC inspection records).
@@ -196,19 +196,66 @@ This audit inspects the current repository snapshot across Python source code, d
   - Multi-factor safety gates enforced before any SQL write:
     1. **Explicit CLI Flag:** Requires `--confirm-isolated-eval-database`.
     2. **Secret Exposure Safeguards:** Secret key is read from environment variable `EVAL_BOOTSTRAP_SECRET_KEY` (minimum 32 characters). CLI emits a security warning if passed as a command argument to prevent leakage in process tables or shell history.
-    3. **Explicit Database Identity & Production Blacklist:** Inspects `SELECT current_database()` and matches against `--expected-db-name`. Known default production identifiers (`"production"`, `"prod"`, `"main"`, `"live"`) are blocked unless explicitly confirmed.
+    3. **Explicit Database Identity & Fail-Closed Inspection:** Inspects `SELECT current_database()` and matches against `--expected-db-name` or `EXPECTED_EVAL_DATABASE_NAME`. Any query or permission error fails closed immediately. Known default/production identifiers (`"postgres"`, `"production"`, `"prod"`, `"main"`, `"live"`) are blocked unless explicitly authorized.
     4. **RLS Bypass Privilege Check:** Executes `SET LOCAL row_security = OFF;` to confirm connection has privileges to bypass Row-Level Security; fails closed if restricted privileges could hide foreign customer records.
     5. **Zero Foreign Organizations & Users:** Verifies target contains zero organizations other than `org_sme_eval` and zero non-evaluation users.
-    6. **Alembic Migration Gate:** Confirms target schema revision is at `013_revoke_access_tokens`.
-    7. **Dry-Run Mode:** Supports `--dry-run` (or `--verify-only`) to run all inspection gates in read-only mode without modifying data.
+    6. **Migration Compatibility Gate:** Enforces the exact target schema revision `013_revoke_access_tokens`. Stale or partial revisions are rejected immediately.
+    7. **Atomic Single-Transaction Provisioning:** Removed premature internal `db.commit()` calls from `provision_synthetic_purchase_orders`, `provision_synthetic_goods_receipts`, and `provision_synthetic_quality_controls` (converted to `db.flush()`). All procurement fixtures are staged atomically; any failure triggers complete `session.rollback()` leaving zero partial records.
+    8. **Audit Immutability & Disposable Database Lifecycle:** Teardown strictly respects the database trigger `trg_audit_events_immutable` (`prevent_audit_events_mutation()`). If any audit records exist for `org_sme_eval`, in-place deletion is refused. Staging environments must employ a disposable database lifecycle (drop and recreate database clone) rather than mutating immutable audit trails.
+    9. **Environment State Isolation:** Runtime overrides (`ALLOW_SYNTHETIC_SEEDING`, `IS_DEDICATED_EVALUATION_DATABASE`) are encapsulated in a `try...finally` block that restores the original process environment and settings, preventing cross-test pollution.
 - **Limitation Notice:** Local mock verification proves code logic correctness but does not independently establish cloud physical isolation. An out-of-band operator preflight check against the targeted Supabase project ref remains mandatory prior to staging evaluation.
+
+---
+
+### Finding 14: Multi-Tab Refresh Race Resolution & Active Token Coordination
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`frontend/src/api/client.ts`](../frontend/src/api/client.ts) and [`frontend/src/tests/auth_lifecycle.test.mjs`](../frontend/src/tests/auth_lifecycle.test.mjs).
+- **Finding Analysis:**
+  1. In multi-tab browser sessions, when Tab 1 initiated a token refresh, it wrote `ap_command_center_refresh_lock` timestamp to `localStorage`.
+  2. Previously, if Tab 2 attempted an API call within 3000ms of that timestamp, it assumed a refresh had completed and immediately reused whatever token was in `localStorage`.
+  3. Because Tab 1's network request was still in-flight, the token in storage was still the *old expired token*.
+  4. Tab 2 retried its API request with the old token, received HTTP 401, called `clearSession()`, and prematurely logged the user out.
+- **Remediation Implemented:**
+  - Redesigned `refreshActiveSession()` in `frontend/src/api/client.ts` with cross-tab coordination.
+  - Waiting tabs record `initialToken = localStorage.getItem('ap_command_center_token')`.
+  - When a lock is held by another tab, waiting tabs poll storage every 50ms (up to 4000ms timeout) checking whether `tokenNow !== initialToken`.
+  - If a rotated token appears, the waiting tab immediately adopts it without firing redundant network requests.
+  - If the lock-holding tab crashes or times out (>4000ms), the waiting tab breaks out, takes over the lock, and executes the refresh itself.
+  - If logout or revocation clears the session during waiting, the polling loop immediately aborts and throws an auth error rather than spinning or retrying.
+  - Verified with realistic interleaving, crashed tab takeover, and logout race test cases in `frontend/src/tests/auth_lifecycle.test.mjs`.
+
+---
+
+### Finding 15: Session-Wide Revocation Boundaries & Server-Side Session Cutoff
+- **Status:** **`[CONFIRMED & DOCUMENTED]`**
+- **Evidence:** [`backend/core/auth.py`](../backend/core/auth.py), [`backend/api/v1/auth.py`](../backend/api/v1/auth.py), and [`frontend/src/utils/oauth.ts`](../frontend/src/utils/oauth.ts).
+- **Finding Analysis & Architecture Boundaries:**
+  1. **Individual Access Token Revocation:** The backend maintains the `revoked_access_tokens` table (migration 013). When a user logs out or an admin revokes a session, the SHA-256 hash of the active JWT is recorded with its expiration timestamp. Any subsequent request presenting that specific access token is rejected with HTTP 401 (`Token has been revoked`).
+  2. **Provider Refresh Session Boundaries:** Supabase GoTrue manages refresh tokens independently. Revoking an individual access token hash in the application database does not automatically invalidate the refresh token on Supabase unless `POST /auth/v1/logout?scope=global` is executed or the provider session is explicitly terminated.
+  3. **Multi-Device / Multi-Tab Behavior:**
+     - On the local client, `clearSession()` purges both access and refresh tokens.
+     - On other tabs in the same browser, storage event listeners detect `ap_command_center_token` removal and transition to the logged-out state.
+     - On other devices, if an access token was already minted before revocation, only that specific token is rejected by the backend. To ensure comprehensive session termination across all devices, the application supports server-side cutoff timestamp `AUTH_REJECT_TOKENS_ISSUED_BEFORE` and executes `logoutSupabaseSession(refreshToken, true)` with `scope=global`.
+
+---
+
+### Finding 16: Render Auto-Deployment Decoupling & Safeguard
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`render.yaml`](../render.yaml).
+- **Finding Analysis:**
+  1. `render.yaml` was configured with `autoDeploy: true`.
+  2. Any Git push to `origin/master` would automatically trigger a live rebuild and deployment on Render.
+  3. This created an unacceptable risk of deploying untested changes or triggering container starts against unmigrated staging databases.
+- **Remediation Implemented:**
+  - Modified `render.yaml` to set `autoDeploy: false`.
+  - Deployments must now be explicitly and manually triggered by an authorized operator through the Render dashboard or CLI after all staging preflights, migrations, and bootstrap scripts have completed.
 
 ---
 
 ## 3. Test Evidence Classifications & Unverified Hosted Runtime Matrix
 
 ### A. Classification of Test Evidence
-- **Local Unit & Mocked Integration Suite:** **456 passed, 43 skipped, 0 failed** in 64.45s (`python -m pytest`, 499 collected), plus **12 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **468 passing tests**.
+- **Local Unit & Mocked Integration Suite:** **458 passed, 43 skipped, 0 failed** in ~150s (`python -m pytest`, 501 collected), plus **14 passed, 0 failed** in Node.js (`npm test` / `node --experimental-strip-types --test src/tests/auth_lifecycle.test.mjs`). Total **472 passing tests**.
   - These tests execute against isolated in-memory SQLite fixtures, local loopback connections, and mocked third-party adapters (Mantle LLM, Supabase Storage, Gmail API, SAP ERP).
   - They provide high confidence in deterministic rule math, RLS policies, audit immutability, schema consistency, and safety guards.
   - **They do NOT constitute live external-service verification.**

@@ -10,7 +10,8 @@ import { refreshAccessToken } from '../utils/oauth.ts';
 const AUTH_STORAGE_KEY = 'ap_command_center_auth_token';
 const REFRESH_STORAGE_KEY = 'ap_command_center_refresh_token';
 const EXPIRY_STORAGE_KEY = 'ap_command_center_token_expiry';
-const REFRESH_MUTEX_KEY = 'ap_command_center_refresh_lock';
+const REFRESH_LOCK_KEY = 'ap_command_center_refresh_lock';
+const REFRESH_TIMEOUT_MS = 4000;
 
 export function getAuthToken(): string | null {
   const token = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -43,7 +44,7 @@ export function clearSession(): void {
   localStorage.removeItem(AUTH_STORAGE_KEY);
   localStorage.removeItem(REFRESH_STORAGE_KEY);
   localStorage.removeItem(EXPIRY_STORAGE_KEY);
-  localStorage.removeItem(REFRESH_MUTEX_KEY);
+  localStorage.removeItem(REFRESH_LOCK_KEY);
 }
 
 export function clearAuthToken(): void {
@@ -57,23 +58,48 @@ export async function refreshActiveSession(): Promise<string | null> {
   const refreshToken = getRefreshToken();
   if (!refreshToken) return null;
 
+  // Single in-flight refresh promise within the current tab
   if (activeRefreshPromise) return activeRefreshPromise;
 
   activeRefreshPromise = (async () => {
     try {
-      // Cross-tab coordination: check if another tab has updated the session in localStorage
-      const currentStoredToken = getAuthToken();
-      if (currentStoredToken && currentStoredToken !== initialToken) {
-        return currentStoredToken;
+      // 1. Check if another tab is actively refreshing
+      let lockTimestamp = Number(localStorage.getItem(REFRESH_LOCK_KEY) || '0');
+      const now = Date.now();
+
+      if (lockTimestamp && now - lockTimestamp < REFRESH_TIMEOUT_MS) {
+        // Another tab is actively refreshing. Await that tab's completion instead of reusing initialToken!
+        const waitStart = Date.now();
+        while (Date.now() - waitStart < REFRESH_TIMEOUT_MS) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+
+          // A. Did another tab update storage with a genuinely NEW token?
+          const tokenNow = getAuthToken();
+          if (tokenNow && tokenNow !== initialToken) {
+            return tokenNow;
+          }
+
+          // B. Was session cleared (e.g. logout or revocation in another tab)?
+          if (!getRefreshToken() || !tokenNow) {
+            return null;
+          }
+
+          // C. Has the lock expired or been released?
+          lockTimestamp = Number(localStorage.getItem(REFRESH_LOCK_KEY) || '0');
+          if (!lockTimestamp || Date.now() - lockTimestamp >= REFRESH_TIMEOUT_MS) {
+            break; // Lock expired or released; take over refresh
+          }
+        }
       }
 
-      // Check cross-tab refresh mutex
-      const lastRefresh = Number(localStorage.getItem(REFRESH_MUTEX_KEY) || '0');
-      const now = Date.now();
-      if (now - lastRefresh < 3000 && currentStoredToken) {
-        return currentStoredToken;
+      // Check if token was already updated before acquiring lock
+      const tokenBeforeLock = getAuthToken();
+      if (tokenBeforeLock && tokenBeforeLock !== initialToken) {
+        return tokenBeforeLock;
       }
-      localStorage.setItem(REFRESH_MUTEX_KEY, now.toString());
+
+      // 2. Acquire cross-tab lock for this tab
+      localStorage.setItem(REFRESH_LOCK_KEY, Date.now().toString());
 
       const statusRes = await fetch('/api/v1/auth/status').then(r => r.json()).catch(() => null);
       const metaEnv = (import.meta as any)?.env;
@@ -85,7 +111,20 @@ export async function refreshActiveSession(): Promise<string | null> {
         return null;
       }
 
+      // 3. Perform provider token rotation
       const res = await refreshAccessToken(supabaseUrl, anonKey, refreshToken);
+
+      // Verify session was not logged out while refresh was in flight
+      if (!getRefreshToken()) {
+        return null;
+      }
+
+      // Prevent concurrent refreshes from overwriting a newer session
+      const currentTokenInStorage = getAuthToken();
+      if (currentTokenInStorage && currentTokenInStorage !== initialToken && currentTokenInStorage !== res.accessToken) {
+        return currentTokenInStorage;
+      }
+
       if (res.success && res.accessToken) {
         setSession(res.accessToken, res.refreshToken, res.expiresIn);
         return res.accessToken;
@@ -97,6 +136,7 @@ export async function refreshActiveSession(): Promise<string | null> {
       clearSession();
       return null;
     } finally {
+      localStorage.removeItem(REFRESH_LOCK_KEY);
       activeRefreshPromise = null;
     }
   })();

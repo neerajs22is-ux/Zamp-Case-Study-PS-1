@@ -125,12 +125,15 @@ flowchart TD
 The repository maintains an exhaustive automated test suite verified on clean Python 3.12:
 
 ```powershell
-# Run the complete test suite across all subsystems
+# Run the complete Python test suite across all subsystems
 python -m pytest tests/
+
+# Run frontend auth lifecycle regression (requires Node >= 22.16.0)
+cd frontend; npm test
 ```
 
 ### Verified Test Results Summary:
-- **Full Project Local Test Suite:** **456 passed, 43 skipped, 0 failed** in 64.45s (`python -m pytest tests/`, 499 collected), plus **12 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **468 passing tests**.  
+- **Full Project Local Test Suite:** **458 passed, 43 skipped, 0 failed** in ~150s (`python -m pytest tests/`, 501 collected), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **472 passing tests**.  
   *(Skipped tests require live PostgreSQL isolation fixtures or external Gmail network probes).*
 - **Hardening & Remediation Suite:** **27 passed, 0 failed** in 2.31s (`tests/test_hardening.py`)
   - Degradation scan boundary with authentic watermark stamps and zero typed artifact strings

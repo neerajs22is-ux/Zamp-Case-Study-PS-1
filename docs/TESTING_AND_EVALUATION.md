@@ -6,10 +6,10 @@ This document details the test suites, evaluation corpora, benchmark procedures,
 
 ## 1. Automated Test Suite Architecture
 
-The repository contains 499 automated test items executed via `pytest`. Current regression status: **456 passed, 43 skipped, 0 failed** in 64.45s (`python -m pytest tests/`), plus **12 passed, 0 failed** in Node.js (`node --test frontend/src/tests/auth_lifecycle.test.mjs`). Total **468 passing tests**.
+The repository contains 501 automated test items executed via `pytest`. Current regression status: **458 passed, 43 skipped, 0 failed** in ~150s (`python -m pytest tests/`), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **472 passing tests**.
 
 > [!NOTE]
-> **Evidence Classification Standard:** The 456 passing Python tests and 12 passing Node.js tests execute against isolated fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, differentiated 401 revocation handling, multi-tab session mechanics, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 staging launch.
+> **Evidence Classification Standard:** The 458 passing Python tests and 14 passing Node.js tests execute against isolated fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, differentiated 401 revocation handling, multi-tab session mechanics, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 staging launch.
 
 ```
 tests/
@@ -87,8 +87,11 @@ Evaluation metrics are logged to `docs/project-history/full_40_evaluation_report
 The primary evaluation target is the flagship AP Command Center (`backend/` + `frontend/`). Evaluator testing and browser automation verify the end-to-end workflow:
 
 ```bash
-# Run client auth lifecycle regression
-node --test frontend/src/tests/auth_lifecycle.test.mjs
+# Run client auth lifecycle regression (requires Node >= 22.16.0 with native TypeScript stripping)
+cd frontend
+npm test
+# Equivalent direct execution:
+# node --experimental-strip-types --test src/tests/auth_lifecycle.test.mjs
 
 # Run automated browser verification (headless Edge/Chromium)
 python scratch/test_browser_acceptance.py

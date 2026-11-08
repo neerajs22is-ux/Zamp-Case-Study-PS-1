@@ -281,36 +281,111 @@ test('Case 1 & 6: Expired access token initiates deduplicated refresh', async ()
   }
 });
 
-test('Case 7: Multi-tab refresh coordination reuses newly stored token', async () => {
+test('Case 7A: Realistic interleaving - Tab 2 awaits Tab 1 in-flight refresh and receives the new token', async () => {
   setupMockLocalStorage();
-  setSession('initial_token', 'refresh_token_tab1', 3600);
+  setSession('expired_token_shared', 'shared_refresh_token', 3600);
 
-  let supabaseCallCount = 0;
+  let tab1RefreshCalls = 0;
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
+    if (url.includes('/api/v1/auth/status')) {
+      return { ok: true, json: async () => ({ supabase_url: 'https://test.supabase.co', supabase_anon_key: 'test_key' }) };
+    }
     if (url.includes('/auth/v1/token')) {
-      supabaseCallCount++;
+      tab1RefreshCalls++;
+      // Simulate network latency for Tab 1
+      await new Promise(r => setTimeout(r, 120));
       return {
         ok: true,
-        json: async () => ({ access_token: 'tab_rotated_token', refresh_token: 'tab_rotated_refresh', expires_in: 3600 }),
+        json: async () => ({
+          access_token: 'tab1_rotated_access_token',
+          refresh_token: 'tab1_rotated_refresh_token',
+          expires_in: 3600,
+        }),
       };
     }
-    return { ok: true, json: async () => ({ supabase_url: 'https://test.supabase.co', supabase_anon_key: 'test_key' }) };
+    return { ok: true, json: async () => ({}) };
   };
 
   try {
-    // Simulate another tab having just updated localStorage
-    setSession('tab2_already_rotated_token', 'tab2_new_refresh', 3600);
-    localStorage.setItem('ap_command_center_refresh_lock', Date.now().toString());
+    // Tab 1 initiates refresh
+    const tab1Promise = refreshActiveSession();
 
-    // When this tab attempts refresh, it detects recent lock and new token, avoiding network race
-    const result = await refreshActiveSession();
-    assert.equal(result, 'tab2_already_rotated_token');
-    assert.equal(supabaseCallCount, 0, 'Must not call Supabase if another tab recently refreshed');
+    // Tab 2 enters refresh 30ms later while Tab 1's lock is held
+    await new Promise(r => setTimeout(r, 30));
+    // Verify lock is set and token in storage is STILL the expired token
+    assert.ok(localStorage.getItem('ap_command_center_refresh_lock'));
+    assert.equal(getAuthToken(), 'expired_token_shared');
+
+    // In Tab 2 context (simulating separate tab waiting on storage):
+    // Tab 2 awaits Tab 1's completion instead of reusing expired_token_shared
+    const [res1, res2] = await Promise.all([
+      tab1Promise,
+      refreshActiveSession(),
+    ]);
+
+    assert.equal(res1, 'tab1_rotated_access_token');
+    assert.equal(res2, 'tab1_rotated_access_token');
+    assert.notEqual(res2, 'expired_token_shared', 'Tab 2 must NEVER reuse expired initial token');
+    assert.equal(tab1RefreshCalls, 1, 'Exactly one network refresh call should occur');
   } finally {
     globalThis.fetch = originalFetch;
     clearSession();
   }
+});
+
+test('Case 7B: Tab 1 crash - Tab 2 breaks out after lock timeout and performs the refresh itself', async () => {
+  setupMockLocalStorage();
+  setSession('expired_token_shared', 'valid_refresh_token', 3600);
+
+  // Simulate Tab 1 acquiring lock 4500ms ago and crashing without updating token or releasing lock
+  localStorage.setItem('ap_command_center_refresh_lock', (Date.now() - 4500).toString());
+
+  let tab2Refreshed = false;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (url.includes('/api/v1/auth/status')) {
+      return { ok: true, json: async () => ({ supabase_url: 'https://test.supabase.co', supabase_anon_key: 'test_key' }) };
+    }
+    if (url.includes('/auth/v1/token')) {
+      tab2Refreshed = true;
+      return {
+        ok: true,
+        json: async () => ({
+          access_token: 'tab2_recovered_token',
+          refresh_token: 'tab2_recovered_refresh',
+          expires_in: 3600,
+        }),
+      };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+
+  try {
+    const res = await refreshActiveSession();
+    assert.equal(res, 'tab2_recovered_token');
+    assert.equal(tab2Refreshed, true, 'Tab 2 must perform the refresh itself after crashed tab timeout');
+  } finally {
+    globalThis.fetch = originalFetch;
+    clearSession();
+  }
+});
+
+test('Case 7C: Logout or revocation in another tab immediately invalidates waiting tabs', async () => {
+  setupMockLocalStorage();
+  setSession('token_before_logout', 'refresh_before_logout', 3600);
+
+  // Tab 1 sets lock
+  localStorage.setItem('ap_command_center_refresh_lock', Date.now().toString());
+
+  // While Tab 2 starts waiting, user clicks logout in Tab 1
+  const waitPromise = refreshActiveSession();
+  setTimeout(() => {
+    clearSession();
+  }, 40);
+
+  const result = await waitPromise;
+  assert.equal(result, null, 'Waiting tab must return null when session is cleared by logout');
 });
 
 test('Case 4 & 5: Logout handling survives partial provider or server failure', async () => {

@@ -5,22 +5,27 @@ Guarantees:
 2. Operator Authorization: Requires explicit confirmation flag and an authorization key (min 32 chars).
 3. Secret Exposure Safeguard: Auth key is read from environment variable (EVAL_BOOTSTRAP_SECRET_KEY)
    to prevent credential leakage in process lists, command logs, and shell history.
-4. Independent Database Target Verification:
+4. Independent Database Target Verification (Fail-Closed):
    - Validates target database name against --expected-db-name when supplied.
-   - Strictly bars known production database names ("production", "prod", "main", "live").
-5. RLS Bypass & Multi-Tenant Isolation (Fail-Closed):
+   - Any query failure inspecting database identity fails closed.
+   - Strictly bars known default/production database names ("postgres", "production", "prod", "main", "live")
+     unless explicitly confirmed by operator.
+5. Migration Compatibility Enforcement:
+   - Requires the exact target Alembic revision "013_revoke_access_tokens".
+   - Stale, partial, or unexpected migration revisions are rejected immediately.
+6. RLS Bypass & Multi-Tenant Isolation (Fail-Closed):
    - Verifies connection has privileges to disable Row-Level Security (RLS) so foreign tenants cannot be hidden.
    - Confirms target database contains zero non-evaluation organisations (organisations.id != 'org_sme_eval').
    - Confirms target database contains zero foreign users (users.org_id != 'org_sme_eval').
-   - Confirms Alembic migration schema readiness (migration 010+ applied).
    - Any query or permission error fails closed immediately.
-6. Dry-Run / Verification Mode: Supports --dry-run / --verify-only to inspect target safety without writes.
-7. Clean Teardown Capability: Supports --teardown to cleanly purge evaluation data.
-
-LIMITATION NOTICE:
-Local synthetic verification proves code logic correctness but cannot independently prove cloud physical
-isolation. Operators must perform out-of-band preflight verification against the targeted Supabase project ref
-prior to hosted evaluation.
+7. Atomic Single-Transaction Bootstrap:
+   - All tenant, user, vendor, PO, GRN, and QC fixtures are staged in a single transaction.
+   - Any failure during provisioning triggers complete session rollback with zero partial state.
+8. Audit Immutability Protection & Disposable Database Lifecycle:
+   - Teardown strictly respects the database trigger "trg_audit_events_immutable".
+   - Refuses in-place deletion if immutable AuditEvent records exist, requiring a disposable database lifecycle
+     (drop and recreate evaluation database clone) rather than mutating append-only audit ledgers.
+9. Dry-Run / Verification Mode: Supports --dry-run / --verify-only to inspect target safety without writes.
 """
 
 from __future__ import annotations
@@ -57,6 +62,8 @@ from engine.sme_eval_setup import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("bootstrap_eval_db")
 
+EXPECTED_MIGRATION_REVISION = "013_revoke_access_tokens"
+
 
 def verify_evaluation_database_safety(
     session: Session,
@@ -69,10 +76,10 @@ def verify_evaluation_database_safety(
     1. Auth Key: Minimum 32 characters required.
     2. Explicit Database Identity: Database name must match expected_db_name if supplied.
     3. Production Identifier Guard: Rejects default production database identifiers.
-    4. RLS Privilege Verification: Role must be able to verify absence of hidden tenants.
-    5. Zero Foreign Organisations: If any organisation other than 'org_sme_eval' exists, abort immediately.
-    6. Zero Foreign Users: If any user not belonging to 'org_sme_eval' exists, abort immediately.
-    7. Schema Readiness: Alembic migration table must exist and be at least 010.
+    4. Migration Version Gate: Requires exact target revision '013_revoke_access_tokens'.
+    5. RLS Privilege Verification: Role must be able to verify absence of hidden tenants.
+    6. Zero Foreign Organisations: If any organisation other than 'org_sme_eval' exists, abort immediately.
+    7. Zero Foreign Users: If any user not belonging to 'org_sme_eval' exists, abort immediately.
     8. Any query or connection failure fails closed.
     """
     if not auth_key or len(auth_key.strip()) < 32:
@@ -80,7 +87,9 @@ def verify_evaluation_database_safety(
             "FATAL SAFETY VIOLATION: EVAL_BOOTSTRAP_SECRET_KEY must be provided and be at least 32 characters long."
         )
 
-    # 1. Independent Database Target & Role Inspection
+    dialect_name = getattr(getattr(session.bind, "dialect", None), "name", "")
+
+    # 1. Independent Database Target & Role Inspection (Fail-Closed)
     try:
         db_name = session.execute(text("SELECT current_database()")).scalar()
         db_user = session.execute(text("SELECT current_user")).scalar()
@@ -91,23 +100,35 @@ def verify_evaluation_database_safety(
                 f"FATAL SAFETY VIOLATION: Connected database '{db_name}' does not match expected evaluation database name '{expected_db_name}'."
             )
 
-        if db_name in ("production", "prod", "main", "live") and expected_db_name != db_name:
+        if db_name in ("postgres", "production", "prod", "main", "live") and expected_db_name != db_name:
             raise RuntimeError(
-                f"FATAL SAFETY VIOLATION: Database name '{db_name}' is a designated production identifier. "
+                f"FATAL SAFETY VIOLATION: Database name '{db_name}' is a designated default/production identifier. "
                 "Synthetic evaluation seeding is barred unless explicitly confirmed via --expected-db-name."
             )
     except Exception as exc:
         if "FATAL SAFETY VIOLATION" in str(exc):
             raise
-        logger.debug(f"current_database inspection skipped or unsupported on dialect ({exc}); continuing.")
+        # If running on PostgreSQL or if expected_db_name was specified, failure to query identity must fail closed
+        if dialect_name == "postgresql" or expected_db_name:
+            raise RuntimeError(
+                f"FATAL SAFETY VIOLATION: Failed to query database identity (current_database): {exc}. Aborting fails closed."
+            ) from exc
+        logger.debug(f"current_database inspection skipped on dialect '{dialect_name}'; continuing.")
 
-    # 2. Verify schema and migrations
+    # 2. Strict Migration Compatibility Enforcement
     try:
         rev = session.execute(text("SELECT version_num FROM alembic_version")).scalar()
         if not rev:
             raise RuntimeError("FATAL SAFETY VIOLATION: Database has not been initialized with Alembic migrations.")
-        logger.info(f"Target database Alembic migration revision: {rev}")
+        if rev != EXPECTED_MIGRATION_REVISION:
+            raise RuntimeError(
+                f"FATAL SAFETY VIOLATION: Database migration revision '{rev}' does not match expected target revision '{EXPECTED_MIGRATION_REVISION}'. "
+                "Rejecting stale or unexpected schema version."
+            )
+        logger.info(f"Target database Alembic migration revision verified: {rev}")
     except Exception as exc:
+        if "FATAL SAFETY VIOLATION" in str(exc):
+            raise
         raise RuntimeError(
             f"FATAL SAFETY VIOLATION: Could not verify database migration status: {exc}. Aborting fails closed."
         ) from exc
@@ -117,12 +138,12 @@ def verify_evaluation_database_safety(
         session.execute(text("SET LOCAL row_security = OFF;"))
     except Exception as exc:
         err_str = str(exc).lower()
-        if "permission denied" in err_str or "must be superuser" in err_str:
+        if "permission denied" in err_str or "must be superuser" in err_str or dialect_name == "postgresql":
             raise RuntimeError(
                 "FATAL SAFETY VIOLATION: Connection role lacks privileges to disable Row-Level Security (RLS). "
                 "RLS may mask foreign customer/production organisations. Run with table owner or superuser credentials."
             ) from exc
-        logger.debug(f"row_security configuration parameter not supported or non-postgres dialect ({exc}); proceeding.")
+        logger.debug(f"row_security parameter unsupported on dialect '{dialect_name}'; proceeding.")
 
     # 4. Check for foreign organisations (bypassing RLS with migration session)
     try:
@@ -162,8 +183,20 @@ def bootstrap_evaluation_workspace(
     auth_key: str,
     expected_db_name: Optional[str] = None,
 ) -> None:
-    """Idempotently initializes org_sme_eval reference fixtures for the 5 evaluation scenarios."""
+    """Atomically initializes org_sme_eval reference fixtures for the evaluation scenarios in a single transaction."""
     verify_evaluation_database_safety(session, auth_key, expected_db_name)
+
+    # Preserve environment and settings for clean restoration
+    orig_env = {
+        "ALLOW_SYNTHETIC_SEEDING": os.environ.get("ALLOW_SYNTHETIC_SEEDING"),
+        "IS_DEDICATED_EVALUATION_DATABASE": os.environ.get("IS_DEDICATED_EVALUATION_DATABASE"),
+        "EVAL_BOOTSTRAP_SECRET_KEY": os.environ.get("EVAL_BOOTSTRAP_SECRET_KEY"),
+    }
+    orig_settings = {
+        "ALLOW_SYNTHETIC_SEEDING": getattr(settings, "ALLOW_SYNTHETIC_SEEDING", False),
+        "IS_DEDICATED_EVALUATION_DATABASE": getattr(settings, "IS_DEDICATED_EVALUATION_DATABASE", False),
+        "EVAL_BOOTSTRAP_SECRET_KEY": getattr(settings, "EVAL_BOOTSTRAP_SECRET_KEY", None),
+    }
 
     # Configure runtime overrides for the session
     settings.ALLOW_SYNTHETIC_SEEDING = True
@@ -173,23 +206,36 @@ def bootstrap_evaluation_workspace(
     os.environ["IS_DEDICATED_EVALUATION_DATABASE"] = "true"
     os.environ["EVAL_BOOTSTRAP_SECRET_KEY"] = auth_key
 
-    logger.info("Initializing tenant and SME evaluation users...")
-    provision_tenant_and_users(session)
+    try:
+        logger.info("Initializing tenant and SME evaluation users...")
+        provision_tenant_and_users(session)
 
-    logger.info("Initializing synthetic vendor master records...")
-    provision_synthetic_vendors(session)
+        logger.info("Initializing synthetic vendor master records...")
+        provision_synthetic_vendors(session)
 
-    logger.info("Initializing synthetic purchase orders...")
-    provision_synthetic_purchase_orders(session)
+        logger.info("Initializing synthetic purchase orders...")
+        provision_synthetic_purchase_orders(session)
 
-    logger.info("Initializing synthetic goods receipts (GRNs)...")
-    provision_synthetic_goods_receipts(session)
+        logger.info("Initializing synthetic goods receipts (GRNs)...")
+        provision_synthetic_goods_receipts(session)
 
-    logger.info("Initializing synthetic quality inspections (QCs)...")
-    provision_synthetic_quality_controls(session)
+        logger.info("Initializing synthetic quality inspections (QCs)...")
+        provision_synthetic_quality_controls(session)
 
-    session.commit()
-    logger.info("Evaluation workspace bootstrap completed successfully.")
+        session.commit()
+        logger.info("Evaluation workspace bootstrap completed successfully in a single atomic transaction.")
+    except Exception as exc:
+        session.rollback()
+        logger.error(f"FATAL: Bootstrap failed during transaction; rolling back all staged changes: {exc}")
+        raise RuntimeError(f"FATAL: Evaluation bootstrap aborted and rolled back cleanly: {exc}") from exc
+    finally:
+        for k, v in orig_env.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        for k, v in orig_settings.items():
+            setattr(settings, k, v)
 
 
 def teardown_evaluation_workspace(
@@ -197,32 +243,56 @@ def teardown_evaluation_workspace(
     auth_key: str,
     expected_db_name: Optional[str] = None,
 ) -> None:
-    """Cleanly purges all org_sme_eval test fixtures and records."""
+    """Tears down org_sme_eval baseline fixtures, strictly respecting immutable audit events.
+
+    Invariants:
+    - If any AuditEvent records exist for org_sme_eval, in-place deletion is REFUSED to preserve
+      the database-level trigger 'trg_audit_events_immutable'. Evaluation environments must use
+      a disposable database lifecycle (drop and recreate clone) once audit transactions are recorded.
+    """
     verify_evaluation_database_safety(session, auth_key, expected_db_name)
 
-    logger.warning("Beginning clean teardown of evaluation workspace records...")
+    logger.warning("Inspecting evaluation workspace records for teardown...")
 
-    # Delete dependent child tables in reverse dependency order
-    session.execute(text("DELETE FROM audit_events WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM match_gate_checks WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM match_runs WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM approval_requests WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM exception_records WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM invoice_lines WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM invoices WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM goods_receipt_line_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM goods_receipt_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM quality_control_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM work_order_line_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM work_order_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM vendors WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM role_assignments WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM identity_memberships WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM users WHERE org_id = :org_id"), {"org_id": ORG_ID})
-    session.execute(text("DELETE FROM organisations WHERE id = :org_id"), {"org_id": ORG_ID})
+    try:
+        audit_count = session.execute(
+            text("SELECT count(*) FROM audit_events WHERE org_id = :org_id"),
+            {"org_id": ORG_ID}
+        ).scalar() or 0
+    except Exception:
+        audit_count = 0
 
-    session.commit()
-    logger.info("Evaluation workspace teardown completed cleanly.")
+    if audit_count > 0:
+        raise RuntimeError(
+            f"REFUSED: Evaluation workspace contains {audit_count} immutable AuditEvent records. "
+            "In-place deletion of audit_events is strictly prohibited by database-level immutability trigger 'trg_audit_events_immutable'. "
+            "Evaluation environments must follow a disposable database lifecycle: drop and recreate the dedicated evaluation database instance instead of mutating append-only audit ledgers."
+        )
+
+    # Delete dependent child tables in reverse dependency order (excluding audit_events)
+    try:
+        session.execute(text("DELETE FROM match_gate_checks WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM match_runs WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM approval_requests WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM exception_records WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM invoice_lines WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM invoices WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM goods_receipt_line_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM goods_receipt_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM quality_control_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM work_order_line_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM work_order_snapshots WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM vendors WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM role_assignments WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM identity_memberships WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM users WHERE org_id = :org_id"), {"org_id": ORG_ID})
+        session.execute(text("DELETE FROM organisations WHERE id = :org_id"), {"org_id": ORG_ID})
+
+        session.commit()
+        logger.info("Evaluation workspace baseline fixtures torn down cleanly.")
+    except Exception as exc:
+        session.rollback()
+        raise RuntimeError(f"FATAL: Teardown failed and was rolled back: {exc}") from exc
 
 
 def main() -> None:
@@ -270,7 +340,7 @@ def main() -> None:
     parser.add_argument(
         "--teardown",
         action="store_true",
-        help="Tears down and deletes all evaluation workspace records instead of seeding.",
+        help="Tears down baseline fixtures if no immutable audit events exist.",
     )
 
     args = parser.parse_args()

@@ -17,7 +17,7 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/v1/liveness
-    autoDeploy: true
+    autoDeploy: false
 
     envVars:
       # Application Environment

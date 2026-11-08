@@ -777,7 +777,7 @@ def provision_synthetic_purchase_orders(db) -> None:
                 )
                 db.add(line_rec)
 
-        db.commit()
+        db.flush()
         logger.info(f"Provisioned synthetic purchase orders and PO lines into {ORG_ID}.")
 
 
@@ -833,7 +833,7 @@ def provision_synthetic_goods_receipts(db) -> None:
                     rejected_quantity=max(0.0, rec_qty - acc_qty),
                 )
                 db.add(grn_line)
-        db.commit()
+        db.flush()
         logger.info(f"Provisioned synthetic goods receipts into {ORG_ID}.")
 
 
@@ -880,7 +880,7 @@ def provision_synthetic_quality_controls(db) -> None:
                         retrieved_at=now,
                     )
                     db.add(qc_rec)
-        db.commit()
+        db.flush()
         logger.info(f"Provisioned synthetic quality control records into {ORG_ID}.")
 
 
