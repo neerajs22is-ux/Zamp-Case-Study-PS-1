@@ -403,78 +403,21 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
       </div>
 
-      <InvoiceRunView key={invoiceId} invoiceId={invoiceId} onOutcome={async () => {
-        try {
-          const latest = await api.getInvoiceDetail(invoiceId);
-          setData((previous: any) => previous?.invoice?.id === invoiceId ? latest : previous);
-        }
-        catch { setActionError("The processing run changed, but the invoice result could not be refreshed. Reload before taking action."); }
-      }} />
-      <p className="text-xs text-slate-600 dark:text-slate-300" role="note">
-        Matching uses workspace procurement snapshots. Their source and freshness are not independently verified; confirm current records before deciding.
-      </p>
-      <section
-        className="review-recorded-outcome"
-        aria-label="Recorded decision and next step"
-      >
-        <div>
-          <h2>Recorded decision</h2>
-          {(invoice.job_status === "QUEUED" || invoice.job_status === "PROCESSING") && currentUser?.role && ["AP_ASSOCIATE", "AP_LEAD", "CONTROLLER", "SYSTEM_ADMIN"].includes(currentUser.role) && (
-            <Button variant="outline" disabled={actionLoading} onClick={async () => {
-              setActionLoading(true);
-              setActionError(null);
-              try {
-                await api.processNextDocument();
-                await loadDetail();
-              } catch (err: any) {
-                setActionError(err.message || "Could not resume processing. Try again.");
-              } finally {
-                setActionLoading(false);
-              }
-            }}>Resume workspace queue</Button>
-          )}
-          <strong>
-            {invoice.decision
-              ? invoice.decision.toLowerCase().replace(/_/g, " ")
-              : "Decision unavailable"}
-          </strong>
-          {invoice.decision_reason?.startsWith("Processing failed:") ? (
-            <>
-              <p>
-                The document could not be processed. Inspect the source and
-                available check results.
-              </p>
-              <details>
-                <summary>Technical processing details</summary>
-                <p>{invoice.decision_reason}</p>
-              </details>
-            </>
-          ) : (
-            <p>
-              {invoice.decision_reason ||
-                "No decision reason was returned. Inspect the available checks and evidence before making a decision."}
-            </p>
-          )}
-          <p>
-            Read the original document, compare the figures and inspect named
-            blockers. Processing checkpoints above show only persisted events;
-            missing events do not establish completion.
-          </p>
-          {invoice.workflow_substatus === "SUPPLIER_CORRECTION_REQUESTED" && (
-            <p>
-              Supplier follow-up is recorded internally. Your team must contact
-              the supplier outside this app; no correction email or
-              revised-document link is created automatically.
-            </p>
-          )}
-        </div>
-        <div>
-          <Button variant="outline" onClick={() => setPolicyDrawerOpen(true)}>
-            Inspect all checks
-          </Button>
-          {isAuditor && <p>Read-only role: inspect evidence and history.</p>}
-        </div>
-      </section>
+      {/* 2. Compact Status Summary (Collapsed by default for completed/held/rejected invoices) */}
+      <InvoiceRunView
+        key={invoiceId}
+        invoiceId={invoiceId}
+        invoiceStage={invoice.stage}
+        invoiceDecision={invoice.decision}
+        onOutcome={async () => {
+          try {
+            const latest = await api.getInvoiceDetail(invoiceId);
+            setData((previous: any) => previous?.invoice?.id === invoiceId ? latest : previous);
+          }
+          catch { setActionError("The processing run changed, but the invoice result could not be refreshed. Reload before taking action."); }
+        }}
+      />
+
       {/* Success Banner */}
       {actionSuccess && (
         <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center justify-between">
@@ -491,7 +434,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
       )}
 
-      {/* 2. Main 50/50 Workspace (Rossum Split Layout) */}
+      {/* 3. Main 50/50 Workspace (Rossum Split Layout) - Prioritized immediately at the top */}
       <div
         data-tour="workspace-split"
         className="review-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
@@ -872,6 +815,68 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           )}
         </div>
       </div>
+
+      {/* 4. Recorded Decision & Procurement Reference Details (Placed below workspace) */}
+      <section
+        className="review-recorded-outcome"
+        aria-label="Recorded decision and next step"
+      >
+        <div>
+          <h2>Recorded decision & next steps</h2>
+          {(invoice.job_status === "QUEUED" || invoice.job_status === "PROCESSING") && currentUser?.role && ["AP_ASSOCIATE", "AP_LEAD", "CONTROLLER", "SYSTEM_ADMIN"].includes(currentUser.role) && (
+            <Button variant="outline" disabled={actionLoading} onClick={async () => {
+              setActionLoading(true);
+              setActionError(null);
+              try {
+                await api.processNextDocument();
+                await loadDetail();
+              } catch (err: any) {
+                setActionError(err.message || "Could not resume processing. Try again.");
+              } finally {
+                setActionLoading(false);
+              }
+            }}>Resume workspace queue</Button>
+          )}
+          <strong>
+            {invoice.decision
+              ? invoice.decision.toLowerCase().replace(/_/g, " ")
+              : "Decision unavailable"}
+          </strong>
+          {invoice.decision_reason?.startsWith("Processing failed:") ? (
+            <>
+              <p>
+                The document could not be processed. Inspect the source and
+                available check results.
+              </p>
+              <details>
+                <summary>Technical processing details</summary>
+                <p>{invoice.decision_reason}</p>
+              </details>
+            </>
+          ) : (
+            <p>
+              {invoice.decision_reason ||
+                "No decision reason was returned. Inspect the available checks and evidence before making a decision."}
+            </p>
+          )}
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+            Matching uses workspace procurement snapshots. Their source and freshness are not independently verified; confirm current records before deciding. Processing checkpoints show persisted events; missing events do not establish completion.
+          </p>
+          {invoice.workflow_substatus === "SUPPLIER_CORRECTION_REQUESTED" && (
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+              Supplier follow-up is recorded internally. Your team must contact
+              the supplier outside this app; no correction email or
+              revised-document link is created automatically.
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => setPolicyDrawerOpen(true)}>
+            Inspect all checks
+          </Button>
+          {isAuditor && <p className="text-xs text-slate-400">Read-only role: inspect evidence and history.</p>}
+        </div>
+      </section>
 
       {/* Slide-Over Drawer: Policy Validation Gates */}
       <Drawer

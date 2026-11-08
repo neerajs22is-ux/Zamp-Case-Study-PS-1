@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { pollRun } from '../utils/runPolling';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Layers,
+} from 'lucide-react';
+import { Badge } from './ui';
 import './InvoiceRunView.css';
 
 export interface ProcessingEvent {
@@ -24,6 +35,7 @@ export interface ProcessingSnapshot {
     lease_expired: boolean;
     completed_at: string | null;
     error_recorded: boolean;
+    error_message?: string | null;
     events: ProcessingEvent[];
   }[];
 }
@@ -44,13 +56,20 @@ const time = (value?: string | null) => {
 export function InvoiceRunView({
   invoiceId,
   onOutcome,
+  invoiceStage,
+  invoiceDecision,
 }: {
   invoiceId: string;
   onOutcome: () => void;
+  invoiceStage?: string | null;
+  invoiceDecision?: string | null;
 }) {
   const [snapshot, setSnapshot] = useState<ProcessingSnapshot | null>(null);
   const [connection, setConnection] = useState('Loading recorded checkpoints…');
   const [refresh, setRefresh] = useState(0);
+  // Collapsed by default for completed, rejected, held, or finished invoices
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
   const callback = useRef(onOutcome);
   useEffect(() => {
     callback.current = onOutcome;
@@ -90,108 +109,270 @@ export function InvoiceRunView({
     [invoiceId, refresh],
   );
 
+  const latestJob = snapshot?.jobs[0];
+  const allEvents = snapshot?.jobs.flatMap((j) => j.events) || [];
+  const totalEvents = allEvents.length;
+
+  const latestOutcomeEvent = allEvents.slice().reverse().find((e) => e.outcome);
+  const outcome = latestOutcomeEvent?.outcome;
+
+  const isCompleted = latestJob?.status === 'COMPLETED';
+  const isFailed =
+    latestJob?.status === 'FAILED' ||
+    Boolean(latestJob?.error_message || latestJob?.error_recorded);
+  const isQueued = latestJob?.status === 'QUEUED';
+  const isProcessing = latestJob?.status === 'PROCESSING';
+
+  const completedTime = latestJob?.completed_at
+    ? time(latestJob.completed_at)
+    : null;
+  const jobError =
+    latestJob?.error_message ||
+    (latestJob?.error_recorded
+      ? 'An error was recorded during processing.'
+      : null);
+
+  const statusTone = isCompleted
+    ? 'success'
+    : isFailed
+      ? 'error'
+      : isProcessing
+        ? 'info'
+        : isQueued
+          ? 'warning'
+          : 'neutral';
+
   return (
-    <section className="invoice-run" aria-labelledby="invoice-run-title">
-      <div className="invoice-run-heading">
-        <h2 id="invoice-run-title">Processing run</h2>
-        <button type="button" onClick={() => setRefresh((value) => value + 1)}>
-          Refresh checkpoints
-        </button>
-      </div>
-      <p>
-        Recorded checkpoints, refreshed while processing. Gaps do not confirm
-        completion. Extraction includes grounding and validation; a returned
-        result may still require review.
-      </p>
-      <p role="status">{connection}</p>
-      {snapshot && snapshot.jobs.length === 0 && (
-        <p>
-          No processing job or stage events are available for this invoice.
-          Inspect its recorded decision and history below.
-        </p>
-      )}
-      {snapshot?.jobs.map((job) => (
-        <div key={job.id} className="invoice-run-job">
-          <h3>
-            {words(job.status)} · {job.id}
-          </h3>
-          <p>
-            Created{' '}
-            <time dateTime={job.created_at}>{time(job.created_at)}</time> ·
-            Failed or interrupted attempts: {job.retry_count}
-            {job.completed_at && (
-              <>
-                {' '}
-                · Completed{' '}
-                <time dateTime={job.completed_at}>
-                  {time(job.completed_at)}
-                </time>
-              </>
-            )}
-          </p>
-          {job.status === 'QUEUED' && (
-            <p>
-              Waiting for a worker. An authorized operator can resume the
-              workspace queue below; this may process another queued invoice
-              first.
-            </p>
-          )}
-          {job.lease_expired && (
-            <p role="status">
-              Worker lease expired. Completion is unconfirmed; an authorized
-              operator must resume the workspace queue to recover this attempt.
-            </p>
-          )}
-          {job.status === 'FAILED' && (
-            <p role="status">
-              Processing stopped after failure. Review the evidence and contact
-              an administrator with this job ID.
-            </p>
-          )}
-          {job.error_recorded &&
-            !job.events.some(
-              (event) =>
-                event.status === 'FAILED' || event.status === 'INTERRUPTED',
-            ) && (
-              <p>
-                An earlier error is recorded, but no structured error checkpoint
-                is available.
-              </p>
-            )}
-          {job.events.length === 0 ? (
-            <p>
-              No stage events were recorded for this job. Its status does not
-              establish which stages completed.
-            </p>
+    <section
+      className="invoice-run-container border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 shadow-2xs overflow-hidden transition-all duration-150"
+      aria-label="Processing run status"
+    >
+      {/* 1. Compact Status Summary Bar (Always visible) */}
+      <div className="invoice-run-summary flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 sm:px-4">
+        <div className="flex items-center gap-2.5 flex-wrap min-w-0">
+          {/* Status Icon */}
+          {isCompleted ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          ) : isFailed ? (
+            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+          ) : isProcessing ? (
+            <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin shrink-0" />
+          ) : isQueued ? (
+            <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
           ) : (
-            <ol>
-              {job.events.map((event) => (
-                <li key={event.id}>
-                  <div>
-                    <strong>
-                      {words(event.stage)} · {words(event.status)}
-                    </strong>{' '}
-                    · {event.attempt === 0 ? 'Intake' : `Attempt ${event.attempt}`}{' '}
-                    ·{' '}
-                    <time dateTime={event.timestamp}>
-                      {time(event.timestamp)}
-                    </time>
-                  </div>
-                  <p>{event.message || '—'}</p>
-                  {event.outcome && (
-                    <p>
-                      Recorded processing outcome:{' '}
-                      {words(event.outcome.decision)} (
-                      {words(event.outcome.stage)}). Later human decisions remain
-                      in invoice history.
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ol>
+            <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+          )}
+
+          {/* Status Badge */}
+          <Badge tone={statusTone} size="sm">
+            {latestJob ? words(latestJob.status).toUpperCase() : 'QUEUED'}
+          </Badge>
+
+          {/* Processing Outcome Description */}
+          <span className="font-semibold text-xs text-slate-800 dark:text-slate-100 truncate">
+            {outcome
+              ? `Outcome: ${words(outcome.decision)} (${words(outcome.stage)})`
+              : invoiceDecision
+                ? `Recorded decision: ${words(invoiceDecision)}${invoiceStage ? ` (${words(invoiceStage)})` : ''}`
+                : isCompleted
+                  ? 'Extraction and matching completed'
+                  : isProcessing
+                    ? 'Extraction and verification in progress…'
+                    : 'Queued for processing'}
+          </span>
+
+          <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">
+            •
+          </span>
+
+          {/* Completion Time & Checkpoints Count */}
+          <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+            {completedTime
+              ? `Completed ${completedTime}`
+              : isProcessing
+                ? 'Processing active'
+                : 'Intake registered'}
+            {totalEvents > 0 &&
+              ` · ${totalEvents} checkpoint${totalEvents === 1 ? '' : 's'} recorded`}
+          </span>
+
+          {/* Error Message Pill if present */}
+          {jobError && (
+            <span className="text-rose-600 dark:text-rose-400 font-medium px-2 py-0.5 rounded bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-[11px]">
+              {jobError}
+            </span>
           )}
         </div>
-      ))}
+
+        {/* Action Toggle Button */}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer"
+            aria-expanded={isExpanded}
+            aria-controls="invoice-run-history"
+          >
+            <Layers className="w-3.5 h-3.5 text-slate-400" />
+            <span>
+              {isExpanded
+                ? 'Hide Processing History'
+                : 'View Processing History'}
+            </span>
+            {isExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Expandable Full Processing History (Only visible when toggled open) */}
+      {isExpanded && (
+        <div
+          id="invoice-run-history"
+          className="invoice-run-details border-t border-slate-200 dark:border-slate-800 p-4 sm:p-5 bg-slate-50/50 dark:bg-slate-950/40 space-y-4"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200/80 dark:border-slate-800">
+            <div>
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>Checkpoint History & Pipeline Trace</span>
+                <span className="text-xs font-normal text-slate-500">
+                  ({totalEvents} recorded events)
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                Recorded checkpoints refreshed while processing. Extraction
+                includes grounding and validation.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className="text-[11px] text-slate-400" role="status">
+                {connection}
+              </span>
+              <button
+                type="button"
+                onClick={() => setRefresh((value) => value + 1)}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3" />
+                <span>Refresh checkpoints</span>
+              </button>
+            </div>
+          </div>
+
+          {snapshot && snapshot.jobs.length === 0 && (
+            <p className="text-xs text-slate-400 italic py-2">
+              No processing job or stage events are available for this invoice.
+            </p>
+          )}
+
+          {snapshot?.jobs.map((job) => (
+            <div
+              key={job.id}
+              className="p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                <span className="font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2 font-mono">
+                  <span>Job: {job.id}</span>
+                  <Badge tone={statusTone} size="sm">
+                    {words(job.status)}
+                  </Badge>
+                </span>
+                <span className="text-slate-500 text-[11px]">
+                  Created {time(job.created_at)} · Retries: {job.retry_count}
+                  {job.completed_at && ` · Completed ${time(job.completed_at)}`}
+                </span>
+              </div>
+
+              {job.status === 'QUEUED' && (
+                <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-200 dark:border-amber-900">
+                  Waiting for an active background worker. An authorized
+                  operator can resume the workspace queue.
+                </p>
+              )}
+
+              {job.lease_expired && (
+                <p
+                  role="status"
+                  className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-200 dark:border-amber-900"
+                >
+                  Worker lease expired. Completion is unconfirmed; resume queue
+                  to recover.
+                </p>
+              )}
+
+              {job.status === 'FAILED' && (
+                <p
+                  role="status"
+                  className="text-xs text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 p-2 rounded border border-rose-200 dark:border-rose-900"
+                >
+                  Processing stopped after failure. Review the evidence and
+                  contact an administrator.
+                </p>
+              )}
+
+              {job.events.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">
+                  No stage events recorded for this job.
+                </p>
+              ) : (
+                <ol className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                  {job.events.map((event) => (
+                    <li
+                      key={event.id}
+                      className="py-2.5 first:pt-1 last:pb-1 space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                          <strong className="font-semibold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px]">
+                            {words(event.stage)}
+                          </strong>
+                          <span className="text-slate-400">·</span>
+                          <span className="text-slate-600 dark:text-slate-300 font-mono text-[11px]">
+                            {words(event.status)}
+                          </span>
+                          <span className="text-slate-400">·</span>
+                          <span className="text-slate-500 text-[11px]">
+                            {event.attempt === 0
+                              ? 'Intake'
+                              : `Attempt ${event.attempt}`}
+                          </span>
+                        </div>
+                        <time
+                          dateTime={event.timestamp}
+                          className="text-[11px] font-mono text-slate-400"
+                        >
+                          {time(event.timestamp)}
+                        </time>
+                      </div>
+                      <p className="text-slate-600 dark:text-slate-400 text-xs pl-3.5">
+                        {event.message || '—'}
+                      </p>
+                      {event.outcome && (
+                        <div className="pl-3.5 text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50/70 dark:bg-indigo-950/40 p-2 rounded mt-1 border border-indigo-100 dark:border-indigo-900">
+                          <span className="font-semibold">
+                            Recorded processing outcome:
+                          </span>{' '}
+                          {words(event.outcome.decision)} (
+                          {words(event.outcome.stage)})
+                          {event.outcome.reason && (
+                            <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                              {event.outcome.reason}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
