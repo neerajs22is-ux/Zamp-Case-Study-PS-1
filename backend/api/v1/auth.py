@@ -148,6 +148,11 @@ def create_dev_session(
                 detail="Database connection unavailable.",
             )
 
+        if payload.org_id:
+            set_tenant_context(db, payload.org_id)
+        else:
+            db.info["skip_role_restriction"] = True
+
         user_query = select(User).where(func.lower(User.email) == clean_email)
         if payload.org_id:
             user_query = user_query.where(User.org_id == payload.org_id)

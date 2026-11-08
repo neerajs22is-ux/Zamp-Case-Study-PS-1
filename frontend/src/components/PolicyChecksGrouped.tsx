@@ -122,15 +122,67 @@ export const GATE_KNOWLEDGE_BASE: Record<string, GateExplanation> = {
   },
 };
 
+export const CANONICAL_GATES: {
+  gate_number: number;
+  gate_name: string;
+}[] = [
+  { gate_number: 1, gate_name: "Vendor Identity Registered" },
+  { gate_number: 2, gate_name: "PO Authorization Valid" },
+  { gate_number: 3, gate_name: "GRN Receipt Confirmed" },
+  { gate_number: 4, gate_name: "QC Inspection Accepted" },
+  { gate_number: 5, gate_name: "GST Arithmetic Reconciled" },
+  { gate_number: 6, gate_name: "PO Price & Quantity Tolerance" },
+  { gate_number: 7, gate_name: "Duplicate Invoice Check" },
+];
+
 interface PolicyChecksGroupedProps {
-  matchGates: any[];
+  matchGates?: any[];
   onOpenGlossary?: (term?: string) => void;
 }
 
 export const PolicyChecksGrouped: React.FC<PolicyChecksGroupedProps> = ({
-  matchGates,
+  matchGates = [],
   onOpenGlossary,
 }) => {
+  const safeGates = Array.isArray(matchGates) ? matchGates : [];
+
+  // Normalize gates to guarantee all 7 canonical matching gates are present
+  const effectiveGates: any[] = CANONICAL_GATES.map((cg) => {
+    const found = safeGates.find(
+      (mg) =>
+        mg.gate_name?.trim().toLowerCase() === cg.gate_name.toLowerCase() ||
+        mg.gate_number === cg.gate_number,
+    );
+    if (found) {
+      return {
+        ...found,
+        gate_number: found.gate_number ?? cg.gate_number,
+        gate_name: cg.gate_name,
+      };
+    }
+    return {
+      gate_number: cg.gate_number,
+      gate_name: cg.gate_name,
+      status: "NOT_EVALUATED",
+      notes:
+        "This check has not been evaluated for this invoice yet. Processing may be queued or awaiting intake completion.",
+      evidence_source_id: null,
+      checked_at: null,
+    };
+  });
+
+  // Preserve any additional non-canonical gates returned by the backend (e.g. Gate 8)
+  const canonicalNamesLower = new Set(
+    CANONICAL_GATES.map((cg) => cg.gate_name.toLowerCase()),
+  );
+  const extraGates = safeGates.filter(
+    (mg) =>
+      !canonicalNamesLower.has(mg.gate_name?.trim().toLowerCase() || "") &&
+      !CANONICAL_GATES.some((cg) => cg.gate_number === mg.gate_number),
+  );
+
+  const allGates = [...effectiveGates, ...extraGates];
+
   const groups = [
     {
       title: "Supplier identity & duplicates",
@@ -147,52 +199,62 @@ export const PolicyChecksGrouped: React.FC<PolicyChecksGroupedProps> = ({
     },
     { title: "Amounts & tax", names: ["GST Arithmetic Reconciled"] },
   ];
-  const known = groups.flatMap((group) => group.names);
-  groups.push({
-    title: "Other returned checks",
-    names: matchGates
-      .filter((gate) => !known.includes(gate.gate_name))
-      .map((gate) => gate.gate_name),
-  });
-  const tone = (status: unknown) =>
-    checkResultKind(status) === "passed"
-      ? "success"
-      : checkResultKind(status) === "failed"
-        ? "error"
-        : "neutral";
+
+  if (extraGates.length > 0) {
+    groups.push({
+      title: "Other returned checks",
+      names: extraGates.map((gate) => gate.gate_name || `Gate ${gate.gate_number}`),
+    });
+  }
+
+  const tone = (status: unknown) => {
+    const kind = checkResultKind(status);
+    if (kind === "passed") return "success";
+    if (kind === "failed") return "error";
+    if (kind === "pending") return "warning";
+    return "neutral";
+  };
+
   const anchor = (index: number) => `invoice-policy-check-${index}`;
+
   return (
     <div className="checks-report">
       <header className="checks-report-heading">
         <h3>What was checked, and what happened?</h3>
-        <p role="status">{summarizeCheckResults(matchGates)}</p>
+        <p role="status">{summarizeCheckResults(allGates)}</p>
         <p>
-          Each check shows its purpose, why it matters and the result returned
-          for this invoice. Unknown, unavailable and not evaluated results do
+          Each check shows its purpose, why it matters, and the result returned
+          for this invoice. Unknown, unavailable, and not evaluated results do
           not mean passed.
         </p>
       </header>
-      {matchGates.length === 0 ? (
-        <p>
-          No check results were returned. Inspect the original document and
-          recorded processing status.
-        </p>
-      ) : (
-        <nav aria-label="Check results overview" className="checks-overview">
-          {matchGates.map((gate, index) => (
-            <a key={index} href={`#${anchor(index)}`}>
-              <span>
-                {gate.gate_name || `Check ${gate.gate_number ?? index + 1}`}
-              </span>
-              <Badge tone={tone(gate.status)}>
-                {checkResultKind(gate.status)}
-              </Badge>
-            </a>
-          ))}
-        </nav>
-      )}
+
+      <nav aria-label="Check results overview" className="checks-overview divide-y divide-slate-100 dark:divide-slate-800">
+        {allGates.map((gate, index) => (
+          <button
+            key={index}
+            type="button"
+            onClick={() => {
+              const el = document.getElementById(anchor(index));
+              if (el) {
+                el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+              }
+            }}
+            className="flex items-center justify-between w-full text-left py-2.5 px-0 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer bg-transparent"
+          >
+            <span className="font-medium text-xs sm:text-sm truncate pr-2">
+              {gate.gate_number != null ? `${gate.gate_number}. ` : ""}
+              {gate.gate_name || `Check ${index + 1}`}
+            </span>
+            <Badge tone={tone(gate.status)}>
+              {checkResultKind(gate.status)}
+            </Badge>
+          </button>
+        ))}
+      </nav>
+
       {groups.map((group) => {
-        const gates = matchGates
+        const gates = allGates
           .map((gate, index) => ({ gate, index }))
           .filter(({ gate }) => group.names.includes(gate.gate_name));
         if (!gates.length) return null;

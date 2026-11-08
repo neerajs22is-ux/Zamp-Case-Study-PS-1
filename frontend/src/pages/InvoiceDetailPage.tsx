@@ -87,13 +87,25 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     setShowGlossary(true);
   };
 
-  const dualApprovalThreshold =
-    data?.policy?.dual_approval_threshold_inr ||
-    data?.approval?.threshold_inr ||
+  const rawThreshold =
+    data?.policy?.dual_approval_threshold_inr ??
+    data?.approval?.threshold_inr ??
     DEFAULT_POLICY.dual_approval_threshold_inr;
-  const rateTolerancePercent =
-    data?.policy?.rate_tolerance_percent ||
+  const dualApprovalThreshold = Number.isFinite(Number(rawThreshold))
+    ? Number(rawThreshold)
+    : 500000;
+
+  const rawTolerance =
+    data?.policy?.rate_tolerance_percent ??
     DEFAULT_POLICY.rate_tolerance_percent;
+  const rateTolerancePercent = Number.isFinite(Number(rawTolerance))
+    ? Number(rawTolerance)
+    : 1.5;
+
+  // Always reset drawer state when switching invoices
+  useEffect(() => {
+    setPolicyDrawerOpen(false);
+  }, [invoiceId]);
 
   const loadDetail = async () => {
     setLoading(true);

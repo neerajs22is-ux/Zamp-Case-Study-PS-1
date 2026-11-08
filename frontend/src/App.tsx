@@ -17,6 +17,7 @@ import { OnboardingPage } from './pages/OnboardingPage';
 import { api, clearSession, setSession, getAuthToken } from './api/client';
 import { oauthCallbackParams, supabaseLogout } from './utils/oauth';
 import type { AuthenticatedUser, HealthResponse } from './types';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Route Wrapper for Invoice Detail with URL parameter binding
 const InvoiceDetailWrapper: React.FC<{ user: AuthenticatedUser | null }> = ({ user }) => {
@@ -28,11 +29,14 @@ const InvoiceDetailWrapper: React.FC<{ user: AuthenticatedUser | null }> = ({ us
   }
 
   return (
-    <InvoiceDetailPage
-      invoiceId={id}
-      onBack={() => navigate('/invoices')}
-      currentUser={user}
-    />
+    <ErrorBoundary fallbackTitle="Invoice Detail Unavailable" onReset={() => navigate('/invoices')}>
+      <InvoiceDetailPage
+        key={id}
+        invoiceId={id}
+        onBack={() => navigate('/invoices')}
+        currentUser={user}
+      />
+    </ErrorBoundary>
   );
 };
 

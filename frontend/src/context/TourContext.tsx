@@ -195,6 +195,7 @@ export const TourProvider: React.FC<{
 
   // Welcome modal state
   const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(false);
+  const explicitlyOpenedRef = useRef<boolean>(false);
 
   // Tour state
   const [isTourActive, setIsTourActive] = useState<boolean>(false);
@@ -209,8 +210,19 @@ export const TourProvider: React.FC<{
     "screen" | "overview" | "glossary" | "faq"
   >("screen");
 
-  // Check initial visit on mount
+  // Automatically dismiss or prevent welcome modal when navigating away from Today/Home
   useEffect(() => {
+    const isHome = location.pathname === "/" || location.pathname === "/today";
+    if (!isHome && !explicitlyOpenedRef.current) {
+      setIsWelcomeOpen(false);
+    }
+  }, [location.pathname]);
+
+  // Check initial visit on mount and landing
+  useEffect(() => {
+    const isHome = location.pathname === "/" || location.pathname === "/today";
+    if (!isHome) return;
+
     try {
       const welcomeDismissed = localStorage.getItem(
         onboardingStorageKey(
@@ -227,20 +239,29 @@ export const TourProvider: React.FC<{
         ),
       );
       if (!welcomeDismissed && !tourCompleted) {
-        // Small delay so the page loads cleanly first
+        // Appears promptly on landing (100ms) rather than lagging behind user navigation
         const timer = setTimeout(() => {
-          setIsWelcomeOpen(true);
-        }, 600);
+          if (location.pathname === "/" || location.pathname === "/today") {
+            setIsWelcomeOpen(true);
+          }
+        }, 100);
         return () => clearTimeout(timer);
       }
     } catch {
       // Ignore localStorage restrictions
     }
-  }, [currentUser.id, currentUser.org_id]);
+  }, [currentUser.id, currentUser.org_id, location.pathname]);
 
-  const openWelcome = useCallback(() => setIsWelcomeOpen(true), []);
-  const closeWelcome = useCallback(() => setIsWelcomeOpen(false), []);
+  const openWelcome = useCallback(() => {
+    explicitlyOpenedRef.current = true;
+    setIsWelcomeOpen(true);
+  }, []);
+  const closeWelcome = useCallback(() => {
+    explicitlyOpenedRef.current = false;
+    setIsWelcomeOpen(false);
+  }, []);
   const dismissWelcomeForever = useCallback(() => {
+    explicitlyOpenedRef.current = false;
     setIsWelcomeOpen(false);
     try {
       localStorage.setItem(

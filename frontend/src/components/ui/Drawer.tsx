@@ -53,11 +53,11 @@ export const Drawer: React.FC<DrawerProps> = ({
       />
 
       {/* Drawer Container */}
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10">
+      <div className="fixed inset-y-0 right-0 flex max-w-full pl-10 pointer-events-none">
         <div
           ref={panelRef}
           tabIndex={-1}
-          className={`product-dialog w-screen ${widthStyles[width]} bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col h-full z-10 transition-transform ${className}`}
+          className={`product-dialog w-screen ${widthStyles[width]} bg-white dark:bg-slate-900 shadow-2xl border-l border-slate-200 dark:border-slate-800 flex flex-col h-full z-10 transition-transform pointer-events-auto ${className}`}
         >
           {/* Header */}
           <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3 shrink-0">
