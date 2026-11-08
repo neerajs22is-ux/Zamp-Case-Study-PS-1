@@ -220,6 +220,7 @@ def auth_status() -> Dict[str, Any]:
     """Returns the current Identity Provider configuration status."""
     res = check_idp_health()
     res["supabase_url"] = settings.SUPABASE_URL
+    res["supabase_anon_key"] = settings.SUPABASE_ANON_KEY
     res["dev_session_enabled"] = settings.ENABLE_DEV_SESSION and settings.APP_ENV in (AppEnv.DEVELOPMENT, AppEnv.TEST)
     return res
 

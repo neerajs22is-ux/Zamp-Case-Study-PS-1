@@ -130,7 +130,7 @@ python -m pytest tests/
 ```
 
 ### Verified Test Results Summary:
-- **Full Project Test Suite:** **404 passed, 43 skipped, 0 failed** in 37.09s (`tests/`)  
+- **Full Project Local Test Suite:** **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest tests/`)  
   *(Skipped tests require live PostgreSQL isolation fixtures or external Gmail network probes).*
 - **Hardening & Remediation Suite:** **27 passed, 0 failed** in 2.31s (`tests/test_hardening.py`)
   - Degradation scan boundary with authentic watermark stamps and zero typed artifact strings

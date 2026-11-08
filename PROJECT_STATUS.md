@@ -43,7 +43,7 @@ This document provides an authoritative, truthful accounting of completed milest
    - Filterable Invoice Inbox table.
    - 3-Pane Review Workspace (Document PDF Evidence, Line Reconciliation & GST Math, Match Gates & Actions).
    - Connections and Quarantined Documents ledger.
-   - Enterprise authentication screen with dev-session quick logins.
+   - Enterprise authentication screen supporting Supabase Email OTP (one-time passcode) and Google OAuth, with dev-session quick logins strictly restricted to local loopback development.
 5. **Database & Persistence (`supabase/` & `alembic/`):**
    - PostgreSQL 15 schema with Alembic migrations.
    - Connection separation: Port 6543 (transaction pooler) vs Port 5432 (direct DDL / migrations).
@@ -108,14 +108,14 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ### Current Technical Verification & Findings Ledger:
 1. **Provider Acceptance Report (Nov 6):** **`[HISTORICALLY VERIFIED]`** Real execution of 5 cases using 4 live AWS Mantle Qwen-235B calls; resources were ephemerally cleaned up.
-2. **`render.yaml` Configuration:** **`[CONFIRMED]`** Currently omits production-required `STORAGE_BUCKET_NAME`; must be added before public Render deployment.
-3. **Database Migration State:** **`[CONFIRMED]`** (Observed 8 November 2026) Persistent Supabase PostgreSQL database reported migration `010_identity_memberships`. Applying migrations `011`–`013` is a P0 blocker to resolve `revoked_access_tokens` UndefinedTable 503 errors. (Distinct from the ephemeral Nov 6 acceptance database).
-4. **Safety Guard in `sme_eval_setup.py`:** **`[CONFIRMED]`** Checks nonexistent `settings.ENVIRONMENT` instead of `settings.APP_ENV`; must be corrected.
-5. **Evaluator Authentication:** **`[CONFIRMED]`** Public `dev-session` is strictly disabled by design; a dedicated, safe hosted demo evaluation mode scoped to `org_sme_eval` will be implemented.
+2. **`render.yaml` Configuration:** **`[CONFIRMED & REMEDIATED in commit d6f03d0]`** Added `STORAGE_BUCKET_NAME: invoices` to render.yaml.
+3. **Database Migration State:** **`[CONFIRMED]`** Persistent Supabase PostgreSQL database reported migration `010_identity_memberships`. Applying migrations `011`–`013` per `docs/MIGRATION_READINESS_PROCEDURE.md` is a P0 requirement before live traffic to resolve `revoked_access_tokens`.
+4. **Safety Guard in `sme_eval_setup.py`:** **`[CONFIRMED & REMEDIATED in commits d6f03d0 & 8979bce & current]`** Checks `settings.APP_ENV`, requires `ALLOW_SYNTHETIC_SEEDING=True`, enforces cloud host blocklist, and restricts non-loopback databases to verified disposable targets with authentication keys.
+5. **Evaluator Authentication:** **`[CONFIRMED & REMEDIATED]`** Shared-JWT URL links rejected. Frontend implements provider-supported Supabase Email OTP and Google OAuth; loopback `dev-session` strictly barred in production.
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
 7. **Persisted Processing Run View:** **`[CONFIRMED]`** `InvoiceRunView.tsx` consumes actual persisted PostgreSQL audit checkpoints from `backend/core/processing_events.py`.
 8. **Modality Boundary:** **`[CONFIRMED]`** Production hybrid pipeline routes degraded scans fail-closed to `FLAGGED_HITL_REVIEW`. Palmyra Vision was evaluated in a separate benchmark harness and remains feature-flagged OFF in production.
-9. **Test Suite Accounting:** Current canonical test results: **404 passed, 43 skipped, 0 failed** in 37.09s (`pytest tests/`).
+9. **Test Suite Accounting:** Current canonical local regression test results: **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest tests/`).
 10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
 
 ### Prioritized Roadmap to Submission:

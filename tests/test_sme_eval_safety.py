@@ -100,7 +100,7 @@ def test_assert_database_target_safe_blocks_foreign_organisations(monkeypatch):
     monkeypatch.setattr(settings, "APP_ENV", AppEnv.DEVELOPMENT)
     monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
     mock_db = MagicMock()
-    mock_db.info = {"is_isolated_test_db": True}
+    mock_db.bind.dialect.name = "sqlite"
     # Simulate finding 2 real organisations in database
     mock_db.scalar.return_value = 2
 
@@ -108,27 +108,80 @@ def test_assert_database_target_safe_blocks_foreign_organisations(monkeypatch):
         assert_database_target_safe(mock_db)
 
 
-def test_assert_database_target_safe_blocks_missing_isolation_marker(monkeypatch):
-    """Database lacking explicit isolation setting or session marker fails closed."""
+def test_assert_database_target_safe_allows_sqlite_local(monkeypatch):
+    """SQLite database session (in-memory or local) is cleanly verified safe for development/test."""
     monkeypatch.setattr(settings, "APP_ENV", AppEnv.DEVELOPMENT)
     monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
     mock_db = MagicMock()
-    mock_db.info = {}
-    mock_db.scalar.return_value = 0  # 0 foreign orgs, but no isolation marker
+    mock_db.bind.dialect.name = "sqlite"
+    mock_db.scalar.return_value = 0
 
-    with pytest.raises(RuntimeError, match="Target database lacks verified isolation marker"):
-        assert_database_target_safe(mock_db)
+    assert_database_target_safe(mock_db)
 
 
-def test_assert_database_target_safe_passes_with_verified_isolated_session(monkeypatch):
-    """Seeding succeeds when all 4 conditions are met: env, flag, 0 foreign orgs, and isolation marker."""
+@pytest.mark.parametrize("cloud_host", [
+    "aws-0-ap-south-1.pooler.supabase.com",
+    "project-ref.supabase.co",
+    "production-db.rds.amazonaws.com",
+    "dpg-cr2q39k8fa.oregon-postgres.render.com",
+    "ep-shy-voice-123456.us-east-2.aws.neon.tech",
+    "mydb.elephantsql.com",
+])
+def test_assert_database_target_safe_blocks_cloud_production_hosts(monkeypatch, cloud_host):
+    """Targeting any cloud database host fails closed even with ALLOW_SYNTHETIC_SEEDING=True and dev markers."""
     monkeypatch.setattr(settings, "APP_ENV", AppEnv.DEVELOPMENT)
     monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
     mock_db = MagicMock()
     mock_db.info = {"is_isolated_test_db": True}
-    mock_db.scalar.return_value = 0  # 0 foreign orgs
+    mock_db.bind.dialect.name = "postgresql"
+    mock_db.bind.url.host = cloud_host
+    mock_db.scalar.return_value = 0
 
-    assert_database_target_safe(mock_db)  # Must not raise
+    with pytest.raises(RuntimeError, match="Target database host matches cloud/production host signature"):
+        assert_database_target_safe(mock_db)
+
+
+def test_assert_database_target_safe_allows_localhost_loopback(monkeypatch):
+    """Localhost / loopback PostgreSQL target is allowed for local development evaluation."""
+    monkeypatch.setattr(settings, "APP_ENV", AppEnv.DEVELOPMENT)
+    monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
+    mock_db = MagicMock()
+    mock_db.bind.dialect.name = "postgresql"
+    mock_db.bind.url.host = "127.0.0.1"
+    mock_db.scalar.return_value = 0
+
+    assert_database_target_safe(mock_db)
+
+
+def test_assert_database_target_safe_blocks_remote_host_without_disposable_and_key(monkeypatch):
+    """Remote non-loopback database fails closed without explicit disposable flag and auth key."""
+    monkeypatch.setattr(settings, "APP_ENV", AppEnv.DEVELOPMENT)
+    monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
+    monkeypatch.setattr(settings, "IS_DISPOSABLE_TEST_DATABASE", False)
+    monkeypatch.setattr(settings, "DEMO_SEEDING_AUTHORIZATION_KEY", None)
+
+    mock_db = MagicMock()
+    mock_db.bind.dialect.name = "postgresql"
+    mock_db.bind.url.host = "ci-test-runner-db.internal"
+    mock_db.scalar.return_value = 0
+
+    with pytest.raises(RuntimeError, match="is not a local loopback target"):
+        assert_database_target_safe(mock_db)
+
+
+def test_assert_database_target_safe_allows_disposable_test_db_with_auth_key(monkeypatch):
+    """Remote disposable test container succeeds with IS_DISPOSABLE_TEST_DATABASE and valid auth key."""
+    monkeypatch.setattr(settings, "APP_ENV", AppEnv.DEVELOPMENT)
+    monkeypatch.setattr(settings, "ALLOW_SYNTHETIC_SEEDING", True)
+    monkeypatch.setattr(settings, "IS_DISPOSABLE_TEST_DATABASE", True)
+    monkeypatch.setattr(settings, "DEMO_SEEDING_AUTHORIZATION_KEY", "secure-ephemeral-demo-auth-token-32c")
+
+    mock_db = MagicMock()
+    mock_db.bind.dialect.name = "postgresql"
+    mock_db.bind.url.host = "ci-test-runner-db.internal"
+    mock_db.scalar.return_value = 0
+
+    assert_database_target_safe(mock_db)
 
 
 def test_database_safety_never_exposes_database_credentials(monkeypatch):

@@ -180,3 +180,46 @@ def test_staging_rejects_allow_synthetic_seeding():
             ALLOW_SYNTHETIC_SEEDING=True,
             _env_file=None,
         )
+
+
+def test_production_rejects_disposable_test_database():
+    """Production mode fails closed if IS_DISPOSABLE_TEST_DATABASE is enabled."""
+    with pytest.raises((ConfigurationError, ValidationError), match="IS_DISPOSABLE_TEST_DATABASE cannot be enabled"):
+        Settings(
+            APP_ENV=AppEnv.PRODUCTION,
+            DATABASE_URL="postgresql://user:pass@ep-live.aws.supabase.com:6543/postgres",
+            SECRET_KEY="a-very-secure-random-secret-key-32chars-long-prod",
+            STORAGE_BUCKET_NAME="invoices",
+            IS_DISPOSABLE_TEST_DATABASE=True,
+            _env_file=None,
+        )
+
+
+def test_staging_rejects_disposable_test_database():
+    """Staging mode fails closed if IS_DISPOSABLE_TEST_DATABASE is enabled."""
+    with pytest.raises((ConfigurationError, ValidationError), match="IS_DISPOSABLE_TEST_DATABASE cannot be enabled"):
+        Settings(
+            APP_ENV=AppEnv.STAGING,
+            DATABASE_URL="postgresql://user:pass@ep-staging.aws.supabase.com:6543/postgres",
+            SECRET_KEY="a-very-secure-random-secret-key-32chars-long-stage",
+            STORAGE_BUCKET_NAME="invoices",
+            IS_DISPOSABLE_TEST_DATABASE=True,
+            _env_file=None,
+        )
+
+
+def test_auth_status_exposes_public_anon_key_and_url(monkeypatch):
+    """GET /api/v1/auth/status returns supabase_url and public supabase_anon_key."""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+    from backend.core.config import settings
+
+    monkeypatch.setattr(settings, "SUPABASE_URL", "https://xyzcompany.supabase.co")
+    monkeypatch.setattr(settings, "SUPABASE_ANON_KEY", "sb_publishable_test_anon_key_12345")
+
+    client = TestClient(app)
+    resp = client.get("/api/v1/auth/status")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["supabase_url"] == "https://xyzcompany.supabase.co"
+    assert data["supabase_anon_key"] == "sb_publishable_test_anon_key_12345"

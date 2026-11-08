@@ -141,7 +141,124 @@ This audit inspects the current repository snapshot across Python source code, d
 
 ---
 
-## 3. Prioritized Remediation Roadmap
+### Finding 11: Rejection of Shared Bearer-Token Links & Selection of Real Evaluator Auth
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`frontend/src/components/AuthScreen.tsx`](../frontend/src/components/AuthScreen.tsx) and [`frontend/src/utils/oauth.ts`](../frontend/src/utils/oauth.ts).
+- **Finding Analysis:**
+  1. Distributing pre-minted bearer tokens via URL fragments (`https://app/#access_token=...`) is an anti-pattern:
+     - URL-embedded tokens leak into web server logs, proxy access logs, browser history, and HTTP `Referer` headers.
+     - Token sharing destroys non-repudiation: all evaluator actions (approvals, audit logs) collapse into a single synthetic identity.
+     - Pre-minted tokens expire (typically 1 hour), causing evaluator lockouts, while long-lived tokens create indefinite replay vulnerabilities.
+  2. Evaluator Authentication Architecture Selected:
+     - **Primary:** Supabase Auth Passwordless Email OTP / Magic Link. Works with any work email without requiring a Google account or custom OAuth setup. Frontend sends OTP via Supabase Auth REST API (`POST /auth/v1/otp`) and verifies code via `POST /auth/v1/verify` to receive an authentic, signed Supabase session.
+     - **Secondary:** Google OAuth for evaluators with Google accounts when Google provider is enabled.
+     - **Local Only:** Development quick-login (`/api/v1/auth/dev-session`) is strictly restricted to loopback clients and barred when `APP_ENV != development`.
+- **Readiness Implication:** Evaluator access is authentic, individual, standards-compliant, and does not rely on shared credentials or URL token shortcuts.
+
+---
+
+### Finding 12: Elimination of Vulnerable Session Markers in Database Seeding Guard
+- **Status:** **`[CONFIRMED & REMEDIATED]`**
+- **Evidence:** [`engine/sme_eval_setup.py`](../engine/sme_eval_setup.py) and [`backend/core/config.py`](../backend/core/config.py).
+- **Finding Analysis:**
+  1. Previous implementations checked `db.info["is_isolated_test_db"]` and `current_setting('app.is_isolated_test_db')`. Both are application-controlled flags that can be executed on any connection.
+  2. Multi-tenant checks (`Organisation.id != 'org_sme_eval'`) are masked by Row-Level Security (RLS) policies and return 0 on empty databases.
+  3. If `APP_ENV=development` was set locally while `DATABASE_URL` accidentally targeted persistent production cloud databases, synthetic seeding could corrupt production records.
+- **Remediation Implemented:**
+  - Mandatory inspection of underlying database connection URL and engine dialect.
+  - Non-bypassable Cloud Host Disallow Blocklist (`supabase.co`, `supabase.com`, `pooler.supabase.com`, `rds.amazonaws.com`, `render.com`, `neon.tech`, `elephantsql.com`, `aivencloud.com`, `timescale.com`, `cloudsql`).
+  - Networked non-loopback databases strictly require `IS_DISPOSABLE_TEST_DATABASE=True` and a valid 16+ character `DEMO_SEEDING_AUTHORIZATION_KEY`.
+  - Zero database credentials or secrets are logged or included in exceptions.
+
+---
+
+## 3. Test Evidence Classifications & Unverified Hosted Runtime Matrix
+
+### A. Classification of Test Evidence
+- **Local Unit & Mocked Integration Suite:** **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest`).
+  - These tests execute against isolated in-memory SQLite fixtures, local loopback connections, and mocked third-party adapters (Mantle LLM, Supabase Storage, Gmail API, SAP ERP).
+  - They provide high confidence in deterministic rule math, RLS policies, audit immutability, schema consistency, and safety guards.
+  - **They do NOT constitute live external-service verification.**
+- **Historical Provider-Backed Acceptance Report:** Documented 6 November 2026 (`docs/inspection-evidence/provider-full-20261106/`).
+  - Proves historical execution of 5 scenarios using 4 live AWS Bedrock Mantle calls (Qwen-235B) with 3,343 tokens ($0.004128 USD).
+  - Cloud resources were cleaned up immediately following that test run (`"cloud_cleanup": "Supabase deleted; IAM user/key/policy deleted"`).
+
+### B. Unverified Hosted Capabilities Matrix
+The following runtime capabilities remain unverified until public cloud deployment:
+| Capability | Current State | Verification Requirement for Public Launch |
+| :--- | :--- | :--- |
+| **1. Live Supabase Auth Sign-In** | Code implemented; unverified against live hosted IdP | External browser completes Email OTP verification and receives authentic JWT |
+| **2. Current PostgreSQL Migration 013** | Target persistent DB at rev `010`; isolated rehearsals unapplied | Live DB migrated to revision `013` with `revoked_access_tokens` queryable |
+| **3. Fresh PDF Browser Ingestion** | Local tests pass with mock/file upload | Evaluator uploads multi-page PDF directly through hosted web UI |
+| **4. Current Provider-Backed Extraction** | Historical run on Nov 6; not verified on current instance | Document processed via active AWS Bedrock Mantle endpoint |
+| **5. Durable Decision Persistence** | In-memory/SQLite pass; persistent DB unverified | Approved invoice, audit events, and ledger records persist across container restart |
+| **6. Hosted Document Previews** | Signed URL generation tested; bucket permissions unverified | PDF renders in browser via authenticated Supabase Storage signed URL |
+| **7. End-to-End HR Acceptance** | Local tests pass | External evaluator navigates inbox, reviews 3-pane matching, and signs off |
+
+---
+
+## 4. The Shortest Safe Path to Deployment Acceptance
+
+```
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 1. Preflight Verification                                              │
+  │    Validate render.yaml env vars (DATABASE_URL, SUPABASE_URL,          │
+  │    STORAGE_BUCKET_NAME, MANTLE_API_KEY). APP_ENV=production.           │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 2. Dedicated Demo Database Strategy                                    │
+  │    Ensure database target is an isolated evaluation instance or clone. │
+  │    Strictly avoid multi-tenant production or unbacked shared instances.│
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 3. Migration Rehearsal (011 -> 012 -> 013)                             │
+  │    Rehearse migrations on an isolated backup/clone per                 │
+  │    docs/MIGRATION_READINESS_PROCEDURE.md. Verify revoked_access_tokens.│
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 4. Identity & Role Provisioning                                        │
+  │    Configure Supabase Auth Email OTP provider. Provision HR evaluator  │
+  │    identity in auth.users and map to org_sme_eval with role AP_LEAD.   │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 5. Synthetic PO/GRN/QC Baseline Initialization                         │
+  │    Seed golden reference vendors, POs, GRNs, and QC approvals for the  │
+  │    5 scenarios using authorized initialization script.                 │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 6. Storage & Mantle Connectivity Checks                                │
+  │    Verify Supabase private bucket 'invoices' exists and accepts writes.│
+  │    Perform test ping against AWS Bedrock Mantle API endpoint.          │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 7. Single-Container Build & Deployment                                 │
+  │    Deploy multi-stage Dockerfile to Render Free / Cloud Run.           │
+  │    Verify container healthcheck probe passes at /api/v1/liveness.      │
+  └───────────────────────────────────┬────────────────────────────────────┘
+                                      │
+                                      ▼
+  ┌────────────────────────────────────────────────────────────────────────┐
+  │ 8. Fresh-Browser Evaluator Acceptance                                  │
+  │    Open incognito browser at public URL, sign in via Email OTP,        │
+  │    upload sample invoice, verify 3-way match, and approve invoice.     │
+  └────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 5. Prioritized Remediation Roadmap
 
 ```
   ┌───────────────────────────────────────────────────────────────┐

@@ -9,6 +9,7 @@ import {
   UserCheck,
   Send,
   Loader2,
+  Mail,
 } from "lucide-react";
 
 import { api, setAuthToken } from "../api/client";
@@ -17,7 +18,7 @@ import type { AuthenticatedUser, AccessRequest } from "../types";
 
 import "./AuthScreen.css";
 
-import { googleAuthorizeUrl, oauthCallbackParams } from "../utils/oauth";
+import { googleAuthorizeUrl, oauthCallbackParams, sendEmailOtp, verifyEmailOtp } from "../utils/oauth";
 
 interface AuthScreenProps {
   user: AuthenticatedUser | null;
@@ -68,6 +69,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [authStatusFailed, setAuthStatusFailed] = useState(false);
 
   const [showGoogleSetup, setShowGoogleSetup] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [otpStep, setOtpStep] = useState<"input" | "verify">("input");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpSuccessMessage, setOtpSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -117,6 +123,80 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       console.warn("Failed to load user access requests:", err);
 
       setRequestsError(true);
+    }
+  };
+
+  const getSupabaseCredentials = () => {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || authStatus?.supabase_url || "";
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || authStatus?.supabase_anon_key || "";
+    return { supabaseUrl, anonKey };
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailOtp.trim()) return;
+
+    const { supabaseUrl, anonKey } = getSupabaseCredentials();
+    if (!supabaseUrl || !anonKey) {
+      setActionMessage({
+        type: "error",
+        text: "Identity Provider service is not configured (missing Supabase URL or anon key).",
+      });
+      return;
+    }
+
+    try {
+      setOtpLoading(true);
+      setActionMessage(null);
+      const res = await sendEmailOtp(supabaseUrl, anonKey, emailOtp.trim());
+      if (!res.success) {
+        setActionMessage({
+          type: "error",
+          text: res.error || "Failed to send verification code.",
+        });
+      } else {
+        setOtpStep("verify");
+        setOtpSuccessMessage(res.message || `Code sent to ${emailOtp.trim()}`);
+      }
+    } catch (err: any) {
+      setActionMessage({
+        type: "error",
+        text: err.message || "An unexpected error occurred sending OTP.",
+      });
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verificationCode.trim()) return;
+
+    const { supabaseUrl, anonKey } = getSupabaseCredentials();
+    try {
+      setOtpLoading(true);
+      setActionMessage(null);
+      const res = await verifyEmailOtp(supabaseUrl, anonKey, emailOtp.trim(), verificationCode.trim());
+      if (!res.success || !res.accessToken) {
+        setActionMessage({
+          type: "error",
+          text: res.error || "Invalid or expired verification code.",
+        });
+      } else {
+        setAuthToken(res.accessToken);
+        setActionMessage({
+          type: "success",
+          text: "Verification successful! Opening workspace...",
+        });
+        onRefreshUser();
+      }
+    } catch (err: any) {
+      setActionMessage({
+        type: "error",
+        text: err.message || "An unexpected error occurred verifying OTP.",
+      });
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -349,7 +429,102 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             </li>
           </ul>
 
-          <section className="auth-sign-in mt-7 space-y-3" aria-label="Sign in">
+          <section className="auth-sign-in mt-7 space-y-4" aria-label="Sign in">
+            <div className="auth-email-flow space-y-3">
+              {otpStep === "input" ? (
+                <form onSubmit={handleSendOtp} className="space-y-3">
+                  <div>
+                    <label htmlFor="evaluator-email" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Evaluator or Work Email
+                    </label>
+                    <input
+                      id="evaluator-email"
+                      type="email"
+                      required
+                      autoComplete="email"
+                      placeholder="evaluator@company.com"
+                      value={emailOtp}
+                      onChange={(e) => setEmailOtp(e.target.value)}
+                      disabled={otpLoading}
+                      className="auth-input w-full rounded-lg border px-3 py-2.5 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={otpLoading || !emailOtp.trim()}
+                    className="auth-primary w-full rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {otpLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Sending code…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        <span>Send Verification Code</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleVerifyOtp} className="space-y-3">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
+                    {otpSuccessMessage || `Code sent to ${emailOtp}`}
+                  </div>
+                  <div>
+                    <label htmlFor="otp-code" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Enter 6-Digit Verification Code
+                    </label>
+                    <input
+                      id="otp-code"
+                      type="text"
+                      required
+                      autoFocus
+                      maxLength={6}
+                      placeholder="123456"
+                      value={verificationCode}
+                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                      disabled={otpLoading}
+                      className="auth-input w-full text-center tracking-widest font-mono text-lg rounded-lg border px-3 py-2"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOtpStep("input");
+                        setVerificationCode("");
+                      }}
+                      disabled={otpLoading}
+                      className="auth-option px-3 py-2 text-xs font-medium rounded-lg border"
+                    >
+                      Change Email
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={otpLoading || verificationCode.length < 6}
+                      className="auth-primary flex-1 rounded-lg px-4 py-2 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {otpLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Verifying…</span>
+                        </>
+                      ) : (
+                        <span>Verify & Sign In</span>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <div className="relative my-3 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
+              <span className="relative bg-white dark:bg-slate-900 px-3 text-xs uppercase text-slate-400">or</span>
+            </div>
+
             <button
               type="button"
               onClick={handleGoogleSignIn}
@@ -357,7 +532,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
               aria-describedby={
                 !isGoogleEnabled ? "google-sign-in-status" : undefined
               }
-              className="auth-primary w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:cursor-not-allowed"
+              className="auth-option w-full rounded-lg px-4 py-2.5 text-sm font-semibold border flex items-center justify-center gap-2 disabled:cursor-not-allowed"
             >
               Continue with Google
             </button>

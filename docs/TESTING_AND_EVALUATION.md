@@ -6,7 +6,10 @@ This document details the test suites, evaluation corpora, benchmark procedures,
 
 ## 1. Automated Test Suite Architecture
 
-The repository contains 256 automated test items executed via `pytest`. As of Phase E closure, **244 pass and 12 are skipped** (live PostgreSQL superuser bypass tests and Google Cloud Pub/Sub live network probes).
+The repository contains 484 automated test items executed via `pytest`. Current regression status: **441 passed, 43 skipped, 0 failed** in 37.49s (`python -m pytest tests/`).
+
+> [!NOTE]
+> **Evidence Classification Standard:** The 441 passing tests execute against isolated in-memory SQLite fixtures, local loopback sockets, and mocked ERP/LLM/Storage adapters. They prove mathematical precision, RLS policies, audit immutability, and safety guards. They are classified as **local regression/integration evidence**, not live hosted acceptance. Live hosted capabilities (live Supabase Auth, persistent PostgreSQL migration 013, live browser PDF upload, live Mantle extraction) remain unverified on the public deployment until P0 launch.
 
 ```
 tests/
