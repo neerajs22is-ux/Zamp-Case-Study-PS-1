@@ -335,10 +335,54 @@
       return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
     }
 
+    function getAuthToken() {
+      const token = localStorage.getItem('ap_command_center_auth_token') || localStorage.getItem('sb_access_token');
+      if (!token || token === 'undefined' || token === 'null' || !token.trim()) return null;
+      return token.trim();
+    }
+
+    function getAuthHeaders(extra = {}) {
+      const token = getAuthToken();
+      const headers = { ...extra };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      return headers;
+    }
+
+    async function ensureSession() {
+      let token = getAuthToken();
+      if (token) return token;
+
+      // In local development, automatically bootstrap dev evaluation session
+      try {
+        const res = await fetch('/api/v1/auth/dev-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'sme_associate@company.internal', org_id: 'org_sme_eval' })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.access_token) {
+            localStorage.setItem('ap_command_center_auth_token', data.access_token);
+            return data.access_token;
+          }
+        }
+      } catch (e) {
+        // Hosted staging
+      }
+      return null;
+    }
+
     // Load genuine scenarios
     async function loadScenarios() {
       try {
-        const res = await fetch('/api/v1/sandbox/scenarios');
+        const res = await fetch('/api/v1/sandbox/scenarios', { headers: getAuthHeaders() });
+        if (res.status === 401 || res.status === 403) {
+          const container = document.getElementById('scenarios-container');
+          container.innerHTML = '<div class="col-span-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex items-center justify-between"><span>Authentication required to execute sandbox scenarios. Please sign in via Flagship AP Command Center.</span><a href="/today" class="ml-3 px-3 py-1 bg-amber-500 text-slate-950 font-semibold rounded text-xs">Sign In</a></div>';
+          return;
+        }
         scenariosData = await res.json();
         const container = document.getElementById('scenarios-container');
         container.innerHTML = '';
@@ -390,7 +434,10 @@
         updateStage(1, 'completed', 'Digest verified');
         updateStage(2, 'active', 'Live Bedrock Mantle Qwen 235B inference...');
 
-        const res = await fetch(`/api/v1/sandbox/run-scenario/${scenarioId}`, { method: 'POST' });
+        const res = await fetch(`/api/v1/sandbox/run-scenario/${scenarioId}`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
 
@@ -436,6 +483,7 @@
 
         const res = await fetch('/api/v1/sandbox/upload', {
           method: 'POST',
+          headers: getAuthHeaders(),
           body: formData,
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
@@ -578,7 +626,7 @@
       try {
         const res = await fetch(`/api/v1/sandbox/invoices/${activeInvoiceId}/action`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({
             action: action,
             reason: `Operator action recorded from Sandbox experience for ${action}`,
@@ -598,7 +646,7 @@
     // Load recent runs
     async function loadRunHistory() {
       try {
-        const res = await fetch('/api/v1/sandbox/runs');
+        const res = await fetch('/api/v1/sandbox/runs', { headers: getAuthHeaders() });
         const data = await res.json();
         const m = data.metrics || {};
 
@@ -691,9 +739,10 @@
     });
 
     // Initialize on load
-    document.addEventListener('DOMContentLoaded', () => {
-      loadScenarios();
-      loadRunHistory();
+    document.addEventListener('DOMContentLoaded', async () => {
+      await ensureSession();
+      await loadScenarios();
+      await loadRunHistory();
     });
   </script>
 </body>

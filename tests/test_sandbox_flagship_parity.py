@@ -101,9 +101,10 @@ def test_parity_currency_consistency_inr_only():
 # -----------------------------------------------------------------------------
 # 3. Scenario Fixtures Parity
 # -----------------------------------------------------------------------------
-def test_parity_scenarios_listing(client):
+def test_parity_scenarios_listing(client, sme_tokens):
     """Verifies that all 6 genuine test scenarios are correctly exposed via REST API."""
-    res = client.get("/api/v1/sandbox/scenarios")
+    auth_headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+    res = client.get("/api/v1/sandbox/scenarios", headers=auth_headers)
     assert res.status_code == 200
     scenarios = res.json()
     assert len(scenarios) == 6

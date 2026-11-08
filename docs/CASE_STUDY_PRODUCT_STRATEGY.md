@@ -94,7 +94,7 @@ To avoid evaluator confusion, the architectural boundaries between the flagship 
 The standalone sandbox is not entirely isolated; the flagship backend directly reuses verified algorithmic engines located in `engine/`:
 - [`engine/hybrid_extractor.py`](../engine/hybrid_extractor.py): Core hybrid document intelligence engine.
 - [`engine/pdf_safety.py`](../engine/pdf_safety.py): High-throughput PDF extraction and safety checks.
-- [`engine/grounding.py`](../engine/grounding.py): Mathematical source-grounding and bounding-box verification.
+- [`engine/grounding.py`](../engine/grounding.py): Mathematical source-grounding, token occurrence, and page provenance verification.
 - [`engine/indian_tax_rules.py`](../engine/indian_tax_rules.py): Statutory GST arithmetic and state-code tax logic.
 - [`engine/duplicate_detector.py`](../engine/duplicate_detector.py): Multi-factor duplicate submission detection.
 

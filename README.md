@@ -80,7 +80,7 @@ Both applications enforce a strict **Plan-Execute-Validate (PEV)** loop governed
 flowchart TD
     A["Raw Document Ingestion<br/>(PDF, Scanned Image, JSON)"] --> B["Stage 1: Document Classification<br/>(Digital PDF vs Degraded Scan)"]
     B --> C["Stage 2: Structured Entity Extraction<br/>(Header, Tax ID, PO Ref, Line Items)"]
-    C --> D["Gate 0: Mathematical Grounding Tripwires<br/>Bounding-box validation against source page text"]
+    C --> D["Gate 0: Mathematical Grounding Tripwires<br/>Token occurrence & page provenance validation against source text"]
     
     D -- Grounding Divergence --> H["Decision: FLAGGED_HITL_REVIEW<br/>(Human-in-the-Loop Review Queue)"]
     D -- Grounded Evidence --> E["Stage 3: Procurement Cross-Reference<br/>(Vendor Master, PO, GRN, QC)"]

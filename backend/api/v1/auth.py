@@ -116,8 +116,11 @@ def create_dev_session(
         )
 
     # 3. Local loopback client guard (Never accessible to external network callers)
+    xff = request.headers.get("x-forwarded-for")
+    forwarded_ips = [ip.strip() for ip in xff.split(",")] if xff else []
     client_host = request.client.host if request.client else ""
-    is_local = client_host in ("127.0.0.1", "localhost", "::1", "testclient") or not client_host
+    effective_host = forwarded_ips[0] if forwarded_ips else client_host
+    is_local = effective_host in ("127.0.0.1", "localhost", "::1", "testclient") or not effective_host
     if not is_local:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

@@ -457,7 +457,7 @@ Before declaring the flagship AP Command Center ready for live evaluation, all o
   │      PostgreSQL AuditEvent checkpoints:                                │
   │      • Stage 1: Classification & Optical Contrast Pre-screening.       │
   │      • Stage 2: Structured Entity Extraction (AWS Bedrock Mantle).     │
-  │      • Stage 3: Mathematical Grounding Tripwires (bounding boxes).     │
+  │      • Stage 3: Mathematical Grounding Tripwires (token coordinates).  │
   │      • Stage 4: Procurement Cross-Reference (Vendor, PO, GRN, QC).     │
   │      • Stage 5: Deterministic Policy Engine (7 Match Gates).           │
   │    (Note: The standalone engine uses SSE; the flagship uses persisted  │
