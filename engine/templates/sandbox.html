@@ -311,8 +311,8 @@
     <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
-          <h3 class="font-semibold text-slate-100">Sandbox Run History</h3>
-          <p class="text-xs text-slate-400">All executions committed to the unified database audit trail</p>
+          <h3 class="font-semibold text-slate-100">Recent Workspace Activity <span class="text-xs font-normal text-slate-400 font-sans">(Latest 25 Invoices)</span></h3>
+          <p class="text-xs text-slate-400">Operational ledger records and 7-gate matching decisions for the 25 most recent invoices in this workspace.</p>
         </div>
         <div class="flex flex-wrap items-center gap-4 text-xs font-mono">
           <div><span class="text-slate-500">Match Candidates:</span> <span class="text-emerald-400 font-bold" id="metric-match-candidates">0</span></div>
@@ -472,14 +472,27 @@
           headers: getAuthHeaders(),
         });
 
+        if (res.status === 400) {
+          const errData = await res.json().catch(() => ({}));
+          stopTimer();
+          if (errData.status === 'PREREQUISITE_REQUIRED') {
+            updateStage(1, 'failed', 'Prerequisite Required');
+            renderPrerequisiteNotice(errData);
+            return;
+          }
+          throw new Error(errData.detail || errData.message || 'Bad Request');
+        }
+
         if (res.status === 409) {
           // Duplicate document already processed in ledger
           const conflictData = await res.json();
           stopTimer();
-          alert(`Duplicate Intake Notice: Scenario document already recorded in ledger as invoice ${conflictData.invoice_id}. Retrieving existing audit record.`);
           const resultRes = await fetch(`/api/v1/sandbox/invoices/${conflictData.invoice_id}/result`, { headers: getAuthHeaders() });
           if (resultRes.ok) {
             const data = await resultRes.json();
+            data.is_previous_run = true;
+            data.mode = 'STORED_RESULT';
+            data.notice = `Duplicate Document Notice: File already exists in database ledger as invoice '${conflictData.invoice_id}'. Displaying stored result without re-invoking Bedrock Mantle.`;
             renderResults(data);
             loadRunHistory();
           }
@@ -489,13 +502,17 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
 
-        // If duplicate scenario returned terminal result immediately
-        if (data.duplicate_detected) {
+        // If scenario was previously processed, or duplicate detected, render immediately as stored result
+        if (data.is_previous_run || data.mode === 'STORED_RESULT' || data.duplicate_detected) {
           stopTimer();
-          updateStage(1, 'completed', 'Digest verified');
-          updateStage(2, 'skipped', 'Mantle skipped (duplicate hash)');
-          updateStage(5, 'completed', 'Gate 7 duplicate check FAIL');
-          updateStage(6, 'completed', 'REJECTED');
+          updateStage(1, 'completed', 'Digest verified (ledger)');
+          updateStage(2, 'skipped', data.duplicate_detected ? 'Mantle skipped (duplicate hash)' : 'Mantle skipped (stored run)');
+          updateStage(3, 'completed', 'CGST/SGST/IGST reconciled');
+          updateStage(4, 'completed', 'PO & GRN matched');
+          updateStage(5, 'completed', data.duplicate_detected ? 'Gate 7 duplicate check FAIL' : '7 policy gates evaluated');
+          updateStage(6, 'completed', data.decision || 'Decision retrieved');
+          data.is_previous_run = true;
+          data.mode = 'STORED_RESULT';
           renderResults(data);
           loadRunHistory();
           return;
@@ -537,10 +554,12 @@
         if (res.status === 409) {
           const conflictData = await res.json();
           stopTimer();
-          alert(`Duplicate Intake Notice: This file already exists as invoice ${conflictData.invoice_id}. Retrieving existing record.`);
           const resultRes = await fetch(`/api/v1/sandbox/invoices/${conflictData.invoice_id}/result`, { headers: getAuthHeaders() });
           if (resultRes.ok) {
             const data = await resultRes.json();
+            data.is_previous_run = true;
+            data.mode = 'STORED_RESULT';
+            data.notice = `Duplicate Document Notice: File already exists in database ledger as invoice '${conflictData.invoice_id}'. Displaying stored result without re-invoking Bedrock Mantle.`;
             renderResults(data);
             loadRunHistory();
           }
@@ -578,7 +597,7 @@
     }
 
     // Authentic polling driven directly by PostgreSQL AuditEvent checkpoints
-    function pollProcessingStatus(invoiceId, scenario, startTime) {
+    function pollProcessingStatus(invoiceId, scenario, startTime, isReload = false) {
       if (pollInterval) clearInterval(pollInterval);
       let consecutive5xx = 0;
 
@@ -687,6 +706,22 @@
             if (resultRes.ok) {
               const fullData = await resultRes.json();
               if (scenario) fullData.scenario = scenario;
+              
+              // Only claim live inference if THIS in-flight session actually ran Mantle (not a reload or skipped model)
+              const extractionEvt = events.find(e => e.stage === 'EXTRACTION' && (e.status === 'SUCCEEDED' || e.status === 'COMPLETED'));
+              const wasLiveExtracted = !isReload && !!extractionEvt && extractionEvt.outcome !== 'SKIPPED';
+              if (wasLiveExtracted) {
+                fullData.is_previous_run = false;
+                fullData.mode = 'LIVE_INFERENCE';
+                fullData.is_live_mantle = true;
+                fullData.inference_provider = 'AWS Bedrock Mantle (Qwen 235B)';
+              } else {
+                fullData.is_previous_run = true;
+                fullData.mode = 'STORED_RESULT';
+                fullData.is_live_mantle = false;
+                fullData.inference_provider = 'Stored Run (DB Ledger)';
+              }
+
               renderResults(fullData);
               loadRunHistory();
             }
@@ -705,6 +740,24 @@
           console.error('Error polling processing status:', err);
         }
       }, 500);
+    }
+
+    function renderPrerequisiteNotice(data) {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+      document.getElementById('progress-title').textContent = 'Prerequisite Scenario Required';
+      document.getElementById('progress-subtitle').textContent = data.message || data.detail;
+      notice.className = 'p-4 rounded-xl text-xs bg-amber-950/60 border border-amber-500/40 text-amber-200 flex items-center justify-between';
+      notice.innerHTML = `
+        <div>
+          <span class="font-semibold text-amber-100">Prerequisite Baseline Required</span>
+          <p class="text-[11px] text-amber-300 mt-0.5">${escapeHtml(data.detail || data.message)}</p>
+        </div>
+        <button onclick="runScenario('SCN-01-HAPPY-PATH')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium text-xs transition-colors shrink-0 ml-4">Run Scenario 1 First</button>
+      `;
+      notice.classList.remove('hidden');
     }
 
     function renderAuthExpiredNotice() {
@@ -1105,7 +1158,7 @@
       if (pendingInvoiceId) {
         document.getElementById('processing-view').classList.remove('hidden');
         startTimer(savedStart);
-        pollProcessingStatus(pendingInvoiceId, null, savedStart);
+        pollProcessingStatus(pendingInvoiceId, null, savedStart, true);
       }
     });
   </script>

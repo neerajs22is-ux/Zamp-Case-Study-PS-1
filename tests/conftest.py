@@ -20,6 +20,14 @@ def pytest_collection_modifyitems(config, items):
         items.reverse()
 
 
+@pytest.fixture(autouse=True)
+def guard_test_environment_isolation(request, monkeypatch):
+    """Enforces that tests cannot execute against production or staging environments."""
+    from backend.core.config import settings, AppEnv
+    if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
+        pytest.fail(f"Tests cannot run in {settings.APP_ENV} mode! Refusing execution against cloud/staging environment.")
+
+
 @pytest.fixture
 def postgres_database(request, monkeypatch):
     """Migrate a unique database in the runner-owned cluster; drop it afterwards."""
@@ -96,6 +104,11 @@ def disposable_app_db(monkeypatch, request):
     monkeypatch.setattr(database, 'SessionLocal', factory)
     monkeypatch.setattr(pipeline, 'SessionLocal', factory)
     monkeypatch.setattr(pipeline, 'storage_adapter', storage)
+    try:
+        import backend.api.v1.sandbox as sbx_mod
+        monkeypatch.setattr(sbx_mod, 'storage_adapter', storage)
+    except ImportError:
+        pass
     if hasattr(request.module, 'SessionLocal'):
         monkeypatch.setattr(request.module, 'SessionLocal', factory)
     if hasattr(request.module, 'storage_adapter'):
@@ -137,10 +150,13 @@ def evaluation_workspace(disposable_app_db, monkeypatch):
                   ('CONTROLLER', 'usr_sme_ctrl_01'), ('AUDITOR', 'usr_sme_audit_01')]
     ids = {}
     with disposable_app_db() as db:
-        db.add(Organisation(id=org, name='Disposable evaluation workspace'))
+        if not db.get(Organisation, org):
+            db.add(Organisation(id=org, name='Disposable evaluation workspace'))
         for role, uid in identities:
-            db.add(User(id=uid, org_id=org, email=f'{uid}@example.test', full_name=role))
-            db.add(RoleAssignment(id=f'role-{uid}', org_id=org, user_id=uid, role_name=role))
+            if not db.get(User, uid):
+                db.add(User(id=uid, org_id=org, email=f'{uid}@example.test', full_name=role))
+            if not db.get(RoleAssignment, f'role-{uid}'):
+                db.add(RoleAssignment(id=f'role-{uid}', org_id=org, user_id=uid, role_name=role))
         db.commit()
         def seed(key, number, po, qty, rate, billed_rate=None, receipts=True):
             gstin = f'29TEST{len(ids):04d}A1Z5'

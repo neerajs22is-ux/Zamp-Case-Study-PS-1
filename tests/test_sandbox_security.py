@@ -22,7 +22,7 @@ import pytest
 from decimal import Decimal
 from fastapi.testclient import TestClient
 from jose import jwt
-from sqlalchemy import select, func
+from sqlalchemy import select, func, event
 
 from backend.main import app
 from backend.core.config import settings
@@ -611,4 +611,147 @@ def test_duplicate_upload_repeated_preserves_records_and_audit(client, sme_token
     ) or 0
     assert dup_audits >= 1, "Duplicate attempts must be audited truthfully"
     db.close()
+
+
+# -----------------------------------------------------------------------------
+# 18. Zero Mutation on Read-Only GET Endpoints (P0.4 Final Item 4)
+# -----------------------------------------------------------------------------
+def test_get_requests_are_strictly_read_only_with_zero_mutations(client, sme_tokens, disposable_app_db):
+    """P0.4 Final Item 4: All read-only GET endpoints execute zero INSERT, UPDATE, or DELETE queries."""
+    with disposable_app_db() as db:
+        headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+        
+        # Seed an invoice without match checks
+        inv = Invoice(
+            id="inv_test_ro_view",
+            org_id=SANDBOX_ORG_ID,
+            source_channel="SANDBOX_EXPERIENCE",
+            stage="PENDING_APPROVAL",
+            decision="MATCH_CANDIDATE",
+            currency="INR",
+            invoice_number="AP-26-001",
+            total_amount=Decimal("28416.00"),
+        )
+        db.add(inv)
+        
+        pdf_path = os.path.join("engine", "demo_fixtures", "01_invoice_AP_26_001.pdf")
+        with open(pdf_path, "rb") as f:
+            pdf_sha = hashlib.sha256(f.read()).hexdigest()
+        
+        doc = Document(
+            id="doc_test_ro_view",
+            org_id=SANDBOX_ORG_ID,
+            invoice_id=inv.id,
+            filename="01_invoice_AP_26_001.pdf",
+            mime_type="application/pdf",
+            storage_provider="MEMORY",
+            storage_key="test_key",
+            file_size_bytes=100,
+            sha256_hash=pdf_sha,
+            is_deleted=False,
+        )
+        db.add(doc)
+        db.commit()
+
+        # Intercept any SQL writes on the underlying SQLite engine
+        raw_engine = db.get_bind()
+        mutations = []
+
+        def intercept_query(conn, cursor, statement, parameters, context, executemany):
+            clean_stmt = statement.strip().upper()
+            if clean_stmt.startswith(("INSERT", "UPDATE", "DELETE")):
+                mutations.append(statement)
+
+        event.listen(raw_engine, "before_cursor_execute", intercept_query)
+        try:
+            # 1. GET /scenarios
+            res_scenarios = client.get("/api/v1/sandbox/scenarios", headers=headers)
+            assert res_scenarios.status_code == 200
+            assert len(mutations) == 0, f"GET /scenarios issued mutations: {mutations}"
+
+            # 2. GET /runs
+            res_runs = client.get("/api/v1/sandbox/runs", headers=headers)
+            assert res_runs.status_code == 200
+            assert len(mutations) == 0, f"GET /runs issued mutations: {mutations}"
+
+            # 3. GET /invoices/{inv_id}/result (Previously invoked reevaluate_match_gates!)
+            res_result = client.get(f"/api/v1/sandbox/invoices/{inv.id}/result", headers=headers)
+            assert res_result.status_code == 200
+            assert len(mutations) == 0, f"GET /result issued mutations: {mutations}"
+            # Verify gates are presented as NOT_EVALUATED without writes
+            body = res_result.json()
+            assert any(g["status"] == "NOT_EVALUATED" for g in body.get("match_gates", []))
+
+            # 4. GET /stream-scenario/{scenario_id}
+            res_stream = client.get("/api/v1/sandbox/stream-scenario/SCN-01-HAPPY-PATH", headers=headers)
+            assert res_stream.status_code == 200
+            assert len(mutations) == 0, f"GET /stream-scenario issued mutations: {mutations}"
+        finally:
+            event.remove(raw_engine, "before_cursor_execute", intercept_query)
+
+
+# -----------------------------------------------------------------------------
+# 19. Deterministic SCN-06 Duplicate Prerequisites & Rejection (P0.4 Final Item 3)
+# -----------------------------------------------------------------------------
+def test_scn_06_deterministic_prerequisite_and_rejection(client, sme_tokens, disposable_app_db):
+    """P0.4 Final Item 3: SCN-06 fails closed when SCN-01 is absent, and rejects duplicate when present."""
+    with disposable_app_db() as db:
+        headers = {"Authorization": f"Bearer {sme_tokens['AP_ASSOCIATE']}"}
+
+        # Case A: Empty workspace -> SCN-06 returns 400 Bad Request with PREREQUISITE_REQUIRED
+        res_empty = client.post("/api/v1/sandbox/run-scenario/SCN-06-DUPLICATE", headers=headers)
+        assert res_empty.status_code == 400
+        empty_data = res_empty.json()
+        assert empty_data["status"] == "PREREQUISITE_REQUIRED"
+        assert "requires baseline invoice" in empty_data["detail"].lower()
+
+        # Case B: Ingest baseline SCN-01
+        inv = Invoice(
+            id="inv_baseline_scn01",
+            org_id=SANDBOX_ORG_ID,
+            source_channel="SANDBOX_EXPERIENCE",
+            stage="PENDING_APPROVAL",
+            decision="MATCH_CANDIDATE",
+            currency="INR",
+            invoice_number="AP-26-001",
+            total_amount=Decimal("28416.00"),
+        )
+        db.add(inv)
+        pdf_path = os.path.join("engine", "demo_fixtures", "01_invoice_AP_26_001.pdf")
+        with open(pdf_path, "rb") as f:
+            pdf_sha = hashlib.sha256(f.read()).hexdigest()
+        doc = Document(
+            id="doc_baseline_scn01",
+            org_id=SANDBOX_ORG_ID,
+            invoice_id=inv.id,
+            filename="01_invoice_AP_26_001.pdf",
+            mime_type="application/pdf",
+            storage_provider="MEMORY",
+            storage_key="test_key_01",
+            file_size_bytes=100,
+            sha256_hash=pdf_sha,
+            is_deleted=False,
+        )
+        db.add(doc)
+        db.commit()
+
+        # Resubmit SCN-06: duplicate detected
+        res_seeded = client.post("/api/v1/sandbox/run-scenario/SCN-06-DUPLICATE", headers=headers)
+        assert res_seeded.status_code == 200
+        seeded_data = res_seeded.json()
+        assert seeded_data["duplicate_detected"] is True
+        assert seeded_data["mode"] == "STORED_RESULT"
+        assert seeded_data["decision"] == "REJECTED"
+        assert seeded_data["original_invoice"]["decision"] == "MATCH_CANDIDATE"
+
+        # Verify audit trail
+        audit_event = db.scalar(
+            select(AuditEvent).where(
+                AuditEvent.action == "DUPLICATE_INTAKE_REJECTED",
+                AuditEvent.org_id == SANDBOX_ORG_ID,
+            )
+        )
+        assert audit_event is not None
+        assert "duplicate" in audit_event.reason.lower()
+
 
