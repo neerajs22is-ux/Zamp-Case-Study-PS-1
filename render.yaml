@@ -75,6 +75,8 @@ services:
         value: supabase
       - key: SUPABASE_STORAGE_BUCKET
         value: invoices
+      - key: STORAGE_BUCKET_NAME
+        value: invoices
       - key: MAX_UPLOAD_FILE_SIZE_BYTES
         value: 52428800
 

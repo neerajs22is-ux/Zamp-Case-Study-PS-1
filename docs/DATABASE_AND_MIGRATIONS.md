@@ -123,7 +123,7 @@ Alembic Migrations / CLI
    alembic revision --autogenerate -m "describe_schema_change"
    ```
 
-4. **Rollback the Last Migration:**
-   ```bash
-   alembic downgrade -1
-   ```
+4. **Migration Downgrade & Recovery Policy:**
+   > [!WARNING]
+   > Migrations 011, 012, and 013 intentionally raise `RuntimeError` on `alembic downgrade` to prevent security regressions (reactivating revoked tokens or restoring implicit role grants).
+   > Refer to [`docs/MIGRATION_READINESS_PROCEDURE.md`](MIGRATION_READINESS_PROCEDURE.md) for the authoritative forward-repair, dry-run inspection, and disaster recovery procedures.

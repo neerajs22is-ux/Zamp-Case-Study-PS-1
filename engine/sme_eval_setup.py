@@ -108,8 +108,34 @@ def generate_sme_jwt(user: Dict[str, str], secret: str, expires_in_seconds: int 
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
+def assert_seeding_permitted() -> None:
+    """Enforces strict environment guard against synthetic seeding in production/staging.
+
+    Fail-Closed Invariants:
+    - Synthetic seeding is permitted strictly in DEVELOPMENT and TEST environments.
+    - Explicitly blocks PRODUCTION and STAGING.
+    - Fails closed (raises RuntimeError) on unrecognized, None, or unconfigured environments.
+    """
+    app_env = getattr(settings, "APP_ENV", None)
+    if app_env is None:
+        raise RuntimeError("CRITICAL SAFETY VIOLATION: APP_ENV is not configured. Seeding fails closed!")
+
+    env_str = app_env.value.lower() if isinstance(app_env, AppEnv) else str(app_env).lower()
+
+    if env_str in (AppEnv.PRODUCTION.value, AppEnv.STAGING.value, "production", "staging"):
+        raise RuntimeError(
+            f"CRITICAL SAFETY VIOLATION: Seeding synthetic evaluation fixtures is strictly prohibited in '{env_str}'!"
+        )
+
+    if env_str not in (AppEnv.DEVELOPMENT.value, AppEnv.TEST.value, "development", "test"):
+        raise RuntimeError(
+            f"CRITICAL SAFETY VIOLATION: Unrecognized or unsupported environment '{env_str}'. Seeding fails closed!"
+        )
+
+
 def provision_tenant_and_users(db) -> None:
     """Provisions org_sme_eval and user role assignments idempotently."""
+    assert_seeding_permitted()
     logger.info(f"Provisioning tenant '{ORG_ID}'...")
     org = db.scalar(select(Organisation).where(Organisation.id == ORG_ID))
     if not org:
@@ -149,6 +175,7 @@ def provision_tenant_and_users(db) -> None:
 
 def provision_synthetic_vendors(db) -> None:
     """Seeds synthetic vendors into org_sme_eval."""
+    assert_seeding_permitted()
     supplier_csv = os.path.join("tests", "evaluation_corpus_v2", "fictional_supplier_master.csv")
     if not os.path.exists(supplier_csv):
         logger.warning(f"Supplier CSV not found at {supplier_csv}")
@@ -194,6 +221,7 @@ def process_scenario_document(
     target_user_id: str = "usr_sme_assoc_01",
 ) -> Dict[str, Any]:
     """Ingests, extracts, matches and records a single scenario document into the database."""
+    assert_seeding_permitted()
     invoices_dir = os.path.join("tests", "evaluation_corpus_v2", "invoices")
     file_path = os.path.join(invoices_dir, filename)
 
@@ -529,8 +557,7 @@ def provision_synthetic_purchase_orders(db) -> None:
 
     STRICT SAFETY RULE: Never executes in production.
     """
-    if getattr(settings, "ENVIRONMENT", "development") == "production":
-        raise RuntimeError("CRITICAL SAFETY VIOLATION: Synthetic reference data seeding is prohibited in production!")
+    assert_seeding_permitted()
 
     csv_path = "tests/evaluation_corpus_v2/reference_data/purchase_orders.csv"
     if not os.path.exists(csv_path):
@@ -582,8 +609,7 @@ def provision_synthetic_purchase_orders(db) -> None:
 
 def provision_synthetic_goods_receipts(db) -> None:
     """Seeds synthetic goods receipts and lines into org_sme_eval."""
-    if getattr(settings, "ENVIRONMENT", "development") == "production":
-        raise RuntimeError("CRITICAL SAFETY VIOLATION: Synthetic reference data seeding is prohibited in production!")
+    assert_seeding_permitted()
 
     csv_path = "tests/evaluation_corpus_v2/reference_data/goods_receipts.csv"
     if not os.path.exists(csv_path):
@@ -639,8 +665,7 @@ def provision_synthetic_goods_receipts(db) -> None:
 
 def provision_synthetic_quality_controls(db) -> None:
     """Seeds synthetic quality control inspection records into org_sme_eval."""
-    if getattr(settings, "ENVIRONMENT", "development") == "production":
-        raise RuntimeError("CRITICAL SAFETY VIOLATION: Synthetic reference data seeding is prohibited in production!")
+    assert_seeding_permitted()
 
     csv_path = "tests/evaluation_corpus_v2/reference_data/quality_inspections.csv"
     if not os.path.exists(csv_path):
@@ -687,8 +712,7 @@ def provision_synthetic_quality_controls(db) -> None:
 
 def run_sme_eval_setup() -> Dict[str, Any]:
     """Sets up the complete Phase E SME acceptance environment."""
-    if getattr(settings, "ENVIRONMENT", "development") == "production":
-        raise RuntimeError("CRITICAL SAFETY VIOLATION: Seeding synthetic evaluation fixtures is strictly prohibited in production!")
+    assert_seeding_permitted()
     jwt_secret = ensure_jwt_secret()
 
     # Generate enterprise JWT tokens
