@@ -96,3 +96,29 @@ This document provides an authoritative, truthful accounting of completed milest
 ## 7. Next Recommended Development Milestone
 
 **Independent UI/UX Audit & Redesign:** Hand off repository to an independent design-focused AI model to evaluate AP employee ergonomics, 3-pane density, keyboard triage shortcuts, and bulk action workflows based on the specifications in [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md).
+
+
+---
+
+## 8. Current Readiness & Product Strategy Assessment (8 November 2026)
+
+### Product Strategy Realignment:
+- **Primary Flagship Target:** The **Autonomous AP Command Center** (`backend/` + `frontend/`) is the central product, 5-minute video walkthrough target, and primary evaluation link for the Zamp PS-1 submission.
+- **Auxiliary Tool:** The standalone engine (`engine/`) is an optional, secondary offline evaluation sandbox for local algorithmic inspection.
+
+### Current Technical Verification & Findings Ledger:
+1. **Provider Acceptance Report (Nov 6):** **`[HISTORICALLY VERIFIED]`** Real execution of 5 cases using 4 live AWS Mantle Qwen-235B calls; resources were ephemerally cleaned up.
+2. **`render.yaml` Configuration:** **`[CONFIRMED]`** Currently omits production-required `STORAGE_BUCKET_NAME`; must be added before public Render deployment.
+3. **Database Migration State:** **`[CONFIRMED]`** Persistent Supabase PostgreSQL database is at migration `010_identity_memberships`. Applying migrations `011`–`013` is a P0 blocker to resolve `revoked_access_tokens` UndefinedTable 503 errors.
+4. **Safety Guard in `sme_eval_setup.py`:** **`[CONFIRMED]`** Checks nonexistent `settings.ENVIRONMENT` instead of `settings.APP_ENV`; must be corrected.
+5. **Evaluator Authentication:** **`[CONFIRMED]`** Public `dev-session` is strictly disabled by design; a dedicated, safe hosted demo evaluation mode scoped to `org_sme_eval` will be implemented.
+6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
+7. **Persisted Processing Run View:** **`[CONFIRMED]`** `InvoiceRunView.tsx` consumes actual persisted PostgreSQL audit checkpoints from `backend/core/processing_events.py`.
+8. **Modality Boundary:** **`[CONFIRMED]`** Production hybrid pipeline routes degraded scans fail-closed to `FLAGGED_HITL_REVIEW`. Palmyra Vision was evaluated in a separate benchmark harness and remains feature-flagged OFF in production.
+9. **Test Suite Accounting:** Current canonical test results: **404 passed, 43 skipped, 0 failed** in 37.09s (`pytest tests/`).
+10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
+
+### Prioritized Roadmap to Submission:
+- **P0 (Immediate Blockers):** Apply Alembic migration 013, add `STORAGE_BUCKET_NAME` to `render.yaml`, fix `APP_ENV` check, design safe hosted evaluator access, and align `run.py` default.
+- **P1 (Evaluator Experience & Polish):** Pre-seed `org_sme_eval` golden scenarios, prepare 5-minute video recording, and synchronize documentation.
+- **P2 (Deployment & Secondary Sandbox):** Public cloud hosting, secondary sandbox launcher (`--sandbox`), and UI density polish.
