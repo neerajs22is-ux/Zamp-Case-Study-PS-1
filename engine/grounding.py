@@ -1,6 +1,6 @@
 """Evidence Grounding, Untrusted Data Fencing, and Tripwires for AP Document Intelligence.
 
-Adapted from RAG-4i grounding principles:
+Deterministic Grounding Invariants:
 1. Treat all PDF text streams as untrusted third-party inputs.
 2. Explicitly fence all document evidence in LLM prompts.
 3. Enforce deterministic tripwires: every extracted scalar must be verifiable

@@ -4,7 +4,7 @@ import { Menu, Keyboard, Sparkles, Wrench, HelpCircle } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
-import { HRShowcaseModal } from "./HRShowcaseModal";
+import { FeatureShowcaseModal } from "./FeatureShowcaseModal";
 import { DeveloperDrawer } from "./DeveloperDrawer";
 import { WelcomeModal, GuidedTour, ContextualHelpDrawer } from "./onboarding";
 import { useTour } from "../context/TourContext";
@@ -263,7 +263,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         />
 
         {/* HR Showcase Tour Dialog */}
-        <HRShowcaseModal
+        <FeatureShowcaseModal
           isOpen={showcaseOpen}
           onClose={() => setShowcaseOpen(false)}
           onSwitchRole={onSwitchRole}

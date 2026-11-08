@@ -332,7 +332,7 @@ class InvoiceProcessingPipeline:
 
             clean_text = extracted_text.strip()
             ocr_match = _OCR_CONFIDENCE_RE.search(clean_text)
-            is_simulated_scan = bool(re.search(r"SIMULATED\s+LOW-RES|SCAN(?:NED)?", clean_text, re.IGNORECASE))
+            is_simulated_scan = bool(re.search(r"\b(?:SIMULATED\s+LOW-RES|SCANNED)\b", clean_text, re.IGNORECASE))
             if len(clean_text) < 50 or (ocr_match and int(ocr_match.group(1)) < 75) or is_simulated_scan:
                 # Scanned raster image or low-density text -> run local OCR Engine
                 try:

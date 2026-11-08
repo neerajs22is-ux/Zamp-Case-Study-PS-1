@@ -124,6 +124,7 @@ class VendorRecord(BaseModel):
     status: Literal["ACTIVE", "SUSPENDED", "UNAPPROVED"] = "ACTIVE"
     payment_terms: str = "Net 30"
     contact_email: str
+    is_recurring_billing: bool = False
     bank_account_number: Optional[str] = None
     bank_routing_number: Optional[str] = None
 

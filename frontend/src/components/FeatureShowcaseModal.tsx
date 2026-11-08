@@ -14,7 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-interface HRShowcaseModalProps {
+interface FeatureShowcaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSwitchRole?: (role: string) => void;
@@ -33,7 +33,7 @@ interface ShowcaseScenario {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export const HRShowcaseModal: React.FC<HRShowcaseModalProps> = ({
+export const FeatureShowcaseModal: React.FC<FeatureShowcaseModalProps> = ({
   isOpen,
   onClose,
   onSwitchRole,
@@ -290,7 +290,7 @@ export const HRShowcaseModal: React.FC<HRShowcaseModalProps> = ({
           <span>
             Evaluator Guide: Comprehensive testing instructions in{" "}
             <code className="font-mono text-indigo-600 dark:text-indigo-400">
-              docs/HR_SHOWCASE_GUIDE.md
+              docs/TESTING_AND_EVALUATION.md
             </code>
           </span>
           <button
@@ -304,3 +304,5 @@ export const HRShowcaseModal: React.FC<HRShowcaseModalProps> = ({
     </div>
   );
 };
+
+export { FeatureShowcaseModal as HRShowcaseModal };

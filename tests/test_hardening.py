@@ -293,3 +293,183 @@ def test_stream_scenario_emits_final_decision():
     assert res.status_code == 200
     assert "DECISION_FINAL" in body
     assert "AUTO_APPROVED" in body
+
+
+# -
+
+
+# ---------------------------------------------------------------------------
+# 7. Tier 1-4 Inspector Audit Remediation Invariants
+# ---------------------------------------------------------------------------
+
+def test_barcode_scanner_not_misclassified_as_scan(fresh_pipeline):
+    """An invoice with 'Wireless Barcode Scanner' should not be misclassified as SCANNED_IMAGE."""
+    import io
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=letter)
+    c.drawString(50, 700, "INVOICE: INV-SCANNER-99")
+    c.drawString(50, 680, "Date: 2026-10-29")
+    c.drawString(50, 660, "Vendor: Apex Cloud Technologies Inc.")
+    c.drawString(50, 640, "Tax ID: US-EIN-94-3829102")
+    c.drawString(50, 620, "PO: PO-1042")
+    c.drawString(50, 600, "Item: Wireless Barcode Scanner Model X-200")
+    c.drawString(50, 580, "Subtotal: $5,000.00")
+    c.drawString(50, 560, "Tax: $425.00")
+    c.drawString(50, 540, "Grand Total: $5,425.00")
+    c.save()
+    pdf_bytes = buf.getvalue()
+    
+    doc_type, raw_text, _ = fresh_pipeline._ingest(pdf_bytes, filename="scanner_inv.pdf")
+    assert doc_type == DocumentType.DIGITAL_PDF
+
+
+def test_vendor_name_mismatch_held_when_tax_id_matches(fresh_pipeline):
+    """When Tax ID matches master but entity name differs, Gate 2 must flag FLAGGED_HITL_REVIEW."""
+    payload = invoice_payload(
+        vendor={"name": "Impersonator Shell LLC", "tax_id": "US-EIN-94-3829102"},
+    )
+    audit = fresh_pipeline.process(payload)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "vendor_name_mismatch" in audit.discrepancy_details
+
+
+def test_tax_id_mismatch_downgraded_to_hold_on_low_confidence(fresh_pipeline):
+    """Tax ID mismatch on low-confidence extraction (< 0.75) must downgrade hard rejection to FLAGGED_HITL_REVIEW."""
+    payload = invoice_payload(
+        vendor={"name": "Apex Cloud Technologies Inc.", "tax_id": "US-EIN-99-9999999"},
+        confidence_scores={"overall": 0.65, "tax_id": 0.60},
+    )
+    audit = fresh_pipeline.process(payload)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "tax_id_unverified_scan" in audit.discrepancy_details
+
+
+def test_empty_description_does_not_match_po_line(fresh_pipeline):
+    """Invoice line with degenerate punctuation-only description must not match PO lines via substring."""
+    payload = invoice_payload(
+        line_items=[
+            {"line_number": 1, "description": "--", "quantity": 10.0, "unit_price": 500.0, "total": 5000.0}
+        ]
+    )
+    audit = fresh_pipeline.process(payload)
+    assert len(audit.line_match_results) == 1
+    assert audit.line_match_results[0].status == LineMatchStatus.UNMATCHED
+
+
+def test_in_flight_duplicate_detected(fresh_pipeline):
+    """An invoice held for HITL review must prevent duplicate re-submission in-flight."""
+    payload1 = invoice_payload(
+        invoice_number="INV-INFLIGHT-01",
+        line_items=[
+            {"line_number": 1, "description": "Enterprise API Compute Tier 3", "quantity": 10.0,
+             "unit_price": 600.0, "total": 6000.0}
+        ],
+        subtotal=6000.0,
+        total_amount=6000.0,
+    )
+    audit1 = fresh_pipeline.process(payload1)
+    assert audit1.decision == DecisionState.FLAGGED_HITL_REVIEW
+
+    # Resubmit exact same invoice while first is still pending in-flight
+    audit2 = fresh_pipeline.process(payload1)
+    assert audit2.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "duplicate_in_review" in audit2.discrepancy_details
+    assert audit2.discrepancy_details["duplicate_in_review"]["amount"] == 6000.0
+
+
+def test_recurring_billing_vendor_exempt_from_fuzzy_duplicate(fresh_pipeline):
+    """Recurring billing vendors should not be blocked by fuzzy amount duplicate checks for distinct invoice numbers."""
+    from datetime import date
+    from engine.models import HistoricalInvoiceRecord
+    
+    vendor = fresh_pipeline.erp.vendors["VEND-001"]
+    vendor.is_recurring_billing = True
+
+    fresh_pipeline.erp.record_processed_invoice(
+        HistoricalInvoiceRecord(
+            invoice_id="REC-INV-01",
+            vendor_id="VEND-001",
+            invoice_number="INV-JAN-2026",
+            amount=5000.00,
+            invoice_date=date(2026, 1, 15),
+            processed_date=date(2026, 1, 15),
+            sha256_hash="HASH_JAN_2026",
+            batch_id="BATCH-01",
+            status=DecisionState.AUTO_APPROVED,
+        )
+    )
+
+    payload = invoice_payload(
+        invoice_number="INV-FEB-2026",
+        invoice_date="2026-02-15",
+        subtotal=5000.0,
+        total_amount=5000.0,
+        line_items=[
+            {"line_number": 1, "description": "Enterprise API Compute Tier 3", "quantity": 10.0,
+             "unit_price": 500.0, "total": 5000.0}
+        ],
+    )
+    audit = fresh_pipeline.process(payload)
+    assert "duplicate_submission" not in audit.discrepancy_details
+
+
+def test_bank_mismatch_approval_blocked_without_callback_notes(fresh_pipeline):
+    """Manual approval of bank details mismatch must fail without telephone callback confirmation."""
+    from engine.server import pipeline as server_pipeline
+    
+    payload = invoice_payload(
+        invoice_number="INV-BANK-01",
+        vendor={
+            "name": "Apex Cloud Technologies Inc.",
+            "tax_id": "US-EIN-94-3829102",
+            "bank_account_number": "FR7630006000011234567890189"
+        }
+    )
+    audit = server_pipeline.process(payload)
+    assert audit.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "bank_details_mismatch" in audit.discrepancy_details
+
+    # Blocked without callback notes (route is /api/invoices/{run_id}/action)
+    res = client.post(
+        f"/api/invoices/{audit.run_id}/action",
+        json={"action": "APPROVE", "notes": "Approved by AP Clerk without details"}
+    )
+    assert res.status_code == 403
+    assert "Fraud Risk Gate" in res.json()["detail"]
+
+    # Allowed with telephone callback verification notes
+    res_ok = client.post(
+        f"/api/invoices/{audit.run_id}/action",
+        json={"action": "APPROVE", "notes": "Telephone callback verified with Vendor Treasury Lead Jane Doe"}
+    )
+    assert res_ok.status_code == 200
+    assert res_ok.json()["decision"] == "MANUALLY_APPROVED"
+
+
+def test_po_line_and_header_drawdown_unified_balance(fresh_pipeline):
+    """Header remaining balance and line remaining balance must draw down deterministically."""
+    po = fresh_pipeline.erp.get_po("PO-1042")
+    assert po.remaining_balance == 10000.00
+    assert po.line_items[0].invoiced_amount == 0.0
+
+    payload = invoice_payload(
+        invoice_number="INV-BAL-TEST",
+        line_items=[
+            {"line_number": 1, "description": "Enterprise API Compute Tier 3", "quantity": 5.0,
+             "unit_price": 500.0, "total": 2500.0}
+        ],
+        subtotal=2500.0,
+        tax_amount=0.0,
+        total_amount=2500.0,
+    )
+    audit = fresh_pipeline.process(payload)
+    assert audit.decision == DecisionState.AUTO_APPROVED
+
+    po_after = fresh_pipeline.erp.get_po("PO-1042")
+    assert po_after.remaining_balance == 7500.00
+    assert po_after.line_items[0].invoiced_amount == 2500.00
+    assert (po_after.line_items[0].total_amount - po_after.line_items[0].invoiced_amount) == 7500.00
+

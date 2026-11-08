@@ -101,7 +101,7 @@ python -m pytest tests/ -q
 ```
 
 ### Verified Test Results Summary:
-- **Standalone PS-1 Engine Suite:** **28 passed, 0 failed** in 0.25s (`tests/test_engine.py`)
+- **Standalone PS-1 Engine Suite:** **29 passed, 0 failed** in 0.25s (`tests/test_engine.py`)
   - HP-01 through EC-04 deterministic scenario test matrix
   - Tax ID mismatch strict rejection (never falls back to name)
   - Short vendor name rejection (minimum 3-char threshold)
@@ -112,8 +112,14 @@ python -m pytest tests/ -q
   - Remittance bank account mismatch fraud prevention
   - Multi-line quantity aggregation per PO line
   - Multi-currency formatting (USD `$`, INR `₹`, EUR `€`, GBP `£`)
-- **Full Project Test Suite:** **393 passed, 43 skipped, 0 failed** in ~48s (Skipped tests require disposable PostgreSQL or external services).
-- **Security & Hygiene:** 0 committed credentials; `.env`, `.agents`, `.vibe-wise`, employer dossiers, and external project files scrubbed from git tracking.
+- **Hardening & Remediation Suite:** **27 passed, 0 failed** in 2.3s (`tests/test_hardening.py`)
+  - Degradation scan boundary with realistic watermark stamps and zero typed artifact strings
+  - In-flight duplicate submission detection for pending human reviews
+  - Anti-fraud telephone callback verification gate for manual bank detail overrides
+  - Recurring billing vendor exemptions for predictable monthly operational services
+  - Deterministic PO header and line drawdown synchronization
+- **Full Project Test Suite:** **404 passed, 43 skipped, 0 failed** in 37s (Skipped tests require external services / live Postgres).
+- **Security & Hygiene:** 0 committed credentials; strict secrets hygiene and zero API key leakage across all git commits.
 
 ---
 
@@ -153,7 +159,7 @@ For enterprise-scale production evaluations, the repository also includes a mult
 │   └── PS1_INVOICE_PROCESSING_SPEC.md
 ├── ASSUMPTIONS.md                  # 10 core enterprise AP operating assumptions
 ├── tests/                          # 436 automated verification tests
-│   ├── test_engine.py              # 28 deterministic regression tests for PS-1 rules
+│   ├── test_engine.py              # 29 deterministic regression tests for PS-1 rules
 │   └── test_hardening.py           # Engine fail-soft and extraction regression tests
 └── docs/                           # Architecture, verification reports, and blueprints
     ├── architecture/               # High-availability and storage design

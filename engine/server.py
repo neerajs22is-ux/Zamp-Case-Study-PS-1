@@ -251,6 +251,17 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
                 status_code=400,
                 detail="Cannot override an invoice with decision REJECTED. Re-upload or resolve hard rejection grounds.",
             )
+
+        # Enterprise Fraud Risk Gate (Section 7): Bank details mismatch override control
+        if "bank_details_mismatch" in audit.discrepancy_details:
+            notes_lower = (action_req.notes or action_req.override_reason or "").lower()
+            verification_tokens = ["callback", "call-back", "telephone", "phone", "out-of-band", "voice verified", "verified via call"]
+            if not any(token in notes_lower for token in verification_tokens):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Fraud Risk Gate: Overriding an invoice with bank details mismatch requires documented out-of-band telephone callback verification in operator notes.",
+                )
+
         audit.decision = DecisionState.MANUALLY_APPROVED
         audit.erp_voucher_id = audit.erp_voucher_id or f"VCHR-OVR-{uuid.uuid4().hex[:6].upper()}"
         note = action_req.notes or action_req.override_reason or "Approved via human operator tolerance override"
@@ -270,6 +281,10 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
             vend = erp_instance.get_vendor_by_name(audit.vendor_name)
             if vend and vend.vendor_id:
                 vendor_id = vend.vendor_id
+
+        # Clear in-flight hold since invoice is now approved
+        if audit.invoice_number:
+            erp_instance.clear_in_flight(vendor_id, audit.invoice_number)
 
         # Financial consistency: record PO drawdown if PO exists, and record in historical ledger
         if audit.po_number:
@@ -302,6 +317,19 @@ async def apply_operator_action(run_id: str, action_req: OperatorActionPayload):
             "notes": note,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
+
+        # Clear in-flight hold on rejection
+        vendor_id = "VEND-UNKNOWN"
+        if audit.po_number:
+            po = erp_instance.get_po(audit.po_number)
+            if po and po.vendor_id:
+                vendor_id = po.vendor_id
+        if vendor_id == "VEND-UNKNOWN" and audit.vendor_name:
+            vend = erp_instance.get_vendor_by_name(audit.vendor_name)
+            if vend and vend.vendor_id:
+                vendor_id = vend.vendor_id
+        if audit.invoice_number:
+            erp_instance.clear_in_flight(vendor_id, audit.invoice_number)
     elif action_req.action == "RECORD_CLARIFICATION":
         note = action_req.notes or "Supplier clarification requested via email"
         audit.reasons.append(f"[VENDOR CLARIFICATION]: {note}")

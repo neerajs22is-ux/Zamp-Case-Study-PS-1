@@ -626,7 +626,7 @@
       if (!file) return;
 
       resetStepper();
-      document.getElementById('pipeline-status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span><span class="text-blue-400">INGESTING ' + file.name + '...</span>';
+      document.getElementById('pipeline-status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span><span class="text-blue-400">INGESTING ' + escapeHtml(file.name) + '...</span>';
       highlightStage(1, 'RUNNING');
 
       const formData = new FormData();
@@ -811,11 +811,57 @@
         }
       }
 
+    function formatDiscrepancyDetails(details) {
+      if (!details || typeof details !== 'object' || Object.keys(details).length === 0) return '';
+      let out = '<div class="space-y-2">';
+      for (const [key, val] of Object.entries(details)) {
+        const title = escapeHtml(key.replace(/_/g, ' ').toUpperCase());
+        if (Array.isArray(val)) {
+          out += `<div class="p-2 rounded bg-slate-900/70 border border-amber-500/30 text-xs">
+            <div class="font-semibold text-amber-300 mb-1 flex items-center justify-between">
+              <span>${title}</span>
+              <span class="text-[10px] bg-amber-500/20 px-1.5 py-0.5 rounded text-amber-300">${val.length} items</span>
+            </div>`;
+          val.forEach(item => {
+            if (typeof item === 'object' && item !== null) {
+              const desc = escapeHtml(item.description || item.reason || 'Discrepancy Line');
+              const invP = item.invoice_unit_price !== undefined ? `$${item.invoice_unit_price}` : '';
+              const poP = item.po_unit_price !== undefined ? `$${item.po_unit_price}` : '';
+              const varP = item.variance_pct !== undefined ? `${item.variance_pct}%` : '';
+              out += `<div class="text-[11px] text-slate-300 py-1 border-t border-slate-800/80 flex items-center justify-between">
+                <span>${desc}</span>
+                <span class="font-mono text-amber-300 ml-2">${invP && poP ? `Inv ${invP} vs PO ${poP} (${varP})` : ''}</span>
+              </div>`;
+            } else {
+              out += `<div class="text-[11px] text-slate-300 py-1 border-t border-slate-800/80">${escapeHtml(String(item))}</div>`;
+            }
+          });
+          out += `</div>`;
+        } else if (typeof val === 'object' && val !== null) {
+          out += `<div class="p-2 rounded bg-slate-900/70 border border-amber-500/30 text-xs">
+            <div class="font-semibold text-amber-300 mb-1">${title}</div>
+            <div class="grid grid-cols-2 gap-1 text-[11px]">`;
+          for (const [subk, subv] of Object.entries(val)) {
+            out += `<div class="text-slate-400">${escapeHtml(subk.replace(/_/g, ' '))}:</div>
+                    <div class="text-slate-200 font-mono text-right truncate" title="${escapeHtml(String(subv))}">${escapeHtml(String(subv))}</div>`;
+          }
+          out += `</div></div>`;
+        } else {
+          out += `<div class="p-2 rounded bg-slate-900/70 border border-amber-500/30 flex justify-between text-xs">
+            <span class="text-amber-300 font-semibold">${title}:</span>
+            <span class="text-slate-200 font-mono">${escapeHtml(String(val))}</span>
+          </div>`;
+        }
+      }
+      out += '</div>';
+      return out;
+    }
+
       // Render Discrepancies
       const discCard = document.getElementById('discrepancy-card');
-      if (Object.keys(audit.discrepancy_details).length > 0) {
+      if (audit.discrepancy_details && Object.keys(audit.discrepancy_details).length > 0) {
         discCard.classList.remove('hidden');
-        document.getElementById('discrepancy-content').textContent = JSON.stringify(audit.discrepancy_details, null, 2);
+        document.getElementById('discrepancy-content').innerHTML = formatDiscrepancyDetails(audit.discrepancy_details);
       } else {
         discCard.classList.add('hidden');
       }

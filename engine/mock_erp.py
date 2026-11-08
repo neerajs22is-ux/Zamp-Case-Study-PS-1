@@ -47,6 +47,7 @@ class MockERPDatabase:
         self.vendors: Dict[str, VendorRecord] = {}
         self.purchase_orders: Dict[str, PurchaseOrder] = {}
         self.historical_invoices: List[HistoricalInvoiceRecord] = []
+        self.in_flight_invoices: Dict[str, Dict[str, Any]] = {}
         self._seed_database()
 
     def _seed_database(self) -> None:
@@ -278,6 +279,24 @@ class MockERPDatabase:
         """
         norm_inv = normalize_invoice_number(invoice_number)
 
+        # Check in-flight held invoices (Item 11: Dedupe pending reviews)
+        if norm_inv and vendor_id:
+            in_flight_key = f"{vendor_id}:{norm_inv}"
+            if in_flight_key in self.in_flight_invoices:
+                rec_info = self.in_flight_invoices[in_flight_key]
+                pseudo_rec = HistoricalInvoiceRecord(
+                    invoice_id=rec_info.get("run_id", "IN-FLIGHT-001"),
+                    vendor_id=vendor_id,
+                    invoice_number=invoice_number,
+                    amount=rec_info.get("amount", amount),
+                    invoice_date=rec_info.get("invoice_date", date.today()),
+                    processed_date=rec_info.get("processed_date", date.today()),
+                    sha256_hash=sha256_hash or "IN_FLIGHT_HASH",
+                    batch_id="IN-FLIGHT-HOLD",
+                    status=DecisionState.FLAGGED_HITL_REVIEW,
+                )
+                return True, pseudo_rec, "DUPLICATE_IN_REVIEW"
+
         for record in self.historical_invoices:
             # Check 1: Normalized invoice number match (requires non-empty invoice numbers)
             if record.vendor_id == vendor_id and norm_inv and record.invoice_number:
@@ -289,13 +308,32 @@ class MockERPDatabase:
             if sha256_hash and record.sha256_hash == sha256_hash:
                 return True, record, "EXACT_HASH"
 
-            # Check 3: Same vendor + amount inside the duplicate window using invoice dates
-            if record.vendor_id == vendor_id and abs(record.amount - amount) < 0.01:
+            # Check 3: Same vendor + amount inside duplicate window (Exempt active recurring billing contracts)
+            vendor_obj = self.vendors.get(vendor_id)
+            is_recurring = getattr(vendor_obj, "is_recurring_billing", False)
+            if not is_recurring and record.vendor_id == vendor_id and abs(record.amount - amount) < 0.01:
                 ref_date = record.invoice_date or record.processed_date
                 if invoice_date and abs((ref_date - invoice_date).days) <= window_days:
                     return True, record, "FUZZY_AMOUNT_DATE"
 
         return False, None, "NONE"
+
+    def record_in_flight(self, vendor_id: str, invoice_number: str, run_id: str, amount: float, inv_date: Optional[date] = None) -> None:
+        """Record an in-flight invoice currently held in the review queue to prevent duplicate submissions."""
+        norm_inv = normalize_invoice_number(invoice_number)
+        if norm_inv and vendor_id:
+            self.in_flight_invoices[f"{vendor_id}:{norm_inv}"] = {
+                "run_id": run_id,
+                "amount": amount,
+                "invoice_date": inv_date or date.today(),
+                "processed_date": date.today(),
+            }
+
+    def clear_in_flight(self, vendor_id: str, invoice_number: str) -> None:
+        """Clear an invoice from the in-flight registry once approved or finalized."""
+        norm_inv = normalize_invoice_number(invoice_number)
+        if norm_inv and vendor_id:
+            self.in_flight_invoices.pop(f"{vendor_id}:{norm_inv}", None)
 
     def record_processed_invoice(self, record: HistoricalInvoiceRecord) -> None:
         """Add a processed invoice to the historical ledger."""
@@ -329,4 +367,5 @@ class MockERPDatabase:
         self.vendors.clear()
         self.purchase_orders.clear()
         self.historical_invoices.clear()
+        self.in_flight_invoices.clear()
         self._seed_database()

@@ -54,12 +54,22 @@ class AOPPolicyConfig:
         tax_rounding_tolerance_threshold: float = 5.00,
         low_confidence_threshold: float = 0.75,
         duplicate_window_days: int = 30,
+        stale_invoice_days: int = 365,
+        po_budget_tolerance_pct: float = 0.5,
+        po_budget_tolerance_amount: float = 10.00,
+        line_total_variance_amount_threshold: float = 50.00,
+        reference_date: Optional[date] = None,
     ) -> None:
         self.unit_price_variance_pct_threshold = unit_price_variance_pct_threshold
         self.unit_price_variance_amount_threshold = unit_price_variance_amount_threshold
         self.tax_rounding_tolerance_threshold = tax_rounding_tolerance_threshold
         self.low_confidence_threshold = low_confidence_threshold
         self.duplicate_window_days = duplicate_window_days
+        self.stale_invoice_days = stale_invoice_days
+        self.po_budget_tolerance_pct = po_budget_tolerance_pct
+        self.po_budget_tolerance_amount = po_budget_tolerance_amount
+        self.line_total_variance_amount_threshold = line_total_variance_amount_threshold
+        self.reference_date = reference_date
 
 
 class AOPRuleEngine:
@@ -172,16 +182,16 @@ class AOPRuleEngine:
             )
             discrepancies["missing_invoice_date"] = True
         else:
-            today = date.today()
+            today = self.config.reference_date or date.today()
             if invoice.invoice_date > today:
                 reasons.append(
                     f"Future-dated invoice detected: Invoice date ({invoice.invoice_date}) is in the future. "
                     "Held for verification."
                 )
                 discrepancies["future_dated_invoice"] = str(invoice.invoice_date)
-            elif (today - invoice.invoice_date).days > 365:
+            elif (today - invoice.invoice_date).days > self.config.stale_invoice_days:
                 reasons.append(
-                    f"Stale invoice detected: Invoice date ({invoice.invoice_date}) is older than 365 days. "
+                    f"Stale invoice detected: Invoice date ({invoice.invoice_date}) is older than {self.config.stale_invoice_days} days. "
                     "Held for accounting review."
                 )
                 discrepancies["stale_invoice"] = str(invoice.invoice_date)
@@ -195,26 +205,60 @@ class AOPRuleEngine:
         if tax_id_provided:
             vendor = erp.get_vendor_by_tax_id(invoice.vendor.tax_id)
             if not vendor:
-                # STRICT AUDIT RULE: Tax ID was provided, but is NOT found in ERP Master.
-                # Never fall through to name lookup if tax ID mismatched.
-                reasons.append(
-                    f"Vendor Tax ID mismatch: Tax ID '{invoice.vendor.tax_id}' provided on invoice "
-                    f"does not match any approved record in ERP Vendor Master for '{invoice.vendor.name}'."
-                )
-                discrepancies["tax_id_mismatch"] = {
-                    "provided_tax_id": invoice.vendor.tax_id,
-                    "vendor_name": invoice.vendor.name,
-                }
-                return self._build_audit(
-                    run_id=run_id,
-                    invoice=invoice,
-                    decision=DecisionState.REJECTED,
-                    overall_confidence=overall_confidence,
-                    reasons=reasons,
-                    discrepancies=discrepancies,
-                    line_results=line_results,
-                    stage_timings=stage_timings or [],
-                )
+                # If extraction confidence is low (< 75%), downgrade to hold rather than hard reject
+                if overall_confidence < self.config.low_confidence_threshold:
+                    reasons.append(
+                        f"Unverified Tax ID on low-confidence extraction: Tax ID '{invoice.vendor.tax_id}' was extracted "
+                        f"with {int(overall_confidence * 100)}% confidence and is not found in ERP Master. "
+                        "Held for human review to verify whether Tax ID was misread."
+                    )
+                    discrepancies["tax_id_unverified_scan"] = {
+                        "provided_tax_id": invoice.vendor.tax_id,
+                        "vendor_name": invoice.vendor.name,
+                        "confidence": overall_confidence,
+                    }
+                    # Also attempt name fallback for hold context
+                    fallback_vendor = erp.get_vendor_by_name(invoice.vendor.name)
+                    if fallback_vendor:
+                        vendor = fallback_vendor
+                        reasons.append(f"Entity matched by name '{vendor.name}' as secondary hold reference.")
+                else:
+                    # STRICT AUDIT RULE: Tax ID was provided with high confidence, but is NOT found in ERP Master.
+                    # Never fall through to name lookup if tax ID mismatched.
+                    reasons.append(
+                        f"Vendor Tax ID mismatch: Tax ID '{invoice.vendor.tax_id}' provided on invoice "
+                        f"does not match any approved record in ERP Vendor Master for '{invoice.vendor.name}'."
+                    )
+                    discrepancies["tax_id_mismatch"] = {
+                        "provided_tax_id": invoice.vendor.tax_id,
+                        "vendor_name": invoice.vendor.name,
+                    }
+                    return self._build_audit(
+                        run_id=run_id,
+                        invoice=invoice,
+                        decision=DecisionState.REJECTED,
+                        overall_confidence=overall_confidence,
+                        reasons=reasons,
+                        discrepancies=discrepancies,
+                        line_results=line_results,
+                        stage_timings=stage_timings or [],
+                    )
+            else:
+                # Tax ID matched ERP record: Check stated vendor name against master record name (Item 1 / Finding 1)
+                if invoice.vendor.name and vendor.name:
+                    inv_tokens = {t for t in re.findall(r"[a-z0-9]+", invoice.vendor.name.lower()) if len(t) >= 3 and t not in {"inc", "corp", "llc", "ltd", "technologies", "company"}}
+                    master_tokens = {t for t in re.findall(r"[a-z0-9]+", vendor.name.lower()) if len(t) >= 3 and t not in {"inc", "corp", "llc", "ltd", "technologies", "company"}}
+                    if inv_tokens and master_tokens and not inv_tokens.intersection(master_tokens):
+                        reasons.append(
+                            f"Vendor Name Inconsistency: Stated vendor name '{invoice.vendor.name}' does not match "
+                            f"registered name '{vendor.name}' in ERP Vendor Master for Tax ID '{invoice.vendor.tax_id}'. "
+                            "Held for vendor identification review."
+                        )
+                        discrepancies["vendor_name_mismatch"] = {
+                            "stated_name": invoice.vendor.name,
+                            "master_name": vendor.name,
+                            "tax_id": invoice.vendor.tax_id,
+                        }
         else:
             # Tax ID not provided: Attempt normalized name match
             vendor = erp.get_vendor_by_name(invoice.vendor.name)
@@ -293,6 +337,26 @@ class AOPRuleEngine:
             )
 
             if is_dup and dup_record:
+                if dup_type == "DUPLICATE_IN_REVIEW":
+                    reasons.append(
+                        f"Duplicate submission in review: Invoice #{invoice.invoice_number} from '{vendor.name}' "
+                        f"is already currently pending AP Lead review (Run: {dup_record.invoice_id}). "
+                        "Held to prevent duplicate worklist routing."
+                    )
+                    discrepancies["duplicate_in_review"] = {
+                        "run_id": dup_record.invoice_id,
+                        "amount": dup_record.amount,
+                    }
+                    return self._build_audit(
+                        run_id=run_id,
+                        invoice=invoice,
+                        decision=DecisionState.FLAGGED_HITL_REVIEW,
+                        overall_confidence=overall_confidence,
+                        reasons=reasons,
+                        discrepancies=discrepancies,
+                        line_results=line_results,
+                        stage_timings=stage_timings or [],
+                    )
                 if dup_type in ("EXACT_INVOICE_NUMBER", "EXACT_HASH"):
                     reasons.append(
                         f"Duplicate submission detected. Invoice #{invoice.invoice_number} from '{vendor.name}' "
@@ -563,6 +627,7 @@ class AOPRuleEngine:
                             round(result.billed_quantity * result.billed_unit_price, 2),
                         )
                 erp.record_po_drawdown(po.po_number, invoice.total_amount)
+            erp.clear_in_flight(vendor.vendor_id, invoice.invoice_number or "")
             erp.record_processed_invoice(
                 HistoricalInvoiceRecord(
                     invoice_id=f"PROC-{uuid.uuid4().hex[:8].upper()}",
@@ -579,6 +644,8 @@ class AOPRuleEngine:
         else:
             decision = DecisionState.FLAGGED_HITL_REVIEW
             voucher_id = None
+            if vendor and invoice.invoice_number:
+                erp.record_in_flight(vendor.vendor_id, invoice.invoice_number, run_id, invoice.total_amount, invoice.invoice_date)
 
         return self._build_audit(
             run_id=run_id,
@@ -595,21 +662,43 @@ class AOPRuleEngine:
         )
 
     def _find_matching_po_line(self, description: str, po_lines: List[Any]) -> Optional[Any]:
-        """Match invoice line item to PO line item using semantic tokens."""
-        clean_desc = description.strip().lower()
+        """Match invoice line item to PO line item using semantic tokens with best-match scoring."""
+        clean_desc = (description or "").strip().lower()
+        if len(clean_desc) < 3:
+            return None
+
+        best_match = None
+        best_score = 0.0
+
+        desc_tokens = set(re.findall(r"[a-z0-9]+", clean_desc))
+        stop_words = {"the", "and", "for", "with", "per", "item", "unit", "tier"}
+        filtered_desc = {t for t in desc_tokens if t not in stop_words and len(t) >= 2}
+
         for po_line in po_lines:
-            po_desc = po_line.description.strip().lower()
-            po_code = po_line.item_code.strip().lower()
-            if po_desc in clean_desc or clean_desc in po_desc or po_code in clean_desc:
+            po_desc = (po_line.description or "").strip().lower()
+            po_code = (po_line.item_code or "").strip().lower()
+
+            # Exact item code match
+            if po_code and (po_code == clean_desc or po_code in clean_desc):
                 return po_line
-            # Token overlap check (require at least 2 common tokens)
-            desc_tokens = set(clean_desc.split())
-            po_tokens = set(po_desc.split())
-            overlap = desc_tokens.intersection(po_tokens)
-            if len(overlap) >= 2:
+
+            # Exact description match
+            if po_desc == clean_desc:
                 return po_line
-        # Strict matching: do not match arbitrary lines on single-line POs
-        return None
+
+            po_tokens = set(re.findall(r"[a-z0-9]+", po_desc))
+            filtered_po = {t for t in po_tokens if t not in stop_words and len(t) >= 2}
+
+            if filtered_desc and filtered_po:
+                intersection = filtered_desc.intersection(filtered_po)
+                union = filtered_desc.union(filtered_po)
+                jaccard = len(intersection) / len(union) if union else 0.0
+
+                if (len(intersection) >= 2 or jaccard >= 0.5) and jaccard > best_score:
+                    best_score = jaccard
+                    best_match = po_line
+
+        return best_match
 
     def _build_audit(
         self,
@@ -666,7 +755,7 @@ class AOPRuleEngine:
         po: Optional[PurchaseOrder],
     ) -> str:
         """Auto-draft professional enterprise email for human approver to dispatch with 1 click."""
-        recipient = vendor.contact_email if vendor else (invoice.vendor.contact_email or "accounts@vendor.com")
+        recipient = vendor.contact_email if vendor and vendor.contact_email else "ap-vendor-desk@company.internal"
         vendor_name = vendor.name if vendor else invoice.vendor.name
         curr = invoice.currency or "USD"
 
@@ -715,7 +804,9 @@ class AOPRuleEngine:
             if "bank_details_mismatch" in discrepancies:
                 vendor_bullets.append(
                     "Remittance bank details on invoice differ from registered vendor bank details on file. "
-                    "For security compliance, please verify banking instructions via our supplier portal."
+                    "For security compliance against unauthorized account redirection, payment is held pending "
+                    "mandatory out-of-band telephone verification with your finance department using the registered "
+                    "corporate contact number in our ERP Master."
                 )
             if "split_po_overrun" in discrepancies:
                 over = discrepancies["split_po_overrun"]

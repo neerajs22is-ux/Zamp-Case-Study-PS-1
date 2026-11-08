@@ -93,9 +93,15 @@ def create_pdf(
     c.drawRightString(width - 50, y - 42, f"${total:,.2f}")
 
     if is_scanned:
-        # Simulate artifact/watermark
+        # Realistic scanned copy stamp and watermark
+        c.saveState()
+        c.setFont("Helvetica-Bold", 32)
+        c.setFillColorRGB(0.88, 0.88, 0.88)
+        c.drawString(180, 520, "SCANNED COPY")
         c.setFont("Helvetica-Oblique", 8)
-        c.drawString(50, 40, "[SCAN ARTIFACT: Low DPI mobile camera capture - OCR Confidence 62%]")
+        c.setFillColorRGB(0.45, 0.45, 0.45)
+        c.drawString(50, 40, "[SCANNED DOCUMENT - MOBILE INVOICE CAPTURE]")
+        c.restoreState()
 
     c.save()
 
