@@ -295,7 +295,7 @@
       
       <!-- Choice A Card: Explore a Guided Scenario -->
       <div 
-        onclick="switchLandingDeck('scenarios')"
+        onclick="switchLandingDeck('scenarios', true)"
         id="choice-card-scenarios"
         class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-indigo-500/40 hover:border-indigo-400 shadow-lg relative group bg-slate-900/90"
       >
@@ -319,7 +319,7 @@
             <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Full 7-Gate Evidence</span>
           </div>
         </div>
-        <button type="button" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
+        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('scenarios', true);" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
           <span>Select an Authentic Scenario</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
@@ -327,7 +327,7 @@
 
       <!-- Choice B Card: Upload Your Own Invoice -->
       <div 
-        onclick="switchLandingDeck('upload')"
+        onclick="switchLandingDeck('upload', true)"
         id="choice-card-upload"
         class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-emerald-500/30 hover:border-emerald-400 shadow-lg relative group"
       >
@@ -351,7 +351,7 @@
             <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Real Audit Events</span>
           </div>
         </div>
-        <button type="button" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs transition-colors flex items-center justify-center gap-2">
+        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('upload', true);" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs transition-colors flex items-center justify-center gap-2">
           <span>Open Upload Studio</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
@@ -367,14 +367,14 @@
         <div class="inline-flex p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-semibold gap-1">
           <button 
             id="tab-choice-scenarios"
-            onclick="switchLandingDeck('scenarios')"
+            onclick="switchLandingDeck('scenarios', true)"
             class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 bg-indigo-600 text-white shadow-sm"
           >
             <span>✦ Guided Scenarios (6)</span>
           </button>
           <button 
             id="tab-choice-upload"
-            onclick="switchLandingDeck('upload')"
+            onclick="switchLandingDeck('upload', true)"
             class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200"
           >
             <span>⇪ Custom PDF Upload</span>
@@ -383,7 +383,7 @@
       </div>
 
       <!-- DECK 1: GUIDED SCENARIOS GALLERY -->
-      <div id="deck-scenarios" class="space-y-4">
+      <div id="deck-scenarios" class="space-y-4 scroll-mt-20">
         <div class="flex items-center justify-between pb-2 border-b border-slate-800">
           <div>
             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Choose a Supported Scenario</h3>
@@ -402,7 +402,7 @@
       </div>
 
       <!-- DECK 2: CUSTOM UPLOAD STUDIO (Hidden by default, revealed on tab or card click) -->
-      <div id="deck-upload" class="hidden space-y-4">
+      <div id="deck-upload" class="hidden space-y-4 scroll-mt-20">
         <div class="flex items-center justify-between pb-2 border-b border-slate-800">
           <div>
             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Upload Custom Invoice PDF</h3>
@@ -1390,7 +1390,7 @@
     }
 
     // Switch between progressive landing decks (Guided Scenarios vs Custom Upload)
-    function switchLandingDeck(deck) {
+    function switchLandingDeck(deck, shouldScroll = true) {
       const isScenarios = deck === 'scenarios';
       const scenariosDeck = document.getElementById('deck-scenarios');
       const uploadDeck = document.getElementById('deck-upload');
@@ -1414,6 +1414,13 @@
           if (tabScenarios) tabScenarios.className = 'px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200';
           if (choiceUpload) choiceUpload.classList.add('border-emerald-400', 'bg-slate-900/90');
           if (choiceScenarios) choiceScenarios.classList.remove('border-indigo-400', 'bg-slate-900/90');
+        }
+
+        if (shouldScroll) {
+          const targetDeck = isScenarios ? scenariosDeck : uploadDeck;
+          if (targetDeck) {
+            targetDeck.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         }
       }
     }
