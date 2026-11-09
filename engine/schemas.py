@@ -163,6 +163,10 @@ class MantleInvoiceExtraction(BaseModel):
             if "grand_total" not in data or data.get("grand_total") is None:
                 gt = data.get("total_amount") or data.get("total")
                 data["grand_total"] = float(gt) if gt is not None else 0.0
+            # Tax amounts fallback to 0.0 if None
+            for tax_field in ("cgst_amount", "sgst_amount", "igst_amount"):
+                if data.get(tax_field) is None:
+                    data[tax_field] = 0.0
             # total_tax_amount
             if "total_tax_amount" not in data or data.get("total_tax_amount") is None:
                 calc_tax = (

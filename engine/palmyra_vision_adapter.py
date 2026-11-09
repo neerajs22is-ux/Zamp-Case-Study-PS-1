@@ -198,59 +198,135 @@ class PalmyraVisionAdapter:
                 reasons=[f"Failed to rasterize PDF: {e}"],
             )
 
-        # Process Page 1 (primary commercial face of invoice)
-        page0 = pdf[0]
-        img = self._render_and_scale_page(page0)
-        b64_jpeg = self._encode_image_to_base64_jpeg(img)
-
-        prompt_str = self._build_vision_prompt(ocr_cues=ocr_cues)
+        # Process pages (up to 3 pages) with single-image payload per call
+        pages_to_process = min(total_pages, 3)
+        page_models: List[PalmyraVisualExtractionModel] = []
         strategy = "VISION_WITH_OCR_CUES" if ocr_cues else "VISION_DIRECT"
-
-        payload = {
-            "model": self.model_id,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt_str},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_jpeg}"}},
-                    ],
-                }
-            ],
-            "max_tokens": min(self.max_tokens, 1500),
-            "temperature": self.temperature,
-        }
-
+        prompt_str = self._build_vision_prompt(ocr_cues=ocr_cues)
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
-        try:
-            with httpx.Client(timeout=self.timeout) as client:
-                resp = client.post(self.endpoint, headers=headers, json=payload)
-        except Exception as ex:
-            dt_ms = round((time.perf_counter() - t_start) * 1000, 2)
-            return PalmyraVisualResult(
-                document_id=document_id,
-                filename=filename,
-                total_pages=total_pages,
-                extraction=PalmyraVisualExtractionModel(visual_clarity="UNREADABLE"),
-                prompt_tokens=0,
-                completion_tokens=0,
-                total_tokens=0,
-                latency_ms=dt_ms,
-                estimated_cost_usd=0.0,
-                raw_response_text=str(ex),
-                status="ERROR",
-                routing_recommendation="FLAGGED_HITL_REVIEW",
-                reasons=[f"Palmyra Vision endpoint error ({type(ex).__name__}): {ex}"],
-                strategy=strategy,
+        tot_prompt_tok = 0
+        tot_comp_tok = 0
+        tot_cost = 0.0
+        all_raw_snippets: List[str] = []
+
+        for p_idx in range(pages_to_process):
+            page_obj = pdf[p_idx]
+            img = self._render_and_scale_page(page_obj)
+            b64_jpeg = self._encode_image_to_base64_jpeg(img)
+
+            payload = {
+                "model": self.model_id,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_str},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_jpeg}"}},
+                        ],
+                    }
+                ],
+                "max_tokens": min(self.max_tokens, 1500),
+                "temperature": self.temperature,
+            }
+
+            try:
+                with httpx.Client(timeout=self.timeout) as client:
+                    resp = client.post(self.endpoint, headers=headers, json=payload)
+            except Exception as ex:
+                if p_idx == 0:
+                    dt_ms = round((time.perf_counter() - t_start) * 1000, 2)
+                    return PalmyraVisualResult(
+                        document_id=document_id,
+                        filename=filename,
+                        total_pages=total_pages,
+                        extraction=PalmyraVisualExtractionModel(visual_clarity="UNREADABLE"),
+                        prompt_tokens=0,
+                        completion_tokens=0,
+                        total_tokens=0,
+                        latency_ms=dt_ms,
+                        estimated_cost_usd=0.0,
+                        raw_response_text=str(ex),
+                        status="ERROR",
+                        routing_recommendation="FLAGGED_HITL_REVIEW",
+                        reasons=[f"Palmyra Vision endpoint error ({type(ex).__name__}): {ex}"],
+                        strategy=strategy,
+                    )
+                else:
+                    reasons.append(f"Palmyra Vision page {p_idx+1} network error: {ex}")
+                    break
+
+            if resp.status_code != 200:
+                if p_idx == 0:
+                    dt_ms = round((time.perf_counter() - t_start) * 1000, 2)
+                    return PalmyraVisualResult(
+                        document_id=document_id,
+                        filename=filename,
+                        total_pages=total_pages,
+                        extraction=PalmyraVisualExtractionModel(visual_clarity="UNREADABLE"),
+                        prompt_tokens=0,
+                        completion_tokens=0,
+                        total_tokens=0,
+                        latency_ms=dt_ms,
+                        estimated_cost_usd=0.0,
+                        raw_response_text=resp.text[:500],
+                        status="ERROR",
+                        routing_recommendation="FLAGGED_HITL_REVIEW",
+                        reasons=[f"Palmyra Vision HTTP {resp.status_code}: {resp.text[:200]}"],
+                        strategy=strategy,
+                    )
+                else:
+                    reasons.append(f"Palmyra Vision page {p_idx+1} HTTP {resp.status_code}")
+                    break
+
+            resp_json = resp.json()
+            usage = resp_json.get("usage", {})
+            p_tok = usage.get("prompt_tokens", 0)
+            c_tok = usage.get("completion_tokens", 0)
+            tot_prompt_tok += p_tok
+            tot_comp_tok += c_tok
+            tot_cost += (
+                (p_tok / 1000.0) * settings.PALMYRA_COST_PER_1K_INPUT
+                + (c_tok / 1000.0) * settings.PALMYRA_COST_PER_1K_OUTPUT
             )
+
+            raw_txt = ""
+            try:
+                raw_txt = resp_json["choices"][0]["message"]["content"].strip()
+            except (KeyError, IndexError):
+                raw_txt = ""
+            all_raw_snippets.append(raw_txt)
+
+            # Parse JSON
+            parsed_data = {}
+            match = _JSON_BLOCK_RE.search(raw_txt)
+            json_target = match.group(1) if match else raw_txt
+            fb = json_target.find("{")
+            lb = json_target.rfind("}")
+            if fb != -1 and lb != -1 and lb > fb:
+                clean_str = json_target[fb : lb + 1]
+                try:
+                    parsed_data = json.loads(clean_str)
+                except json.JSONDecodeError:
+                    cleaned = re.sub(r",\s*([\]}])", r"\1", clean_str)
+                    try:
+                        parsed_data = json.loads(cleaned)
+                    except Exception as je:
+                        reasons.append(f"Page {p_idx+1} JSON decoding error: {je}")
+
+            try:
+                p_model = PalmyraVisualExtractionModel(**parsed_data)
+            except ValidationError as ve:
+                p_model = PalmyraVisualExtractionModel(visual_clarity="DEGRADED")
+                reasons.append(f"Page {p_idx+1} schema mapping error: {ve}")
+
+            page_models.append(p_model)
 
         dt_ms = round((time.perf_counter() - t_start) * 1000, 2)
-
-        if resp.status_code != 200:
+        if not page_models:
             return PalmyraVisualResult(
                 document_id=document_id,
                 filename=filename,
@@ -261,56 +337,31 @@ class PalmyraVisionAdapter:
                 total_tokens=0,
                 latency_ms=dt_ms,
                 estimated_cost_usd=0.0,
-                raw_response_text=resp.text[:500],
+                raw_response_text="",
                 status="ERROR",
                 routing_recommendation="FLAGGED_HITL_REVIEW",
-                reasons=[f"Palmyra Vision HTTP {resp.status_code}: {resp.text[:200]}"],
+                reasons=reasons or ["No pages extracted successfully."],
                 strategy=strategy,
             )
 
-        resp_json = resp.json()
-        usage = resp_json.get("usage", {})
-        prompt_tokens = usage.get("prompt_tokens", 0)
-        completion_tokens = usage.get("completion_tokens", 0)
-        total_tokens = usage.get("total_tokens", prompt_tokens + completion_tokens)
+        # Primary extraction is Page 1, with multi-page reconciliation
+        model_extraction = page_models[0]
+        for p_model in page_models[1:]:
+            if p_model.line_items:
+                model_extraction.line_items.extend(p_model.line_items)
+            if model_extraction.grand_total == 0.0 and p_model.grand_total > 0.0:
+                model_extraction.grand_total = p_model.grand_total
+                model_extraction.taxable_value = p_model.taxable_value
+            if p_model.has_handwritten_notes:
+                model_extraction.has_handwritten_notes = True
+            if p_model.has_stamp_or_signature:
+                model_extraction.has_stamp_or_signature = True
 
-        cost = (
-            (prompt_tokens / 1000.0) * settings.PALMYRA_COST_PER_1K_INPUT
-            + (completion_tokens / 1000.0) * settings.PALMYRA_COST_PER_1K_OUTPUT
-        )
-
-        raw_content = ""
-        try:
-            raw_content = resp_json["choices"][0]["message"]["content"].strip()
-        except (KeyError, IndexError):
-            raw_content = ""
-
-        # Parse JSON
-        parsed_data = {}
-        # Try finding json block
-        match = _JSON_BLOCK_RE.search(raw_content)
-        json_target = match.group(1) if match else raw_content
-
-        # Find first { and last }
-        first_brace = json_target.find("{")
-        last_brace = json_target.rfind("}")
-        if first_brace != -1 and last_brace != -1 and last_brace > first_brace:
-            clean_str = json_target[first_brace : last_brace + 1]
-            try:
-                parsed_data = json.loads(clean_str)
-            except json.JSONDecodeError:
-                # Attempt to clean trailing commas
-                cleaned = re.sub(r",\s*([\]}])", r"\1", clean_str)
-                try:
-                    parsed_data = json.loads(cleaned)
-                except Exception as je:
-                    reasons.append(f"JSON decoding error: {je}")
-
-        try:
-            model_extraction = PalmyraVisualExtractionModel(**parsed_data)
-        except ValidationError as ve:
-            model_extraction = PalmyraVisualExtractionModel(visual_clarity="DEGRADED")
-            reasons.append(f"Validation error mapping to schema: {ve}")
+        prompt_tokens = tot_prompt_tok
+        completion_tokens = tot_comp_tok
+        total_tokens = prompt_tokens + completion_tokens
+        cost = tot_cost
+        raw_content = "\n\n".join(all_raw_snippets)
 
         # Routing logic
         status_val = "SUCCESS"

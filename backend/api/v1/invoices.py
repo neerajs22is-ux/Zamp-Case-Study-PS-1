@@ -825,22 +825,28 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str, preserve_exte
 
     # Gate 7: Duplicate Invoice Check (Normalized for whitespace & separators per F32)
     clean_inv_num = re.sub(r"[^A-Z0-9]", "", (inv.invoice_number or "").upper()) if inv.invoice_number else ""
-    dup_query = select(func.count(Invoice.id)).where(
-        Invoice.org_id == org_id,
-        Invoice.vendor_gstin == inv.vendor_gstin,
-        Invoice.id != inv.id,
+    valid_identity = bool(
+        inv.invoice_number
+        and clean_inv_num not in ("", "UNKNOWN", "INVUNKNOWN")
+        and inv.vendor_gstin is not None
     )
-    if clean_inv_num and clean_inv_num not in ("UNKNOWN", "INVUNKNOWN"):
+    if valid_identity:
+        dup_query = select(func.count(Invoice.id)).where(
+            Invoice.org_id == org_id,
+            Invoice.vendor_gstin == inv.vendor_gstin,
+            Invoice.id != inv.id,
+        )
         dup_query = dup_query.where(
             (Invoice.invoice_number == inv.invoice_number)
             | (func.replace(func.replace(func.replace(func.upper(Invoice.invoice_number), "-", ""), "/", ""), " ", "") == clean_inv_num)
         )
+        dup_count = db.scalar(dup_query) or 0
+        g7_status = "PASS" if dup_count == 0 else "FAIL"
+        g7_notes = f"{dup_count} previous vouchers found" if dup_count > 0 else "0 previous vouchers found in vendor ledger"
     else:
-        dup_query = dup_query.where(Invoice.invoice_number == inv.invoice_number)
-    dup_count = db.scalar(dup_query) or 0
-    valid_identity = bool(inv.invoice_number and inv.invoice_number.upper() not in ("UNKNOWN", "INV-UNKNOWN"))
-    g7_status = "PASS" if dup_count == 0 and valid_identity else "FAIL"
-    g7_notes = f"{dup_count} previous vouchers found" if valid_identity else "Invoice number is missing or unverified."
+        dup_count = 0
+        g7_status = "NOT_EVALUATED"
+        g7_notes = "Invoice identity is missing or unverified."
 
     # Check if record is an unreadable or degraded scan (P0-2 buyer trust preservation)
     is_unreadable_scan = (
@@ -855,7 +861,7 @@ def reevaluate_match_gates(db: Session, inv: Invoice, org_id: str, preserve_exte
             (4, "QC Inspection Accepted", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
             (5, "GST Arithmetic Reconciled", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
             (6, "PO Price & Quantity Tolerance", "NOT_EVALUATED", "Check not evaluated: document text could not be extracted."),
-            (7, "Duplicate Invoice Check", "PASS" if dup_count == 0 else "FAIL", f"{dup_count} previous vouchers found"),
+            (7, "Duplicate Invoice Check", "NOT_EVALUATED", "Check not evaluated: invoice identity could not be extracted."),
         ]
     else:
         gate_checks = [

@@ -1,9 +1,11 @@
-"""Hybrid AP Document Intelligence Extractor (Deterministic + AWS Bedrock Mantle).
+"""Hybrid AP Document Intelligence Extractor (Deterministic + AWS Bedrock Mantle + OCR + Palmyra Vision).
 
-Implements the 3-tier architecture:
-1. Ingestion, PDF Integrity, & Deterministic Extraction (Python).
-2. Semantic Intelligence & Complex Line-Item Parsing (AWS Mantle Qwen3 235B).
-3. Deterministic Evidence Grounding, GST Arithmetic, 3-Way Matching & Duplicate Detection (Python/SQL).
+Implements the multi-modal production architecture:
+1. Document Triage & Routing:
+   - Digital PDFs (with extractable selectable text) -> Mantle Qwen 235B
+   - Scanned / Degraded / Image-only PDFs -> Local OCREngine (RapidOCR) + Palmyra Vision 7B
+2. Semantic Intelligence & Complex Line-Item Parsing (Mantle Qwen3 235B / Palmyra Vision 7B)
+3. Deterministic Evidence Grounding, GST Arithmetic, 3-Way Matching & Duplicate Detection (Python/SQL)
 """
 
 from __future__ import annotations
@@ -25,6 +27,8 @@ from engine.duplicate_detector import DuplicateCheckResult, DuplicateDetector
 from engine.grounding import verify_extracted_evidence
 from engine.indian_tax_rules import IndianAPRuleEngine, TaxArithmeticResult, ThreeWayMatchResult
 from engine.mantle_client import BedrockMantleClient, MantleAuthError, MantleClientError
+from engine.ocr_engine import OCREngine, OCRDocumentResult
+from engine.palmyra_vision_adapter import PalmyraVisionAdapter, PalmyraVisualResult
 from engine.schemas import (
     CommercialDocumentType,
     ExtractedLineItem,
@@ -69,12 +73,12 @@ class HybridProcessingResult:
     audit_notes: str
     
     # Telemetry & Provider Verification
-    pipeline_mode: str  # "deterministic", "mantle", or "hybrid"
+    pipeline_mode: str  # "deterministic", "mantle", "ocr_mantle", "vision", or "hybrid"
     inference_provider: str = "AWS Bedrock Mantle (Qwen 235B)"
     model_id: Optional[str] = "qwen.qwen3-235b-a22b-2507-v1:0"
     http_status: Optional[int] = 200
     is_live_mantle: bool = True
-    extraction_status: str = "EVALUATED"  # "EVALUATED", "NOT_EVALUATED", "FAILED"
+    extraction_status: str = "EVALUATED"  # "EVALUATED", "NOT_EVALUATED", "FAILED", "DEGRADED_SCAN"
     input_tokens: int = 0
     output_tokens: int = 0
     latency_ms: float = 0.0
@@ -84,17 +88,21 @@ class HybridProcessingResult:
 
 
 class HybridAPExtractor:
-    """Production orchestrator combining deterministic rules and AWS Bedrock Mantle."""
+    """Production orchestrator combining deterministic rules, AWS Bedrock Mantle, RapidOCR, and Palmyra Vision."""
 
     def __init__(
         self,
         mantle_client: Optional[BedrockMantleClient] = None,
         rule_engine: Optional[IndianAPRuleEngine] = None,
         duplicate_detector: Optional[DuplicateDetector] = None,
+        ocr_engine: Optional[OCREngine] = None,
+        vision_adapter: Optional[PalmyraVisionAdapter] = None,
     ) -> None:
         self.mantle = mantle_client or BedrockMantleClient()
         self.rules = rule_engine or IndianAPRuleEngine()
         self.duplicate_detector = duplicate_detector or DuplicateDetector()
+        self.ocr = ocr_engine or OCREngine()
+        self.vision = vision_adapter or PalmyraVisionAdapter()
 
     def _extract_pages_text(self, pdf_bytes: bytes) -> List[Tuple[int, str]]:
         """Extracts text per page preserving page boundaries."""
@@ -112,43 +120,48 @@ class HybridAPExtractor:
         pages = self._extract_pages_text(pdf_bytes)
         full_text = "\n".join([text for _, text in pages]).strip()
 
-        # Check for empty / scanned document
+        # If digital text is missing, attempt local OCR before giving up
         if len(full_text) < 20:
-            return HybridProcessingResult(
-                document_id=document_id,
-                filename=filename,
-                sha256_hash=file_sha256,
-                document_type="SCANNED_IMAGE",
-                is_payable_invoice=False,
-                supplier_name="Unknown",
-                supplier_gstin=None,
-                invoice_number="UNKNOWN",
-                invoice_date="1970-01-01",
-                po_reference=None,
-                currency="INR",
-                taxable_value=0.0,
-                cgst_amount=0.0,
-                sgst_amount=0.0,
-                igst_amount=0.0,
-                total_tax_amount=0.0,
-                grand_total=0.0,
-                line_items=[],
-                grounding_tripwire_passed=False,
-                unverified_fields=["scanned_document_no_text"],
-                tax_arithmetic=TaxArithmeticResult(False, 0, 0, 0, 0, False, ["Degraded scan; no text found."]),
-                three_way_match=ThreeWayMatchResult(False, False, False, False, False, False, match_status="NO_PO"),
-                duplicate_check=DuplicateCheckResult(False),
-                final_decision="FLAGGED_HITL_REVIEW",
-                decision_reasons=["Degraded scanned document contains no machine-readable digital text. Requires OCR."],
-                audit_notes="Ingestion routed to HITL review due to raster image content.",
-                pipeline_mode="deterministic",
-                inference_provider="NONE_ROUTED_HITL",
-                model_id=None,
-                http_status=None,
-                is_live_mantle=False,
-                extraction_status="NOT_EVALUATED",
-                latency_ms=round((time.perf_counter() - start_time) * 1000, 2),
-            )
+            ocr_res = self.ocr.process_pdf_bytes(pdf_bytes, filename=filename, document_id=document_id)
+            if ocr_res.full_text and len(ocr_res.full_text.strip()) >= 20:
+                pages = [(p.page_number, p.text) for p in ocr_res.pages]
+                full_text = ocr_res.full_text.strip()
+            else:
+                return HybridProcessingResult(
+                    document_id=document_id,
+                    filename=filename,
+                    sha256_hash=file_sha256,
+                    document_type="SCANNED_IMAGE",
+                    is_payable_invoice=False,
+                    supplier_name="Unknown",
+                    supplier_gstin=None,
+                    invoice_number="UNKNOWN",
+                    invoice_date="1970-01-01",
+                    po_reference=None,
+                    currency="INR",
+                    taxable_value=0.0,
+                    cgst_amount=0.0,
+                    sgst_amount=0.0,
+                    igst_amount=0.0,
+                    total_tax_amount=0.0,
+                    grand_total=0.0,
+                    line_items=[],
+                    grounding_tripwire_passed=False,
+                    unverified_fields=["scanned_document_no_text"],
+                    tax_arithmetic=TaxArithmeticResult(False, 0, 0, 0, 0, False, ["Degraded scan; no text found."]),
+                    three_way_match=ThreeWayMatchResult(False, False, False, False, False, False, match_status="NO_PO"),
+                    duplicate_check=DuplicateCheckResult(False),
+                    final_decision="FLAGGED_HITL_REVIEW",
+                    decision_reasons=["Degraded scanned document contains no machine-readable digital text. Requires OCR."],
+                    audit_notes="Ingestion routed to HITL review due to raster image content.",
+                    pipeline_mode="deterministic",
+                    inference_provider="NONE_ROUTED_HITL",
+                    model_id=None,
+                    http_status=None,
+                    is_live_mantle=False,
+                    extraction_status="NOT_EVALUATED",
+                    latency_ms=round((time.perf_counter() - start_time) * 1000, 2),
+                )
 
         # Classification
         text_lower = full_text.lower()
@@ -275,7 +288,6 @@ class HybridAPExtractor:
             decision = "FLAGGED_HITL_REVIEW"
             reasons.extend(match_res.discrepancy_reasons)
         else:
-            # Per governance guardrails: MATCH_CANDIDATE is never auto-approved payment execution
             decision = "MATCH_CANDIDATE"
             reasons.append("3-Way match (PO, GRN, QC) and GST arithmetic verified.")
 
@@ -317,59 +329,97 @@ class HybridAPExtractor:
         filename: str,
         document_id: str = "DOC",
     ) -> HybridProcessingResult:
-        """Runs the complete hybrid pipeline: deterministic grounding + Bedrock Mantle + rules."""
+        """Runs the multimodal hybrid pipeline: digital text extraction OR local OCR + Qwen Mantle / Palmyra Vision."""
         start_time = time.perf_counter()
         file_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
         pages = self._extract_pages_text(pdf_bytes)
         full_text = "\n".join([text for _, text in pages]).strip()
 
-        # Check for empty / scanned document first
-        if len(full_text) < 20:
-            return HybridProcessingResult(
-                document_id=document_id,
-                filename=filename,
-                sha256_hash=file_sha256,
-                document_type="SCANNED_IMAGE",
-                is_payable_invoice=False,
-                supplier_name="Unknown",
-                supplier_gstin=None,
-                invoice_number="UNKNOWN",
-                invoice_date="1970-01-01",
-                po_reference=None,
-                currency="INR",
-                taxable_value=0.0,
-                cgst_amount=0.0,
-                sgst_amount=0.0,
-                igst_amount=0.0,
-                total_tax_amount=0.0,
-                grand_total=0.0,
-                line_items=[],
-                grounding_tripwire_passed=False,
-                unverified_fields=["scanned_document_no_text"],
-                tax_arithmetic=TaxArithmeticResult(False, 0, 0, 0, 0, False, ["Degraded scan; no text found."]),
-                three_way_match=ThreeWayMatchResult(False, False, False, False, False, False, match_status="NO_PO"),
-                duplicate_check=DuplicateCheckResult(False),
-                final_decision="FLAGGED_HITL_REVIEW",
-                decision_reasons=["Degraded scanned document contains no machine-readable digital text. Requires OCR."],
-                audit_notes="Ingestion routed to HITL review due to raster image content.",
-                pipeline_mode="hybrid",
-                inference_provider="NONE_ROUTED_HITL",
-                model_id=None,
-                http_status=None,
-                is_live_mantle=False,
-                extraction_status="NOT_EVALUATED",
-                latency_ms=round((time.perf_counter() - start_time) * 1000, 2),
-            )
+        is_scanned = len(full_text) < 20
+        ocr_result: Optional[OCRDocumentResult] = None
+        vision_result: Optional[PalmyraVisualResult] = None
 
-        # Attempt Live Mantle Extraction (fails closed if Mantle error occurs)
+        if is_scanned:
+            # Execute local OCR
+            ocr_result = self.ocr.process_pdf_bytes(pdf_bytes, filename=filename, document_id=document_id)
+            if ocr_result.full_text and len(ocr_result.full_text.strip()) >= 20:
+                pages = [(p.page_number, p.text) for p in ocr_result.pages]
+                full_text = ocr_result.full_text.strip()
+            else:
+                # OCR produced no text: completely blank or corrupted raster
+                return HybridProcessingResult(
+                    document_id=document_id,
+                    filename=filename,
+                    sha256_hash=file_sha256,
+                    document_type="SCANNED_IMAGE",
+                    is_payable_invoice=False,
+                    supplier_name="Unknown",
+                    supplier_gstin=None,
+                    invoice_number="UNKNOWN",
+                    invoice_date="1970-01-01",
+                    po_reference=None,
+                    currency="INR",
+                    taxable_value=0.0,
+                    cgst_amount=0.0,
+                    sgst_amount=0.0,
+                    igst_amount=0.0,
+                    total_tax_amount=0.0,
+                    grand_total=0.0,
+                    line_items=[],
+                    grounding_tripwire_passed=False,
+                    unverified_fields=["scanned_document_no_text"],
+                    tax_arithmetic=TaxArithmeticResult(False, 0, 0, 0, 0, False, ["Degraded scan; no text found."]),
+                    three_way_match=ThreeWayMatchResult(False, False, False, False, False, False, match_status="NO_PO"),
+                    duplicate_check=DuplicateCheckResult(False),
+                    final_decision="FLAGGED_HITL_REVIEW",
+                    decision_reasons=["Degraded scanned document contains no machine-readable digital text. Requires OCR."],
+                    audit_notes="Ingestion routed to HITL review due to raster image content.",
+                    pipeline_mode="hybrid",
+                    inference_provider="NONE_ROUTED_HITL",
+                    model_id=None,
+                    http_status=None,
+                    is_live_mantle=False,
+                    extraction_status="NOT_EVALUATED",
+                    latency_ms=round((time.perf_counter() - start_time) * 1000, 2),
+                )
+
+        # Attempt Semantic Extraction with AWS Bedrock Mantle Qwen 235B
         try:
             extraction = self.mantle.extract_document(pages, document_filename=filename)
         except (MantleAuthError, MantleClientError) as exc:
             logger.error("Mantle LLM invocation failed on %s: %s", filename, exc)
-            # Invariant: Never silently fall back. Stop and report the failure.
             raise RuntimeError(f"Live Mantle inference failed on {document_id} ({filename}): {exc}") from exc
 
-        # Run Grounding Tripwires on Mantle Extraction
+        # If scanned document and Palmyra Vision is available, cross-check visual layout if Mantle is missing totals
+        if is_scanned and (settings.ENABLE_PALMYRA_VISION or settings.get_palmyra_api_key()):
+            if extraction.grand_total == 0.0 or not extraction.line_items:
+                try:
+                    vision_result = self.vision.extract_visual(
+                        pdf_bytes=pdf_bytes,
+                        filename=filename,
+                        document_id=document_id,
+                        ocr_cues=full_text[:600],
+                    )
+                    if vision_result and vision_result.extraction.grand_total > 0:
+                        ve = vision_result.extraction
+                        if extraction.grand_total == 0.0:
+                            extraction.grand_total = ve.grand_total
+                            extraction.taxable_value = ve.taxable_value
+                            extraction.total_tax_amount = ve.total_tax_amount
+                        if not extraction.line_items and ve.line_items:
+                            extraction.line_items = [
+                                ExtractedLineItem(
+                                    item_description=li.get("item_description") or "Item",
+                                    quantity=float(li.get("quantity") or 1.0),
+                                    unit_price=float(li.get("unit_price") or 0.0),
+                                    taxable_amount=float(li.get("taxable_amount") or 0.0),
+                                    total_amount=float(li.get("total_amount") or 0.0),
+                                ) for li in ve.line_items
+                            ]
+                except Exception as vex:
+                    logger.warning(f"Palmyra Vision cross-check skipped: {vex}")
+
+        # Run Grounding Tripwires on Extraction against available textual evidence
         tripwire_passed, unverified, source_evidence = verify_extracted_evidence(extraction, pages)
         extraction.tripwire_passed = tripwire_passed
         extraction.unverified_fields = unverified
@@ -433,6 +483,17 @@ class HybridAPExtractor:
             reasons.append("3-Way match (PO, GRN, QC) and GST arithmetic verified.")
 
         latency = round((time.perf_counter() - start_time) * 1000, 2)
+        
+        provider_name = "AWS Bedrock Mantle (Qwen 235B)"
+        if is_scanned:
+            provider_name = "RapidOCR + AWS Bedrock Mantle (Qwen 235B)"
+            if vision_result:
+                provider_name = "RapidOCR + Palmyra Vision + AWS Bedrock Mantle"
+
+        status_val = "EVALUATED"
+        if ocr_result and ocr_result.is_degraded:
+            status_val = "DEGRADED_SCAN"
+
         return HybridProcessingResult(
             document_id=document_id,
             filename=filename,
@@ -459,17 +520,17 @@ class HybridAPExtractor:
             duplicate_check=dup_res,
             final_decision=decision,
             decision_reasons=reasons,
-            audit_notes="Hybrid pipeline executed with Bedrock Mantle and deterministic controls.",
-            pipeline_mode="hybrid",
-            inference_provider="AWS Bedrock Mantle (Qwen 235B)",
+            audit_notes=f"Multimodal pipeline executed with {provider_name} and deterministic controls.",
+            pipeline_mode="ocr_mantle" if is_scanned else "hybrid",
+            inference_provider=provider_name,
             model_id=extraction.model_id,
             http_status=extraction.http_status,
             is_live_mantle=True,
-            extraction_status="EVALUATED",
-            input_tokens=extraction.input_tokens,
-            output_tokens=extraction.output_tokens,
+            extraction_status=status_val,
+            input_tokens=extraction.input_tokens + (vision_result.prompt_tokens if vision_result else 0),
+            output_tokens=extraction.output_tokens + (vision_result.completion_tokens if vision_result else 0),
             latency_ms=latency,
-            estimated_cost_usd=extraction.estimated_cost_usd,
+            estimated_cost_usd=extraction.estimated_cost_usd + (vision_result.estimated_cost_usd if vision_result else 0.0),
             evidence=source_evidence,
-            extraction_requires_review=is_e_invoice or is_rcm or is_mixed_gst or is_foreign,
+            extraction_requires_review=is_e_invoice or is_rcm or is_mixed_gst or is_foreign or (ocr_result and ocr_result.is_degraded),
         )

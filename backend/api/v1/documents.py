@@ -251,7 +251,7 @@ async def upload_document(
         # After commit, dispatch failure must not remove the accepted evidence.
         if background_tasks is not None and os.getenv("ENABLE_BACKGROUND_PIPELINE", "true").lower() == "true":
             try:
-                claimed = claim_ingestion_job(db, org_id=current_user.org_id)
+                claimed = claim_ingestion_job(db, org_id=current_user.org_id, job_id=job.id)
                 if claimed:
                     c_job_id, c_org_id, c_doc_id, c_token = claimed
                     background_tasks.add_task(process_document_pipeline_background, c_job_id, c_token, c_org_id)
