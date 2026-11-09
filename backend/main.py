@@ -110,20 +110,28 @@ async def serve_sandbox_ui():
 @app.get("/legacy")
 @app.get("/legacy/")
 async def serve_legacy_ui():
-    """Serves the original standalone legacy AP demonstration application."""
+    """Serves the original standalone legacy AP demonstration application in development only."""
+    if settings.APP_ENV != AppEnv.DEVELOPMENT:
+        return JSONResponse(status_code=404, content={"detail": "Legacy demonstration is only available in development mode."})
     legacy_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "engine", "templates", "index.html")
     if os.path.exists(legacy_path):
         return FileResponse(legacy_path, media_type="text/html")
     return JSONResponse(status_code=404, content={"detail": "Legacy template not found."})
 
 
-# Mount legacy standalone demo engine API (for /legacy demonstration parity)
-try:
-    from engine.server import app as engine_app
-    app.mount("/legacy-api", engine_app)
-    app.mount("/engine-api", engine_app)
-except Exception as e:
-    logger.warning("Could not mount legacy engine app: %s", e)
+# Mount legacy standalone demo engine API (development only for /legacy demonstration parity)
+if settings.APP_ENV == AppEnv.DEVELOPMENT:
+    try:
+        from engine.server import app as engine_app
+        app.mount("/legacy-api", engine_app)
+        app.mount("/engine-api", engine_app)
+    except Exception as e:
+        logger.warning("Could not mount legacy engine app: %s", e)
+else:
+    @app.api_route("/legacy-api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+    @app.api_route("/engine-api/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])
+    async def block_legacy_api_in_production(path: str):
+        return JSONResponse(status_code=404, content={"detail": "Legacy demonstration API is only available in development mode."})
 
 # Mount frontend assets and provide SPA fallback
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
@@ -136,7 +144,7 @@ if os.path.exists(assets_dir):
 @app.get("/{full_path:path}")
 async def serve_spa_or_asset(full_path: str):
     """Serves static files or falls back to index.html for client-side SPA routing."""
-    if full_path.startswith("api/"):
+    if full_path.startswith("api/") or full_path.startswith("legacy-api") or full_path.startswith("engine-api"):
         return JSONResponse(status_code=404, content={"detail": f"API endpoint '/{full_path}' not found."})
 
     safe_base = os.path.abspath(frontend_dist)

@@ -5,8 +5,9 @@ import time
 import urllib.request
 from playwright.sync_api import sync_playwright
 
-ARTIFACT_DIR = r"C:\Users\91973\.gemini\antigravity\brain\db0dc856-8bab-4869-889f-aaeded2bd721"
-BASE_URL = "http://127.0.0.1:8001"
+DEFAULT_ARTIFACT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs", "assets", "acceptance_evidence")
+ARTIFACT_DIR = os.environ.get("ARTIFACT_DIR", DEFAULT_ARTIFACT_DIR)
+BASE_URL = os.environ.get("BASE_URL", "http://127.0.0.1:8001")
 
 def get_auth_token():
     req = urllib.request.Request(

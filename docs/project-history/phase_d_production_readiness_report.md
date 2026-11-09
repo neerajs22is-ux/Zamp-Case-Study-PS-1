@@ -308,7 +308,7 @@ A comparative benchmark was conducted on 5 corpus documents across three archite
 - **Strategy B:** Palmyra Vision 7B Direct (Multimodal Image-to-JSON).
 - **Strategy C:** Hybrid Tesseract OCR + Palmyra Vision Interpretation.
 
-Saved benchmark artifact: [`scratch/palmyra_vision_benchmark_report.json`](../../scratch/palmyra_vision_benchmark_report.json).
+Saved benchmark artifact: [`palmyra_vision_benchmark_report.json`](./palmyra_vision_benchmark_report.json).
 
 | Document ID | Scenario / Type | Strategy A (Tesseract) | Strategy B (Palmyra 7B Direct) | Strategy C (Hybrid) | Primary Extraction Finding |
 | :--- | :--- | :---: | :---: | :---: | :--- |

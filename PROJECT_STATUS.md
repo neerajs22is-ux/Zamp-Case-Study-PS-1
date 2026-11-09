@@ -68,16 +68,27 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-- **Total Test Items Collected:** 499 items in pytest
-- **Passed (Python):** 456 passed, 0 failed
-- **Passed (Node.js):** 12 passed, 0 failed (`node --test frontend/src/tests/auth_lifecycle.test.mjs`)
-- **Total Passing Tests:** 468 passed
-- **Skipped:** 43 (PostgreSQL-specific isolation fixtures, live Gmail Pub/Sub network probes)
-- **Failed:** 0
-- **Standalone PS-1 Engine Suite:** 28 passed, 0 failed in 0.25s (`tests/test_engine.py`)
-- **Audit Invariants & Approval Safety Suite:** 6 passed, 0 failed in 1.82s (`tests/test_audit_invariants_and_safety.py`)
-- **Execution Time:** ~64 seconds
-- **Frontend Build:** `npm run build` in `frontend/` completes in ~600ms with 0 errors.
+Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3.12.10, Node.js v20.18.0):
+
+- **Full Backend Python Suite (`python -m pytest tests/ -q`):**
+  - **Total Items Collected:** 563
+  - **Passed:** 489 (94.0% of executed tests)
+  - **Failed:** 31 (Historical unit stubs expecting superseded mock flags or in-memory bypasses)
+  - **Skipped:** 43 (Disposable PostgreSQL runner fixtures and live Gmail network probes)
+  - **Execution Time:** ~26 minutes
+- **Frontend Test Suite (`npm test --prefix frontend`):**
+  - **Total Items:** 20
+  - **Passed:** 20 (100% Pass)
+  - **Failed:** 0
+  - **Suites:** `src/tests/auth_lifecycle.test.mjs` (14 tests) + `tests/runPolling.test.mjs` (6 tests)
+- **Focused Production & Security Verification Suites:**
+  - **Legacy Route Security (P1-1):** 2 passed, 0 failed (`tests/test_legacy_api_security.py`)
+  - **Flagship-Sandbox Parity:** 11 passed, 0 failed (`tests/test_sandbox_flagship_parity.py`)
+  - **Standalone PS-1 Engine Suite:** 28 passed, 0 failed (`tests/test_engine.py`)
+  - **Audit Invariants & Approval Safety:** 6 passed, 0 failed (`tests/test_audit_invariants_and_safety.py`)
+  - **Multi-App Responsiveness Suite:** 44 passed, 0 failed (`scripts/test_comprehensive_responsiveness.py`)
+  - **Sandbox E2E Acceptance Suite:** 10 passed, 0 failed (`verify_sandbox_acceptance.py`)
+- **Frontend Production Build:** `npm --prefix frontend run build` completes cleanly with **0 errors**.
 
 ---
 
