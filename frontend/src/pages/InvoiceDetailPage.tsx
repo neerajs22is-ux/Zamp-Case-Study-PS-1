@@ -406,8 +406,22 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               <StatusBadge invoice={invoice} size="sm" />
             </div>
             <span className="text-xs text-slate-500 dark:text-slate-400 truncate block">
-              {invoice.vendor_name || "Vendor Pending Extraction"} • Date:{" "}
-              {invoice.invoice_date || "Pending"}
+              {(() => {
+                const vendorField = data?.extracted_fields?.find(
+                  (f) => f.field_name?.toLowerCase() === "supplier_name"
+                )?.value;
+                const dateField = data?.extracted_fields?.find(
+                  (f) => f.field_name?.toLowerCase() === "invoice_date"
+                )?.value;
+                const effectiveVendor = invoice.vendor_name || vendorField || "Vendor Pending Extraction";
+                const effectiveDate =
+                  (invoice.invoice_date && !invoice.invoice_date.startsWith("1970-01-01") && invoice.invoice_date !== "UNKNOWN")
+                    ? invoice.invoice_date
+                    : (dateField && !dateField.startsWith("1970-01-01") && dateField !== "UNKNOWN")
+                      ? dateField
+                      : "Pending";
+                return `${effectiveVendor} • Date: ${effectiveDate}`;
+              })()}
             </span>
           </div>
         </div>
@@ -721,20 +735,21 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
             hideDiscrepancyList={true}
           />
 
-          {/* Directly Below: Two Side-by-Side Subcolumns (Extracted Data on Left, Blocking Issues on Right) */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-            {/* Left Subcolumn (~50-55%): Extracted Document Data */}
-            <div className="xl:col-span-6 flex flex-col">
+          {/* Directly Below: Two Side-by-Side Subcolumns (Extracted Data ~54%, Blocking Issues ~46%) */}
+          <div className="flex flex-col xl:flex-row gap-4 items-start">
+            {/* Left Subcolumn (~54%): Extracted Document Data */}
+            <div className="w-full xl:w-[54%]">
               <ExtractedDataCard
                 invoice={invoice}
                 extractedFields={data?.extracted_fields}
                 lines={invoiceLines}
                 poSnapshot={poSnapshot}
+                matchGates={matchGates}
               />
             </div>
 
-            {/* Right Subcolumn (~45-50%): Blocking Discrepancies */}
-            <div className="xl:col-span-6 flex flex-col">
+            {/* Right Subcolumn (~46%): Blocking Discrepancies */}
+            <div className="w-full xl:w-[46%]">
               <BlockingDiscrepanciesCard
                 invoice={invoice}
                 matchGates={matchGates}

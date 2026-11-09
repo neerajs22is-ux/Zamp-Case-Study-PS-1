@@ -2,25 +2,17 @@ import React, { useState } from "react";
 import {
   FileText,
   CheckCircle2,
-  AlertCircle,
-  Layers,
-  ChevronDown,
-  ChevronUp,
-  Hash,
-  Building,
-  Calendar,
-  Receipt,
-  Tag,
 } from "lucide-react";
 import { Card, Badge } from "./ui";
 import { formatCurrency } from "../utils/currency";
-import type { ExtractedFieldItem, InvoiceLineItem, InvoiceDetailInvoice } from "../types";
+import type { ExtractedFieldItem, InvoiceLineItem, InvoiceDetailInvoice, MatchGateItem } from "../types";
 
 interface ExtractedDataCardProps {
   invoice: InvoiceDetailInvoice;
   extractedFields?: ExtractedFieldItem[];
   lines?: InvoiceLineItem[];
   poSnapshot?: any;
+  matchGates?: MatchGateItem[];
 }
 
 export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
@@ -28,9 +20,10 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   extractedFields = [],
   lines = [],
   poSnapshot,
+  matchGates = [],
 }) => {
   const [showAllLines, setShowAllLines] = useState(false);
-  const formatMoney = (val?: number | null) => formatCurrency(val, invoice.currency || 'INR');
+  const formatMoney = (val?: number | null) => formatCurrency(val, invoice.currency || "INR");
 
   // Map extracted fields into a lookup dictionary
   const fieldsMap = React.useMemo(() => {
@@ -73,6 +66,59 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   const igstField = getField("igst_amount");
   const grandTotalField = getField("grand_total", invoice.total_amount);
 
+  // Epoch date check: Never display 1970-01-01
+  const rawDate = dateField?.value || invoice.invoice_date;
+  const isEpochOrInvalid =
+    !rawDate ||
+    rawDate === "1970-01-01" ||
+    rawDate.startsWith("1970-01-01") ||
+    rawDate === "UNKNOWN";
+  const displayDate = isEpochOrInvalid ? "Not found" : rawDate;
+  const dateVerified = !isEpochOrInvalid && Boolean(dateField?.verified);
+
+  // Grounding Tripwire sync with actual backend match gates
+  const extractionGate = matchGates?.find(
+    (g) => g.gate_number >= 8 || g.gate_name?.toLowerCase().includes("extraction evidence")
+  );
+  const groundingFailed =
+    extractionGate?.status === "FAIL" ||
+    Boolean(invoice.decision_reason?.toLowerCase().includes("grounding tripwire failed"));
+  const tripwireStatus = groundingFailed ? "FAILED" : "PASS";
+
+  // Check if invoice total is genuinely unreadable / unextracted
+  const isDegradedOrUnavailable =
+    (invoice.total_amount === 0 || invoice.total_amount === null || invoice.total_amount === undefined) &&
+    (invoice.vendor_name === "Unknown" ||
+      invoice.vendor_name === "Unidentified Supplier" ||
+      invoice.invoice_number === "UNKNOWN" ||
+      !grandTotalField ||
+      grandTotalField.value === "UNKNOWN");
+
+  // Financial values formatting: distinguish genuine zero from missing/unverified
+  const formatFinancial = (
+    field?: { value?: string | number | null; verified?: boolean } | null,
+    fallback?: number | null
+  ) => {
+    if (isDegradedOrUnavailable) {
+      return null;
+    }
+    if (field && field.value !== null && field.value !== undefined && field.value !== "" && field.value !== "UNKNOWN") {
+      const num = Number(field.value);
+      if (!isNaN(num)) return formatMoney(num);
+    }
+    if (fallback !== null && fallback !== undefined && !isNaN(Number(fallback))) {
+      if (Number(fallback) === 0 && !field?.value) {
+        return null; // Don't claim 0 if there's no extracted evidence
+      }
+      return formatMoney(Number(fallback));
+    }
+    return null;
+  };
+
+  const taxableFormatted = formatFinancial(taxableField, invoice.subtotal_amount);
+  const totalTaxFormatted = formatFinancial(totalTaxField, invoice.tax_amount);
+  const grandTotalFormatted = isDegradedOrUnavailable ? null : formatFinancial(grandTotalField, invoice.total_amount);
+
   const totalFieldsCount = extractedFields.length;
   const verifiedCount = extractedFields.filter(
     (f) => f.source_page !== null && f.value && f.value !== "UNKNOWN"
@@ -82,249 +128,210 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   const displayLines = showAllLines ? lines : lines.slice(0, 3);
 
   return (
-    <Card className="border border-slate-200 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 rounded-xl overflow-hidden flex flex-col h-full">
-      {/* Header */}
-      <div className="p-3 bg-slate-50/80 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
+    <Card className="border border-slate-200 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-xl overflow-hidden transition-all">
+      {/* 1. Header */}
+      <div className="px-3.5 py-2.5 bg-slate-50/80 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-            <FileText className="w-3.5 h-3.5" />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100 truncate">
-              Extracted Document Data
-            </h3>
-          </div>
+          <FileText className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100 truncate">
+            Extracted Document Data
+          </h3>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
           <Badge tone={verifiedCount > 0 ? "success" : "neutral"} size="sm">
-            {verifiedCount > 0 ? `${verifiedCount}/${totalFieldsCount} Grounded` : "Unverified"}
+            {verifiedCount > 0 ? `${verifiedCount}/${totalFieldsCount || 10} Grounded` : "Unverified"}
           </Badge>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="p-3.5 sm:p-4 space-y-4 flex-1">
-        {/* Core Financial & Commercial Fields Grid */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {/* Supplier Name */}
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 col-span-2">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-1">
-              <span className="flex items-center gap-1">
-                <Building className="w-3 h-3 text-slate-400" />
-                Supplier
-              </span>
-              {supplierField?.verified ? (
-                <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
-                  <CheckCircle2 className="w-2.5 h-2.5" /> P.{supplierField.page}
-                </span>
-              ) : (
-                <span className="text-[9.5px] text-amber-600 dark:text-amber-400 font-medium">
-                  Unverified
-                </span>
+      {/* 2. Main Content Inspector */}
+      <div className="p-3.5 sm:p-4 space-y-3">
+        {/* Supplier Header Row */}
+        <div className="pb-2.5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+              Supplier / Vendor
+            </span>
+            <h4
+              className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate"
+              title={supplierField?.value}
+            >
+              {supplierField?.value || (
+                <span className="text-slate-400 italic font-normal">Unidentified Supplier</span>
               )}
-            </div>
-            <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate" title={supplierField?.value}>
-              {supplierField?.value || <span className="text-slate-400 font-normal italic">Not found</span>}
-            </p>
+            </h4>
           </div>
 
-          {/* Supplier GSTIN */}
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-1">
-              <span className="flex items-center gap-1">
-                <Hash className="w-3 h-3 text-slate-400" />
-                Supplier GSTIN
-              </span>
-              {gstinField?.verified ? (
-                <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
-                  <CheckCircle2 className="w-2.5 h-2.5" /> Verified
-                </span>
-              ) : (
-                <span className="text-[9.5px] text-slate-400">Missing</span>
-              )}
-            </div>
-            <p className="text-xs font-mono font-semibold text-slate-900 dark:text-slate-100 truncate" title={gstinField?.value}>
-              {gstinField?.value || <span className="text-slate-400 font-normal italic">Missing</span>}
-            </p>
-          </div>
-
-          {/* Invoice Number */}
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-1">
-              <span className="flex items-center gap-1">
-                <Receipt className="w-3 h-3 text-slate-400" />
-                Invoice #
-              </span>
-              {invNumberField?.value && invNumberField.value !== "UNKNOWN" ? (
-                <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-0.5">
-                  <CheckCircle2 className="w-2.5 h-2.5" /> P.{invNumberField.page || 1}
-                </span>
-              ) : (
-                <span className="text-[9.5px] text-rose-500 font-medium flex items-center gap-0.5">
-                  <AlertCircle className="w-2.5 h-2.5" /> Absent
-                </span>
-              )}
-            </div>
-            <p className="text-xs font-mono font-semibold text-slate-900 dark:text-slate-100 truncate" title={invNumberField?.value}>
-              {invNumberField?.value && invNumberField.value !== "UNKNOWN" ? (
-                invNumberField.value
-              ) : (
-                <span className="text-rose-500 dark:text-rose-400 font-medium">UNKNOWN</span>
-              )}
-            </p>
-          </div>
-
-          {/* Invoice Date */}
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-1">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-slate-400" />
-                Invoice Date
-              </span>
-              {dateField?.verified && (
-                <span className="text-[9.5px] text-emerald-600 dark:text-emerald-400 font-medium">P.{dateField.page}</span>
-              )}
-            </div>
-            <p className="text-xs font-mono text-slate-900 dark:text-slate-100 truncate">
-              {dateField?.value || <span className="text-slate-400 italic">Not found</span>}
-            </p>
-          </div>
-
-          {/* PO Reference */}
-          <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-1">
-              <span className="flex items-center gap-1">
-                <Tag className="w-3 h-3 text-slate-400" />
-                PO Reference
-              </span>
-              <span className="text-[9.5px] text-slate-400">
-                {poField?.value ? "Billed PO" : "Non-PO"}
-              </span>
-            </div>
-            <p className="text-xs font-mono font-semibold text-slate-900 dark:text-slate-100 truncate">
-              {poField?.value || <span className="text-slate-400 font-normal italic">None (Direct)</span>}
-            </p>
-          </div>
-
-
+          {supplierField?.verified ? (
+            <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 flex items-center gap-1">
+              <CheckCircle2 className="w-2.5 h-2.5" /> P.{supplierField.page || 1}
+            </span>
+          ) : (
+            <span className="shrink-0 px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
+              Unverified
+            </span>
+          )}
         </div>
 
-        {/* GST & Financial Amounts Summary Card */}
-        <div className="p-3 rounded-lg bg-slate-50/80 dark:bg-slate-850/80 border border-slate-200 dark:border-slate-800">
-          <div className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2 flex items-center justify-between">
-            <span>Taxable & GST Breakdown</span>
-            <span className="text-[10px] text-slate-400 font-normal font-sans">
-              Indian AP Compliance Engine
+        {/* Dense Key/Value Metadata Grid */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2 py-1 text-xs">
+          <div>
+            <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block">Supplier GSTIN</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+                {gstinField?.value || <span className="text-slate-400 font-normal italic">Missing</span>}
+              </span>
+              {gstinField?.verified && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block">Invoice Number</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
+                {invNumberField?.value && invNumberField.value !== "UNKNOWN" ? (
+                  invNumberField.value
+                ) : (
+                  <span className="text-rose-500 font-normal">UNKNOWN</span>
+                )}
+              </span>
+              {invNumberField?.verified && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block">Invoice Date</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="font-mono font-medium text-slate-800 dark:text-slate-200">
+                {isEpochOrInvalid ? (
+                  <span className="text-slate-400 font-normal italic">Not found</span>
+                ) : (
+                  displayDate
+                )}
+              </span>
+              {dateVerified && <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />}
+            </div>
+          </div>
+
+          <div>
+            <span className="text-[10.5px] text-slate-500 dark:text-slate-400 block">PO Reference</span>
+            <span className="font-mono font-medium text-slate-800 dark:text-slate-200 block mt-0.5">
+              {poField?.value || <span className="text-slate-400 font-normal italic">None (Direct / Non-PO)</span>}
+            </span>
+          </div>
+        </div>
+
+        {/* Dedicated Financial Summary Strip */}
+        <div className="py-2.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 text-xs">
+          <div className="min-w-0">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-medium">
+              Taxable Value
+            </span>
+            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+              {taxableFormatted ?? <span className="text-slate-400 font-normal italic">Unverified</span>}
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-            <div>
-              <span className="text-[10px] text-slate-500 block">Taxable Value</span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
-                {taxableField ? formatMoney(Number(taxableField.value)) : "—"}
-              </span>
-            </div>
-            <div>
-              <span className="text-[10px] text-slate-500 block">
-                {igstField && Number(igstField.value) > 0 ? "IGST (Interstate)" : "CGST + SGST"}
-              </span>
-              <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
-                {totalTaxField ? formatMoney(Number(totalTaxField.value)) : "₹0.00"}
-              </span>
-            </div>
-            <div className="col-span-2 sm:col-span-2 flex items-center justify-between bg-indigo-50/70 dark:bg-indigo-950/40 px-3 py-1.5 rounded-lg border border-indigo-200/80 dark:border-indigo-800/60">
-              <div>
-                <span className="text-[10px] font-bold uppercase text-indigo-700 dark:text-indigo-300 block">
-                  Extracted Grand Total
-                </span>
-                <span className="text-sm font-mono font-extrabold text-indigo-950 dark:text-indigo-200">
-                  {grandTotalField ? formatMoney(Number(grandTotalField.value)) : formatMoney(invoice.total_amount)}
-                </span>
-              </div>
-              <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-900 px-2 py-0.5 rounded shadow-2xs">
-                {grandTotalField?.verified ? "Grounded" : "Unverified"}
-              </span>
-            </div>
+          <div className="border-l border-slate-200 dark:border-slate-700 pl-3 min-w-0">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-medium">
+              {igstField && Number(igstField.value) > 0 ? "IGST" : "CGST + SGST"}
+            </span>
+            <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+              {totalTaxFormatted ?? (isDegradedOrUnavailable ? <span className="text-slate-400 font-normal italic">Unverified</span> : formatMoney(0))}
+            </span>
+          </div>
+
+          <div className="border-l border-slate-200 dark:border-slate-700 pl-3 min-w-0">
+            <span className="text-[10px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold block">
+              Grand Total
+            </span>
+            <span className="font-mono font-extrabold text-indigo-950 dark:text-indigo-200 text-sm sm:text-base">
+              {grandTotalFormatted ?? <span className="text-rose-500 font-normal italic">Unavailable</span>}
+            </span>
           </div>
         </div>
 
-        {/* Extracted Line Items Section */}
+        {/* Line Items Table or Small Explanatory State */}
         {hasLineItems ? (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-slate-400" />
+          <div className="space-y-1.5 pt-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[10.5px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Extracted Line Items ({lines.length})
               </span>
               {lines.length > 3 && (
                 <button
                   type="button"
                   onClick={() => setShowAllLines(!showAllLines)}
-                  className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-[10.5px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                 >
-                  {showAllLines ? (
-                    <>
-                      <span>Show less</span>
-                      <ChevronUp className="w-3 h-3" />
-                    </>
-                  ) : (
-                    <>
-                      <span>View all {lines.length} lines</span>
-                      <ChevronDown className="w-3 h-3" />
-                    </>
-                  )}
+                  {showAllLines ? "Show less" : `View all ${lines.length}`}
                 </button>
               )}
             </div>
 
-            <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden text-xs">
-              <div className="grid grid-cols-12 bg-slate-100 dark:bg-slate-800 px-2.5 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                <div className="col-span-1">#</div>
-                <div className="col-span-6">Description</div>
-                <div className="col-span-2 text-right">Qty</div>
-                <div className="col-span-3 text-right">Total</div>
-              </div>
-              <div className="divide-y divide-slate-100 dark:divide-slate-800/80 bg-white dark:bg-slate-900">
-                {displayLines.map((line, idx) => (
-                  <div key={line.id || idx} className="grid grid-cols-12 px-2.5 py-2 items-center text-slate-800 dark:text-slate-200 text-[11px]">
-                    <div className="col-span-1 font-mono text-slate-400 text-[10px]">{line.line_number}</div>
-                    <div className="col-span-6 truncate font-medium" title={line.description}>
-                      {line.description}
-                    </div>
-                    <div className="col-span-2 text-right font-mono text-slate-500 text-[10.5px]">
-                      {line.billed_quantity || (line as any).quantity || 1}
-                    </div>
-                    <div className="col-span-3 text-right font-mono font-semibold">
-                      {formatMoney(line.billed_line_total ?? (line as any).total ?? 0)}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden text-[11px]">
+              <table className="w-full text-left divide-y divide-slate-100 dark:divide-slate-800">
+                <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <tr>
+                    <th className="px-2.5 py-1.5 w-8">#</th>
+                    <th className="px-2.5 py-1.5">Description</th>
+                    <th className="px-2.5 py-1.5 text-right w-14">Qty</th>
+                    <th className="px-2.5 py-1.5 text-right w-28 whitespace-nowrap">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 bg-white dark:bg-slate-900">
+                  {displayLines.map((line, idx) => {
+                    const lineQty = (line as any).quantity ?? line.billed_quantity ?? 1;
+                    const lineTotal = (line as any).total ?? line.billed_line_total ?? 0;
+                    return (
+                      <tr key={line.id || idx}>
+                        <td className="px-2.5 py-1.5 font-mono text-slate-400 text-[10px]">{line.line_number}</td>
+                        <td
+                          className="px-2.5 py-1.5 font-medium text-slate-800 dark:text-slate-200 truncate max-w-[170px]"
+                          title={line.description}
+                        >
+                          {line.description}
+                        </td>
+                        <td className="px-2.5 py-1.5 font-mono text-right text-slate-500 whitespace-nowrap">
+                          {lineQty}
+                        </td>
+                        <td className="px-2.5 py-1.5 font-mono text-right font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                          {formatMoney(lineTotal)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         ) : (
-          <div className="p-3 rounded-lg border border-dashed border-slate-200 dark:border-slate-800 text-center text-xs text-slate-400">
-            No itemized line items extracted. Bill total was parsed directly from the summary block.
-          </div>
+          <p className="text-[11px] text-slate-400 italic py-1">
+            Single-line document: Grand total was parsed directly from the summary invoice block.
+          </p>
         )}
 
-        {/* Procurement Snapshot References (GRN / QC / Contract) */}
-        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-3">
+        {/* Compact Footer: Procurement References & Grounding Status */}
+        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-[10.5px] text-slate-500 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 truncate">
             <span>
-              PO Status: <strong className="text-slate-700 dark:text-slate-300">{poSnapshot?.po_number ? poSnapshot.po_number : "No Contract"}</strong>
+              PO: <strong className="text-slate-700 dark:text-slate-300">{poSnapshot?.po_number || "None"}</strong>
             </span>
             <span>
-              GRN: <strong className="text-slate-700 dark:text-slate-300">{poSnapshot?.grn_number || "Not on file"}</strong>
+              GRN: <strong className="text-slate-700 dark:text-slate-300">{poSnapshot?.grn?.grn_number || "Not on file"}</strong>
             </span>
             <span>
-              QC Certificate: <strong className="text-slate-700 dark:text-slate-300">{poSnapshot?.qc_number || "None"}</strong>
+              QC: <strong className="text-slate-700 dark:text-slate-300">{poSnapshot?.qc?.status || "None"}</strong>
             </span>
           </div>
-          <span className="text-[10px] font-mono text-slate-400">
-            Tripwire: {verifiedCount >= 5 ? "PASS" : "ATTN_REQUIRED"}
+
+          <span
+            className={`font-mono text-[10px] font-bold shrink-0 ${
+              groundingFailed ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+            }`}
+          >
+            Tripwire: {tripwireStatus}
           </span>
         </div>
       </div>

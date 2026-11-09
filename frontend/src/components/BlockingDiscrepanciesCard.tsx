@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ArrowRight,
   ShieldCheck,
-  FileWarning,
 } from "lucide-react";
 import { Card, Badge } from "./ui";
 import type { InvoiceDetailInvoice, MatchGateItem } from "../types";
@@ -16,12 +17,53 @@ interface BlockingDiscrepanciesCardProps {
   onOpenPolicyDrawer?: () => void;
 }
 
+function getRemediation(gate: MatchGateItem, invoice: InvoiceDetailInvoice): string {
+  const num = gate.gate_number;
+  const name = (gate.gate_name || "").toLowerCase();
+
+  if (num === 1 || name.includes("vendor")) {
+    return "Verify vendor legal identity and GST credentials in ERP master vendor ledger.";
+  }
+  if (num === 2 || name.includes("po auth")) {
+    return invoice.po_reference
+      ? "PO not found in active ERP contracts. Link a registered purchase order."
+      : "Non-PO invoice: Obtain departmental approval or register an approved PO.";
+  }
+  if (num === 3 || name.includes("grn") || name.includes("goods receipt")) {
+    return "Check warehouse receiving records or wait for Goods Receipt Note (GRN) posting.";
+  }
+  if (num === 4 || name.includes("qc") || name.includes("quality")) {
+    return "Physical material inspection required. Request quality certificate sign-off from plant manager.";
+  }
+  if (num === 5 || name.includes("gst") || name.includes("tax")) {
+    return "Tax calculation mismatch. Reconcile GST percentage, taxable value, and line sums.";
+  }
+  if (num === 6 || name.includes("tolerance") || name.includes("price")) {
+    return "Billed rate exceeds PO schedule tolerance. Request vendor credit note or Controller override.";
+  }
+  if (num === 7 || name.includes("duplicate")) {
+    return "Potential duplicate document. Compare voucher history and SHA-256 fingerprint in audit ledger.";
+  }
+  return "Grounding tripwire tripped on unverified tokens. Verify scan coordinates against source document.";
+}
+
 export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps> = ({
   invoice,
   matchGates = [],
-  hasFailedGates = false,
+  hasFailedGates: _hasFailedGates = false,
   onOpenPolicyDrawer,
 }) => {
+  const [expandedGates, setExpandedGates] = useState<Set<number>>(new Set());
+
+  const toggleGate = (num: number) => {
+    setExpandedGates((prev) => {
+      const next = new Set(prev);
+      if (next.has(num)) next.delete(num);
+      else next.add(num);
+      return next;
+    });
+  };
+
   const failedGates = matchGates.filter((g) => g.status === "FAIL");
   const incompleteGates = matchGates.filter(
     (g) => g.status !== "PASS" && g.status !== "FAIL"
@@ -30,22 +72,18 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
   const totalIssues = issuesList.length;
 
   return (
-    <Card className="border border-rose-200 dark:border-rose-900/60 bg-white dark:bg-slate-900 shadow-sm rounded-xl overflow-hidden flex flex-col h-full transition-all">
-      {/* 1. Header Bar */}
-      <div className="p-3 bg-rose-50/70 dark:bg-rose-950/40 border-b border-rose-200/80 dark:border-rose-900/60 flex items-center justify-between gap-2">
+    <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs rounded-xl overflow-hidden transition-all">
+      {/* 1. Header */}
+      <div className="px-3.5 py-2.5 bg-slate-50/80 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-md bg-rose-100 dark:bg-rose-900/50 border border-rose-300 dark:border-rose-800 flex items-center justify-center text-rose-600 dark:text-rose-300 shrink-0">
-            {hasFailedGates ? (
-              <AlertTriangle className="w-3.5 h-3.5" />
-            ) : (
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-rose-900 dark:text-rose-200 truncate">
-              Blocking Discrepancies
-            </h3>
-          </div>
+          {totalIssues > 0 ? (
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+          ) : (
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+          )}
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-100 truncate">
+            Blocking Discrepancies
+          </h3>
         </div>
 
         <div className="flex items-center gap-1.5 shrink-0">
@@ -61,94 +99,128 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
         </div>
       </div>
 
-      {/* 2. Main Body */}
-      <div className="p-3.5 space-y-3 flex-1 flex flex-col">
+      {/* 2. Main Content */}
+      <div className="p-3.5 sm:p-4 space-y-2.5">
         {totalIssues > 0 ? (
           <>
-            {/* Why Approval is Blocked Summary Banner */}
-            <div className="p-2.5 rounded-lg bg-rose-50/90 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/80 text-xs shrink-0">
-              <span className="font-bold text-rose-900 dark:text-rose-200 flex items-center gap-1.5 mb-0.5">
-                <FileWarning className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 shrink-0" />
-                Approval blocked until checks are resolved
+            {/* Concise Blocked Notice */}
+            <div className="p-2.5 rounded-lg bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-900/50 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+              <span className="text-[11px] text-rose-900 dark:text-rose-200 font-medium leading-tight">
+                Approval blocked until failed checks are resolved or overridden by an authorized reviewer.
               </span>
-              <p className="text-[11px] text-rose-700 dark:text-rose-300 leading-normal">
-                {invoice.decision_reason ||
-                  "Policy conditions failed. Automated posting is blocked until exceptions are reviewed."}
-              </p>
             </div>
 
-            {/* List of Failed / Incomplete Checks with Detailed Explanations */}
-            <div className="space-y-2 flex-1 overflow-y-auto max-h-[300px] pr-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                Failed Checks & Review Reasons:
-              </span>
+            {/* List of Issue Rows with Expandable Evidence */}
+            <div className="space-y-1.5 pt-0.5">
               {issuesList.map((gate, idx) => {
+                const gateId = gate.gate_number ?? idx;
+                const isExpanded = expandedGates.has(gateId);
+                const isSafeguard =
+                  gate.gate_number >= 8 ||
+                  gate.gate_name?.toLowerCase().includes("extraction evidence");
+                const gateTag = isSafeguard ? "SAFEGUARD" : `G${gate.gate_number}`;
                 const isFail = gate.status === "FAIL";
+                const remediation = getRemediation(gate, invoice);
+
                 return (
                   <div
-                    key={gate.gate_number ?? idx}
-                    className="p-2 rounded-lg bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 text-xs transition-colors"
+                    key={gateId}
+                    className="rounded-lg border border-slate-200/80 dark:border-slate-800/80 bg-slate-50/60 dark:bg-slate-850/50 overflow-hidden text-xs transition-colors"
                   >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
-                        <span className="font-mono text-[9.5px] px-1 py-0.5 bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 rounded font-bold shrink-0">
-                          G{gate.gate_number}
-                        </span>
-                        <span className="truncate" title={gate.gate_name}>
-                          {gate.gate_name}
-                        </span>
-                      </span>
-                      <Badge tone={isFail ? "error" : "warning"} size="sm" className="shrink-0 text-[9.5px] px-1.5 py-0">
-                        {isFail ? "FAIL" : "PENDING"}
-                      </Badge>
+                    {/* Compact Primary Row */}
+                    <div
+                      onClick={() => toggleGate(gateId)}
+                      className="p-2 sm:px-2.5 flex items-start justify-between gap-2 cursor-pointer hover:bg-slate-100/70 dark:hover:bg-slate-800/70"
+                    >
+                      <div className="min-w-0 space-y-0.5 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            className={`font-mono text-[9px] px-1 py-0.2 rounded font-bold ${
+                              isSafeguard
+                                ? "bg-purple-100 dark:bg-purple-950/80 text-purple-700 dark:text-purple-300"
+                                : "bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300"
+                            }`}
+                          >
+                            {gateTag}
+                          </span>
+                          <span className="font-semibold text-slate-900 dark:text-slate-100 truncate text-[11.5px]">
+                            {gate.gate_name}
+                          </span>
+                        </div>
+                        <p className="text-[10.5px] text-slate-600 dark:text-slate-300 line-clamp-1">
+                          {gate.evidence_notes || (gate as any).notes || "Deterministic policy rule failed automated threshold."}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                        <Badge tone={isFail ? "error" : "warning"} size="sm" className="text-[9px] px-1.5 py-0 font-bold">
+                          {isFail ? "FAIL" : "PENDING"}
+                        </Badge>
+                        {isExpanded ? (
+                          <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                        )}
+                      </div>
                     </div>
 
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed pl-2 border-l-2 border-rose-400 dark:border-rose-600 mt-1">
-                      {gate.evidence_notes ||
-                        (gate as any).notes ||
-                        "Deterministic check failed automated threshold."}
-                    </p>
+                    {/* Expandable Calculation, Evidence & Remediation */}
+                    {isExpanded && (
+                      <div className="p-2.5 pt-1.5 border-t border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900/80 text-[11px] space-y-1.5">
+                        <div>
+                          <span className="text-[9.5px] font-bold uppercase text-slate-400 block">
+                            Evidence & Notes:
+                          </span>
+                          <p className="text-slate-700 dark:text-slate-300 font-mono text-[10px] leading-relaxed mt-0.5">
+                            {gate.evidence_notes || (gate as any).notes || "No detailed calculations logged."}
+                          </p>
+                        </div>
+
+                        <div className="pt-1 border-t border-slate-100 dark:border-slate-800">
+                          <span className="text-[9.5px] font-bold uppercase text-indigo-600 dark:text-indigo-400 flex items-center gap-1">
+                            <ArrowRight className="w-2.5 h-2.5" /> Remediation Guidance:
+                          </span>
+                          <p className="text-slate-600 dark:text-slate-400 text-[10.5px] mt-0.5 leading-normal">
+                            {remediation}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
 
-            {/* 3. Action Guidance Section */}
-            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 shrink-0">
-              <div className="flex items-center justify-between gap-1 mb-1">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <ArrowRight className="w-3 h-3 text-indigo-500" />
-                  Required Action
-                </span>
-                {onOpenPolicyDrawer && (
-                  <button
-                    type="button"
-                    onClick={onOpenPolicyDrawer}
-                    className="text-[10.5px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                  >
-                    View policy rules
-                  </button>
-                )}
-              </div>
-              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-normal">
-                {invoice.po_reference
-                  ? "Verify billed amounts against ERP contract or request an amended invoice from supplier."
-                  : "Non-PO Invoice: Verify supplier credentials and route for departmental manual sign-off."}
-              </p>
+            {/* Concise Footer with Action & Rules */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+              <span className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate">
+                Action: <strong className="text-slate-700 dark:text-slate-300">{invoice.po_reference ? "Request vendor rate correction" : "Route for exception sign-off"}</strong>
+              </span>
+
+              {onOpenPolicyDrawer && (
+                <button
+                  type="button"
+                  onClick={onOpenPolicyDrawer}
+                  className="text-[10.5px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer shrink-0 ml-2"
+                >
+                  View policy rules
+                </button>
+              )}
             </div>
           </>
         ) : (
-          /* Empty State: All Checks Passed */
-          <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-2">
-            <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-              <CheckCircle2 className="w-6 h-6" />
+          /* Empty State */
+          <div className="py-6 text-center space-y-1.5">
+            <div className="w-8 h-8 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
             <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               Zero Blocking Discrepancies
             </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
               All 7 policy validation gates passed with zero tolerance violations.
-              This invoice is cleared for straight-through approval.
+              Document is cleared for straight-through approval.
             </p>
           </div>
         )}
