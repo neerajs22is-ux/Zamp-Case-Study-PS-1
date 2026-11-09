@@ -12,6 +12,9 @@ import {
   ShieldCheck,
   CheckCircle,
   MoreVertical,
+  RefreshCw,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { api } from "../api/client";
 import { InvoiceRunView } from "../components/InvoiceRunView";
@@ -30,9 +33,11 @@ import {
   Button,
   Badge,
   Drawer,
+  Modal,
   LoadingState,
   ErrorState,
 } from "../components/ui";
+import { ExtractedDataCard } from "../components/ExtractedDataCard";
 import type { AuthenticatedUser, InvoiceDetailData, MatchGateItem } from "../types";
 
 interface InvoiceDetailPageProps {
@@ -65,6 +70,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const [copiedSha, setCopiedSha] = useState(false);
   const [refreshingDocUrl, setRefreshingDocUrl] = useState(false);
   const [documentError, setDocumentError] = useState<string | null>(null);
+
+  // Document Operational Actions State
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deletingDoc, setDeletingDoc] = useState(false);
+  const [retryingProcessing, setRetryingProcessing] = useState(false);
 
   // Decision & Action State
   const [selectedAction, setSelectedAction] = useState<string | null>(null);
@@ -141,6 +152,38 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       );
     } finally {
       setRefreshingDocUrl(false);
+    }
+  };
+
+  const handleRetryProcessing = async () => {
+    setRetryingProcessing(true);
+    setActionError(null);
+    try {
+      await api.processNextDocument();
+      await loadDetail();
+      setActionSuccess("Processing job triggered for this document.");
+    } catch (err: any) {
+      setActionError(err.message || "Failed to trigger retry for document processing.");
+    } finally {
+      setRetryingProcessing(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!data?.document?.document_id) return;
+    setDeletingDoc(true);
+    try {
+      await api.softDeleteDocument(
+        data.document.document_id,
+        deleteReason || "Operator requested deletion from invoice detail."
+      );
+      setShowDeleteModal(false);
+      onBack();
+    } catch (err: any) {
+      setActionError(err.message || "Could not delete document.");
+      setShowDeleteModal(false);
+    } finally {
+      setDeletingDoc(false);
     }
   };
 
@@ -254,6 +297,15 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const auditEvents = data?.timeline ?? data?.audit_events ?? [];
   const invoiceLines = data?.lines ?? invoice.lines ?? [];
   const isAuditor = currentUser?.role === "AUDITOR";
+  const canRetry = Boolean(
+    !isAuditor &&
+      (invoice.job_status === "QUEUED" ||
+        invoice.job_status === "PROCESSING" ||
+        invoice.job_status === "FAILED" ||
+        invoice.decision === "FLAGGED_EXCEPTION" ||
+        invoice.decision === "FLAGGED_HITL_REVIEW")
+  );
+  const canDelete = Boolean(!isAuditor && data?.document?.document_id);
   const isController =
     currentUser?.role === "CONTROLLER" || currentUser?.role === "SYSTEM_ADMIN";
   const totalAmount = invoice.total_amount || 0;
@@ -437,7 +489,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         className="review-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
       >
         {/* Left Pane: Persistent Original Document Viewer (~42% desktop width) */}
-        <div className="lg:col-span-5 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[620px] max-h-[920px]">
+        <div className="lg:col-span-5 xl:col-span-4 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[620px] max-h-[920px]">
           <Card className="review-document overflow-hidden flex flex-col h-full border border-slate-200 dark:border-slate-800 shadow-2xs">
             {/* Document Toolbar */}
             <div className="review-document-toolbar p-2 sm:px-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
@@ -589,25 +641,98 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               </div>
             )}
           </Card>
+
+          {/* Context-Sensitive Operational Document Controls Row */}
+          <div className="mt-2.5 p-2 px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs flex items-center justify-between gap-2 text-xs">
+            <span className="font-semibold text-slate-700 dark:text-slate-300 text-[11px] truncate">
+              Document Controls:
+            </span>
+
+            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+              <Button
+                variant="outline"
+                size="xs"
+                onClick={loadDetail}
+                isLoading={loading}
+                leftIcon={<RefreshCw className="w-3 h-3" />}
+                title="Refresh complete invoice state and extraction"
+              >
+                Refresh
+              </Button>
+
+              {previewUrl && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => window.open(previewUrl, "_blank")}
+                  leftIcon={<ExternalLink className="w-3 h-3" />}
+                  title="Open original document in new window"
+                >
+                  Open
+                </Button>
+              )}
+
+              {canRetry && (
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={handleRetryProcessing}
+                  isLoading={retryingProcessing}
+                  leftIcon={<RotateCcw className="w-3 h-3 text-amber-500" />}
+                  className="text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-800"
+                  title="Retry or resume extraction pipeline for this invoice"
+                >
+                  Retry Run
+                </Button>
+              )}
+
+              {canDelete && (
+                <Button
+                  variant="danger"
+                  size="xs"
+                  onClick={() => setShowDeleteModal(true)}
+                  leftIcon={<Trash2 className="w-3 h-3" />}
+                  title="Soft delete document"
+                >
+                  Delete
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Right Pane: Scrollable Invoice Review Workspace (~58% desktop width) */}
-        <div className="lg:col-span-7 space-y-4">
-          {/* Step 1: Seven-Gate Matching Overview & Discrepancies */}
-          <CaseSummaryCard
-            invoice={invoice}
-            matchGates={matchGates}
-            userRole={currentUser?.role}
-            policy={{
-              dual_approval_threshold_inr: dualApprovalThreshold,
-              rate_tolerance_percent: rateTolerancePercent,
-              rounding_tolerance_inr:
-                data?.policy?.rounding_tolerance_inr ||
-                DEFAULT_POLICY.rounding_tolerance_inr,
-            }}
-            onOpenGlossary={openGlossaryWithTerm}
-            onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
-          />
+        <div className="lg:col-span-7 xl:col-span-8 space-y-5">
+          {/* Step 1: Two-Column Review Layout (7-Gate Matching on Left, Extracted Fields & Evidence on Right) */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+            {/* Left Sub-Column: Seven-Gate Matching Overview & Discrepancies */}
+            <div className="xl:col-span-6 flex flex-col">
+              <CaseSummaryCard
+                invoice={invoice}
+                matchGates={matchGates}
+                userRole={currentUser?.role}
+                policy={{
+                  dual_approval_threshold_inr: dualApprovalThreshold,
+                  rate_tolerance_percent: rateTolerancePercent,
+                  rounding_tolerance_inr:
+                    data?.policy?.rounding_tolerance_inr ||
+                    DEFAULT_POLICY.rounding_tolerance_inr,
+                }}
+                onOpenGlossary={openGlossaryWithTerm}
+                onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
+              />
+            </div>
+
+            {/* Right Sub-Column: Extracted Document Data & Evidence Summary */}
+            <div className="xl:col-span-6 flex flex-col">
+              <ExtractedDataCard
+                invoice={invoice}
+                extractedFields={data?.extracted_fields}
+                lines={invoiceLines}
+                poSnapshot={poSnapshot}
+              />
+            </div>
+          </div>
 
           {/* Step 2: Line-by-Line Invoice vs PO Comparison & Procurement Evidence */}
           <div data-tour="reconciliation-flow" className="space-y-4">
@@ -907,6 +1032,53 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           />
         </div>
       </Drawer>
+
+      {/* Delete Document Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="Confirm Document Deletion"
+      >
+        <div className="space-y-4 text-xs">
+          <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+            Are you sure you want to delete invoice document{" "}
+            <strong className="text-slate-900 dark:text-white">
+              {data?.document?.filename || invoice.invoice_number || "this document"}
+            </strong>
+            ? This will soft-delete the document file while preserving immutable audit logs.
+          </p>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Reason for deletion (optional):
+            </label>
+            <input
+              type="text"
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="e.g. Duplicate scan, superseded by vendor..."
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+            />
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deletingDoc}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleConfirmDelete}
+              isLoading={deletingDoc}
+            >
+              Confirm Soft Delete
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Action Consequence Modal */}
       {selectedAction && (

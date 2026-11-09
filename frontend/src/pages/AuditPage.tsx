@@ -8,6 +8,7 @@ import {
   Copy,
   Check,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { api } from "../api/client";
 import {
@@ -336,42 +337,45 @@ export const AuditPage: React.FC<AuditPageProps> = ({ currentUser }) => {
                       onClick={() => setSelectedEvent(e)}
                       className="group"
                     >
-                      <TableCell className="font-mono text-slate-500 text-[11px] whitespace-nowrap">
-                        {new Date(e.timestamp).toLocaleDateString()}{" "}
-                        <span className="text-slate-400">
+                      <TableCell className="font-mono text-slate-500 dark:text-slate-400 text-[11px] whitespace-nowrap py-3.5">
+                        <span className="font-semibold text-slate-700 dark:text-slate-200 block">
+                          {new Date(e.timestamp).toLocaleDateString()}
+                        </span>
+                        <span className="text-[10.5px] text-slate-400">
                           {new Date(e.timestamp).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
+                            second: "2-digit",
                           })}
                         </span>
                       </TableCell>
 
-                      <TableCell>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                      <TableCell className="py-3.5">
+                        <span className="font-bold text-slate-900 dark:text-white text-xs sm:text-[13px] block leading-tight">
                           {e.reason || meta.label}
                         </span>
                         {e.source_reference && (
-                          <span className="text-[11px] text-slate-400 italic block mt-0.5 line-clamp-1 font-mono">
+                          <span className="text-[11px] text-slate-400 italic block mt-1 line-clamp-1 font-mono">
                             Ref: {e.source_reference}
                           </span>
                         )}
                       </TableCell>
 
-                      <TableCell>
+                      <TableCell className="py-3.5">
                         <div className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300">
-                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium truncate">
+                          <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                          <span className="font-medium truncate max-w-[120px] text-slate-800 dark:text-slate-200">
                             {e.actor_id}
                           </span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                             {e.actor_role}
                           </span>
                         </div>
                       </TableCell>
 
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="font-mono text-xs py-3.5">
                         {e.invoice_id ? (
-                          <span className="text-indigo-600 dark:text-indigo-400 font-semibold">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded font-semibold text-xs bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60">
                             {e.invoice_id}
                           </span>
                         ) : (
@@ -379,23 +383,24 @@ export const AuditPage: React.FC<AuditPageProps> = ({ currentUser }) => {
                         )}
                       </TableCell>
 
-                      <TableCell>
-                        <Badge tone={meta.tone} size="sm">
+                      <TableCell className="py-3.5">
+                        <Badge tone={meta.tone} size="sm" className="font-semibold">
                           {meta.label}
                         </Badge>
                       </TableCell>
 
-                      <TableCell className="text-right">
+                      <TableCell className="text-right py-3.5">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="xs"
                           onClick={(evt) => {
                             evt.stopPropagation();
                             setSelectedEvent(e);
                           }}
-                          rightIcon={<ChevronRight className="w-3 h-3" />}
+                          rightIcon={<ChevronRight className="w-3 h-3 text-indigo-500" />}
+                          className="font-medium hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors shadow-2xs"
                         >
-                          Details
+                          Inspect
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -423,105 +428,209 @@ export const AuditPage: React.FC<AuditPageProps> = ({ currentUser }) => {
       >
         {selectedEvent && (
           <div className="space-y-4 text-xs">
-            <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-2 font-mono">
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-sans">Event ID:</span>
-                <span className="text-slate-800 dark:text-slate-200 truncate max-w-[200px]">
-                  {selectedEvent.id}
+            {/* 1. Human-Readable Event Summary Header */}
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 space-y-3">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Badge
+                  tone={
+                    ACTION_LABELS[selectedEvent.action]?.tone || "neutral"
+                  }
+                  size="md"
+                  className="font-semibold"
+                >
+                  {ACTION_LABELS[selectedEvent.action]?.label ||
+                    selectedEvent.action?.replace(/_/g, " ")}
+                </Badge>
+                <span className="text-[11px] font-mono text-slate-400">
+                  {new Date(selectedEvent.timestamp).toLocaleDateString()} at{" "}
+                  {new Date(selectedEvent.timestamp).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                  })}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-sans">Timestamp:</span>
-                <span className="text-slate-800 dark:text-slate-200">
-                  {new Date(selectedEvent.timestamp).toISOString()}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-sans">Actor ID:</span>
-                <span className="text-indigo-600 dark:text-indigo-400 font-sans font-semibold">
-                  {selectedEvent.actor_id}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-sans">Actor Role:</span>
-                <span className="text-slate-800 dark:text-slate-200">
-                  {selectedEvent.actor_role}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500 font-sans">Action:</span>
-                <span className="text-slate-800 dark:text-slate-200">
-                  {selectedEvent.action}
-                </span>
-              </div>
-            </div>
 
-            <div>
-              <span className="font-semibold text-slate-800 dark:text-slate-200 block mb-1">
-                Event Description
-              </span>
-              <p className="text-slate-600 dark:text-slate-300 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 leading-relaxed">
-                {selectedEvent.reason ||
-                  selectedEvent.action?.replace(/_/g, " ") ||
-                  "Action recorded in audit log."}
-              </p>
-            </div>
-
-            {selectedEvent.source_reference && (
               <div>
-                <span className="font-semibold block mb-1">
-                  Source reference
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                  Event Reason & Summary
                 </span>
-                <p className="operations-source">
-                  {selectedEvent.source_reference}
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 leading-snug">
+                  {selectedEvent.reason ||
+                    ACTION_LABELS[selectedEvent.action]?.label ||
+                    selectedEvent.action?.replace(/_/g, " ")}
                 </p>
               </div>
-            )}
+            </div>
 
-            {selectedEvent.correlation_id && (
-              <div className="space-y-1.5 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
-                  Correlation & Cryptographic Tracking ID
-                </span>
-                <div className="p-2.5 rounded-lg bg-slate-900 text-slate-100 font-mono text-[11px] break-all flex items-center justify-between gap-2">
-                  <span>{selectedEvent.correlation_id}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleCopySha(selectedEvent.correlation_id || undefined)
-                    }
-                    className="p-1 hover:bg-slate-800 rounded shrink-0 text-slate-400 hover:text-white"
-                    title="Copy correlation ID"
-                  >
-                    {copiedSha ? (
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
+            {/* 2. Structured Actor & Governance Details */}
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                Actor & Governance Context
+              </span>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Operator / Actor</span>
+                  <div className="flex items-center gap-1.5 font-medium text-slate-800 dark:text-slate-200 mt-0.5">
+                    <User className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span className="truncate">{selectedEvent.actor_id}</span>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            {(selectedEvent.before_state || selectedEvent.after_state) && (
-              <div className="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <span className="font-semibold text-slate-800 dark:text-slate-200 block">
-                  State Transition Diff
+                <div>
+                  <span className="text-[10px] text-slate-500 block">Governance Role</span>
+                  <span className="inline-block px-2 py-0.5 mt-0.5 rounded text-[10.5px] font-mono font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                    {selectedEvent.actor_role}
+                  </span>
+                </div>
+
+                {selectedEvent.invoice_id && (
+                  <div className="col-span-2 pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] text-slate-500 block">Related Invoice</span>
+                      <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 text-xs">
+                        {selectedEvent.invoice_id}
+                      </span>
+                    </div>
+                    <a
+                      href={`/invoices`}
+                      className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-medium"
+                    >
+                      <span>View in Invoices</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                )}
+
+                {selectedEvent.source_reference && (
+                  <div className="col-span-2 pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-[10px] text-slate-500 block">Source Reference</span>
+                    <p className="font-mono text-[10.5px] text-slate-600 dark:text-slate-400 truncate mt-0.5" title={selectedEvent.source_reference}>
+                      {selectedEvent.source_reference}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 3. Human-Readable State Transition Summary */}
+            <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                State Transition Summary
+              </span>
+
+              {selectedEvent.before_state || selectedEvent.after_state ? (
+                <div className="space-y-2">
+                  {/* Extract recognizable fields: stage, decision, status, amounts */}
+                  {(() => {
+                    const before = selectedEvent.before_state || {};
+                    const after = selectedEvent.after_state || {};
+                    const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
+                    const changedKeys = allKeys.filter(
+                      (k) => JSON.stringify(before[k]) !== JSON.stringify(after[k])
+                    );
+
+                    if (changedKeys.length === 0) {
+                      return (
+                        <p className="text-slate-500 text-xs italic">
+                          Initial immutable event snapshot recorded. No previous state modified.
+                        </p>
+                      );
+                    }
+
+                    return changedKeys.map((key) => {
+                      const beforeVal = before[key];
+                      const afterVal = after[key];
+                      const keyLabel = key.replace(/_/g, " ").toUpperCase();
+
+                      return (
+                        <div
+                          key={key}
+                          className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs"
+                        >
+                          <span className="font-medium text-slate-600 dark:text-slate-400">
+                            {keyLabel}:
+                          </span>
+                          <div className="flex items-center gap-1.5 font-mono text-[11px]">
+                            <span className="text-slate-400 line-through">
+                              {beforeVal !== undefined && beforeVal !== null
+                                ? String(beforeVal)
+                                : "None"}
+                            </span>
+                            <span className="text-slate-400">&rarr;</span>
+                            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                              {afterVal !== undefined && afterVal !== null
+                                ? String(afterVal)
+                                : "None"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <p className="text-slate-500 text-xs italic">
+                  Event recorded with no preceding state modification.
+                </p>
+              )}
+            </div>
+
+            {/* 4. Collapsible Advanced Technical Details (Forensic & Cryptographic) */}
+            <details className="group border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40">
+              <summary className="p-3 cursor-pointer text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-between select-none">
+                <span>Advanced Technical Details (Forensics & Hashes)</span>
+                <span className="text-[10px] text-indigo-600 dark:text-indigo-400 group-open:rotate-180 transition-transform">
+                  ▼
                 </span>
-                <div className="p-2.5 rounded-lg bg-slate-100 dark:bg-slate-850 font-mono text-[10px] overflow-x-auto max-h-48 text-slate-700 dark:text-slate-300">
-                  <pre>
+              </summary>
+
+              <div className="p-3 pt-0 border-t border-slate-200/60 dark:border-slate-800/60 space-y-3 font-mono text-[10.5px]">
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-500 font-sans">Event ID:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-700 dark:text-slate-300">{selectedEvent.id}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopySha(selectedEvent.id)}
+                      className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-400"
+                      title="Copy Event ID"
+                    >
+                      {copiedSha ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+
+                {selectedEvent.correlation_id && (
+                  <div className="flex justify-between items-center py-1 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500 font-sans">Correlation ID:</span>
+                    <span className="text-slate-700 dark:text-slate-300 truncate max-w-[180px]">
+                      {selectedEvent.correlation_id}
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <span className="font-sans font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                    Raw JSON Snapshot:
+                  </span>
+                  <pre className="p-2.5 rounded bg-slate-900 text-slate-200 text-[10px] overflow-x-auto max-h-40">
                     {JSON.stringify(
                       {
+                        action: selectedEvent.action,
+                        actor: selectedEvent.actor_id,
+                        role: selectedEvent.actor_role,
                         before: selectedEvent.before_state,
                         after: selectedEvent.after_state,
                       },
                       null,
-                      2,
+                      2
                     )}
                   </pre>
                 </div>
               </div>
-            )}
+            </details>
           </div>
         )}
       </Drawer>

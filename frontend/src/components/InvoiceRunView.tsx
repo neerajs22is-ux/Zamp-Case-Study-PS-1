@@ -66,7 +66,7 @@ export function InvoiceRunView({
 }) {
   const [snapshot, setSnapshot] = useState<ProcessingSnapshot | null>(null);
   const [connection, setConnection] = useState('Loading recorded checkpoints…');
-  const [refresh, setRefresh] = useState(0);
+  // refresh trigger removed
   // Collapsed by default for completed, rejected, held, or finished invoices
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
@@ -106,7 +106,7 @@ export function InvoiceRunView({
             (job) => job.status === 'QUEUED' || job.status === 'PROCESSING',
           ),
       }),
-    [invoiceId, refresh],
+    [invoiceId],
   );
 
   const latestJob = snapshot?.jobs[0];
@@ -251,14 +251,6 @@ export function InvoiceRunView({
               <span className="text-[11px] text-slate-400" role="status">
                 {connection}
               </span>
-              <button
-                type="button"
-                onClick={() => setRefresh((value) => value + 1)}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Refresh checkpoints</span>
-              </button>
             </div>
           </div>
 

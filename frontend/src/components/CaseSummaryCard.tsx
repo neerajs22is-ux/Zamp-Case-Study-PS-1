@@ -131,7 +131,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   });
 
   return (
-    <div className={`review-summary rounded-xl border p-4 space-y-3.5 transition-all ${toneBg}`}>
+    <div className={`review-summary rounded-xl border p-4 space-y-3.5 transition-all ${toneBg} flex flex-col h-full`}>
       {/* 1. Header Bar: Verdict + Discrepancy count + Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -156,7 +156,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
                 </Badge>
               )}
             </div>
-            <p className="review-summary-explanation text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+            <p className="review-summary-explanation text-xs text-slate-600 dark:text-slate-300 mt-0.5 line-clamp-2" title={explanation}>
               {explanation}
             </p>
           </div>
@@ -200,7 +200,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 min-[1750px]:grid-cols-7 gap-1.5">
           {gateItems.map((gate) => {
             const isPass = gate.status === 'PASS';
             const isFail = gate.status === 'FAIL';
