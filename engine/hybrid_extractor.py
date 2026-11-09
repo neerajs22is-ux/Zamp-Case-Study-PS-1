@@ -280,7 +280,8 @@ class HybridAPExtractor:
             reasons.append(f"Duplicate detected: {dup_res.audit_notes}")
         elif not tripwire_passed:
             decision = "FLAGGED_HITL_REVIEW"
-            reasons.append(f"Grounding tripwire failed for unverified fields: {unverified}")
+            prefix = "Scanned document text grounding tripwire" if is_scanned else "Grounding tripwire"
+            reasons.append(f"{prefix} failed for unverified fields: {unverified}")
         elif not tax_res.is_valid:
             decision = "FLAGGED_HITL_REVIEW"
             reasons.extend(tax_res.notes)
@@ -328,6 +329,7 @@ class HybridAPExtractor:
         pdf_bytes: bytes,
         filename: str,
         document_id: str = "DOC",
+        force_vision: bool = False,
     ) -> HybridProcessingResult:
         """Runs the multimodal hybrid pipeline: digital text extraction OR local OCR + Qwen Mantle / Palmyra Vision."""
         start_time = time.perf_counter()
@@ -338,6 +340,7 @@ class HybridAPExtractor:
         is_scanned = len(full_text) < 20
         ocr_result: Optional[OCRDocumentResult] = None
         vision_result: Optional[PalmyraVisualResult] = None
+        multimodal_reasons: List[str] = []
 
         if is_scanned:
             # Execute local OCR
@@ -390,34 +393,57 @@ class HybridAPExtractor:
             logger.error("Mantle LLM invocation failed on %s: %s", filename, exc)
             raise RuntimeError(f"Live Mantle inference failed on {document_id} ({filename}): {exc}") from exc
 
-        # If scanned document and Palmyra Vision is available, cross-check visual layout if Mantle is missing totals
-        if is_scanned and (settings.ENABLE_PALMYRA_VISION or settings.get_palmyra_api_key()):
-            if extraction.grand_total == 0.0 or not extraction.line_items:
-                try:
-                    vision_result = self.vision.extract_visual(
-                        pdf_bytes=pdf_bytes,
-                        filename=filename,
-                        document_id=document_id,
-                        ocr_cues=full_text[:600],
-                    )
-                    if vision_result and vision_result.extraction.grand_total > 0:
-                        ve = vision_result.extraction
-                        if extraction.grand_total == 0.0:
-                            extraction.grand_total = ve.grand_total
-                            extraction.taxable_value = ve.taxable_value
-                            extraction.total_tax_amount = ve.total_tax_amount
-                        if not extraction.line_items and ve.line_items:
-                            extraction.line_items = [
-                                ExtractedLineItem(
-                                    item_description=li.get("item_description") or "Item",
-                                    quantity=float(li.get("quantity") or 1.0),
-                                    unit_price=float(li.get("unit_price") or 0.0),
-                                    taxable_amount=float(li.get("taxable_amount") or 0.0),
-                                    total_amount=float(li.get("total_amount") or 0.0),
-                                ) for li in ve.line_items
-                            ]
-                except Exception as vex:
-                    logger.warning(f"Palmyra Vision cross-check skipped: {vex}")
+        # Scanned multimodal handling: Execute Palmyra Vision if enabled, forced, or as fallback
+        has_vision_key = bool(settings.get_palmyra_api_key())
+        should_invoke_vision = is_scanned and has_vision_key and (
+            settings.ENABLE_PALMYRA_VISION
+            or force_vision
+            or extraction.grand_total == 0.0
+            or not extraction.line_items
+        )
+
+        if should_invoke_vision:
+            try:
+                vision_result = self.vision.extract_visual(
+                    pdf_bytes=pdf_bytes,
+                    filename=filename,
+                    document_id=document_id,
+                    ocr_cues=full_text[:600],
+                )
+                if vision_result and vision_result.extraction:
+                    ve = vision_result.extraction
+                    # If Mantle missed grand_total or line items, recover from visual extraction
+                    if extraction.grand_total == 0.0 and ve.grand_total > 0:
+                        extraction.grand_total = ve.grand_total
+                        extraction.taxable_value = ve.taxable_value
+                        extraction.total_tax_amount = ve.total_tax_amount
+                    if not extraction.line_items and ve.line_items:
+                        extraction.line_items = [
+                            ExtractedLineItem(
+                                item_description=li.get("item_description") or "Item",
+                                quantity=float(li.get("quantity") or 1.0),
+                                unit_price=float(li.get("unit_price") or 0.0),
+                                taxable_amount=float(li.get("taxable_amount") or 0.0),
+                                total_amount=float(li.get("total_amount") or 0.0),
+                            ) for li in ve.line_items
+                        ]
+
+                    # Ask4i Multimodal Disagreement Check:
+                    # Detect contradictions between OCR/Mantle text model and Palmyra Vision model
+                    if extraction.grand_total > 0 and ve.grand_total > 0:
+                        total_diff = abs(ve.grand_total - extraction.grand_total)
+                        if total_diff > settings.ROUNDING_TOLERANCE_INR:
+                            multimodal_reasons.append(
+                                f"Multimodal contradiction: Palmyra Vision extracted total ₹{ve.grand_total:,.2f} "
+                                f"conflicts with OCR/Mantle total ₹{extraction.grand_total:,.2f}."
+                            )
+
+                    if ve.has_handwritten_notes:
+                        multimodal_reasons.append("Palmyra Vision detected handwritten annotations; flagged for HITL review.")
+                    if ve.visual_clarity in ("DEGRADED", "UNREADABLE"):
+                        multimodal_reasons.append(f"Palmyra Vision assessed document visual clarity as {ve.visual_clarity}.")
+            except Exception as vex:
+                logger.warning(f"Palmyra Vision multimodal cross-check skipped: {vex}")
 
         # Run Grounding Tripwires on Extraction against available textual evidence
         tripwire_passed, unverified, source_evidence = verify_extracted_evidence(extraction, pages)
@@ -459,7 +485,8 @@ class HybridAPExtractor:
             reasons.append(f"Duplicate detected: {dup_res.audit_notes}")
         elif not tripwire_passed:
             decision = "FLAGGED_HITL_REVIEW"
-            reasons.append(f"Grounding tripwire failed for unverified fields: {unverified}")
+            prefix = "Scanned document text grounding tripwire" if is_scanned else "Grounding tripwire"
+            reasons.append(f"{prefix} failed for unverified fields: {unverified}")
         elif not tax_res.is_valid:
             decision = "FLAGGED_HITL_REVIEW"
             reasons.extend(tax_res.notes)
@@ -479,8 +506,16 @@ class HybridAPExtractor:
             decision = "FLAGGED_HITL_REVIEW"
             reasons.extend(match_res.discrepancy_reasons)
         else:
-            decision = "MATCH_CANDIDATE"
-            reasons.append("3-Way match (PO, GRN, QC) and GST arithmetic verified.")
+            if multimodal_reasons:
+                decision = "FLAGGED_HITL_REVIEW"
+                reasons.extend(multimodal_reasons)
+            else:
+                decision = "MATCH_CANDIDATE"
+                reasons.append("3-Way match (PO, GRN, QC) and GST arithmetic verified.")
+
+        if multimodal_reasons and decision != "FLAGGED_HITL_REVIEW":
+            decision = "FLAGGED_HITL_REVIEW"
+            reasons.extend(multimodal_reasons)
 
         latency = round((time.perf_counter() - start_time) * 1000, 2)
         
@@ -488,11 +523,17 @@ class HybridAPExtractor:
         if is_scanned:
             provider_name = "RapidOCR + AWS Bedrock Mantle (Qwen 235B)"
             if vision_result:
-                provider_name = "RapidOCR + Palmyra Vision + AWS Bedrock Mantle"
+                provider_name = "RapidOCR + Palmyra Vision 7B + AWS Bedrock Mantle (Qwen 235B)"
 
         status_val = "EVALUATED"
         if ocr_result and ocr_result.is_degraded:
             status_val = "DEGRADED_SCAN"
+
+        model_ident = (
+            "rapidocr_palmyra_mantle_v1"
+            if (is_scanned and vision_result)
+            else (extraction.model_id or "hybrid_qwen_v1")[:32]
+        )
 
         return HybridProcessingResult(
             document_id=document_id,
@@ -523,7 +564,7 @@ class HybridAPExtractor:
             audit_notes=f"Multimodal pipeline executed with {provider_name} and deterministic controls.",
             pipeline_mode="ocr_mantle" if is_scanned else "hybrid",
             inference_provider=provider_name,
-            model_id=extraction.model_id,
+            model_id=model_ident,
             http_status=extraction.http_status,
             is_live_mantle=True,
             extraction_status=status_val,
@@ -532,5 +573,5 @@ class HybridAPExtractor:
             latency_ms=latency,
             estimated_cost_usd=extraction.estimated_cost_usd + (vision_result.estimated_cost_usd if vision_result else 0.0),
             evidence=source_evidence,
-            extraction_requires_review=is_e_invoice or is_rcm or is_mixed_gst or is_foreign or (ocr_result and ocr_result.is_degraded),
+            extraction_requires_review=bool(multimodal_reasons) or is_e_invoice or is_rcm or is_mixed_gst or is_foreign or (ocr_result and ocr_result.is_degraded),
         )
