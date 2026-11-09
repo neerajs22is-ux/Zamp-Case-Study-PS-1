@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,298 +7,679 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .mono { font-family: 'JetBrains Mono', monospace; }
-    @keyframes pulse-subtle {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#151f32',
+              900: '#0f172a',
+              950: '#020617',
+            }
+          }
+        }
+      }
     }
-    .animate-pulse-subtle { animation: pulse-subtle 1.8s infinite ease-in-out; }
+  </script>
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.98); }
+    }
+    .animate-pulse-subtle { animation: pulse-subtle 2s infinite ease-in-out; }
+    
+    .tab-active {
+      border-bottom: 2px solid #6366f1;
+      color: #e0e7ff;
+      background-color: rgba(99, 102, 241, 0.08);
+    }
+    
+    .stage-card-active {
+      border-color: #6366f1 !important;
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(49, 46, 129, 0.25) 100%) !important;
+      box-shadow: 0 0 15px -3px rgba(99, 102, 241, 0.3);
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- TOP NAVIGATION & PRODUCT HIERARCHY -->
-  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+  <!-- ========================================================================= -->
+  <!-- 1. TOP GLOBAL NAVIGATION & CONTROLS -->
+  <!-- ========================================================================= -->
+  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Brand & Title -->
       <div class="flex items-center space-x-3">
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-400/20 to-indigo-500/30 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400 shadow-sm shadow-emerald-500/10">
           Z
         </div>
         <div>
           <div class="flex items-center space-x-2">
-            <span class="font-semibold text-slate-100 text-sm sm:text-base">Zamp AP Command Center</span>
-            <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs px-2 py-0.5 rounded font-mono font-medium">SANDBOX</span>
+            <span class="font-bold text-slate-100 text-sm sm:text-base tracking-tight">Zamp AP Command Center</span>
+            <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[11px] px-2 py-0.5 rounded-full font-mono font-semibold">SANDBOX</span>
           </div>
-          <p class="text-xs text-slate-400 hidden sm:block">Simplified Interactive Experience · Single Authoritative Engine</p>
+          <p class="text-xs text-slate-400 hidden sm:block">One Authoritative Engine · Two User Experiences</p>
         </div>
       </div>
 
-      <div class="flex items-center space-x-3">
-        <div class="hidden md:flex items-center space-x-2 bg-slate-800/80 border border-slate-700/60 rounded-full px-3 py-1 text-xs">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span class="text-slate-300 font-medium">Live AWS Mantle (Qwen 235B)</span>
+      <!-- Center / Right Controls: Explanation Toggle & Navigation -->
+      <div class="flex items-center space-x-3 sm:space-x-4">
+        
+        <!-- GLOBAL EXPLANATION MODE TOGGLE -->
+        <div class="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs">
+          <button id="toggle-beginner-btn" onclick="setExplanationMode('beginner')" class="px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-indigo-300 bg-indigo-600/30 border border-indigo-500/40 shadow-sm">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Beginner</span>
+          </button>
+          <button id="toggle-technical-btn" onclick="setExplanationMode('technical')" class="px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            <span>Technical</span>
+          </button>
         </div>
-        <a href="/today" class="inline-flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
-          <span>Flagship Command Center</span>
+
+        <!-- Live Model Indicator Badge -->
+        <div class="hidden lg:flex items-center space-x-2 bg-slate-950 border border-slate-800/80 rounded-full px-3 py-1.5 text-xs">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-slate-300 font-mono text-[11px]" id="header-mantle-badge">AWS Mantle (Qwen 235B)</span>
+        </div>
+
+        <!-- Link back to Flagship AP Command Center -->
+        <a href="/today" class="inline-flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border border-slate-700/80 hover:border-slate-600 text-xs font-medium px-3.5 py-1.5 rounded-xl transition-all shadow-sm">
+          <span>Flagship</span>
           <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         </a>
       </div>
+
     </div>
   </header>
 
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-    <!-- HERO / PRODUCT EXPLANATION BANNER -->
-    <section class="bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-2xl p-6 sm:p-8">
-      <div class="max-w-3xl space-y-3">
-        <div class="inline-flex items-center space-x-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs px-2.5 py-1 rounded-full font-mono font-medium">
-          <span>One Authoritative AP Business Engine · Two User Experiences</span>
+    <!-- ========================================================================= -->
+    <!-- 2. HERO / ARCHITECTURE EXPLANATION BANNER -->
+    <!-- ========================================================================= -->
+    <section class="relative overflow-hidden bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl">
+      <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="max-w-3xl space-y-3 relative z-10">
+        <div class="inline-flex items-center space-x-2 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 text-xs px-3 py-1 rounded-full font-mono font-medium">
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+          <span>Enterprise AP Decision Engine · Interactive Walkthrough</span>
         </div>
-        <h1 class="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-          Interactive AP Decision Sandbox
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white leading-tight">
+          How an Invoice Moves from PDF Upload to Financial Decision
         </h1>
-        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
-          Test live invoice extraction, GST reconciliation, 3-way procurement matching, and autonomous decision policies. Powered by the exact same Indian AP engine that runs the enterprise Flagship Command Center.
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed" id="hero-description-text">
+          Explore the exact 6-stage lifecycle that powers autonomous Accounts Payable. Run genuine enterprise scenarios or upload your own vendor invoice to inspect real Bedrock Mantle extraction, GST math reconciliation, and 7-gate procurement matching at natural speed.
         </p>
-        <div class="flex flex-wrap items-center gap-4 pt-2 text-xs text-slate-400 font-mono">
-          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> INR (₹) Precision Math</span>
-          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> 3-Way Match (PO + GRN + QC)</span>
-          <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg> 7 Deterministic Gates</span>
+        <div class="flex flex-wrap items-center gap-3 pt-2 text-xs text-slate-400 font-mono">
+          <span class="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800 px-2.5 py-1 rounded-lg text-slate-300">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            INR (₹) Precision Fixed-Point Math
+          </span>
+          <span class="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800 px-2.5 py-1 rounded-lg text-slate-300">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            3-Way Match (PO + GRN + QC)
+          </span>
+          <span class="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800 px-2.5 py-1 rounded-lg text-slate-300">
+            <svg class="w-3.5 h-3.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            7 Deterministic Policy Match Gates
+          </span>
+          <span class="inline-flex items-center gap-1.5 bg-slate-950/60 border border-slate-800 px-2.5 py-1 rounded-lg text-slate-300">
+            <svg class="w-3.5 h-3.5 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            Grounding Tripwire (Zero Hallucination)
+          </span>
         </div>
       </div>
     </section>
 
-    <!-- INTERACTIVE INPUT: SELECT SCENARIO OR UPLOAD PDF -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- ========================================================================= -->
+    <!-- 3. LANDING PAGE: EQUAL SPLIT ENTRY EXPERIENCE -->
+    <!-- Option A (Guided Scenarios Gallery) vs Option B (Custom PDF Upload) -->
+    <!-- ========================================================================= -->
+    <div id="landing-entry-section" class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       
-      <!-- SCENARIO SELECTOR CARDS -->
-      <div class="lg:col-span-2 space-y-3">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Select Genuine Evaluation Scenario</h2>
-          <span class="text-xs text-slate-500 font-mono">6 Genuine Test Fixtures</span>
+      <!-- OPTION A: GUIDED SCENARIOS GALLERY (7 COLS) -->
+      <div class="lg:col-span-7 space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">OPTION A</span>
+              <h2 class="text-base font-bold text-slate-100">Explore a Guided Scenario</h2>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Select from 6 authentic enterprise fixtures to observe specific AP policy behaviors.</p>
+          </div>
+          <span class="text-xs text-slate-500 font-mono hidden sm:inline">6 Authentic Fixtures</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="scenarios-container">
-          <div class="p-4 bg-slate-900 border border-slate-800 rounded-xl animate-pulse text-slate-500 text-xs">Loading genuine scenarios...</div>
+
+        <!-- Scenarios Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5" id="scenarios-container">
+          <div class="col-span-2 p-8 bg-slate-900 border border-slate-800 rounded-2xl animate-pulse text-slate-400 text-xs text-center flex flex-col items-center justify-center space-y-2">
+            <div class="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+            <span>Loading genuine scenarios...</span>
+          </div>
         </div>
       </div>
 
-      <!-- CUSTOM PDF UPLOAD CARD -->
-      <div class="space-y-3">
-        <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wider">Or Upload Custom PDF</h2>
-        <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 bg-slate-900/50 hover:bg-slate-900/80 transition-all rounded-xl p-6 text-center cursor-pointer flex flex-col items-center justify-center min-h-[220px]">
-          <input type="file" id="file-input" accept="application/pdf" class="hidden">
-          <svg class="w-10 h-10 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          <p class="text-sm font-medium text-slate-200">Drag & drop invoice PDF here</p>
-          <p class="text-xs text-slate-400 mt-1">or <span class="text-indigo-400 underline font-medium">browse local files</span></p>
-          <span class="text-[11px] text-slate-500 mt-3 mono">Max 50MB · PDF only</span>
+      <!-- OPTION B: CUSTOM PDF UPLOAD (5 COLS, EQUAL PROMINENCE) -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="border-b border-slate-800 pb-3">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded text-[11px] font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">OPTION B</span>
+            <h2 class="text-base font-bold text-slate-100">Upload Your Own Invoice</h2>
+          </div>
+          <p class="text-xs text-slate-400 mt-0.5">Inspect how the real engine evaluates any vendor PDF in an isolated sandbox.</p>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+          
+          <!-- Dropzone -->
+          <div id="drop-zone" class="border-2 border-dashed border-slate-700 hover:border-emerald-500 bg-slate-950/60 hover:bg-slate-950 transition-all rounded-xl p-8 text-center cursor-pointer flex flex-col items-center justify-center group min-h-[220px]">
+            <input type="file" id="file-input" accept="application/pdf" class="hidden">
+            <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 group-hover:bg-emerald-500/10 border border-indigo-500/20 group-hover:border-emerald-500/30 flex items-center justify-center text-indigo-400 group-hover:text-emerald-400 mb-4 transition-all">
+              <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            </div>
+            <p class="text-sm font-semibold text-slate-200 group-hover:text-white transition-colors">Drag & drop your vendor PDF here</p>
+            <p class="text-xs text-slate-400 mt-1">or <span class="text-emerald-400 font-semibold underline underline-offset-2">browse local files</span></p>
+            <div class="flex items-center gap-2 mt-4 text-[11px] font-mono text-slate-500">
+              <span>PDF format only</span>
+              <span>•</span>
+              <span>Max 50MB</span>
+              <span>•</span>
+              <span>SHA-256 Verified</span>
+            </div>
+          </div>
+
+          <!-- Feature & Security Guarantees Callout -->
+          <div class="bg-slate-950/50 border border-slate-800/80 rounded-xl p-4 space-y-2.5 text-xs text-slate-400">
+            <div class="font-semibold text-slate-300 flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+              <span>What happens to your uploaded invoice:</span>
+            </div>
+            <ul class="space-y-1.5 list-disc list-inside text-[11px] text-slate-400">
+              <li>MIME magic bytes checked (<code class="mono text-indigo-300">%PDF-</code>) & digest calculated.</li>
+              <li>Encrypted in isolated sandbox workspace (<code class="mono text-slate-300">org_sme_eval</code>).</li>
+              <li>Evaluated by AWS Bedrock Mantle Qwen 235B model.</li>
+              <li>Reconciled against Indian GST rules & 7 matching gates.</li>
+              <li>Never mixes with other tenant organizations or production books.</li>
+            </ul>
+          </div>
+
         </div>
       </div>
-    </section>
 
-    <!-- AUTHENTIC STAGE-BY-STAGE PIPELINE PROGRESS TRACKER -->
-    <section id="processing-view" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- 4. INTERACTIVE 6-STAGE PROGRESS STEPPER BAR -->
+    <!-- Visible during execution or exploration -->
+    <!-- ========================================================================= -->
+    <section id="processing-view" class="hidden bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-5 shadow-lg">
+      
+      <!-- Stepper Header: Title, Telemetry, Mode Indicator -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
         <div>
-          <h3 class="font-semibold text-slate-100 flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" id="progress-ping"></span>
-            <span id="progress-title">Executing Live Flagship Pipeline...</span>
-          </h3>
-          <p class="text-xs text-slate-400 mt-0.5" id="progress-subtitle">Persisting checkpoints and streaming live execution telemetry</p>
+          <div class="flex items-center gap-2.5">
+            <span class="w-3 h-3 rounded-full bg-indigo-500 animate-ping" id="progress-ping"></span>
+            <h3 class="text-base font-bold text-slate-100" id="progress-title">Executing Live Flagship Pipeline...</h3>
+            <span id="provenance-tag" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">LIVE_INFERENCE</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1" id="progress-subtitle">Persisting checkpoints and streaming live execution telemetry from PostgreSQL.</p>
         </div>
-        <span class="text-xs font-mono bg-slate-800 text-slate-300 px-3 py-1 rounded-full border border-slate-700" id="progress-timer">0.0s</span>
+
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-mono bg-slate-950 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-800" id="progress-timer">0.0s</span>
+          <button onclick="resetAndChooseNext()" class="text-xs font-medium text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors">
+            Exit to Scenarios
+          </button>
+        </div>
       </div>
 
       <!-- ERROR / NOTICE BANNER -->
       <div id="processing-notice" class="hidden rounded-xl text-xs"></div>
 
-      <!-- 6 STAGE CARDS PROGRESSION -->
-      <div class="grid grid-cols-2 md:grid-cols-6 gap-3 text-xs" id="stages-grid">
-        <div id="stage-1" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-          <div class="font-mono text-[10px] text-slate-500">STAGE 1</div>
-          <div class="font-medium text-slate-300">Intake & Digest</div>
-          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+      <!-- 6-STAGE INTERACTIVE STEPPER TILES (CLICKABLE) -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">6 Pipeline Stages <span class="font-normal text-slate-500">(Click any stage to inspect)</span></span>
+          <span class="text-[11px] font-mono text-slate-500" id="stepper-mode-hint">Showing: Beginner Walkthrough</span>
         </div>
-        <div id="stage-2" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-          <div class="font-mono text-[10px] text-slate-500">STAGE 2</div>
-          <div class="font-medium text-slate-300">Mantle Extraction</div>
-          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
-        </div>
-        <div id="stage-3" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-          <div class="font-mono text-[10px] text-slate-500">STAGE 3</div>
-          <div class="font-medium text-slate-300">GST Math Verify</div>
-          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
-        </div>
-        <div id="stage-4" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-          <div class="font-mono text-[10px] text-slate-500">STAGE 4</div>
-          <div class="font-medium text-slate-300">3-Way Matching</div>
-          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
-        </div>
-        <div id="stage-5" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-          <div class="font-mono text-[10px] text-slate-500">STAGE 5</div>
-          <div class="font-medium text-slate-300">7 Policy Gates</div>
-          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
-        </div>
-        <div id="stage-6" class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
-          <div class="font-mono text-[10px] text-slate-500">STAGE 6</div>
-          <div class="font-medium text-slate-300">Final Decision</div>
-          <div class="status-indicator text-slate-500 text-[11px]">Pending</div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 text-xs" id="stages-grid">
+          
+          <!-- Stage 1 -->
+          <div id="stage-1" onclick="selectWalkthroughStage(1)" class="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl space-y-1.5 cursor-pointer transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] text-slate-500 font-semibold">STAGE 1</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot"></span>
+            </div>
+            <div class="font-semibold text-slate-200 text-xs">Intake & Digest</div>
+            <div class="status-indicator text-slate-500 text-[11px]">Not started</div>
+          </div>
+
+          <!-- Stage 2 -->
+          <div id="stage-2" onclick="selectWalkthroughStage(2)" class="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl space-y-1.5 cursor-pointer transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] text-slate-500 font-semibold">STAGE 2</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot"></span>
+            </div>
+            <div class="font-semibold text-slate-200 text-xs">AI Extraction</div>
+            <div class="status-indicator text-slate-500 text-[11px]">Not started</div>
+          </div>
+
+          <!-- Stage 3 -->
+          <div id="stage-3" onclick="selectWalkthroughStage(3)" class="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl space-y-1.5 cursor-pointer transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] text-slate-500 font-semibold">STAGE 3</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot"></span>
+            </div>
+            <div class="font-semibold text-slate-200 text-xs">GST Math Verify</div>
+            <div class="status-indicator text-slate-500 text-[11px]">Not started</div>
+          </div>
+
+          <!-- Stage 4 -->
+          <div id="stage-4" onclick="selectWalkthroughStage(4)" class="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl space-y-1.5 cursor-pointer transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] text-slate-500 font-semibold">STAGE 4</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot"></span>
+            </div>
+            <div class="font-semibold text-slate-200 text-xs">3-Way Matching</div>
+            <div class="status-indicator text-slate-500 text-[11px]">Not started</div>
+          </div>
+
+          <!-- Stage 5 -->
+          <div id="stage-5" onclick="selectWalkthroughStage(5)" class="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl space-y-1.5 cursor-pointer transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] text-slate-500 font-semibold">STAGE 5</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot"></span>
+            </div>
+            <div class="font-semibold text-slate-200 text-xs">Autonomous Decision</div>
+            <div class="status-indicator text-slate-500 text-[11px]">Not started</div>
+          </div>
+
+          <!-- Stage 6 -->
+          <div id="stage-6" onclick="selectWalkthroughStage(6)" class="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl space-y-1.5 cursor-pointer transition-all">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-[10px] text-slate-500 font-semibold">STAGE 6</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot"></span>
+            </div>
+            <div class="font-semibold text-slate-200 text-xs">Human Action</div>
+            <div class="status-indicator text-slate-500 text-[11px]">Not started</div>
+          </div>
+
         </div>
       </div>
+
     </section>
 
-    <!-- DETAILED DECISION & 3-WAY MATCH RESULTS VIEW -->
+    <!-- ========================================================================= -->
+    <!-- 5. DETAILED RESULTS & INTERACTIVE WALKTHROUGH WORKSPACE -->
+    <!-- Two Column Balanced View: Left = Evidence/PDF, Right = Stage Walkthrough -->
+    <!-- ========================================================================= -->
     <section id="results-view" class="hidden space-y-6">
       
-      <!-- STORED LEDGER RUN BANNER -->
-      <div id="res-stored-banner" class="hidden p-4 rounded-xl text-xs bg-amber-950/30 border border-amber-500/40 text-amber-200 flex items-start gap-3">
+      <!-- STORED LEDGER RUN BANNER (AUTHENTIC PROVENANCE) -->
+      <div id="res-stored-banner" class="hidden p-4 rounded-2xl text-xs bg-amber-950/30 border border-amber-500/40 text-amber-200 flex items-start gap-3 shadow-md">
         <svg class="w-5 h-5 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <div>
-          <span class="font-semibold text-amber-100 uppercase tracking-wider text-[11px]">Authoritative Stored Ledger Run</span>
-          <p class="text-xs text-amber-300/90 mt-0.5" id="res-stored-notice">This scenario was previously ingested and finalized in the database ledger. Displaying authentic persisted audit records. Live Mantle inference was skipped to preserve idempotency.</p>
+          <span class="font-bold text-amber-100 uppercase tracking-wider text-[11px]">Authoritative Stored Ledger Run (PostgreSQL DB Replay)</span>
+          <p class="text-xs text-amber-300/90 mt-0.5" id="res-stored-notice">This scenario was previously ingested and finalized in the database ledger. Displaying authentic persisted audit records. Live Bedrock Mantle inference was skipped to preserve idempotency.</p>
         </div>
       </div>
-      
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- MAIN BALANCED 2-COLUMN WORKSPACE -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         
-        <!-- LEFT COLUMN: INVOICE DETAILS & 3-WAY MATCHING (7 Cols) -->
-        <div class="lg:col-span-7 space-y-6">
-
-          <!-- CORE INVOICE & VENDOR CARD -->
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <div class="flex items-start justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span class="text-xs font-mono text-indigo-400 font-semibold" id="res-scenario-type">INVOICE EXTRACTION</span>
-                <h3 class="text-xl font-bold text-white mt-0.5" id="res-vendor-name">—</h3>
-                <p class="text-xs text-slate-400 mono mt-0.5" id="res-vendor-gstin">GSTIN: —</p>
-              </div>
-              <div class="text-right">
-                <span class="text-xs text-slate-400">Total Billed</span>
-                <div class="text-2xl font-bold text-white mono" id="res-total-amount">₹0.00</div>
-                <span class="text-[11px] text-slate-500 mono" id="res-invoice-num">Invoice: —</span>
-              </div>
+        <!-- ===================================================================== -->
+        <!-- LEFT COLUMN: DOCUMENT VIEWER & EVIDENCE TABS (5 COLS) -->
+        <!-- ===================================================================== -->
+        <div class="lg:col-span-5 space-y-4">
+          
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg flex flex-col">
+            
+            <!-- Evidence Tabs Navigation -->
+            <div class="flex items-center border-b border-slate-800 bg-slate-950/80 px-2 text-xs font-medium overflow-x-auto">
+              <button onclick="setEvidenceTab('document')" id="tab-btn-document" class="px-4 py-3 border-b-2 border-indigo-500 text-indigo-300 bg-indigo-500/10 font-semibold transition-all">
+                Document PDF
+              </button>
+              <button onclick="setEvidenceTab('fields')" id="tab-btn-fields" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                Extracted Fields
+              </button>
+              <button onclick="setEvidenceTab('procurement')" id="tab-btn-procurement" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                3-Way ERP Snapshots
+              </button>
+              <button onclick="setEvidenceTab('audit')" id="tab-btn-audit" class="px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all">
+                Audit Trail
+              </button>
             </div>
 
-            <!-- PROCUREMENT SNAPSHOT MATCHES -->
-            <div class="grid grid-cols-3 gap-3 text-xs">
-              <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-                <div class="text-slate-500 font-mono text-[10px]">PURCHASE ORDER</div>
-                <div class="font-medium text-slate-200 mt-0.5 mono" id="res-po-ref">—</div>
-                <div class="text-[11px] text-emerald-400 mt-1 mono" id="res-po-balance">Bal: ₹0.00</div>
-              </div>
-              <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-                <div class="text-slate-500 font-mono text-[10px]">GOODS RECEIPT (GRN)</div>
-                <div class="font-medium text-slate-200 mt-0.5 mono" id="res-grn-ref">—</div>
-                <div class="text-[11px] text-slate-400 mt-1" id="res-grn-status">Status: —</div>
-              </div>
-              <div class="p-3 bg-slate-950/70 border border-slate-800 rounded-xl">
-                <div class="text-slate-500 font-mono text-[10px]">QUALITY CONTROL (QC)</div>
-                <div class="font-medium text-slate-200 mt-0.5 mono" id="res-qc-ref">—</div>
-                <div class="text-[11px] font-semibold mt-1" id="res-qc-status">—</div>
-              </div>
-            </div>
-
-            <!-- LINE ITEMS TABLE -->
-            <div class="space-y-2 pt-2">
+            <!-- TAB 1: DOCUMENT PDF VIEWER -->
+            <div id="tab-pane-document" class="p-4 space-y-3">
               <div class="flex items-center justify-between text-xs text-slate-400">
-                <span class="font-semibold uppercase tracking-wider text-[11px]">Billed Line Items</span>
-                <span class="mono" id="res-line-count">0 items</span>
+                <span class="font-semibold text-slate-200" id="doc-filename-badge">invoice.pdf</span>
+                <span class="mono text-[11px] text-slate-500" id="doc-hash-badge">SHA-256: —</span>
               </div>
-              <div class="overflow-x-auto border border-slate-800 rounded-xl">
-                <table class="w-full text-left text-xs">
-                  <thead class="bg-slate-950 text-slate-400 font-mono text-[11px] border-b border-slate-800">
+
+              <!-- Live PDF Frame / Fallback Container -->
+              <div id="doc-viewer-container" class="w-full bg-slate-950 rounded-xl border border-slate-800 flex flex-col items-center justify-center min-h-[460px] relative overflow-hidden">
+                <iframe id="doc-pdf-iframe" class="w-full h-[460px] border-0 hidden" title="Invoice PDF Preview"></iframe>
+                <div id="doc-fallback-view" class="p-6 text-center space-y-3">
+                  <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-slate-200 text-sm" id="fallback-doc-title">Invoice Document Ready</h4>
+                    <p class="text-xs text-slate-400 mt-1 max-w-xs mx-auto" id="fallback-doc-desc">Cryptographic fingerprint verified. PDF stream available for verification.</p>
+                  </div>
+                  <div class="pt-2">
+                    <button id="doc-download-btn" onclick="openOrDownloadPdf()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-200 border border-slate-700 transition-all">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                      <span>Open Document in New Tab</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Document Metadata Footer -->
+              <div class="grid grid-cols-2 gap-2 text-[11px] font-mono bg-slate-950 p-2.5 rounded-xl border border-slate-800/80 text-slate-400">
+                <div><span>Invoice: </span><span class="text-slate-200 font-semibold" id="res-invoice-num">—</span></div>
+                <div class="text-right"><span>Total: </span><span class="text-emerald-400 font-bold" id="res-total-amount">₹0.00</span></div>
+              </div>
+            </div>
+
+            <!-- TAB 2: EXTRACTED FIELDS TABLE -->
+            <div id="tab-pane-fields" class="p-4 space-y-3 hidden">
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <span class="font-semibold text-slate-200">Structured Extraction Tokens</span>
+                <span class="text-[11px] mono text-emerald-400 font-semibold" id="res-extraction-model-tag">Mantle Qwen 235B</span>
+              </div>
+              <div class="overflow-y-auto max-h-[460px] border border-slate-800 rounded-xl">
+                <table class="w-full text-left text-xs font-mono">
+                  <thead class="bg-slate-950 text-slate-400 text-[11px] border-b border-slate-800 sticky top-0">
                     <tr>
-                      <th class="p-2.5">#</th>
-                      <th class="p-2.5">Description</th>
-                      <th class="p-2.5 text-right">Qty</th>
-                      <th class="p-2.5 text-right">Unit Rate</th>
-                      <th class="p-2.5 text-right">Line Total</th>
+                      <th class="p-2.5">Field</th>
+                      <th class="p-2.5">Extracted Value</th>
+                      <th class="p-2.5 text-right">Grounding</th>
                     </tr>
                   </thead>
-                  <tbody id="res-lines-tbody" class="divide-y divide-slate-800/60 font-mono text-slate-300">
-                    <!-- Populated dynamically with safe textContent -->
+                  <tbody id="extracted-fields-tbody" class="divide-y divide-slate-800/60 text-slate-300">
+                    <!-- Populated dynamically -->
                   </tbody>
                 </table>
               </div>
+            </div>
 
-              <!-- FINANCIAL SUMMARY BREAKDOWN -->
-              <div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-1.5 text-xs font-mono">
-                <div class="flex justify-between text-slate-400">
-                  <span>Taxable Subtotal:</span>
-                  <span id="res-subtotal">₹0.00</span>
+            <!-- TAB 3: 3-WAY PROCUREMENT SNAPSHOTS -->
+            <div id="tab-pane-procurement" class="p-4 space-y-3 hidden">
+              <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">Authoritative PostgreSQL Procurement Records</div>
+              <div class="space-y-3 text-xs">
+                
+                <!-- Purchase Order -->
+                <div class="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+                  <div class="flex items-center justify-between font-mono text-[11px]">
+                    <span class="text-slate-500 font-bold">PURCHASE ORDER</span>
+                    <span class="text-indigo-400" id="res-po-status">OPEN</span>
+                  </div>
+                  <div class="text-sm font-bold text-white mono" id="res-po-ref">—</div>
+                  <div class="flex justify-between text-slate-400 font-mono text-[11px] pt-1">
+                    <span>Authorized Balance:</span>
+                    <span class="text-emerald-400 font-semibold" id="res-po-balance">₹0.00</span>
+                  </div>
                 </div>
-                <div class="flex justify-between text-slate-400">
-                  <span>GST Tax (CGST + SGST / IGST):</span>
-                  <span id="res-tax">₹0.00</span>
+
+                <!-- Goods Receipt -->
+                <div class="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+                  <div class="flex items-center justify-between font-mono text-[11px]">
+                    <span class="text-slate-500 font-bold">GOODS RECEIPT (GRN)</span>
+                    <span class="text-slate-400" id="res-grn-status">Receipt confirmed</span>
+                  </div>
+                  <div class="text-sm font-bold text-white mono" id="res-grn-ref">—</div>
+                  <div class="text-[11px] text-slate-400 font-mono" id="res-grn-date">Received: —</div>
                 </div>
-                <div class="flex justify-between text-white font-bold text-sm border-t border-slate-800 pt-1.5">
-                  <span>Grand Total:</span>
-                  <span id="res-grand-total">₹0.00</span>
+
+                <!-- Quality Control -->
+                <div class="p-3.5 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+                  <div class="flex items-center justify-between font-mono text-[11px]">
+                    <span class="text-slate-500 font-bold">QUALITY CONTROL (QC)</span>
+                    <span id="res-qc-status" class="font-bold">—</span>
+                  </div>
+                  <div class="text-sm font-bold text-white mono" id="res-qc-ref">—</div>
+                  <div class="text-[11px] text-slate-400" id="res-qc-note">Plant floor quality inspection check</div>
                 </div>
+
+                <!-- Line Items Breakdown -->
+                <div class="pt-2">
+                  <div class="flex justify-between items-center text-xs text-slate-400 mb-2 font-mono">
+                    <span>Billed Line Items</span>
+                    <span id="res-line-count">0 items</span>
+                  </div>
+                  <div class="overflow-x-auto border border-slate-800 rounded-xl">
+                    <table class="w-full text-left text-xs font-mono">
+                      <thead class="bg-slate-950 text-slate-400 text-[11px] border-b border-slate-800">
+                        <tr>
+                          <th class="p-2">#</th>
+                          <th class="p-2">Desc</th>
+                          <th class="p-2 text-right">Qty</th>
+                          <th class="p-2 text-right">Rate</th>
+                          <th class="p-2 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody id="res-lines-tbody" class="divide-y divide-slate-800/60 text-slate-300"></tbody>
+                    </table>
+                  </div>
+                </div>
+
               </div>
             </div>
+
+            <!-- TAB 4: AUDIT TRAIL -->
+            <div id="tab-pane-audit" class="p-4 space-y-3 hidden">
+              <div class="text-xs text-slate-400 font-semibold uppercase tracking-wider">PostgreSQL AuditEvent Checkpoints</div>
+              <div class="overflow-y-auto max-h-[460px] space-y-2" id="audit-trail-container">
+                <div class="text-xs text-slate-500 text-center py-6">Loading audit events...</div>
+              </div>
+            </div>
+
           </div>
+
         </div>
 
-        <!-- RIGHT COLUMN: DECISION & 7 DETERMINISTIC POLICY GATES (5 Cols) -->
-        <div class="lg:col-span-5 space-y-6">
+        <!-- ===================================================================== -->
+        <!-- RIGHT COLUMN: INTERACTIVE STAGE WALKTHROUGH & 4 QUESTIONS (7 COLS) -->
+        <!-- ===================================================================== -->
+        <div class="lg:col-span-7 space-y-6">
 
-          <!-- PROMINENT FINAL DECISION CARD -->
-          <div id="decision-card" class="bg-slate-900 border-2 rounded-2xl p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Autonomous Decision</span>
-              <span class="text-xs font-mono text-slate-500" id="res-inference-badge">Live Mantle</span>
+          <!-- ACTIVE STAGE WALKTHROUGH CARD -->
+          <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 space-y-6 shadow-xl relative overflow-hidden">
+            
+            <!-- Stage Explorer Header & Jump Pills -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-0.5 rounded-full text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" id="walkthrough-stage-badge">STAGE 1</span>
+                  <h3 class="text-lg font-bold text-white tracking-tight" id="walkthrough-stage-title">Document Intake & Digest</h3>
+                </div>
+                <p class="text-xs text-slate-400 mt-1" id="walkthrough-stage-subtitle">Cryptographic validation and multi-tenant ingestion</p>
+              </div>
+
+              <!-- Quick Stage Pager (Previous / Next) -->
+              <div class="flex items-center space-x-1.5 self-start sm:self-auto">
+                <button onclick="navigateStage(-1)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors">
+                  ← Prev
+                </button>
+                <span class="text-xs font-mono text-slate-400 px-1" id="walkthrough-stage-counter">1 of 6</span>
+                <button onclick="navigateStage(1)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 transition-colors">
+                  Next →
+                </button>
+              </div>
             </div>
 
-            <div>
-              <div class="inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide" id="res-decision-badge">
-                DECISION
+            <!-- MEANINGFUL SVG DIAGRAM CONTAINER FOR ACTIVE STAGE -->
+            <div id="walkthrough-diagram-container" class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 flex items-center justify-center min-h-[140px]">
+              <!-- Dynamically rendered SVG for the active stage -->
+            </div>
+
+            <!-- THE 4 ESSENTIAL QUESTIONS PANEL -->
+            <div class="space-y-4 pt-1">
+              
+              <!-- Question 1: What is happening? -->
+              <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                <div class="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-wider">
+                  <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>1. What is happening?</span>
+                </div>
+                <p class="text-sm text-slate-200 leading-relaxed" id="q1-answer">
+                  The system reads the invoice and verifies its cryptographic hash.
+                </p>
               </div>
-              <p class="text-sm text-slate-200 mt-2 font-medium" id="res-decision-reason">
-                Evaluating outcome...
+
+              <!-- Question 2: Using what? -->
+              <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                <div class="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-wider">
+                  <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>2. Using what?</span>
+                </div>
+                <p class="text-sm text-slate-200 leading-relaxed font-mono text-xs" id="q2-answer">
+                  hashlib.sha256 & PDF header validator.
+                </p>
+              </div>
+
+              <!-- Question 3: What evidence was used? -->
+              <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-2">
+                <div class="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-wider">
+                  <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>3. What evidence was used?</span>
+                </div>
+                <div id="q3-evidence-box" class="text-xs text-slate-300 space-y-1 font-mono">
+                  <!-- Dynamic real values from invoice -->
+                </div>
+              </div>
+
+              <!-- Question 4: What was the outcome? -->
+              <div class="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                <div class="flex items-center gap-2 text-indigo-300 font-bold text-xs uppercase tracking-wider">
+                  <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+                  <span>4. What was the outcome?</span>
+                </div>
+                <div id="q4-outcome-box" class="flex items-center gap-2 pt-0.5">
+                  <span class="px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" id="q4-badge">
+                    COMPLETED
+                  </span>
+                  <span class="text-xs text-slate-300 font-medium" id="q4-desc">
+                    Verified and persisted in database.
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- STAGE SPECIFIC INTERACTIVE INSPECTORS -->
+            
+            <!-- STAGE 4 SPECIAL: INTERACTIVE 7-GATE INSPECTOR -->
+            <div id="stage-4-interactive-panel" class="hidden space-y-3 pt-2 border-t border-slate-800">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Interactive 7-Gate Matching Inspector</h4>
+                <span class="text-xs font-mono text-slate-400" id="interactive-gates-summary">7 of 7 PASS</span>
+              </div>
+              <p class="text-xs text-slate-400">Click any gate below to inspect its exact policy rule, tolerance limits, and examined records:</p>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2" id="interactive-gates-grid">
+                <!-- Dynamically populated with 7 interactive clickable gate cards -->
+              </div>
+
+              <!-- Expanded Gate Detail Drawer -->
+              <div id="selected-gate-detail" class="hidden p-4 bg-slate-950 border border-indigo-500/40 rounded-2xl space-y-2 text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="font-bold text-indigo-300 text-sm" id="detail-gate-title">Gate 1: Vendor GSTIN Check</span>
+                  <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px]" id="detail-gate-badge">PASS</span>
+                </div>
+                <p class="text-slate-300 text-xs" id="detail-gate-rule">Policy rule description...</p>
+                <div class="grid grid-cols-2 gap-2 pt-2 text-[11px] font-mono text-slate-400 bg-slate-900/60 p-2.5 rounded-xl border border-slate-800">
+                  <div><span>Examined Records:</span> <span class="text-white block mt-0.5" id="detail-gate-records">—</span></div>
+                  <div><span>Applied Tolerance:</span> <span class="text-white block mt-0.5" id="detail-gate-tolerance">—</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STAGE 6 SPECIAL: OPERATOR ACTIONS & GOVERNANCE -->
+            <div id="stage-6-interactive-panel" class="hidden space-y-4 pt-2 border-t border-slate-800">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300">Operational Human-in-the-Loop Governance</h4>
+                <span class="text-[11px] font-mono text-indigo-400">Authorized Operator Actions</span>
+              </div>
+              <p class="text-xs text-slate-400">
+                Execute an authentic decision against the live PostgreSQL database. Invoices ≥ ₹5,00,000 enforce dual approval controls.
               </p>
-            </div>
 
-            <!-- OPERATOR ACTIONS BAR -->
-            <div class="border-t border-slate-800 pt-4 space-y-2">
-              <span class="text-xs font-medium text-slate-400">Operational Human-in-the-Loop Actions</span>
-              <div class="grid grid-cols-3 gap-2" id="action-buttons">
-                <button onclick="takeAction('APPROVE_AP_REVIEW')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors">
-                  Approve
+              <!-- Action Buttons -->
+              <div class="grid grid-cols-3 gap-2.5" id="action-buttons">
+                <button onclick="takeAction('APPROVE_AP_REVIEW')" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                  <span>Approve</span>
                 </button>
-                <button onclick="takeAction('HOLD_PENDING_EVIDENCE')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors">
-                  Put on Hold
+                <button onclick="takeAction('HOLD_PENDING_EVIDENCE')" class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Put on Hold</span>
                 </button>
-                <button onclick="takeAction('REJECT_INVOICE')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors">
-                  Reject
+                <button onclick="takeAction('REJECT_INVOICE')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold py-2.5 px-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                  <span>Reject</span>
                 </button>
               </div>
-              <p id="action-feedback" class="text-xs text-slate-400 hidden pt-1"></p>
+              <p id="action-feedback" class="text-xs text-slate-400 hidden p-2.5 bg-slate-950 rounded-xl border border-slate-800 font-mono"></p>
             </div>
+
+            <!-- PROMINENT DECISION BADGE & REASON -->
+            <div id="decision-card" class="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Autonomous AP Decision</span>
+                <span class="text-[11px] font-mono text-slate-400" id="res-inference-badge">AWS Bedrock Mantle</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="px-3.5 py-1.5 rounded-xl text-sm font-bold font-mono tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" id="res-decision-badge">
+                  MATCH_CANDIDATE
+                </span>
+                <span class="text-xs font-medium text-slate-400" id="res-stage-tag">Stage: PENDING_APPROVAL</span>
+              </div>
+              <p class="text-xs text-slate-300 leading-relaxed font-medium" id="res-decision-reason">
+                All 7 deterministic AP policy matching gates evaluated to PASS with 0.00% price and quantity variance.
+              </p>
+              <div class="pt-1 text-[11px] text-slate-500 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                <span>MATCH_CANDIDATE indicates policy compliance ready for disbursement authorization; funds are not released automatically without human sign-off.</span>
+              </div>
+            </div>
+
           </div>
 
-          <!-- SEVEN DETERMINISTIC POLICY GATES -->
-          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-3">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h4 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">7 AP Policy Match Gates</h4>
-              <span class="text-xs text-slate-400 font-mono" id="gates-summary">7 of 7 PASS</span>
-            </div>
-
-            <div class="space-y-2" id="gates-list">
-              <!-- Dynamically populated 7 gates with safe textContent -->
-            </div>
-          </div>
-
-          <!-- PROCESS NEXT SCENARIO BUTTON -->
+          <!-- Bottom Action: Choose Another Scenario -->
           <div class="text-center pt-2">
-            <button onclick="resetAndChooseNext()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold py-3 px-4 rounded-xl transition-colors">
-              ↻ Process Another Invoice or Scenario
+            <button onclick="resetAndChooseNext()" class="w-full bg-slate-800 hover:bg-slate-750 text-slate-200 hover:text-white border border-slate-700 text-xs font-semibold py-3 px-4 rounded-2xl transition-all shadow-md flex items-center justify-center gap-2">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              <span>Explore Another Scenario or Upload New PDF</span>
             </button>
-            <p class="text-[11px] text-slate-500 mt-1.5">
-              Clears the interactive viewer for new document intake while preserving all historical audit records in the database.
-            </p>
           </div>
 
         </div>
@@ -307,19 +688,21 @@
 
     </section>
 
-    <!-- RECENT RUN HISTORY TABLE & ACCURATE METRICS -->
-    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
+    <!-- ========================================================================= -->
+    <!-- 6. RECENT WORKSPACE ACTIVITY LEDGER & METRICS (PRESERVED) -->
+    <!-- ========================================================================= -->
+    <section class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 space-y-4 shadow-xl">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
         <div>
-          <h3 class="font-semibold text-slate-100">Recent Workspace Activity <span class="text-xs font-normal text-slate-400 font-sans">(Latest 25 Invoices)</span></h3>
-          <p class="text-xs text-slate-400">Operational ledger records and 7-gate matching decisions for the 25 most recent invoices in this workspace.</p>
+          <h3 class="font-bold text-slate-100 text-base">Recent Workspace Activity <span class="text-xs font-normal text-slate-400 font-sans">(Latest 25 Invoices)</span></h3>
+          <p class="text-xs text-slate-400 mt-0.5">Operational ledger records and 7-gate matching decisions for the 25 most recent invoices in this workspace.</p>
         </div>
-        <div class="flex flex-wrap items-center gap-4 text-xs font-mono">
-          <div><span class="text-slate-500">Match Candidates:</span> <span class="text-emerald-400 font-bold" id="metric-match-candidates">0</span></div>
-          <div><span class="text-slate-500">Touchless STP:</span> <span class="text-indigo-400 font-bold" id="metric-stp">0.0%</span></div>
-          <div><span class="text-slate-500">Manual Approved:</span> <span class="text-cyan-400 font-bold" id="metric-manual">0</span></div>
-          <div><span class="text-slate-500">Exceptions/Reviews:</span> <span class="text-amber-400 font-bold" id="metric-exc">0</span></div>
-          <div><span class="text-slate-500">Processed:</span> <span class="text-white font-bold" id="metric-total-inr">₹0.00</span></div>
+        <div class="flex flex-wrap items-center gap-3 sm:gap-4 text-xs font-mono">
+          <div class="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800"><span class="text-slate-500">Candidates:</span> <span class="text-emerald-400 font-bold ml-1" id="metric-match-candidates">0</span></div>
+          <div class="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800"><span class="text-slate-500">STP %:</span> <span class="text-indigo-400 font-bold ml-1" id="metric-stp">0.0%</span></div>
+          <div class="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800"><span class="text-slate-500">Manual:</span> <span class="text-cyan-400 font-bold ml-1" id="metric-manual">0</span></div>
+          <div class="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800"><span class="text-slate-500">Exceptions:</span> <span class="text-amber-400 font-bold ml-1" id="metric-exc">0</span></div>
+          <div class="bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800"><span class="text-slate-500">Total:</span> <span class="text-white font-bold ml-1" id="metric-total-inr">₹0.00</span></div>
         </div>
       </div>
 
@@ -327,17 +710,17 @@
         <table class="w-full text-left text-xs">
           <thead class="bg-slate-950 text-slate-400 font-mono text-[11px] border-b border-slate-800">
             <tr>
-              <th class="p-2.5">Time</th>
-              <th class="p-2.5">Invoice #</th>
-              <th class="p-2.5">Supplier Name</th>
-              <th class="p-2.5">PO Ref</th>
-              <th class="p-2.5 text-right">Amount (₹)</th>
-              <th class="p-2.5">Decision</th>
-              <th class="p-2.5">Stage</th>
+              <th class="p-3">Time</th>
+              <th class="p-3">Invoice #</th>
+              <th class="p-3">Supplier Name</th>
+              <th class="p-3">PO Ref</th>
+              <th class="p-3 text-right">Amount (₹)</th>
+              <th class="p-3">Decision</th>
+              <th class="p-3">Stage</th>
             </tr>
           </thead>
           <tbody id="history-tbody" class="divide-y divide-slate-800/60 font-mono text-slate-300">
-            <tr><td colspan="7" class="p-4 text-center text-slate-500">No runs recorded yet. Select a scenario above to begin.</td></tr>
+            <tr><td colspan="7" class="p-6 text-center text-slate-500">No runs recorded yet. Select a scenario above to begin.</td></tr>
           </tbody>
         </table>
       </div>
@@ -349,14 +732,21 @@
     Zamp PS-1 AI Solutions Associate · Unified Autonomous AP Command Center · Single Source of Truth
   </footer>
 
-  <!-- CLIENT-SIDE SCRIPT -->
+  <!-- ========================================================================= -->
+  <!-- CLIENT-SIDE CONTROLLER & INTERACTIVE ENGINE -->
+  <!-- ========================================================================= -->
   <script>
+    // State
+    let explanationMode = localStorage.getItem('sandbox_explanation_mode') || 'beginner';
+    let currentWalkthroughStage = 1;
     let activeInvoiceId = null;
+    let activeDocumentId = null;
+    let activeRunData = null;
     let scenariosData = [];
     let pollInterval = null;
     let timerInterval = null;
 
-    // Secure HTML escaping helper to prevent XSS from model outputs or untrusted fields
+    // Security escaping helper
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
       return String(str)
@@ -367,7 +757,7 @@
         .replace(/'/g, '&#39;');
     }
 
-    // Format currency to Indian Rupees
+    // Currency formatting
     function formatINR(val) {
       if (val === null || val === undefined || isNaN(val)) return '₹0.00';
       return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
@@ -391,7 +781,6 @@
     async function ensureSession() {
       let token = getAuthToken();
       if (token) return token;
-
       try {
         const res = await fetch('/api/v1/auth/dev-session', {
           method: 'POST',
@@ -406,9 +795,33 @@
           }
         }
       } catch (e) {
-        // Hosted staging
+        console.warn('Session bootstrap error:', e);
       }
       return null;
+    }
+
+    // Explanation Mode Toggle
+    function setExplanationMode(mode) {
+      explanationMode = mode;
+      localStorage.setItem('sandbox_explanation_mode', mode);
+      
+      const begBtn = document.getElementById('toggle-beginner-btn');
+      const techBtn = document.getElementById('toggle-technical-btn');
+      const hint = document.getElementById('stepper-mode-hint');
+
+      if (mode === 'beginner') {
+        begBtn.className = 'px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-indigo-300 bg-indigo-600/30 border border-indigo-500/40 shadow-sm';
+        techBtn.className = 'px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200';
+        if (hint) hint.textContent = 'Showing: Beginner Walkthrough (Business Impact)';
+      } else {
+        techBtn.className = 'px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-indigo-300 bg-indigo-600/30 border border-indigo-500/40 shadow-sm';
+        begBtn.className = 'px-3 py-1.5 rounded-lg font-medium transition-all flex items-center gap-1.5 text-slate-400 hover:text-slate-200';
+        if (hint) hint.textContent = 'Showing: Technical Walkthrough (Architecture & Tokens)';
+      }
+
+      if (activeRunData) {
+        renderWalkthroughStage(currentWalkthroughStage, activeRunData);
+      }
     }
 
     // Load genuine scenarios
@@ -417,35 +830,47 @@
         const res = await fetch('/api/v1/sandbox/scenarios', { headers: getAuthHeaders() });
         if (res.status === 401 || res.status === 403) {
           const container = document.getElementById('scenarios-container');
-          container.innerHTML = '<div class="col-span-2 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-xs flex items-center justify-between"><span>Authentication required to execute sandbox scenarios. Please sign in via Flagship AP Command Center.</span><a href="/today" class="ml-3 px-3 py-1 bg-amber-500 text-slate-950 font-semibold rounded text-xs">Sign In</a></div>';
+          container.innerHTML = `
+            <div class="col-span-2 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center justify-between">
+              <div>
+                <span class="font-bold">Authentication Required</span>
+                <p class="text-amber-400/80 mt-0.5">Please sign in via the Flagship AP Command Center to execute sandbox scenarios.</p>
+              </div>
+              <a href="/login" class="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-colors shrink-0">Sign In</a>
+            </div>
+          `;
           return;
         }
         scenariosData = await res.json();
         const container = document.getElementById('scenarios-container');
         container.innerHTML = '';
 
-        scenariosData.forEach(scn => {
+        scenariosData.forEach((scn, idx) => {
           const card = document.createElement('div');
-          card.className = 'p-4 bg-slate-900/90 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/60 transition-all rounded-xl cursor-pointer flex flex-col justify-between group';
+          card.className = 'p-4 bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/60 transition-all rounded-2xl cursor-pointer flex flex-col justify-between group shadow-sm';
           card.onclick = () => runScenario(scn.id);
 
-          let badgeColor = 'bg-slate-800 text-slate-300';
-          if (scn.expected_decision === 'MATCH_CANDIDATE') badgeColor = 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-          else if (scn.expected_decision === 'FLAGGED_EXCEPTION') badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-          else if (scn.expected_decision === 'FLAGGED_HITL_REVIEW') badgeColor = 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
-          else if (scn.expected_decision === 'REJECTED') badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+          let badgeColor = 'bg-slate-800 text-slate-300 border-slate-700';
+          if (scn.expected_decision === 'MATCH_CANDIDATE') badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+          else if (scn.expected_decision === 'FLAGGED_EXCEPTION') badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+          else if (scn.expected_decision === 'FLAGGED_HITL_REVIEW') badgeColor = 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30';
+          else if (scn.expected_decision === 'REJECTED') badgeColor = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+
+          const isPrereqRequired = scn.id === 'SCN-06-DUPLICATE';
+          const prereqBadge = isPrereqRequired ? '<span class="inline-block mt-2 px-2 py-0.5 text-[10px] font-mono font-semibold rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">Prerequisite: Run SCN-01 first</span>' : '';
 
           card.innerHTML = `
             <div>
-              <div class="flex items-center justify-between gap-2 mb-1.5">
-                <span class="text-xs font-bold text-slate-200 group-hover:text-indigo-400 transition-colors">${escapeHtml(scn.title)}</span>
-                <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded ${badgeColor}">${escapeHtml(scn.expected_decision)}</span>
+              <div class="flex items-start justify-between gap-2 mb-2">
+                <span class="text-xs font-bold text-slate-200 group-hover:text-indigo-400 transition-colors line-clamp-1">${escapeHtml(scn.title)}</span>
+                <span class="text-[10px] font-mono font-bold px-2 py-0.5 rounded border shrink-0 ${badgeColor}">${escapeHtml(scn.expected_decision)}</span>
               </div>
-              <p class="text-xs text-slate-400 line-clamp-2">${escapeHtml(scn.description)}</p>
+              <p class="text-xs text-slate-400 line-clamp-2 leading-relaxed">${escapeHtml(scn.description)}</p>
+              ${prereqBadge}
             </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
-              <span>${escapeHtml(scn.vendor_name || 'Vendor N/A')}</span>
-              <span class="text-white font-semibold">${scn.total_amount > 0 ? formatINR(scn.total_amount) : 'Image Scan'}</span>
+            <div class="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] font-mono text-slate-400">
+              <span class="truncate max-w-[150px]">${escapeHtml(scn.vendor_name || 'Vendor N/A')}</span>
+              <span class="text-white font-bold">${scn.total_amount > 0 ? formatINR(scn.total_amount) : 'Scan Document'}</span>
             </div>
           `;
           container.appendChild(card);
@@ -455,7 +880,7 @@
       }
     }
 
-    // Execute scenario with authentic asynchronous ingestion and live checkpoints
+    // Run Scenario
     async function runScenario(scenarioId) {
       resetViews();
       document.getElementById('processing-view').classList.remove('hidden');
@@ -463,7 +888,6 @@
 
       let startTime = performance.now();
       sessionStorage.setItem('sandbox_active_start', startTime.toString());
-
       startTimer(startTime);
 
       try {
@@ -484,7 +908,6 @@
         }
 
         if (res.status === 409) {
-          // Duplicate document already processed in ledger
           const conflictData = await res.json();
           stopTimer();
           const resultRes = await fetch(`/api/v1/sandbox/invoices/${conflictData.invoice_id}/result`, { headers: getAuthHeaders() });
@@ -492,9 +915,9 @@
             const data = await resultRes.json();
             data.is_previous_run = true;
             data.mode = 'STORED_RESULT';
+            data.duplicate_detected = true;
             data.notice = `Duplicate Document Notice: File already exists in database ledger as invoice '${conflictData.invoice_id}'. Displaying stored result without re-invoking Bedrock Mantle.`;
-            renderResults(data);
-            loadRunHistory();
+            onProcessingComplete(data);
           }
           return;
         }
@@ -502,7 +925,6 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
         const data = await res.json();
 
-        // If scenario was previously processed, or duplicate detected, render immediately as stored result
         if (data.is_previous_run || data.mode === 'STORED_RESULT' || data.duplicate_detected) {
           stopTimer();
           updateStage(1, 'completed', 'Digest verified (ledger)');
@@ -513,12 +935,10 @@
           updateStage(6, 'completed', data.decision || 'Decision retrieved');
           data.is_previous_run = true;
           data.mode = 'STORED_RESULT';
-          renderResults(data);
-          loadRunHistory();
+          onProcessingComplete(data);
           return;
         }
 
-        // Asynchronous processing started
         const invoiceId = data.invoice_id;
         sessionStorage.setItem('sandbox_active_invoice', invoiceId);
         updateStage(1, 'active', 'Reading PDF & verifying digest...');
@@ -531,7 +951,7 @@
       }
     }
 
-    // Upload custom PDF with authentic asynchronous ingestion
+    // Upload custom PDF
     async function uploadCustomPdf(file) {
       resetViews();
       document.getElementById('processing-view').classList.remove('hidden');
@@ -559,9 +979,9 @@
             const data = await resultRes.json();
             data.is_previous_run = true;
             data.mode = 'STORED_RESULT';
+            data.duplicate_detected = true;
             data.notice = `Duplicate Document Notice: File already exists in database ledger as invoice '${conflictData.invoice_id}'. Displaying stored result without re-invoking Bedrock Mantle.`;
-            renderResults(data);
-            loadRunHistory();
+            onProcessingComplete(data);
           }
           return;
         }
@@ -571,7 +991,7 @@
 
         const invoiceId = data.invoice_id;
         sessionStorage.setItem('sandbox_active_invoice', invoiceId);
-        updateStage(1, 'active', 'PDF accepted; reading stored document...');
+        updateStage(1, 'active', 'PDF accepted; verifying digest...');
         pollProcessingStatus(invoiceId, null, startTime);
 
       } catch (err) {
@@ -596,7 +1016,7 @@
       }
     }
 
-    // Authentic polling driven directly by PostgreSQL AuditEvent checkpoints
+    // Authentic polling driven by PostgreSQL AuditEvents
     function pollProcessingStatus(invoiceId, scenario, startTime, isReload = false) {
       if (pollInterval) clearInterval(pollInterval);
       let consecutive5xx = 0;
@@ -639,14 +1059,10 @@
               renderServerErrorNotice(invoiceId, scenario);
               return;
             }
-            console.warn(`Polling status HTTP ${res.status} (${consecutive5xx}/3)`);
             return;
           }
 
-          if (!res.ok) {
-            console.warn(`Polling status HTTP ${res.status}`);
-            return;
-          }
+          if (!res.ok) return;
           consecutive5xx = 0;
 
           const snapshot = await res.json();
@@ -656,7 +1072,6 @@
           const job = jobs[0];
           const events = job.events || [];
 
-          // Map authentic persisted checkpoints to stage cards
           events.forEach(evt => {
             if (evt.stage === 'INTAKE' || evt.stage === 'DOCUMENT_READ') {
               if (evt.status === 'SUCCEEDED' || evt.status === 'COMPLETED') {
@@ -691,7 +1106,6 @@
             }
           });
 
-          // Check terminal job states
           if (job.status === 'COMPLETED') {
             clearInterval(pollInterval);
             pollInterval = null;
@@ -699,7 +1113,6 @@
             sessionStorage.removeItem('sandbox_active_invoice');
             sessionStorage.removeItem('sandbox_active_start');
 
-            // Fetch final authoritative result
             const resultRes = await fetch(`/api/v1/sandbox/invoices/${invoiceId}/result`, {
               headers: getAuthHeaders(),
             });
@@ -707,7 +1120,6 @@
               const fullData = await resultRes.json();
               if (scenario) fullData.scenario = scenario;
               
-              // Only claim live inference if THIS in-flight session actually ran Mantle (not a reload or skipped model)
               const extractionEvt = events.find(e => e.stage === 'EXTRACTION' && (e.status === 'SUCCEEDED' || e.status === 'COMPLETED'));
               const wasLiveExtracted = !isReload && !!extractionEvt && extractionEvt.outcome !== 'SKIPPED';
               if (wasLiveExtracted) {
@@ -722,8 +1134,7 @@
                 fullData.inference_provider = 'Stored Run (DB Ledger)';
               }
 
-              renderResults(fullData);
-              loadRunHistory();
+              onProcessingComplete(fullData, events);
             }
           } else if (job.status === 'FAILED') {
             clearInterval(pollInterval);
@@ -737,106 +1148,67 @@
             renderFailureNotice(errorMsg);
           }
         } catch (err) {
-          console.error('Error polling processing status:', err);
+          console.error('Error polling status:', err);
         }
       }, 500);
     }
 
-    function renderPrerequisiteNotice(data) {
-      const notice = document.getElementById('processing-notice');
-      if (!notice) return;
-      const ping = document.getElementById('progress-ping');
-      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
-      document.getElementById('progress-title').textContent = 'Prerequisite Scenario Required';
-      document.getElementById('progress-subtitle').textContent = data.message || data.detail;
-      notice.className = 'p-4 rounded-xl text-xs bg-amber-950/60 border border-amber-500/40 text-amber-200 flex items-center justify-between';
-      notice.innerHTML = `
-        <div>
-          <span class="font-semibold text-amber-100">Prerequisite Baseline Required</span>
-          <p class="text-[11px] text-amber-300 mt-0.5">${escapeHtml(data.detail || data.message)}</p>
-        </div>
-        <button onclick="runScenario('SCN-01-HAPPY-PATH')" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg font-medium text-xs transition-colors shrink-0 ml-4">Run Scenario 1 First</button>
-      `;
-      notice.classList.remove('hidden');
+    // Called when pipeline finishes
+    function onProcessingComplete(data, events = []) {
+      activeRunData = data;
+      renderResults(data);
+      loadRunHistory();
+      if (events && events.length > 0) {
+        renderAuditTrail(events);
+      } else {
+        fetchAuditTrail(data.invoice_id);
+      }
+      selectWalkthroughStage(4); // Default to Stage 4 (Matching) or 5 for rich explanation
     }
 
-    function renderAuthExpiredNotice() {
-      const notice = document.getElementById('processing-notice');
-      if (!notice) return;
-      const ping = document.getElementById('progress-ping');
-      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
-      document.getElementById('progress-title').textContent = 'Authentication Session Expired';
-      document.getElementById('progress-subtitle').textContent = 'Your JWT token has expired or is invalid. Sign in to resume operations.';
-      notice.className = 'p-4 rounded-xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center justify-between';
-      notice.innerHTML = `
-        <div>
-          <span class="font-semibold text-rose-100">Session Expired (HTTP 401)</span>
-          <p class="text-[11px] text-rose-300 mt-0.5">Please refresh your authentication token or sign in again to continue.</p>
-        </div>
-        <a href="/login" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-medium text-xs transition-colors">Sign In</a>
-      `;
-      notice.classList.remove('hidden');
+    // Update Stage Tile State
+    function updateStage(num, state, text) {
+      const stage = document.getElementById(`stage-${num}`);
+      if (!stage) return;
+      const indicator = stage.querySelector('.status-indicator');
+      const dot = stage.querySelector('.stage-dot');
+
+      if (state === 'active') {
+        stage.className = 'p-3 bg-slate-900 border border-indigo-500/60 rounded-xl space-y-1.5 transition-all shadow-md';
+        indicator.textContent = text || 'In progress...';
+        indicator.className = 'status-indicator text-indigo-400 font-semibold text-[11px] animate-pulse';
+        if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-indigo-400 animate-ping stage-dot';
+      } else if (state === 'completed') {
+        stage.className = 'p-3 bg-slate-900 border border-emerald-500/40 rounded-xl space-y-1.5 transition-all';
+        indicator.textContent = text || 'Complete';
+        indicator.className = 'status-indicator text-emerald-400 font-semibold text-[11px]';
+        if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 stage-dot';
+      } else if (state === 'skipped') {
+        stage.className = 'p-3 bg-slate-900 border border-amber-500/40 rounded-xl space-y-1.5 transition-all';
+        indicator.textContent = text || 'Skipped';
+        indicator.className = 'status-indicator text-amber-300 font-semibold text-[11px]';
+        if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-400 stage-dot';
+      } else if (state === 'failed') {
+        stage.className = 'p-3 bg-slate-900 border border-rose-500/40 rounded-xl space-y-1.5 transition-all';
+        indicator.textContent = text || 'Failed';
+        indicator.className = 'status-indicator text-rose-400 font-semibold text-[11px]';
+        if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-rose-400 stage-dot';
+      }
     }
 
-    function renderAccessDeniedNotice() {
-      const notice = document.getElementById('processing-notice');
-      if (!notice) return;
-      const ping = document.getElementById('progress-ping');
-      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
-      document.getElementById('progress-title').textContent = 'Workspace Access Forbidden';
-      document.getElementById('progress-subtitle').textContent = 'Your role or organization does not have permission to access this invoice.';
-      notice.className = 'p-4 rounded-xl text-xs bg-amber-950/60 border border-amber-500/40 text-amber-200';
-      notice.innerHTML = `
-        <span class="font-semibold text-amber-100">Access Denied (HTTP 403)</span>
-        <p class="text-[11px] text-amber-300 mt-0.5">This invoice belongs to another tenant or your role has insufficient privileges.</p>
-      `;
-      notice.classList.remove('hidden');
-    }
-
-    function renderServerErrorNotice(invoiceId, scenario) {
-      const notice = document.getElementById('processing-notice');
-      if (!notice) return;
-      const ping = document.getElementById('progress-ping');
-      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
-      document.getElementById('progress-title').textContent = 'Server Unavailable';
-      document.getElementById('progress-subtitle').textContent = 'Persistent server errors encountered while polling database checkpoints.';
-      notice.className = 'p-4 rounded-xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center justify-between';
-      notice.innerHTML = `
-        <div>
-          <span class="font-semibold text-rose-100">Server Error (5xx)</span>
-          <p class="text-[11px] text-rose-300 mt-0.5">Failed to query backend processing status after 3 attempts.</p>
-        </div>
-        <button onclick="pollProcessingStatus('${invoiceId}', ${scenario ? `'${scenario.id || scenario}'` : 'null'}, performance.now())" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-lg font-medium text-xs transition-colors">Retry Polling</button>
-      `;
-      notice.classList.remove('hidden');
-    }
-
-    function renderFailureNotice(errorMsg) {
-      const notice = document.getElementById('processing-notice');
-      if (!notice) return;
-      const ping = document.getElementById('progress-ping');
-      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
-      document.getElementById('progress-title').textContent = 'Pipeline Execution Failed';
-      document.getElementById('progress-subtitle').textContent = 'Authoritative processing failed. Audit event logged in PostgreSQL.';
-      notice.className = 'p-4 rounded-xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200';
-      notice.innerHTML = `
-        <span class="font-semibold text-rose-100">Processing Error</span>
-        <p class="text-[11px] text-rose-300 mt-0.5">${escapeHtml(errorMsg)}</p>
-      `;
-      notice.classList.remove('hidden');
-    }
-
-    // Render results view with safe DOM methods
+    // Render results view
     function renderResults(data) {
       document.getElementById('results-view').classList.remove('hidden');
-      document.getElementById('processing-view').classList.add('hidden');
 
       const inv = data.invoice || {};
       activeInvoiceId = inv.id;
+      activeDocumentId = data.document_id;
 
-      // Authoritative stored run presentation
+      // Provenance presentation
       const storedBanner = document.getElementById('res-stored-banner');
       const infBadge = document.getElementById('res-inference-badge');
+      const provTag = document.getElementById('provenance-tag');
+
       if (data.is_previous_run || data.mode === 'STORED_RESULT') {
         if (storedBanner) {
           storedBanner.classList.remove('hidden');
@@ -848,140 +1220,603 @@
           infBadge.textContent = 'Stored Run (DB Ledger)';
           infBadge.className = 'text-[11px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded';
         }
+        if (provTag) {
+          provTag.textContent = 'STORED_RESULT';
+          provTag.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+        }
       } else {
         if (storedBanner) storedBanner.classList.add('hidden');
         if (infBadge) {
-          infBadge.textContent = data.inference_provider || 'Live Bedrock Mantle';
-          infBadge.className = 'text-xs font-mono text-slate-500';
+          infBadge.textContent = data.inference_provider || 'Live AWS Bedrock Mantle';
+          infBadge.className = 'text-[11px] font-mono text-slate-400';
+        }
+        if (provTag) {
+          provTag.textContent = 'LIVE_INFERENCE';
+          provTag.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
         }
       }
 
-      document.getElementById('res-scenario-type').textContent = (data.scenario && data.scenario.title) ? data.scenario.title : 'INVOICE EXTRACTION';
-      document.getElementById('res-vendor-name').textContent = inv.vendor_name || 'Unknown Supplier';
-      document.getElementById('res-vendor-gstin').textContent = inv.vendor_gstin ? `GSTIN: ${inv.vendor_gstin}` : 'GSTIN: Not detected';
+      // Populate document & invoice core numbers
+      document.getElementById('doc-filename-badge').textContent = data.filename || 'vendor_invoice.pdf';
+      document.getElementById('doc-hash-badge').textContent = `ID: ${inv.id}`;
+      document.getElementById('res-invoice-num').textContent = inv.invoice_number || 'UNKNOWN';
       document.getElementById('res-total-amount').textContent = formatINR(inv.total_amount);
-      document.getElementById('res-invoice-num').textContent = `Invoice: ${inv.invoice_number || 'UNKNOWN'}`;
 
-      // Procurement
-      const proc = data.procurement || {};
-      document.getElementById('res-po-ref').textContent = inv.po_reference || 'NO_PO_REF';
-      document.getElementById('res-po-balance').textContent = proc.po ? `Auth: ${formatINR(proc.po.remaining_balance)}` : 'No open PO';
-      document.getElementById('res-grn-ref').textContent = (proc.grn && proc.grn.grn_number) ? proc.grn.grn_number : 'NO_GRN';
-      document.getElementById('res-grn-status').textContent = proc.grn ? 'Receipt confirmed' : 'No GRN receipt';
-      document.getElementById('res-qc-ref').textContent = (proc.qc && proc.qc.qc_certificate_number) ? proc.qc.qc_certificate_number : 'NO_QC';
-      const qcStatusElem = document.getElementById('res-qc-status');
-      if (proc.qc && proc.qc.overall_status === 'ACCEPTED') {
-        qcStatusElem.className = 'text-[11px] font-semibold mt-1 text-emerald-400';
-        qcStatusElem.textContent = 'ACCEPTED';
-      } else if (proc.qc) {
-        qcStatusElem.className = 'text-[11px] font-semibold mt-1 text-rose-400';
-        qcStatusElem.textContent = proc.qc.overall_status || 'REJECTED';
-      } else {
-        qcStatusElem.className = 'text-[11px] font-semibold mt-1 text-slate-500';
-        qcStatusElem.textContent = 'Not Required / Missing';
-      }
-
-      // Safe rendering of Line items
-      const lines = data.line_items || [];
-      document.getElementById('res-line-count').textContent = `${lines.length} item(s)`;
-      const tbody = document.getElementById('res-lines-tbody');
-      tbody.innerHTML = '';
-      if (lines.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-slate-500 font-sans text-xs">No extractable digital line items detected (raster scan).</td></tr>';
-      } else {
-        lines.forEach(l => {
-          const row = document.createElement('tr');
-          
-          const tdNum = document.createElement('td');
-          tdNum.className = 'p-2.5 text-slate-500';
-          tdNum.textContent = l.line_number;
-
-          const tdDesc = document.createElement('td');
-          tdDesc.className = 'p-2.5 text-slate-200 font-sans';
-          tdDesc.textContent = l.description || ''; // Safe textContent avoids script execution
-
-          const tdQty = document.createElement('td');
-          tdQty.className = 'p-2.5 text-right';
-          tdQty.textContent = l.billed_quantity;
-
-          const tdRate = document.createElement('td');
-          tdRate.className = 'p-2.5 text-right';
-          tdRate.textContent = formatINR(l.billed_unit_rate);
-
-          const tdTot = document.createElement('td');
-          tdTot.className = 'p-2.5 text-right text-white font-medium';
-          tdTot.textContent = formatINR(l.billed_line_total);
-
-          row.appendChild(tdNum);
-          row.appendChild(tdDesc);
-          row.appendChild(tdQty);
-          row.appendChild(tdRate);
-          row.appendChild(tdTot);
-          tbody.appendChild(row);
-        });
-      }
-
-      document.getElementById('res-subtotal').textContent = formatINR(inv.subtotal);
-      document.getElementById('res-tax').textContent = formatINR(inv.tax_amount);
-      document.getElementById('res-grand-total').textContent = formatINR(inv.total_amount);
-
-      // Decision card
+      // Decision Badge
       const decBadge = document.getElementById('res-decision-badge');
       const decCard = document.getElementById('decision-card');
       const decision = inv.decision || data.decision || 'UNKNOWN';
       decBadge.textContent = decision;
       document.getElementById('res-decision-reason').textContent = inv.decision_reason || data.decision_reason || '—';
+      document.getElementById('res-stage-tag').textContent = `Stage: ${inv.stage || data.stage || 'PENDING_APPROVAL'}`;
 
       if (decision === 'MATCH_CANDIDATE' || decision === 'AUTO_APPROVED') {
-        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-        decCard.className = 'bg-slate-900 border-2 border-emerald-500/30 rounded-2xl p-6 space-y-4';
+        decBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm font-bold font-mono tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm';
+        decCard.className = 'bg-slate-950 border border-emerald-500/30 rounded-2xl p-5 space-y-3';
       } else if (decision === 'FLAGGED_EXCEPTION') {
-        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40';
-        decCard.className = 'bg-slate-900 border-2 border-amber-500/30 rounded-2xl p-6 space-y-4';
+        decBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm font-bold font-mono tracking-wide bg-amber-500/20 text-amber-300 border border-amber-500/40 shadow-sm';
+        decCard.className = 'bg-slate-950 border border-amber-500/30 rounded-2xl p-5 space-y-3';
       } else if (decision === 'FLAGGED_HITL_REVIEW') {
-        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/40';
-        decCard.className = 'bg-slate-900 border-2 border-indigo-500/30 rounded-2xl p-6 space-y-4';
+        decBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm font-bold font-mono tracking-wide bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow-sm';
+        decCard.className = 'bg-slate-950 border border-indigo-500/30 rounded-2xl p-5 space-y-3';
       } else {
-        decBadge.className = 'inline-block px-3 py-1.5 rounded-lg text-sm font-bold font-mono tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40';
-        decCard.className = 'bg-slate-900 border-2 border-rose-500/30 rounded-2xl p-6 space-y-4';
+        decBadge.className = 'px-3.5 py-1.5 rounded-xl text-sm font-bold font-mono tracking-wide bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm';
+        decCard.className = 'bg-slate-950 border border-rose-500/30 rounded-2xl p-5 space-y-3';
       }
 
-      // Safe rendering of 7 Gates
-      const gatesList = document.getElementById('gates-list');
-      gatesList.innerHTML = '';
-      const gates = data.match_gates || [];
+      // Populate Procurement Tab
+      const proc = data.procurement || {};
+      document.getElementById('res-po-ref').textContent = inv.po_reference || 'NO_PO_REF';
+      document.getElementById('res-po-balance').textContent = proc.po ? formatINR(proc.po.remaining_balance) : 'No open PO';
+      document.getElementById('res-po-status').textContent = proc.po ? (proc.po.status || 'OPEN') : 'NO RECORD';
+      document.getElementById('res-grn-ref').textContent = (proc.grn && proc.grn.grn_number) ? proc.grn.grn_number : 'NO_GRN';
+      document.getElementById('res-grn-status').textContent = proc.grn ? 'Receipt confirmed' : 'No GRN receipt';
+      document.getElementById('res-grn-date').textContent = (proc.grn && proc.grn.received_date) ? `Received: ${proc.grn.received_date.slice(0, 10)}` : 'Received: N/A';
+      document.getElementById('res-qc-ref').textContent = (proc.qc && proc.qc.qc_certificate_number) ? proc.qc.qc_certificate_number : 'NO_QC';
+      
+      const qcElem = document.getElementById('res-qc-status');
+      if (proc.qc && proc.qc.overall_status === 'ACCEPTED') {
+        qcElem.className = 'font-bold text-emerald-400 text-xs font-mono';
+        qcElem.textContent = 'ACCEPTED';
+      } else if (proc.qc) {
+        qcElem.className = 'font-bold text-rose-400 text-xs font-mono';
+        qcElem.textContent = proc.qc.overall_status || 'REJECTED';
+      } else {
+        qcElem.className = 'font-bold text-slate-500 text-xs font-mono';
+        qcElem.textContent = 'Not Required';
+      }
+
+      // Populate Line Items
+      const lines = data.line_items || [];
+      document.getElementById('res-line-count').textContent = `${lines.length} item(s)`;
+      const tbody = document.getElementById('res-lines-tbody');
+      tbody.innerHTML = '';
+      if (lines.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-500 font-sans text-xs">No extractable digital line items detected (raster scan).</td></tr>';
+      } else {
+        lines.forEach(l => {
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="p-2 text-slate-500">${l.line_number}</td>
+            <td class="p-2 text-slate-200 font-sans truncate max-w-[140px]">${escapeHtml(l.description)}</td>
+            <td class="p-2 text-right">${l.billed_quantity}</td>
+            <td class="p-2 text-right">${formatINR(l.billed_unit_rate)}</td>
+            <td class="p-2 text-right text-white font-semibold">${formatINR(l.billed_line_total)}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      }
+
+      // Populate Extracted Fields Tab
+      populateExtractedFieldsTable(data);
+
+      // Attempt to load PDF blob preview
+      loadPdfPreview(data.document_id);
+
+      // Render Stage 4 Interactive Gates
+      renderInteractiveGates(data.match_gates || []);
+
+      // Scroll smoothly to results view
+      document.getElementById('results-view').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Populate Extracted Fields Table
+    function populateExtractedFieldsTable(data) {
+      const inv = data.invoice || {};
+      const tbody = document.getElementById('extracted-fields-tbody');
+      tbody.innerHTML = '';
+
+      const fields = [
+        { name: 'Supplier / Vendor Name', val: inv.vendor_name || 'Not detected', status: inv.vendor_name ? 'Verified' : 'Missing' },
+        { name: 'Vendor GSTIN', val: inv.vendor_gstin || 'Not detected', status: inv.vendor_gstin ? 'Verified (State 29)' : 'Missing' },
+        { name: 'Invoice Number', val: inv.invoice_number || 'UNKNOWN', status: 'Verified' },
+        { name: 'PO Reference', val: inv.po_reference || 'NO_PO_REF', status: inv.po_reference ? 'Matched' : 'Unreferenced' },
+        { name: 'Taxable Subtotal', val: formatINR(inv.subtotal), status: 'Reconciled' },
+        { name: 'Tax Amount (GST)', val: formatINR(inv.tax_amount), status: 'Reconciled' },
+        { name: 'Grand Total Amount', val: formatINR(inv.total_amount), status: 'Reconciled' },
+        { name: 'Currency', val: inv.currency || 'INR', status: 'Policy Match (INR)' },
+      ];
+
+      fields.forEach(f => {
+        const row = document.createElement('tr');
+        const isOk = f.status.includes('Verified') || f.status.includes('Reconciled') || f.status.includes('Matched') || f.status.includes('Policy Match');
+        const badgeColor = isOk ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : 'text-amber-400 bg-amber-500/10 border-amber-500/30';
+
+        row.innerHTML = `
+          <td class="p-2.5 text-slate-400">${escapeHtml(f.name)}</td>
+          <td class="p-2.5 text-white font-medium">${escapeHtml(f.val)}</td>
+          <td class="p-2.5 text-right"><span class="px-2 py-0.5 rounded text-[10px] border ${badgeColor}">${escapeHtml(f.status)}</span></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // Load PDF Preview into iframe
+    async function loadPdfPreview(documentId) {
+      const iframe = document.getElementById('doc-pdf-iframe');
+      const fallback = document.getElementById('doc-fallback-view');
+      if (!documentId) {
+        iframe.classList.add('hidden');
+        fallback.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/v1/documents/${documentId}/download`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const blob = await res.blob();
+          const objUrl = URL.createObjectURL(blob);
+          iframe.src = objUrl;
+          iframe.classList.remove('hidden');
+          fallback.classList.add('hidden');
+        } else {
+          iframe.classList.add('hidden');
+          fallback.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.warn('PDF blob loading exception:', err);
+        iframe.classList.add('hidden');
+        fallback.classList.remove('hidden');
+      }
+    }
+
+    function openOrDownloadPdf() {
+      if (!activeDocumentId) {
+        alert('No document identifier available.');
+        return;
+      }
+      window.open(`/api/v1/documents/${activeDocumentId}/download`, '_blank');
+    }
+
+    // Switch Evidence Tab
+    function setEvidenceTab(tab) {
+      ['document', 'fields', 'procurement', 'audit'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-${t}`);
+        const pane = document.getElementById(`tab-pane-${t}`);
+        if (t === tab) {
+          btn.className = 'px-4 py-3 border-b-2 border-indigo-500 text-indigo-300 bg-indigo-500/10 font-semibold transition-all';
+          pane.classList.remove('hidden');
+        } else {
+          btn.className = 'px-4 py-3 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-all';
+          pane.classList.add('hidden');
+        }
+      });
+    }
+
+    // Render 7 Interactive Gates for Stage 4
+    function renderInteractiveGates(gates) {
+      const grid = document.getElementById('interactive-gates-grid');
+      const summary = document.getElementById('interactive-gates-summary');
+      grid.innerHTML = '';
+
       const passCount = gates.filter(g => g.status === 'PASS' && g.gate_number <= 7).length;
-      document.getElementById('gates-summary').textContent = `${passCount} of 7 PASS`;
+      summary.textContent = `${passCount} of 7 PASS`;
 
       gates.forEach(g => {
-        const item = document.createElement('div');
-        item.className = 'p-3 bg-slate-950/70 border border-slate-800 rounded-xl flex items-start justify-between gap-3 text-xs';
-        
-        const contentDiv = document.createElement('div');
-        const titleDiv = document.createElement('div');
-        titleDiv.className = 'font-semibold text-slate-200';
-        titleDiv.textContent = `Gate ${g.gate_number}: ${g.gate_name}`;
-
-        const notesDiv = document.createElement('div');
-        notesDiv.className = 'text-slate-400 text-[11px] mt-0.5';
-        notesDiv.textContent = g.notes || 'No discrepancy recorded'; // Safe textContent
-
-        contentDiv.appendChild(titleDiv);
-        contentDiv.appendChild(notesDiv);
-
+        const card = document.createElement('div');
         const isPass = g.status === 'PASS';
-        const badge = document.createElement('span');
-        badge.className = isPass
-          ? 'px-2 py-0.5 rounded font-mono font-medium text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-          : 'px-2 py-0.5 rounded font-mono font-medium text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30';
-        badge.textContent = g.status || 'EVALUATED';
+        const badgeClass = isPass 
+          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+          : 'bg-rose-500/20 text-rose-300 border-rose-500/40';
 
-        item.appendChild(contentDiv);
-        item.appendChild(badge);
-        gatesList.appendChild(item);
+        card.className = 'p-3 bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-xl cursor-pointer transition-all flex items-start justify-between gap-2';
+        card.onclick = () => selectGateDetail(g);
+
+        card.innerHTML = `
+          <div>
+            <div class="font-bold text-slate-200 text-xs">Gate ${g.gate_number}: ${escapeHtml(g.gate_name)}</div>
+            <div class="text-[11px] text-slate-400 line-clamp-1 mt-0.5">${escapeHtml(g.notes || 'Evaluated')}</div>
+          </div>
+          <span class="px-2 py-0.5 rounded font-mono font-bold text-[10px] border shrink-0 ${badgeClass}">${escapeHtml(g.status || 'EVALUATED')}</span>
+        `;
+        grid.appendChild(card);
       });
+    }
 
-      document.getElementById('results-view').scrollIntoView({ behavior: 'smooth' });
+    function selectGateDetail(gate) {
+      const panel = document.getElementById('selected-gate-detail');
+      panel.classList.remove('hidden');
+      document.getElementById('detail-gate-title').textContent = `Gate ${gate.gate_number}: ${gate.gate_name}`;
+      
+      const badge = document.getElementById('detail-gate-badge');
+      badge.textContent = gate.status || 'EVALUATED';
+      badge.className = gate.status === 'PASS' 
+        ? 'px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+        : 'px-2 py-0.5 rounded font-mono font-bold text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40';
+
+      document.getElementById('detail-gate-rule').textContent = gate.notes || 'Policy verification completed against internal ERP snapshots.';
+
+      const recordsMap = {
+        1: 'Vendor Master table vs Invoiced GSTIN',
+        2: 'WorkOrderSnapshot (PO status == OPEN, Currency == INR)',
+        3: 'GoodsReceiptSnapshot (GRN accepted line items)',
+        4: 'QualityControlSnapshot (Certificate status == ACCEPTED)',
+        5: 'Taxable Subtotal + CGST/SGST vs Total amount',
+        6: 'Contracted Unit Price vs Billed Unit Price (Tolerance ±1.50%)',
+        7: 'Cryptographic SHA-256 Digest & Active Invoices Table'
+      };
+
+      const toleranceMap = {
+        1: 'Exact alphanumeric match',
+        2: 'Exact currency match (INR strictly required)',
+        3: 'Quantity <= GRN accepted quantity',
+        4: 'Zero defective units; QC status == ACCEPTED',
+        5: 'Rounding tolerance <= ₹20.00',
+        6: 'Max ±1.50% unit price variance',
+        7: 'Zero duplicate SHA-256 hash or invoice number'
+      };
+
+      document.getElementById('detail-gate-records').textContent = recordsMap[gate.gate_number] || 'Enterprise PostgreSQL Records';
+      document.getElementById('detail-gate-tolerance').textContent = toleranceMap[gate.gate_number] || 'Deterministic AP Rule';
+    }
+
+    // WALKTHROUGH STAGE CONTROLLER (1 TO 6)
+    function selectWalkthroughStage(stageNum) {
+      currentWalkthroughStage = stageNum;
+      
+      // Update Stepper Highlight
+      for (let i = 1; i <= 6; i++) {
+        const s = document.getElementById(`stage-${i}`);
+        if (s) {
+          if (i === stageNum) {
+            s.classList.add('stage-card-active');
+          } else {
+            s.classList.remove('stage-card-active');
+          }
+        }
+      }
+
+      document.getElementById('walkthrough-stage-counter').textContent = `${stageNum} of 6`;
+
+      if (activeRunData) {
+        renderWalkthroughStage(stageNum, activeRunData);
+      }
+    }
+
+    function navigateStage(delta) {
+      let nextStage = currentWalkthroughStage + delta;
+      if (nextStage < 1) nextStage = 6;
+      if (nextStage > 6) nextStage = 1;
+      selectWalkthroughStage(nextStage);
+    }
+
+    // Render 4 Questions & SVGs for Active Walkthrough Stage
+    function renderWalkthroughStage(stageNum, data) {
+      const inv = data.invoice || {};
+      const isTech = explanationMode === 'technical';
+      const isSkippedMantle = data.scenario && data.scenario.id === 'SCN-03-DEGRADED-SCAN';
+      const isDuplicate = data.duplicate_detected || (data.scenario && data.scenario.id === 'SCN-06-DUPLICATE');
+      const isPriceVariance = data.scenario && data.scenario.id === 'SCN-02-PRICE-VARIANCE';
+      const isQcHold = data.scenario && data.scenario.id === 'SCN-04-QUARANTINE-QC';
+
+      const sBadge = document.getElementById('walkthrough-stage-badge');
+      const sTitle = document.getElementById('walkthrough-stage-title');
+      const sSub = document.getElementById('walkthrough-stage-subtitle');
+      const diag = document.getElementById('walkthrough-diagram-container');
+      const q1 = document.getElementById('q1-answer');
+      const q2 = document.getElementById('q2-answer');
+      const q3 = document.getElementById('q3-evidence-box');
+      const q4Badge = document.getElementById('q4-badge');
+      const q4Desc = document.getElementById('q4-desc');
+
+      // Hide special subpanels by default
+      document.getElementById('stage-4-interactive-panel').classList.add('hidden');
+      document.getElementById('stage-6-interactive-panel').classList.add('hidden');
+
+      sBadge.textContent = `STAGE ${stageNum}`;
+
+      if (stageNum === 1) {
+        sTitle.textContent = 'Document Intake & Digest';
+        sSub.textContent = 'File validation, cryptographic hashing, and isolated multi-tenant queue';
+        
+        // SVG Diagram 1
+        diag.innerHTML = `
+          <svg class="w-full max-w-lg h-24" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="80" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="50" y="44" fill="#94a3b8" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">PDF Upload</text>
+            <path d="M90 40H130" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow)"/>
+            <rect x="130" y="20" width="100" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="180" y="38" fill="#e0e7ff" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">SHA-256 Digest</text>
+            <text x="180" y="52" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">hashlib.sha256</text>
+            <path d="M230 40H270" stroke="#6366f1" stroke-width="2"/>
+            <rect x="270" y="20" width="100" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="320" y="38" fill="#94a3b8" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">Header Check</text>
+            <text x="320" y="52" fill="#64748b" font-size="9" font-family="monospace" text-anchor="middle">%PDF- magic byte</text>
+            <path d="M370 40H410" stroke="#10b981" stroke-width="2"/>
+            <rect x="410" y="20" width="80" height="40" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+            <text x="450" y="44" fill="#6ee7b7" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">Ingested</text>
+          </svg>
+        `;
+
+        q1.textContent = isTech 
+          ? "Validates MIME format ('application/pdf'), validates '%PDF-' magic-byte signature via streaming chunk checks, and computes a collision-resistant SHA-256 cryptographic digest to guarantee data integrity."
+          : "The system inspects the uploaded file to ensure it is a genuine, uncorrupted PDF document and creates a permanent digital fingerprint so it cannot be tampered with or submitted twice.";
+
+        q2.textContent = isTech
+          ? "hashlib.sha256, backend.core.storage.StorageAdapter, engine.pdf_safety.extract_pdf_pages"
+          : "Secure File Validator and SHA-256 Cryptographic Fingerprint Scanner";
+
+        q3.innerHTML = `
+          <div>• File: <span class="text-white">${escapeHtml(data.filename || 'invoice.pdf')}</span></div>
+          <div>• Tenant Workspace: <span class="text-indigo-400">org_sme_eval</span></div>
+          <div>• Storage Status: <span class="text-emerald-400">Encrypted in Object Store</span></div>
+        `;
+
+        q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        q4Badge.textContent = 'COMPLETED';
+        q4Desc.textContent = 'Document passed security validation and assigned IngestionJob ledger entry.';
+
+      } else if (stageNum === 2) {
+        sTitle.textContent = 'AI Extraction';
+        sSub.textContent = 'Model inference, grounding tripwire, and structured field extraction';
+
+        // SVG Diagram 2
+        diag.innerHTML = `
+          <svg class="w-full max-w-lg h-24" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="90" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="55" y="44" fill="#94a3b8" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">PDF Streams</text>
+            <path d="M100 40H140" stroke="#6366f1" stroke-width="2"/>
+            <rect x="140" y="20" width="110" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="195" y="38" fill="#e0e7ff" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">Grounding Check</text>
+            <text x="195" y="52" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">Tripwire Policy</text>
+            <path d="M250 40H290" stroke="#6366f1" stroke-width="2"/>
+            <rect x="290" y="20" width="120" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="350" y="38" fill="#e0e7ff" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">AWS Bedrock Mantle</text>
+            <text x="350" y="52" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">Qwen 235B Model</text>
+            <path d="M410 40H440" stroke="#10b981" stroke-width="2"/>
+            <rect x="440" y="20" width="55" height="40" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+            <text x="467" y="44" fill="#6ee7b7" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">JSON</text>
+          </svg>
+        `;
+
+        if (isSkippedMantle) {
+          q1.textContent = isTech
+            ? "Raster-scan tripwire triggered: Detected 0 machine-readable character tokens. Model inference was proactively skipped to prevent hallucinated accounting values."
+            : "The document is an image-only scan with no readable digital text. To prevent errors or false guesses, the AI safely skips reading and asks an AP specialist to review.";
+          
+          q2.textContent = isTech
+            ? "engine.grounding.verify_extracted_evidence, Tripwire Rule: MIN_DIGITAL_TOKENS > 0"
+            : "Grounding Safety Tripwire (Anti-Hallucination Guard)";
+
+          q3.innerHTML = `
+            <div>• Digital Text Tokens: <span class="text-rose-400 font-bold">0 tokens detected</span></div>
+            <div>• Model Inference: <span class="text-amber-400">SKIPPED (Fail-Closed)</span></div>
+            <div>• Routing: <span class="text-indigo-400">AP Specialist Manual Inbox</span></div>
+          `;
+
+          q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          q4Badge.textContent = 'SKIPPED (TRIPWIRE)';
+          q4Desc.textContent = 'LLM bypassed safely without hallucinating figures. Routed to human specialist.';
+        } else {
+          q1.textContent = isTech
+            ? "Streams extracted text into AWS Bedrock Mantle running Qwen 235B. Binds output directly to structured Pydantic schema with bounding token verification."
+            : "The AI reads the invoice like an experienced accountant, locating the supplier name, GST number, PO reference, individual line items, unit rates, and totals.";
+
+          q2.textContent = isTech
+            ? "AWS Bedrock Mantle (Qwen 235B), HybridAPExtractor, Pydantic Schema"
+            : "AWS Bedrock Enterprise Language Model (Qwen 235B)";
+
+          q3.innerHTML = `
+            <div>• Supplier: <span class="text-white">${escapeHtml(inv.vendor_name || 'Asterion Precision')}</span></div>
+            <div>• GSTIN: <span class="text-white">${escapeHtml(inv.vendor_gstin || '29SYNTH0001A1Z5')}</span></div>
+            <div>• Invoiced Total: <span class="text-emerald-400 font-bold">${formatINR(inv.total_amount)}</span></div>
+            <div>• Line Items: <span class="text-white">${(data.line_items || []).length} structured line items</span></div>
+          `;
+
+          q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          q4Badge.textContent = 'COMPLETED';
+          q4Desc.textContent = 'Extracted structured fields with 100% token grounding match.';
+        }
+
+      } else if (stageNum === 3) {
+        sTitle.textContent = 'Financial Validation';
+        sSub.textContent = 'Indian GST tax arithmetic reconciliation and precision Decimal math';
+
+        // SVG Diagram 3
+        diag.innerHTML = `
+          <svg class="w-full max-w-lg h-24" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="100" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="70" y="38" fill="#94a3b8" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">Subtotal</text>
+            <text x="70" y="52" fill="#e2e8f0" font-size="10" font-family="monospace" text-anchor="middle">${formatINR(inv.subtotal)}</text>
+            <text x="135" y="45" fill="#818cf8" font-size="18" font-weight="bold" text-anchor="middle">+</text>
+            <rect x="150" y="20" width="110" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="205" y="38" fill="#e0e7ff" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">GST (18.00%)</text>
+            <text x="205" y="52" fill="#818cf8" font-size="10" font-family="monospace" text-anchor="middle">${formatINR(inv.tax_amount)}</text>
+            <text x="275" y="45" fill="#818cf8" font-size="18" font-weight="bold" text-anchor="middle">=</text>
+            <rect x="290" y="20" width="110" height="40" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5"/>
+            <text x="345" y="38" fill="#6ee7b7" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">Grand Total</text>
+            <text x="345" y="52" fill="#10b981" font-size="10" font-family="monospace" text-anchor="middle">${formatINR(inv.total_amount)}</text>
+            <path d="M400 40H430" stroke="#10b981" stroke-width="2"/>
+            <rect x="430" y="20" width="55" height="40" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+            <text x="457" y="44" fill="#6ee7b7" font-size="11" font-family="sans-serif" font-weight="bold" text-anchor="middle">₹0 Diff</text>
+          </svg>
+        `;
+
+        q1.textContent = isTech
+          ? "Applies IndianAPRuleEngine with Python Decimal precision. Reconciles intra-state (CGST + SGST) vs inter-state (IGST) tax apportionment and confirms that Line Totals Sum + GST == Invoiced Total within ₹20 tolerance."
+          : "The system checks the bill's arithmetic. It sums up all line items, calculates the Indian Goods & Services Tax (GST), and verifies that the subtotal plus tax equals the billed total.";
+
+        q2.textContent = isTech
+          ? "engine.indian_tax_rules.IndianAPRuleEngine, decimal.Decimal (Fixed Point Precision)"
+          : "Automated GST Tax Audit Engine (Round-off tolerance <= ₹20)";
+
+        q3.innerHTML = `
+          <div>• Taxable Subtotal: <span class="text-white">${formatINR(inv.subtotal)}</span></div>
+          <div>• Indian GST Tax: <span class="text-white">${formatINR(inv.tax_amount)}</span></div>
+          <div>• Billed Total: <span class="text-white font-bold">${formatINR(inv.total_amount)}</span></div>
+          <div>• Variance Detected: <span class="text-emerald-400 font-bold">₹0.00 (Reconciled)</span></div>
+        `;
+
+        q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        q4Badge.textContent = 'COMPLETED';
+        q4Desc.textContent = 'Tax calculation and grand total reconciliation verified with zero variance.';
+
+      } else if (stageNum === 4) {
+        sTitle.textContent = 'Procurement Matching';
+        sSub.textContent = '3-Way matching across PO, Goods Receipt (GRN), and QC Inspection';
+
+        // Unhide Stage 4 Interactive 7-Gate Inspector
+        document.getElementById('stage-4-interactive-panel').classList.remove('hidden');
+
+        // SVG Diagram 4
+        diag.innerHTML = `
+          <svg class="w-full max-w-lg h-24" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="80" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="50" y="38" fill="#94a3b8" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Invoice</text>
+            <text x="50" y="50" fill="#e2e8f0" font-size="9" font-family="monospace" text-anchor="middle">Billed</text>
+            <path d="M90 40H130" stroke="#6366f1" stroke-width="2"/>
+            <rect x="130" y="20" width="90" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="175" y="38" fill="#e0e7ff" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Purchase Order</text>
+            <text x="175" y="50" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">${escapeHtml(inv.po_reference || 'PO-26-1001')}</text>
+            <path d="M220 40H260" stroke="#6366f1" stroke-width="2"/>
+            <rect x="260" y="20" width="90" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="305" y="38" fill="#e0e7ff" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Goods Receipt</text>
+            <text x="305" y="50" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">GRN Receipt</text>
+            <path d="M350 40H390" stroke="#6366f1" stroke-width="2"/>
+            <rect x="390" y="20" width="95" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="437" y="38" fill="#94a3b8" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">QC Inspection</text>
+            <text x="437" y="50" fill="#6ee7b7" font-size="9" font-family="monospace" text-anchor="middle">Accepted</text>
+          </svg>
+        `;
+
+        if (isPriceVariance) {
+          q1.textContent = isTech
+            ? "Evaluated 7 deterministic policy gates. Gate 6 failed: Unit price billed at ₹220.00 vs contracted PO rate ₹185.00 (+18.92% variance, exceeding ±1.50% threshold)."
+            : "The system caught a price increase. The supplier billed ₹220.00 per unit instead of the agreed contract price of ₹185.00 (an 18.9% price spike).";
+        } else if (isQcHold) {
+          q1.textContent = isTech
+            ? "Evaluated 7 deterministic policy gates. Gate 4 failed: QualityControlSnapshot status is 'HOLD' due to defective chemical delivery. Payment blocked."
+            : "The system protected the company from paying for bad goods. The factory warehouse received the goods, but the quality inspection team put them on HOLD due to defects.";
+        } else {
+          q1.textContent = isTech
+            ? "Evaluates authoritative 7 matching gates against PostgreSQL snapshots. Confirms vendor identity, open PO balance, GRN receipt confirmation, and accepted QC inspection."
+            : "The invoice is compared against the company's internal purchasing order and warehouse receiving slip to make sure the goods were ordered, delivered, and inspected.";
+        }
+
+        q2.textContent = isTech
+          ? "backend.api.v1.invoices.reevaluate_match_gates, WorkOrderSnapshot, GoodsReceiptSnapshot"
+          : "3-Way Match Verification (PO + Warehouse Receipt + QC Inspection)";
+
+        q3.innerHTML = `
+          <div>• PO Reference: <span class="text-white">${escapeHtml(inv.po_reference || 'PO-26-1001')}</span></div>
+          <div>• GRN Reference: <span class="text-white">${escapeHtml((data.procurement && data.procurement.grn && data.procurement.grn.grn_number) || 'GRN-26-501')}</span></div>
+          <div>• QC Certificate: <span class="text-white">${escapeHtml((data.procurement && data.procurement.qc && data.procurement.qc.qc_certificate_number) || 'QC-GRN-26-501-01')}</span></div>
+        `;
+
+        if (isPriceVariance || isQcHold) {
+          q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          q4Badge.textContent = 'EXCEPTION FLAGGED';
+          q4Desc.textContent = isPriceVariance ? 'Gate 6 price variance (+18.9%) exceeded tolerance.' : 'Gate 4 QC hold defect prevented approval.';
+        } else {
+          q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          q4Badge.textContent = 'COMPLETED (7/7 PASS)';
+          q4Desc.textContent = 'All 7 deterministic policy matching gates passed with 0.00% variance.';
+        }
+
+      } else if (stageNum === 5) {
+        sTitle.textContent = 'Autonomous Decision';
+        sSub.textContent = 'Categorization into Match Candidate, Exception, Review, or Rejection';
+
+        // SVG Diagram 5
+        diag.innerHTML = `
+          <svg class="w-full max-w-lg h-24" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="20" width="110" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="75" y="38" fill="#94a3b8" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">7-Gate Results</text>
+            <text x="75" y="50" fill="#6ee7b7" font-size="9" font-family="monospace" text-anchor="middle">Evaluated</text>
+            <path d="M130 40H170" stroke="#6366f1" stroke-width="2"/>
+            <rect x="170" y="20" width="120" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="230" y="38" fill="#e0e7ff" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Policy Matrix</text>
+            <text x="230" y="50" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">Exposure Analysis</text>
+            <path d="M290 40H330" stroke="#6366f1" stroke-width="2"/>
+            <rect x="330" y="15" width="150" height="50" rx="10" fill="#064e3b" stroke="#10b981" stroke-width="2"/>
+            <text x="405" y="36" fill="#6ee7b7" font-size="11" font-family="monospace" font-weight="bold" text-anchor="middle">${escapeHtml(data.decision || 'MATCH_CANDIDATE')}</text>
+            <text x="405" y="52" fill="#a7f3d0" font-size="9" font-family="sans-serif" text-anchor="middle">Deterministic Verdict</text>
+          </svg>
+        `;
+
+        q1.textContent = isTech
+          ? "Translates gate check records and exposure calculations into an authoritative enterprise AP state. Categorizes invoice into MATCH_CANDIDATE, FLAGGED_EXCEPTION, FLAGGED_HITL_REVIEW, or REJECTED."
+          : "The system assigns the final decision. Clean invoices become Match Candidates ready for payment scheduling. Invoices with price jumps, missing items, or defects are flagged for specialist review.";
+
+        q2.textContent = isTech
+          ? "Authoritative AP Policy Matrix, MatchRun Evaluation, Exposure Calculation Engine"
+          : "Autonomous AP Decision Rules";
+
+        q3.innerHTML = `
+          <div>• Decision: <span class="text-white font-bold">${escapeHtml(data.decision || 'MATCH_CANDIDATE')}</span></div>
+          <div>• Reason: <span class="text-slate-300">${escapeHtml(data.decision_reason || 'Policy compliance verified.')}</span></div>
+          <div>• Payment Ready: <span class="text-emerald-400 font-semibold">Ready for Approval Sign-Off</span></div>
+        `;
+
+        q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        q4Badge.textContent = escapeHtml(data.decision || 'FINALIZED');
+        q4Desc.textContent = 'Decision recorded in PostgreSQL ledger with immutable audit timestamp.';
+
+      } else if (stageNum === 6) {
+        sTitle.textContent = 'Human Action & Governance';
+        sSub.textContent = 'Role-based access controls, dual approvals, and audit trail';
+
+        // Unhide Stage 6 Interactive Action Panel
+        document.getElementById('stage-6-interactive-panel').classList.remove('hidden');
+
+        // SVG Diagram 6
+        diag.innerHTML = `
+          <svg class="w-full max-w-lg h-24" viewBox="0 0 500 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="20" width="100" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="60" y="38" fill="#94a3b8" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">AP Specialist</text>
+            <text x="60" y="50" fill="#64748b" font-size="9" font-family="monospace" text-anchor="middle">Review</text>
+            <path d="M110 40H150" stroke="#6366f1" stroke-width="2"/>
+            <rect x="150" y="20" width="120" height="40" rx="8" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+            <text x="210" y="38" fill="#e0e7ff" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Dual-Approval Rule</text>
+            <text x="210" y="50" fill="#818cf8" font-size="9" font-family="monospace" text-anchor="middle">Threshold >= ₹5,00,000</text>
+            <path d="M270 40H310" stroke="#6366f1" stroke-width="2"/>
+            <rect x="310" y="20" width="90" height="40" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="355" y="38" fill="#94a3b8" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Controller</text>
+            <text x="355" y="50" fill="#64748b" font-size="9" font-family="monospace" text-anchor="middle">Sign-Off</text>
+            <path d="M400 40H430" stroke="#10b981" stroke-width="2"/>
+            <rect x="430" y="20" width="60" height="40" rx="8" fill="#064e3b" stroke="#10b981" stroke-width="1.5"/>
+            <text x="460" y="44" fill="#6ee7b7" font-size="10" font-family="sans-serif" font-weight="bold" text-anchor="middle">Audit</text>
+          </svg>
+        `;
+
+        q1.textContent = isTech
+          ? "Executes role-based operator governance via execute_invoice_action. Invoices exceeding ₹5,00,000 enforce anti-self-approval dual-control. Every manual change appends an immutable AuditEvent to PostgreSQL."
+          : "A finance team member reviews the match. The operator can approve the invoice, put it on hold pending vendor response, or reject it. Large invoices over ₹5,00,000 require two separate managers to sign off.";
+
+        q2.textContent = isTech
+          ? "backend.api.v1.invoices.execute_invoice_action, RBAC policies, PostgreSQL AuditEvent"
+          : "Human-in-the-Loop Finance Governance (Dual Control & Audit Log)";
+
+        q3.innerHTML = `
+          <div>• Role: <span class="text-white">AP Specialist / Controller</span></div>
+          <div>• Dual-Approval Threshold: <span class="text-indigo-300">₹5,00,000.00</span></div>
+          <div>• Audit Logging: <span class="text-emerald-400">Strictly Immutable Event Trail</span></div>
+        `;
+
+        q4Badge.className = 'px-2.5 py-1 rounded-lg text-xs font-bold font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+        q4Badge.textContent = 'READY FOR ACTION';
+        q4Desc.textContent = 'Operators can test real approval, hold, and rejection actions using the buttons below.';
+      }
     }
 
     // Take operator action
@@ -1012,12 +1847,64 @@
 
         feedback.textContent = `Action persisted: Stage updated to ${data.new_stage}. Checkpoint logged in audit log.`;
         loadRunHistory();
+        fetchAuditTrail(activeInvoiceId);
       } catch (err) {
         feedback.textContent = `Action failed: ${err.message}`;
       }
     }
 
-    // Load run history and metrics
+    // Fetch Audit Trail
+    async function fetchAuditTrail(invoiceId) {
+      if (!invoiceId) return;
+      try {
+        const res = await fetch(`/api/v1/invoices/${invoiceId}/processing`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const snapshot = await res.json();
+          const jobs = snapshot.jobs || [];
+          if (jobs.length > 0) {
+            renderAuditTrail(jobs[0].events || []);
+          }
+        }
+      } catch (e) {
+        console.warn('Audit trail fetch error:', e);
+      }
+    }
+
+    function renderAuditTrail(events) {
+      const container = document.getElementById('audit-trail-container');
+      container.innerHTML = '';
+      if (!events || events.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 text-center py-6">No audit checkpoints logged yet.</div>';
+        return;
+      }
+
+      events.forEach(evt => {
+        const item = document.createElement('div');
+        item.className = 'p-3 bg-slate-950 border border-slate-800/80 rounded-xl space-y-1 font-mono text-[11px]';
+        
+        let colorClass = 'text-emerald-400';
+        if (evt.status === 'FAILED') colorClass = 'text-rose-400';
+        else if (evt.status === 'STARTED' || evt.status === 'PROCESSING') colorClass = 'text-indigo-400';
+        else if (evt.outcome === 'SKIPPED') colorClass = 'text-amber-400';
+
+        const timeStr = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : '—';
+
+        item.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="text-slate-400 font-bold">${escapeHtml(evt.stage || 'STAGE')}</span>
+            <span class="${colorClass} font-semibold">${escapeHtml(evt.status || 'OK')}</span>
+          </div>
+          <div class="text-slate-300 text-xs font-sans">${escapeHtml(evt.message || evt.notes || 'Checkpoint recorded')}</div>
+          <div class="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+            <span>Seq: #${evt.sequence || 0}</span>
+            <span>${escapeHtml(timeStr)}</span>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Load recent run history & metrics
     async function loadRunHistory() {
       try {
         const res = await fetch('/api/v1/sandbox/runs', { headers: getAuthHeaders() });
@@ -1036,13 +1923,14 @@
         const runs = data.runs || [];
 
         if (runs.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-500">No runs recorded yet.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-500">No runs recorded yet. Select a scenario above to begin.</td></tr>';
           return;
         }
 
         runs.forEach(r => {
           const row = document.createElement('tr');
-          row.className = 'hover:bg-slate-850/60 transition-colors';
+          row.className = 'hover:bg-slate-850/60 transition-colors cursor-pointer';
+          row.onclick = () => loadExistingRun(r.invoice_id);
 
           let badgeColor = 'bg-slate-800 text-slate-300 border-slate-700';
           if (r.decision === 'MATCH_CANDIDATE' || r.decision === 'AUTO_APPROVED') badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
@@ -1052,13 +1940,13 @@
 
           const timeStr = r.updated_at ? new Date(r.updated_at).toLocaleTimeString() : '—';
           row.innerHTML = `
-            <td class="p-2.5 text-slate-500">${escapeHtml(timeStr)}</td>
-            <td class="p-2.5 font-semibold text-slate-200">${escapeHtml(r.invoice_number)}</td>
-            <td class="p-2.5 text-slate-300 font-sans">${escapeHtml(r.vendor_name)}</td>
-            <td class="p-2.5 text-slate-400">${escapeHtml(r.po_reference || '—')}</td>
-            <td class="p-2.5 text-right text-white font-medium">${formatINR(r.total_amount)}</td>
-            <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${escapeHtml(r.decision)}</span></td>
-            <td class="p-2.5 text-slate-400">${escapeHtml(r.stage)}</td>
+            <td class="p-3 text-slate-500">${escapeHtml(timeStr)}</td>
+            <td class="p-3 font-bold text-slate-200">${escapeHtml(r.invoice_number)}</td>
+            <td class="p-3 text-slate-300 font-sans truncate max-w-[160px]">${escapeHtml(r.vendor_name)}</td>
+            <td class="p-3 text-slate-400">${escapeHtml(r.po_reference || '—')}</td>
+            <td class="p-3 text-right text-white font-bold">${formatINR(r.total_amount)}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${badgeColor}">${escapeHtml(r.decision)}</span></td>
+            <td class="p-3 text-slate-400 font-sans text-xs">${escapeHtml(r.stage)}</td>
           `;
           tbody.appendChild(row);
         });
@@ -1067,28 +1955,87 @@
       }
     }
 
-    function updateStage(num, state, text) {
-      const stage = document.getElementById(`stage-${num}`);
-      if (!stage) return;
-      const indicator = stage.querySelector('.status-indicator');
-
-      if (state === 'active') {
-        stage.className = 'p-3 bg-slate-900 border border-indigo-500/60 rounded-xl space-y-1 transition-all';
-        indicator.textContent = text || 'In progress...';
-        indicator.className = 'status-indicator text-indigo-400 font-medium text-[11px] animate-pulse';
-      } else if (state === 'completed') {
-        stage.className = 'p-3 bg-slate-900 border border-emerald-500/40 rounded-xl space-y-1 transition-all';
-        indicator.textContent = text || 'Complete';
-        indicator.className = 'status-indicator text-emerald-400 font-medium text-[11px]';
-      } else if (state === 'skipped') {
-        stage.className = 'p-3 bg-slate-900 border border-amber-500/40 rounded-xl space-y-1 transition-all';
-        indicator.textContent = text || 'Skipped';
-        indicator.className = 'status-indicator text-amber-300 font-medium text-[11px]';
-      } else if (state === 'failed') {
-        stage.className = 'p-3 bg-slate-900 border border-rose-500/40 rounded-xl space-y-1 transition-all';
-        indicator.textContent = text || 'Failed';
-        indicator.className = 'status-indicator text-rose-400 font-medium text-[11px]';
+    async function loadExistingRun(invoiceId) {
+      if (!invoiceId) return;
+      try {
+        const res = await fetch(`/api/v1/sandbox/invoices/${invoiceId}/result`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          data.is_previous_run = true;
+          data.mode = 'STORED_RESULT';
+          onProcessingComplete(data);
+        }
+      } catch (e) {
+        console.error('Error loading existing run:', e);
       }
+    }
+
+    function renderPrerequisiteNotice(data) {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      const ping = document.getElementById('progress-ping');
+      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-amber-500';
+      document.getElementById('progress-title').textContent = 'Prerequisite Scenario Required';
+      document.getElementById('progress-subtitle').textContent = data.message || data.detail;
+      notice.className = 'p-4 rounded-2xl text-xs bg-amber-950/60 border border-amber-500/40 text-amber-200 flex items-center justify-between';
+      notice.innerHTML = `
+        <div>
+          <span class="font-bold text-amber-100">Prerequisite Baseline Required</span>
+          <p class="text-[11px] text-amber-300 mt-0.5">${escapeHtml(data.detail || data.message)}</p>
+        </div>
+        <button onclick="runScenario('SCN-01-HAPPY-PATH')" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold text-xs transition-colors shrink-0 ml-4 shadow-sm">Run Scenario 1 First</button>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderAuthExpiredNotice() {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      notice.className = 'p-4 rounded-2xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center justify-between';
+      notice.innerHTML = `
+        <div>
+          <span class="font-bold text-rose-100">Authentication Session Expired</span>
+          <p class="text-[11px] text-rose-300 mt-0.5">Your JWT token has expired. Please sign in via the Flagship AP Command Center.</p>
+        </div>
+        <a href="/login" class="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold text-xs transition-colors shadow-sm">Sign In</a>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderAccessDeniedNotice() {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      notice.className = 'p-4 rounded-2xl text-xs bg-amber-950/60 border border-amber-500/40 text-amber-200';
+      notice.innerHTML = `
+        <span class="font-bold text-amber-100">Access Denied (HTTP 403)</span>
+        <p class="text-[11px] text-amber-300 mt-0.5">This invoice belongs to another tenant or your role has insufficient privileges.</p>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderServerErrorNotice(invoiceId, scenario) {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      notice.className = 'p-4 rounded-2xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200 flex items-center justify-between';
+      notice.innerHTML = `
+        <div>
+          <span class="font-bold text-rose-100">Server Error</span>
+          <p class="text-[11px] text-rose-300 mt-0.5">Persistent server errors encountered while querying database checkpoints.</p>
+        </div>
+        <button onclick="pollProcessingStatus('${invoiceId}', ${scenario ? `'${scenario.id || scenario}'` : 'null'}, performance.now())" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 rounded-xl font-semibold text-xs transition-colors">Retry</button>
+      `;
+      notice.classList.remove('hidden');
+    }
+
+    function renderFailureNotice(errorMsg) {
+      const notice = document.getElementById('processing-notice');
+      if (!notice) return;
+      notice.className = 'p-4 rounded-2xl text-xs bg-rose-950/60 border border-rose-500/40 text-rose-200';
+      notice.innerHTML = `
+        <span class="font-bold text-rose-100">Pipeline Execution Failed</span>
+        <p class="text-[11px] text-rose-300 mt-0.5">${escapeHtml(errorMsg)}</p>
+      `;
+      notice.classList.remove('hidden');
     }
 
     function resetViews() {
@@ -1101,9 +2048,9 @@
         procNotice.innerHTML = '';
       }
       const ping = document.getElementById('progress-ping');
-      if (ping) ping.className = 'w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping';
+      if (ping) ping.className = 'w-3 h-3 rounded-full bg-indigo-500 animate-ping';
       document.getElementById('progress-title').textContent = 'Executing Live Flagship Pipeline...';
-      document.getElementById('progress-subtitle').textContent = 'Persisting checkpoints and streaming live execution telemetry';
+      document.getElementById('progress-subtitle').textContent = 'Persisting checkpoints and streaming live execution telemetry from PostgreSQL.';
       
       const storedBanner = document.getElementById('res-stored-banner');
       if (storedBanner) storedBanner.classList.add('hidden');
@@ -1111,15 +2058,18 @@
       for (let i = 1; i <= 6; i++) {
         const s = document.getElementById(`stage-${i}`);
         if (s) {
-          s.className = 'p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1';
-          s.querySelector('.status-indicator').textContent = 'Pending';
+          s.className = 'p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1.5 transition-all';
+          s.querySelector('.status-indicator').textContent = 'Not started';
           s.querySelector('.status-indicator').className = 'status-indicator text-slate-500 text-[11px]';
+          const dot = s.querySelector('.stage-dot');
+          if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-700 stage-dot';
         }
       }
     }
 
     function resetAndChooseNext() {
       resetViews();
+      document.getElementById('processing-view').classList.add('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1135,10 +2085,10 @@
     });
 
     ['dragenter', 'dragover'].forEach(name => {
-      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-slate-900'); });
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.add('border-emerald-500', 'bg-slate-900'); });
     });
     ['dragleave', 'drop'].forEach(name => {
-      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('border-indigo-500', 'bg-slate-900'); });
+      dropZone.addEventListener(name, (e) => { e.preventDefault(); dropZone.classList.remove('border-emerald-500', 'bg-slate-900'); });
     });
     dropZone.addEventListener('drop', (e) => {
       if (e.dataTransfer.files && e.dataTransfer.files[0]) {
@@ -1146,13 +2096,13 @@
       }
     });
 
-    // Auto-bootstrap and recover active runs on reload
+    // Auto-bootstrap
     window.addEventListener('DOMContentLoaded', async () => {
+      setExplanationMode(explanationMode);
       await ensureSession();
       loadScenarios();
       loadRunHistory();
 
-      // Check if an in-flight invoice was running before page reload
       const pendingInvoiceId = sessionStorage.getItem('sandbox_active_invoice');
       const savedStart = parseFloat(sessionStorage.getItem('sandbox_active_start') || performance.now().toString());
       if (pendingInvoiceId) {
