@@ -16,8 +16,11 @@ flowchart TD
     end
 
     subgraph Presentation & Ingestion Layer
-        ViteDev["Vite Dev Server (Port 5173)"]
-        FastAPIServer["FastAPI Gateway (Port 8000)"]
+        UnifiedServer["Unified Server (Port 8001) - run.py"]
+        ReactApp["Flagship React 19 SPA (/)"]
+        SandboxApp["Sandbox 2.0: The Invoice Journey (/sandbox)"]
+        LegacyApp["Standalone Legacy Demo (/legacy)"]
+        FastAPIServer["Authoritative FastAPI Gateway (/api/v1/*)"]
         GmailWebhook["Gmail Pub/Sub Webhook Handler"]
     end
 
@@ -29,8 +32,10 @@ flowchart TD
 
     subgraph Document Intelligence Plane
         PreScreener["Modality & Contrast Pre-Screener"]
-        BedrockMantle["AWS Bedrock Mantle (Qwen3-235B ap-south-1)"]
+        RapidOCR["RapidOCR Local Engine (ONNX Runtime)"]
         PalmyraVision["AWS Bedrock Palmyra Vision 7B (us-east-1)"]
+        BedrockMantle["AWS Bedrock Mantle (Qwen3-235B ap-south-1)"]
+        GroundingTripwires["Ask4i-Inspired Grounding Tripwires"]
     end
 
     subgraph Deterministic Business Logic Plane

@@ -35,6 +35,8 @@ logs/
 
 # Scratch and transient local evaluation work
 scratch/
+scratch_*.txt
+screenshots_*/
 graphify-out/
 
 # Auxiliary tools removed from repository

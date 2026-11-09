@@ -43,6 +43,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     libpq5 \
+    libgomp1 \
     tesseract-ocr \
     tesseract-ocr-eng \
     && rm -rf /var/lib/apt/lists/*

@@ -16,6 +16,9 @@ This document provides an authoritative, truthful accounting of completed milest
 | **Phase E** | Controlled SME acceptance testing on evaluation tenant `org_sme_eval` & security hardening. | Real browser-level Playwright tests, enterprise JWT auth, dual-control policy. | **COMPLETED** | 100% Pass (244 tests) |
 | **Phase U** | **Unified Engine & Dual Experiences (Sandbox + Flagship):** Retire USD mock rules; establish Flagship as sole authoritative business engine; rebuild sandbox to consume shared APIs. | Parity testing suite `tests/test_sandbox_flagship_parity.py`, Decimal INR, 7 gates, 6 genuine scenarios. | **COMPLETED** | 100% Pass (11 tests, 482 total) |
 | **Render Deploy** | Production container deployment on Render Web Service. | Production deployment. | **READY FOR DEPLOY** | All gates verified |
+| **Phase P0** | Multimodal OCR + Vision pipeline (RapidOCR ONNX, Palmyra Vision, Mantle Qwen 235B) & Ask4i-inspired grounding tripwires. | Multimodal token coordinates, page provenance, fail-closed hallucination detection. | **COMPLETED** | Verified with live/scanned docs |
+| **Phase P1** | **Sandbox 2.0 & Multi-App Responsiveness:** Redesigned Sandbox landing ('The Invoice Journey') & 9-viewport responsiveness audit. | 44 automated Playwright viewport checks (320px–1920px), zero overflow, acceptance suite 100%. | **COMPLETED** | 100% Pass (44/44 checks) |
+| **Step 1** | **Repository Packaging & Dependency Hygiene:** Declared OCR dependencies (rapidocr, onnxruntime, numpy), curated visual assets, and rebuilt README. | Dependency audit, secret scan (529 files clean), Docker verification. | **COMPLETED** | 100% Verified |
 
 ---
 
