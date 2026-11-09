@@ -16,6 +16,7 @@ interface CaseSummaryCardProps {
   };
   onOpenGlossary?: (term?: string) => void;
   onOpenPolicyDrawer?: () => void;
+  hideDiscrepancyList?: boolean;
 }
 
 const CANONICAL_GATE_DEFS = [
@@ -35,6 +36,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   policy,
   onOpenGlossary,
   onOpenPolicyDrawer,
+  hideDiscrepancyList = false,
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -131,7 +133,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   });
 
   return (
-    <div className={`review-summary rounded-xl border p-4 space-y-3.5 transition-all ${toneBg} flex flex-col h-full`}>
+    <div className={`review-summary rounded-xl border p-4 space-y-3.5 transition-all ${toneBg} `}>
       {/* 1. Header Bar: Verdict + Discrepancy count + Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
@@ -200,7 +202,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 min-[1750px]:grid-cols-7 gap-1.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 sm:gap-2">
           {gateItems.map((gate) => {
             const isPass = gate.status === 'PASS';
             const isFail = gate.status === 'FAIL';
@@ -249,7 +251,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
       </div>
 
       {/* 3. High-Contrast Discrepancy Callout (when any gate fails) */}
-      {hasFailedGates && (
+      {hasFailedGates && !hideDiscrepancyList && (
         <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 space-y-1.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800 dark:text-rose-300">
             <AlertTriangle className="w-4 h-4 shrink-0" />

@@ -38,6 +38,7 @@ import {
   ErrorState,
 } from "../components/ui";
 import { ExtractedDataCard } from "../components/ExtractedDataCard";
+import { BlockingDiscrepanciesCard } from "../components/BlockingDiscrepanciesCard";
 import type { AuthenticatedUser, InvoiceDetailData, MatchGateItem } from "../types";
 
 interface InvoiceDetailPageProps {
@@ -489,7 +490,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         className="review-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
       >
         {/* Left Pane: Persistent Original Document Viewer (~42% desktop width) */}
-        <div className="lg:col-span-5 xl:col-span-4 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[620px] max-h-[920px]">
+        <div className="lg:col-span-5 xl:col-span-5 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[620px] max-h-[920px]">
           <Card className="review-document overflow-hidden flex flex-col h-full border border-slate-200 dark:border-slate-800 shadow-2xs">
             {/* Document Toolbar */}
             <div className="review-document-toolbar p-2 sm:px-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
@@ -702,34 +703,43 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
 
         {/* Right Pane: Scrollable Invoice Review Workspace (~58% desktop width) */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-5">
-          {/* Step 1: Two-Column Review Layout (7-Gate Matching on Left, Extracted Fields & Evidence on Right) */}
-          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
-            {/* Left Sub-Column: Seven-Gate Matching Overview & Discrepancies */}
-            <div className="xl:col-span-6 flex flex-col">
-              <CaseSummaryCard
-                invoice={invoice}
-                matchGates={matchGates}
-                userRole={currentUser?.role}
-                policy={{
-                  dual_approval_threshold_inr: dualApprovalThreshold,
-                  rate_tolerance_percent: rateTolerancePercent,
-                  rounding_tolerance_inr:
-                    data?.policy?.rounding_tolerance_inr ||
-                    DEFAULT_POLICY.rounding_tolerance_inr,
-                }}
-                onOpenGlossary={openGlossaryWithTerm}
-                onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
-              />
-            </div>
+        <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+          {/* Top Full-Width Verification Overview & All Seven Policy Gates */}
+          <CaseSummaryCard
+            invoice={invoice}
+            matchGates={matchGates}
+            userRole={currentUser?.role}
+            policy={{
+              dual_approval_threshold_inr: dualApprovalThreshold,
+              rate_tolerance_percent: rateTolerancePercent,
+              rounding_tolerance_inr:
+                data?.policy?.rounding_tolerance_inr ||
+                DEFAULT_POLICY.rounding_tolerance_inr,
+            }}
+            onOpenGlossary={openGlossaryWithTerm}
+            onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
+            hideDiscrepancyList={true}
+          />
 
-            {/* Right Sub-Column: Extracted Document Data & Evidence Summary */}
+          {/* Directly Below: Two Side-by-Side Subcolumns (Extracted Data on Left, Blocking Issues on Right) */}
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+            {/* Left Subcolumn (~50-55%): Extracted Document Data */}
             <div className="xl:col-span-6 flex flex-col">
               <ExtractedDataCard
                 invoice={invoice}
                 extractedFields={data?.extracted_fields}
                 lines={invoiceLines}
                 poSnapshot={poSnapshot}
+              />
+            </div>
+
+            {/* Right Subcolumn (~45-50%): Blocking Discrepancies */}
+            <div className="xl:col-span-6 flex flex-col">
+              <BlockingDiscrepanciesCard
+                invoice={invoice}
+                matchGates={matchGates}
+                hasFailedGates={hasFailedGates}
+                onOpenPolicyDrawer={() => setPolicyDrawerOpen(true)}
               />
             </div>
           </div>
