@@ -161,7 +161,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                     Invoices
                   </NavLink>
                   <span className="text-slate-300 dark:text-slate-700">/</span>
-                  <span className="font-semibold text-slate-900 dark:text-white font-mono">
+                  <span className="font-semibold text-slate-900 dark:text-white font-mono truncate max-w-[100px] xs:max-w-[160px] sm:max-w-xs block" title={location.pathname.replace("/invoices/", "")}>
                     {location.pathname.replace("/invoices/", "")}
                   </span>
                 </>
@@ -199,7 +199,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               <button
                 type="button"
                 onClick={() => setDevDrawerOpen(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 transition-colors cursor-pointer"
                 title="Open evaluator and developer controls"
                 aria-label="Open evaluator and developer controls"
               >
@@ -223,7 +223,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             {/* Interactive Showcase Tour Launcher */}
             <button
               onClick={() => setShowcaseOpen(true)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
               title="Open Evaluation Scenarios Tour"
               aria-label="Open evaluation scenarios tour"
             >
@@ -234,7 +234,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             {/* Keyboard Shortcuts Trigger Button */}
             <button
               onClick={() => setShortcutsOpen(true)}
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg transition-colors cursor-pointer"
+              className="hidden md:inline-flex items-center gap-1 px-2 py-1 text-xs text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 rounded-lg transition-colors cursor-pointer"
               title="Keyboard Shortcuts (Press ?)"
               aria-label="Open keyboard shortcuts cheat sheet"
             >

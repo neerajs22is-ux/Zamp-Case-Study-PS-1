@@ -100,26 +100,63 @@
   <!-- 1. MINIMAL PERSISTENT JOURNEY HEADER & CHAPTER NAVIGATOR -->
   <!-- ========================================================================= -->
   <header class="border-b border-slate-800/80 bg-slate-900/85 backdrop-blur-md sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 overflow-hidden">
       
       <!-- Brand & Mode Title -->
-      <div class="flex items-center space-x-3 shrink-0">
-        <a href="/sandbox" class="flex items-center space-x-3 group">
-          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400/20 to-indigo-500/30 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400 shadow-sm shadow-emerald-500/10 group-hover:scale-105 transition-transform">
+      <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
+        <a href="/sandbox" class="flex items-center space-x-2 sm:space-x-2.5 group">
+          <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-emerald-400/20 to-indigo-500/30 border border-emerald-500/40 flex items-center justify-center font-bold text-emerald-400 text-xs sm:text-sm shadow-sm shadow-emerald-500/10 group-hover:scale-105 transition-transform">
             Z
           </div>
           <div>
-            <div class="flex items-center space-x-2">
-              <span class="font-bold text-slate-100 text-sm tracking-tight">Zamp AP</span>
-              <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold">THE INVOICE JOURNEY</span>
+            <div class="flex items-center space-x-1.5 sm:space-x-2">
+              <span class="font-bold text-slate-100 text-xs sm:text-sm tracking-tight">Zamp AP</span>
+              <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-full font-mono font-semibold hidden min-[400px]:inline-block">THE INVOICE JOURNEY</span>
             </div>
             <p class="text-[11px] text-slate-400 hidden md:block">From Document to Decision</p>
           </div>
         </a>
       </div>
 
-      <!-- CENTER: 7-CHAPTER PERSISTENT JOURNEY NAVIGATOR -->
-      <nav id="journey-nav-strip" class="hidden items-center gap-1 px-2.5 py-1 rounded-full bg-slate-950/80 border border-slate-800 shadow-inner overflow-x-auto">
+      <!-- RIGHT CONTROLS: Mode Switcher, Provenance Pill, Flagship Link -->
+      <div class="flex items-center space-x-1 sm:space-x-2.5 shrink-0">
+        
+        <!-- PERSISTENT BEGINNER / TECHNICAL TOGGLE -->
+        <div class="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800 text-xs" role="group" aria-label="Explanation Mode">
+          <button id="toggle-beginner-btn" onclick="setExplanationMode('beginner')" class="px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 text-indigo-300 bg-indigo-600/30 border border-indigo-500/40 shadow-xs" title="Business-friendly explanations with visual analogies">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="hidden sm:inline">Beginner</span>
+          </button>
+          <button id="toggle-technical-btn" onclick="setExplanationMode('technical')" class="px-2 sm:px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 text-slate-400 hover:text-slate-200" title="Technical deep dives: OCR, coordinates, model IDs, tolerances">
+            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            <span class="hidden sm:inline">Technical</span>
+          </button>
+        </div>
+
+        <!-- ENGINE PROVENANCE BADGE -->
+        <div id="provenance-tag-container" class="hidden md:flex items-center">
+          <span id="provenance-tag" class="px-2 py-1 rounded-md font-mono text-[10px] font-semibold bg-slate-800/80 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5" title="Authentic execution provenance">AWS Mantle (Qwen 235B)</span>
+        </div>
+
+        <!-- NEW JOURNEY / RESET BUTTON -->
+        <button id="btn-header-reset" onclick="returnToLanding()" class="hidden px-2 sm:px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1">
+          <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          <span class="hidden sm:inline">Explore Another Scenario or Upload New PDF</span>
+          <span class="sm:hidden text-[11px]">Exit</span>
+        </button>
+
+        <!-- FLAGSHIP AP COMMAND CENTER LINK -->
+        <a href="/invoices" id="header-flagship-link" class="px-2 sm:px-2.5 py-1 bg-slate-800/80 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-300 rounded-lg text-xs font-medium border border-slate-700/80 hover:border-indigo-500/40 transition-colors flex items-center gap-1" title="Open the operational AP Command Center">
+          <span class="hidden sm:inline">Flagship</span>
+          <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- PERSISTENT SUB-BAR FOR CHAPTER NAVIGATOR -->
+    <div id="journey-subnav-strip" class="hidden border-t border-slate-800/80 bg-slate-950/95 px-3 py-1.5 overflow-x-auto w-full">
+      <nav id="journey-nav-strip" class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900/90 border border-slate-800 shadow-inner w-max mx-auto">
         <button onclick="goToChapter(1)" id="nav-ch-1" class="ch-nav-btn px-2 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1 transition-all text-slate-400 hover:text-slate-200" title="Chapter 1: The Invoice Arrives">
           <span class="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[10px] font-mono">1</span>
           <span class="hidden sm:inline">Intake</span>
@@ -155,143 +192,291 @@
           <span class="hidden sm:inline">Reconstruct</span>
         </button>
       </nav>
-
-      <!-- RIGHT CONTROLS: Mode Switcher, Provenance Pill, Flagship Link -->
-      <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
-        
-        <!-- PERSISTENT BEGINNER / TECHNICAL TOGGLE -->
-        <div class="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800 text-xs" role="group" aria-label="Explanation Mode">
-          <button id="toggle-beginner-btn" onclick="setExplanationMode('beginner')" class="px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 text-indigo-300 bg-indigo-600/30 border border-indigo-500/40 shadow-xs" title="Business-friendly explanations with visual analogies">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span>Beginner</span>
-          </button>
-          <button id="toggle-technical-btn" onclick="setExplanationMode('technical')" class="px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1 text-slate-400 hover:text-slate-200" title="Technical deep dives: OCR, coordinates, model IDs, tolerances">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-            <span>Technical</span>
-          </button>
-        </div>
-
-        <!-- ENGINE PROVENANCE BADGE -->
-        <div id="provenance-tag-container" class="hidden sm:flex items-center">
-          <span id="provenance-tag" class="px-2 py-1 rounded-md font-mono text-[10px] font-semibold bg-slate-800/80 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5" title="Authentic execution provenance">AWS Mantle (Qwen 235B)</span>
-        </div>
-
-        <!-- NEW JOURNEY / RESET BUTTON -->
-        <button id="btn-header-reset" onclick="returnToLanding()" class="hidden px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-medium border border-slate-700 transition-colors">
-          Explore Another Scenario or Upload New PDF
-        </button>
-
-        <!-- FLAGSHIP AP COMMAND CENTER LINK -->
-        <a href="/invoices" id="header-flagship-link" class="px-2.5 py-1 bg-slate-800/80 hover:bg-indigo-600/30 text-slate-300 hover:text-indigo-300 rounded-lg text-xs font-medium border border-slate-700/80 hover:border-indigo-500/40 transition-colors flex items-center gap-1" title="Open the operational AP Command Center">
-          <span>Flagship</span>
-          <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-        </a>
-
-      </div>
     </div>
   </header>
 
   <!-- ========================================================================= -->
-  <!-- 2. SCENE 0: LANDING EXPERIENCE — "BEGIN YOUR JOURNEY" -->
+  <!-- 2. SCENE 0: LANDING EXPERIENCE — "THE INVOICE JOURNEY" -->
   <!-- ========================================================================= -->
-  <main id="scene-landing" class="flex-1 flex flex-col justify-center max-w-7xl mx-auto w-full px-4 sm:px-6 py-8 scene-animate-in">
+  <main id="scene-landing" class="flex-1 flex flex-col justify-center max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-10 scene-animate-in">
     
-    <!-- Hero Header -->
-    <div class="text-center max-w-3xl mx-auto mb-10">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-3">
+    <!-- Section 1: Hero Header & Immersive Pipeline Visual -->
+    <div class="text-center max-w-4xl mx-auto mb-8 sm:mb-12">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold mb-3">
         <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
-        Interactive Accounts Payable Decision Engine
+        <span>Zamp PS-1 • Autonomous Accounts Payable</span>
       </div>
-      <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-3">
+      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-3 sm:mb-4">
         THE INVOICE JOURNEY
       </h1>
-      <p class="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-        Discover what really happens when an invoice enters an AI-powered Accounts Payable system.
+      <p class="text-sm sm:text-lg text-slate-300 leading-relaxed font-normal max-w-2xl mx-auto">
+        Experience how an invoice travels from raw document to financial decision: observe multimodal AI read characters, ground evidence, verify procurement contracts, and enforce the seven policy gates in real time.
       </p>
-      <p class="text-xs sm:text-sm text-slate-400 mt-1 max-w-2xl mx-auto">
-        Step inside the processing pipeline: observe genuine Bedrock Mantle / Palmyra extraction, token grounding safeguards, 3-way procurement cross-verification, and deterministic 7-gate matching at natural speed.
-      </p>
+
+      <!-- Dominant Interactive Pipeline Visualization (Responsive Glass Grid) -->
+      <div class="mt-8 p-4 sm:p-6 rounded-2xl glass-card border border-slate-800 shadow-xl overflow-hidden relative">
+        <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-4 flex items-center justify-between">
+          <span class="flex items-center gap-1.5 text-indigo-400 font-semibold">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Interactive Document-to-Decision Pipeline
+          </span>
+          <span class="hidden sm:inline text-slate-500 text-[10.5px]">Hover nodes to explore stage mechanics</span>
+        </div>
+
+        <!-- Responsive Pipeline Node Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 text-left">
+          
+          <!-- Station 1: Intake -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition-all group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono text-indigo-400 font-bold">STAGE 01</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            </div>
+            <div class="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">PDF Intake</div>
+            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Magic bytes checked & SHA-256 fingerprint calculated.</p>
+          </div>
+
+          <!-- Station 2: Reading -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition-all group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono text-indigo-400 font-bold">STAGE 02</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            </div>
+            <div class="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">AI Vision & OCR</div>
+            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Palmyra Vision + Mantle extraction with token coordinates.</p>
+          </div>
+
+          <!-- Station 3: Grounding -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition-all group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono text-indigo-400 font-bold">STAGE 03</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            </div>
+            <div class="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">Grounding Tripwire</div>
+            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Fixed-point GST math & anti-hallucination token check.</p>
+          </div>
+
+          <!-- Station 4: Procurement -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition-all group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono text-indigo-400 font-bold">STAGE 04</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            </div>
+            <div class="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">3-Way Match</div>
+            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">PO contract rates, GRN goods receipt & plant QC status.</p>
+          </div>
+
+          <!-- Station 5: 7 Gates -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-indigo-500/60 transition-all group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono text-indigo-400 font-bold">STAGE 05</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            </div>
+            <div class="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">Seven Policy Gates</div>
+            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Deterministic rules (Vendor ID, price tolerance, duplicates).</p>
+          </div>
+
+          <!-- Station 6: Decision -->
+          <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/60 transition-all group">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-[10px] font-mono text-emerald-400 font-bold">STAGE 06</span>
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            </div>
+            <div class="font-bold text-xs text-white group-hover:text-emerald-300 transition-colors">Decision & Audit</div>
+            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Immutable PostgreSQL ledger entry & human review queue.</p>
+          </div>
+
+        </div>
+      </div>
     </div>
 
-    <!-- Dual Action Grid: Option A (Guided Scenarios) & Option B (Upload Custom PDF) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start mb-8">
+    <!-- Section 2: Two Large, Beautiful, Balanced Entry Choices -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 max-w-5xl mx-auto w-full mb-8">
       
-      <!-- OPTION A: Explore a Guided Scenario (60%) -->
-      <div class="lg:col-span-7 flex flex-col">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">OPTION A</span>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Explore a Guided Scenario</h2>
+      <!-- Choice A Card: Explore a Guided Scenario -->
+      <div 
+        onclick="switchLandingDeck('scenarios')"
+        id="choice-card-scenarios"
+        class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-indigo-500/40 hover:border-indigo-400 shadow-lg relative group bg-slate-900/90"
+      >
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              Option A — Guided Scenarios
+            </span>
+            <span class="text-xs font-mono text-slate-400">6 Verified Cases</span>
           </div>
-          <span class="text-xs text-slate-400 font-mono">6 Authentic Fixtures</span>
+          <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-indigo-300 transition-colors mb-2 flex items-center gap-2">
+            <span>Explore a Guided Scenario</span>
+            <svg class="w-5 h-5 text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
+            Step through authentic commercial invoices — from clean straight-through matching to unit price overruns, degraded scans, quarantined receipts, and duplicate safeguards.
+          </p>
+          <div class="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-6">
+            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Instant Replay</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Zero Setup</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Full 7-Gate Evidence</span>
+          </div>
         </div>
-        <p class="text-xs text-slate-400 mb-4">
-          Select from authentic commercial fixtures to observe specific policy match outcomes, tolerance breaches, and grounding tripwire halts.
-        </p>
+        <button type="button" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
+          <span>Select an Authentic Scenario</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
 
-        <!-- Scenario Cards Grid -->
-        <div id="scenarios-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          <!-- Dynamically populated with 6 scenario cards -->
-          <div class="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl flex items-center justify-center text-slate-500 text-xs">
+      <!-- Choice B Card: Upload Your Own Invoice -->
+      <div 
+        onclick="switchLandingDeck('upload')"
+        id="choice-card-upload"
+        class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-emerald-500/30 hover:border-emerald-400 shadow-lg relative group"
+      >
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <span class="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Option B — Upload Custom PDF
+            </span>
+            <span class="text-xs font-mono text-emerald-400">Live Ingestion</span>
+          </div>
+          <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-emerald-300 transition-colors mb-2 flex items-center gap-2">
+            <span>Upload Your Own Invoice</span>
+            <svg class="w-5 h-5 text-emerald-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
+            Upload any genuine PDF tax invoice. Our multimodal pipeline will run optical character detection, vision layout analysis, and 7-gate deterministic evaluation against your sandbox ERP records.
+          </p>
+          <div class="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-6">
+            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ RapidOCR + Vision</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ SHA-256 Fingerprint</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Real Audit Events</span>
+          </div>
+        </div>
+        <button type="button" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs transition-colors flex items-center justify-center gap-2">
+          <span>Open Upload Studio</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- Section 3 & 4: Progressive Experience Decks (Guided Scenarios Gallery vs Upload Studio) -->
+    <div id="landing-decks-container" class="max-w-5xl mx-auto w-full">
+      
+      <!-- Deck Navigation Tabs / Switcher -->
+      <div class="flex items-center justify-center mb-6">
+        <div class="inline-flex p-1 rounded-xl bg-slate-900/90 border border-slate-800 text-xs font-semibold gap-1">
+          <button 
+            id="tab-choice-scenarios"
+            onclick="switchLandingDeck('scenarios')"
+            class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 bg-indigo-600 text-white shadow-sm"
+          >
+            <span>✦ Guided Scenarios (6)</span>
+          </button>
+          <button 
+            id="tab-choice-upload"
+            onclick="switchLandingDeck('upload')"
+            class="px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200"
+          >
+            <span>⇪ Custom PDF Upload</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- DECK 1: GUIDED SCENARIOS GALLERY -->
+      <div id="deck-scenarios" class="space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Choose a Supported Scenario</h3>
+            <p class="text-xs text-slate-400">Click any card below to launch its interactive invoice journey.</p>
+          </div>
+          <span class="text-xs text-indigo-400 font-mono">6 Authenticated Fixtures</span>
+        </div>
+
+        <!-- 6 Authentic Scenario Cards Container -->
+        <div id="scenarios-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Dynamically populated by loadScenarios() -->
+          <div class="col-span-full p-8 text-center text-xs text-slate-500">
             Loading authentic scenarios...
           </div>
         </div>
       </div>
 
-      <!-- OPTION B: Upload Your Own Invoice (40%) -->
-      <div class="lg:col-span-5 flex flex-col">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">OPTION B</span>
-            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200">Upload Your Own Invoice</h2>
+      <!-- DECK 2: CUSTOM UPLOAD STUDIO (Hidden by default, revealed on tab or card click) -->
+      <div id="deck-upload" class="hidden space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div>
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Upload Custom Invoice PDF</h3>
+            <p class="text-xs text-slate-400">Process an arbitrary vendor invoice through the live flagship backend pipeline.</p>
           </div>
-          <span class="text-xs text-emerald-400 font-mono">Live Ingestion</span>
-        </div>
-        <p class="text-xs text-slate-400 mb-4">
-          Drop any vendor tax invoice PDF to run it through the live flagship extraction and 7-gate verification pipeline.
-        </p>
-
-        <!-- Drag & Drop Target Area -->
-        <div 
-          id="drop-zone"
-          class="border-2 border-dashed border-slate-700 hover:border-indigo-500/70 bg-slate-900/40 hover:bg-slate-900/70 rounded-2xl p-6 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center min-h-[260px] group shadow-inner"
-          onclick="document.getElementById('file-input').click()"
-        >
-          <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="handleFileSelect(event)">
-          <div class="w-14 h-14 rounded-2xl bg-indigo-500/10 group-hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 flex items-center justify-center mb-3 transition-colors">
-            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          </div>
-          <p class="text-sm font-semibold text-slate-200 mb-1">
-            Drag & drop your vendor PDF here
-          </p>
-          <p class="text-xs text-indigo-400 underline font-medium">
-            or browse local files
-          </p>
-          <div class="mt-4 flex flex-wrap gap-2 justify-center text-[11px] text-slate-400">
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">PDF format</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">Max 50MB</span>
-            <span class="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">SHA-256 Verified</span>
-          </div>
+          <span class="text-xs text-emerald-400 font-mono">Live Extraction</span>
         </div>
 
-        <!-- Upload Security Card -->
-        <div class="mt-3.5 p-3.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-400 space-y-1.5">
-          <div class="flex items-center gap-1.5 text-slate-300 font-semibold text-[11px]">
-            <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            <span>What happens to your uploaded document:</span>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          
+          <!-- Upload Drag & Drop Area (7 cols) -->
+          <div class="lg:col-span-7 flex flex-col">
+            <div 
+              id="drop-zone"
+              class="border-2 border-dashed border-slate-700 hover:border-emerald-500/70 bg-slate-900/60 hover:bg-slate-900/90 rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center flex-1 min-h-[280px] group shadow-inner"
+              onclick="document.getElementById('file-input').click()"
+            >
+              <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="handleFileSelect(event)">
+              <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 group-hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mb-4 transition-colors">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              </div>
+              <p class="text-base font-bold text-slate-200 mb-1">
+                Drag & drop your vendor PDF here
+              </p>
+              <p class="text-xs text-emerald-400 underline font-medium mb-4">
+                or click to browse local files
+              </p>
+              <div class="flex flex-wrap gap-2 justify-center text-[11px] text-slate-400">
+                <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">PDF Format Only</span>
+                <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">Max 50MB</span>
+                <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">SHA-256 Fingerprinted</span>
+              </div>
+            </div>
           </div>
-          <ul class="list-disc list-inside text-[11px] text-slate-400 space-y-1">
-            <li>MIME magic bytes checked (<code class="text-slate-300">%PDF-</code>) & SHA-256 fingerprint generated.</li>
-            <li>Stored in isolated sandbox workspace (<code class="text-indigo-300">org_sme_eval</code>).</li>
-            <li>Processed with real Hybrid Extractor (AWS Bedrock Mantle / Qwen 235B & RapidOCR).</li>
-          </ul>
+
+          <!-- Pipeline & Security Architecture Notice (5 cols) -->
+          <div class="lg:col-span-5 p-5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between text-xs space-y-3">
+            <div>
+              <div class="flex items-center gap-2 text-slate-200 font-bold mb-3 pb-2 border-b border-slate-800">
+                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                <span>Pipeline Execution Guarantees</span>
+              </div>
+              <ul class="space-y-2.5 text-slate-300 text-[11.5px]">
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span><strong>Zero Mock Data:</strong> File is processed through the genuine backend ingestion pipeline.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span><strong>Multimodal Extraction:</strong> RapidOCR text detection coupled with Palmyra Vision and Mantle Qwen 235B.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span><strong>Tenant Sandbox Isolation:</strong> Scoped strictly to <code class="font-mono text-indigo-300">org_sme_eval</code> with isolated RLS policies.</span>
+                </li>
+                <li class="flex items-start gap-2">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span><strong>Deterministic 7-Gate Validation:</strong> Evaluated against Indian GST arithmetic and policy tolerances.</span>
+                </li>
+              </ul>
+            </div>
+            
+            <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-500">
+              After upload, you will automatically step through all 7 chapters of the invoice journey.
+            </div>
+          </div>
+
         </div>
       </div>
 
     </div>
 
     <!-- Previous Evaluation Runs Drawer -->
-    <div id="previous-runs-section" class="border-t border-slate-800 pt-6">
+    <div id="previous-runs-section" class="border-t border-slate-800 pt-6 mt-8 max-w-5xl mx-auto w-full">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Previous Evaluation Runs</h3>
         <button onclick="loadRunHistory()" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Refresh History</button>
@@ -342,29 +527,34 @@
               ANALYZING
             </span>
           </div>
-          <p class="text-xs text-slate-400 truncate">
-            <span id="res-vendor-name" class="font-semibold text-slate-300">Vendor</span> · 
-            Billed Total: <span id="res-inv-total" class="font-mono font-bold text-slate-200">₹0.00</span> ·
-            Invoice ID: <span id="res-inv-id" class="font-mono text-slate-400">inv_xxx</span>
-          </p>
+          <div class="text-xs text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+            <span id="res-vendor-name" class="font-semibold text-slate-300">Vendor</span>
+            <span class="text-slate-600 hidden sm:inline">·</span>
+            <span>Total: <span id="res-inv-total" class="font-mono font-bold text-slate-200">₹0.00</span></span>
+            <span class="text-slate-600 hidden sm:inline">·</span>
+            <span class="font-mono text-slate-500 text-[11px] truncate max-w-[120px] sm:max-w-none" id="res-inv-id">inv_xxx</span>
+          </div>
         </div>
       </div>
 
       <!-- Action & Replay Badges -->
-      <div class="flex items-center gap-2">
-        <span id="res-stored-banner" class="hidden px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+      <div class="flex flex-wrap items-center gap-2">
+        <span id="res-stored-banner" class="hidden px-2 py-1 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-300 border border-amber-500/30 flex items-center gap-1">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           <span>Stored Replay</span>
         </span>
-        <button onclick="scrollToEvidence()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5">
+        <button onclick="scrollToEvidence()" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5">
           <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
-          <span>Evidence Explorer</span>
+          <span class="hidden sm:inline">Evidence Explorer</span>
+          <span class="sm:hidden">Evidence</span>
         </button>
-        <button onclick="returnToLanding()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-colors">
-          Explore Another Scenario or Upload New PDF
+        <button onclick="returnToLanding()" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 sm:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          <span class="hidden sm:inline">Explore Another Scenario or Upload New PDF</span>
+          <span class="sm:hidden">Exit</span>
         </button>
-        <a id="btn-open-flagship-top" href="/invoices" target="_blank" class="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
-          <span>Open in Flagship</span>
+        <a id="btn-open-flagship-top" href="/invoices" target="_blank" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+          <span>Flagship</span>
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         </a>
       </div>
@@ -1199,6 +1389,35 @@
       }
     }
 
+    // Switch between progressive landing decks (Guided Scenarios vs Custom Upload)
+    function switchLandingDeck(deck) {
+      const isScenarios = deck === 'scenarios';
+      const scenariosDeck = document.getElementById('deck-scenarios');
+      const uploadDeck = document.getElementById('deck-upload');
+      const tabScenarios = document.getElementById('tab-choice-scenarios');
+      const tabUpload = document.getElementById('tab-choice-upload');
+      const choiceScenarios = document.getElementById('choice-card-scenarios');
+      const choiceUpload = document.getElementById('choice-card-upload');
+
+      if (scenariosDeck && uploadDeck) {
+        if (isScenarios) {
+          scenariosDeck.classList.remove('hidden');
+          uploadDeck.classList.add('hidden');
+          if (tabScenarios) tabScenarios.className = 'px-4 py-2 rounded-lg transition-all flex items-center gap-2 bg-indigo-600 text-white shadow-sm';
+          if (tabUpload) tabUpload.className = 'px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200';
+          if (choiceScenarios) choiceScenarios.classList.add('border-indigo-400', 'bg-slate-900/90');
+          if (choiceUpload) choiceUpload.classList.remove('border-emerald-400', 'bg-slate-900/90');
+        } else {
+          scenariosDeck.classList.add('hidden');
+          uploadDeck.classList.remove('hidden');
+          if (tabUpload) tabUpload.className = 'px-4 py-2 rounded-lg transition-all flex items-center gap-2 bg-emerald-600 text-white shadow-sm';
+          if (tabScenarios) tabScenarios.className = 'px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-slate-400 hover:text-slate-200';
+          if (choiceUpload) choiceUpload.classList.add('border-emerald-400', 'bg-slate-900/90');
+          if (choiceScenarios) choiceScenarios.classList.remove('border-indigo-400', 'bg-slate-900/90');
+        }
+      }
+    }
+
     // Load authentic scenarios
     async function loadScenarios() {
       try {
@@ -1206,7 +1425,7 @@
         if (res.status === 401 || res.status === 403) {
           const container = document.getElementById('scenarios-container');
           container.innerHTML = `
-            <div class="col-span-2 p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center justify-between">
+            <div class="col-span-full p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center justify-between">
               <div>
                 <span class="font-bold">Authentication Initialized</span>
                 <p class="text-amber-400/80 mt-0.5">Evaluation workspace session is active.</p>
@@ -1219,9 +1438,54 @@
         const container = document.getElementById('scenarios-container');
         container.innerHTML = '';
 
+        const scenarioMetaMap = {
+          'SCN-01-HAPPY-PATH': {
+            name: 'Clean 3-Way Match',
+            objective: '🎯 Learn: Straight-through auto-approval criteria',
+            icon: '✓',
+            iconBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+            desc: 'Clean manufacturing invoice matching open PO-26-1001, GRN-26-501, and accepted QC certificate with 0.00% variance.',
+          },
+          'SCN-02-PRICE-VARIANCE': {
+            name: 'Unit Price Variance (+18.9%)',
+            objective: '🎯 Learn: Tolerance limit breach (+18.9% vs ±1.5%)',
+            icon: '⚠',
+            iconBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+            desc: 'Billed rate ₹220/unit exceeds contract PO ₹185 (+18.92% variance) and exceeds GRN accepted units, halting at Gate 6.',
+          },
+          'SCN-03-DEGRADED-SCAN': {
+            name: 'Low-Contrast Scanned Invoice',
+            objective: '🎯 Learn: Optical grounding tripwire halts unverified AI',
+            icon: '👁',
+            iconBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+            desc: 'Challenging raster scan testing optical character detection and evidence grounding tripwires. Safely routed to human reviewer.',
+          },
+          'SCN-04-QUARANTINE-QC': {
+            name: 'Defective Material & QC Hold',
+            objective: '🎯 Learn: Blocking disbursement on rejected goods',
+            icon: '⛨',
+            iconBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+            desc: 'Factory goods receipt was quarantined due to quality defects. Plant inspection certificate HOLD status blocks payment at Gate 4.',
+          },
+          'SCN-05-NON-PAYABLE': {
+            name: 'Non-Payable Commercial Receipt',
+            objective: '🎯 Learn: Autonomous document classification safeguard',
+            icon: '✕',
+            iconBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+            desc: 'Classified as Payment Receipt rather than commercial tax invoice or debit note. Autonomously rejected to prevent double liability.',
+          },
+          'SCN-06-DUPLICATE': {
+            name: 'Duplicate Invoice Safeguard',
+            objective: '🎯 Learn: SHA-256 fingerprint collision prevention',
+            icon: '🛡',
+            iconBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+            desc: 'Re-submission of identical invoice processed earlier. Cryptographic SHA-256 fingerprinting catches duplicate submission.',
+          },
+        };
+
         scenariosData.forEach((scn, idx) => {
           const card = document.createElement('div');
-          card.className = 'glass-card-interactive p-4 rounded-2xl cursor-pointer flex flex-col justify-between group shadow-sm';
+          card.className = 'glass-card-interactive p-4 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between group shadow-sm border border-slate-800 hover:border-indigo-500/60';
           card.onclick = () => runScenario(scn.id);
 
           const isMatch = scn.expected_decision === 'MATCH_CANDIDATE';
@@ -1233,24 +1497,46 @@
                             isHitl ? 'bg-purple-500/20 text-purple-300 border-purple-500/40' :
                             'bg-rose-500/20 text-rose-300 border-rose-500/40';
 
+          const meta = scenarioMetaMap[scn.id] || {
+            name: scn.title,
+            objective: '🎯 Learn: AP Decision Policy Evaluation',
+            icon: '📄',
+            iconBg: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
+            desc: scn.description,
+          };
+
           card.innerHTML = `
             <div>
-              <div class="flex items-center justify-between gap-2 mb-2">
-                <span class="text-[11px] font-mono text-indigo-400 font-bold tracking-tight">${escapeHtml(scn.id)}</span>
-                <span class="px-2 py-0.5 rounded font-mono font-bold text-[9.5px] border ${badgeTone}">
+              <div class="flex items-center justify-between gap-2 mb-2.5">
+                <div class="flex items-center gap-2 min-w-0">
+                  <div class="w-7 h-7 rounded-lg ${meta.iconBg} border flex items-center justify-center font-bold text-xs shrink-0">${meta.icon}</div>
+                  <span class="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors truncate">${escapeHtml(meta.name)}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded font-mono font-bold text-[9.5px] border shrink-0 ${badgeTone}">
                   ${escapeHtml(scn.expected_decision || 'TEST')}
                 </span>
               </div>
-              <h4 class="text-xs font-bold text-slate-100 group-hover:text-indigo-300 transition-colors line-clamp-1 mb-1">
-                ${escapeHtml(scn.title)}
-              </h4>
-              <p class="text-[11px] text-slate-400 leading-relaxed line-clamp-2">
-                ${escapeHtml(scn.description)}
+              <p class="text-[11.5px] text-slate-300 line-clamp-2 leading-relaxed mb-2.5">
+                ${escapeHtml(meta.desc || scn.description)}
               </p>
+              <div class="px-2.5 py-1 rounded-lg bg-slate-950/80 border border-slate-800 text-[10.5px] text-indigo-300 font-medium mb-3">
+                ${escapeHtml(meta.objective)}
+              </div>
+              <div class="tech-only hidden text-[10px] font-mono text-slate-400 pb-2 mb-2 border-b border-slate-800/80">
+                Fixture: <span class="text-indigo-300">${escapeHtml(scn.id)}</span> • ${escapeHtml(scn.pdf_filename || '')}
+              </div>
             </div>
-            <div class="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[10.5px]">
-              <span class="text-slate-400 font-medium truncate max-w-[150px]">${escapeHtml(scn.supplier_name || 'Vendor')}</span>
-              <span class="font-mono font-bold text-slate-200">${scn.invoice_total_inr ? formatINR(scn.invoice_total_inr) : 'INR'}</span>
+            <div>
+              <div class="flex items-center justify-between text-[11px] pt-2.5 border-t border-slate-800/80">
+                <span class="text-slate-400 font-medium truncate max-w-[140px]">${escapeHtml(scn.supplier_name || scn.vendor_name || 'Vendor')}</span>
+                <span class="font-mono font-bold text-slate-200">${scn.invoice_total_inr || scn.total_amount ? formatINR(scn.invoice_total_inr || scn.total_amount) : 'INR 0.00'}</span>
+              </div>
+              <div class="mt-3">
+                <div class="w-full py-2 px-3 rounded-xl bg-slate-800 group-hover:bg-indigo-600 text-slate-300 group-hover:text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs">
+                  <span>Start Journey</span>
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                </div>
+              </div>
             </div>
           `;
           container.appendChild(card);
@@ -1260,6 +1546,7 @@
         console.error('Failed to load scenarios:', err);
       }
     }
+
 
     // Run Scenario
     async function runScenario(scenarioId) {
@@ -1435,8 +1722,8 @@
       // Hide processing view, show results view and journey nav strip
       document.getElementById('processing-view').classList.add('hidden');
       document.getElementById('results-view').classList.remove('hidden');
-      document.getElementById('journey-nav-strip').classList.remove('hidden');
-      document.getElementById('journey-nav-strip').classList.add('flex');
+      document.getElementById('journey-subnav-strip').classList.remove('hidden');
+      document.getElementById('journey-subnav-strip').classList.add('flex');
       document.getElementById('btn-header-reset').classList.remove('hidden');
 
       // Update Top Status Bar
@@ -1999,9 +2286,10 @@
     function returnToLanding() {
       resetViews();
       document.getElementById('scene-landing').classList.remove('hidden');
-      document.getElementById('journey-nav-strip').classList.add('hidden');
-      document.getElementById('journey-nav-strip').classList.remove('flex');
+      document.getElementById('journey-subnav-strip').classList.add('hidden');
+      document.getElementById('journey-subnav-strip').classList.remove('flex');
       document.getElementById('btn-header-reset').classList.add('hidden');
+      switchLandingDeck('scenarios');
       loadRunHistory();
     }
 
@@ -2015,6 +2303,7 @@
 
     function triggerNewUpload() {
       returnToLanding();
+      switchLandingDeck('upload');
       const input = document.getElementById('file-input');
       if (input) input.click();
     }

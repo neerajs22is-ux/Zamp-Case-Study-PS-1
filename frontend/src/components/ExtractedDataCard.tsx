@@ -223,7 +223,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
         </div>
 
         {/* Dedicated Financial Summary Strip */}
-        <div className="py-2.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 text-xs">
+        <div className="py-2.5 px-3 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2.5 sm:gap-3 text-xs overflow-x-auto">
           <div className="min-w-0">
             <span className="text-[10px] uppercase tracking-wider text-slate-400 block font-medium">
               Taxable Value
@@ -270,7 +270,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
               )}
             </div>
 
-            <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden text-[11px]">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto text-[11px]">
               <table className="w-full text-left divide-y divide-slate-100 dark:divide-slate-800">
                 <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                   <tr>

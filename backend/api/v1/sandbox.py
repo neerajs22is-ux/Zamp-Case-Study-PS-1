@@ -154,9 +154,9 @@ GENUINE_SCENARIOS = [
     },
     {
         "id": "SCN-03-DEGRADED-SCAN",
-        "title": "Edge Case 2: Degraded Raster Scan Routed to HITL (APTC-036)",
+        "title": "Edge Case 2: Degraded Raster Scan & Grounding Tripwire (APTC-036)",
         "scenario_type": "DEGRADED_SCAN",
-        "vendor_name": "Unknown / Degraded Scan",
+        "vendor_name": "Prism Office Systems (Low-Contrast Scan)",
         "vendor_gstin": None,
         "po_reference": None,
         "expected_decision": "FLAGGED_HITL_REVIEW",
@@ -164,11 +164,11 @@ GENUINE_SCENARIOS = [
         "currency": "INR",
         "total_amount": 0.0,
         "pdf_filename": "36_invoice_POS_26_112.pdf",
-        "description": "Image-only degraded scanned document with zero extractable machine-readable digital text. Safely routed to human reviewer per grounding tripwire policy.",
+        "description": "Challenging image-only raster scan testing optical character detection and evidence grounding tripwires. Safely routed to human reviewer to prevent ungrounded AI hallucinations.",
         "key_mechanisms": [
-            "Zero digital text tokens detected in PDF character streams",
-            "Grounding policy trips; LLM inference skipped to avoid ungrounded hallucinations",
-            "Routed directly to AP Specialist inbox for manual document keying",
+            "Low-contrast raster scan with zero native digital PDF character streams",
+            "Grounding safeguards halt autonomous approval when token confidence is unverified",
+            "Safely routed to human AP specialist review per grounding tripwire policy",
         ],
     },
     {

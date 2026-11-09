@@ -62,6 +62,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
   // Navigation & Tabs
   const [activeTab, setActiveTab] = useState<TabType>("reconciliation");
+  const [mobileReviewView, setMobileReviewView] = useState<"review" | "document">("review");
   const [policyDrawerOpen, setPolicyDrawerOpen] = useState(false);
   const [actionsMenuOpen, setActionsMenuOpen] = useState(false);
 
@@ -498,13 +499,43 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
       )}
 
+      {/* Mobile / Tablet Review Mode Switcher (< lg only) */}
+      <div className="lg:hidden flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 mb-4 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => setMobileReviewView('review')}
+          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            mobileReviewView === 'review'
+              ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" />
+          <span>Verification & Seven Gates</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileReviewView('document')}
+          className={`flex-1 py-2 px-3 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+            mobileReviewView === 'document'
+              ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-2xs'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          <span>Original Invoice (PDF)</span>
+        </button>
+      </div>
+
       {/* 3. Balanced Two-Column Workspace (Sticky PDF + Review Hierarchy) */}
       <div
         data-tour="workspace-split"
         className="review-workspace grid grid-cols-1 lg:grid-cols-12 gap-5 items-start"
       >
         {/* Left Pane: Persistent Original Document Viewer (~42% desktop width) */}
-        <div className="lg:col-span-5 xl:col-span-5 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[620px] max-h-[920px]">
+        <div className={`lg:col-span-5 xl:col-span-5 review-document-sticky sticky top-4 self-start flex flex-col h-[calc(100vh-140px)] min-h-[480px] lg:min-h-[620px] max-h-[920px] ${
+          mobileReviewView === 'document' ? 'block' : 'hidden lg:flex'
+        }`}>
           <Card className="review-document overflow-hidden flex flex-col h-full border border-slate-200 dark:border-slate-800 shadow-2xs">
             {/* Document Toolbar */}
             <div className="review-document-toolbar p-2 sm:px-3 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs shrink-0">
@@ -717,7 +748,9 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
 
         {/* Right Pane: Scrollable Invoice Review Workspace (~58% desktop width) */}
-        <div className="lg:col-span-7 xl:col-span-7 space-y-4">
+        <div className={`lg:col-span-7 xl:col-span-7 space-y-4 ${
+          mobileReviewView === 'review' ? 'block' : 'hidden lg:block'
+        }`}>
           {/* Top Full-Width Verification Overview & All Seven Policy Gates */}
           <CaseSummaryCard
             invoice={invoice}

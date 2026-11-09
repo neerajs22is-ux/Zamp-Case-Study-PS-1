@@ -106,6 +106,25 @@ async def serve_sandbox_ui():
         return FileResponse(sandbox_path, media_type="text/html")
     return JSONResponse(status_code=404, content={"detail": "Sandbox template not found."})
 
+
+@app.get("/legacy")
+@app.get("/legacy/")
+async def serve_legacy_ui():
+    """Serves the original standalone legacy AP demonstration application."""
+    legacy_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "engine", "templates", "index.html")
+    if os.path.exists(legacy_path):
+        return FileResponse(legacy_path, media_type="text/html")
+    return JSONResponse(status_code=404, content={"detail": "Legacy template not found."})
+
+
+# Mount legacy standalone demo engine API (for /legacy demonstration parity)
+try:
+    from engine.server import app as engine_app
+    app.mount("/legacy-api", engine_app)
+    app.mount("/engine-api", engine_app)
+except Exception as e:
+    logger.warning("Could not mount legacy engine app: %s", e)
+
 # Mount frontend assets and provide SPA fallback
 frontend_dist = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
 assets_dir = os.path.join(frontend_dist, "assets")

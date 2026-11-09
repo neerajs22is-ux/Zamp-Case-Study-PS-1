@@ -57,7 +57,7 @@
 
   <!-- Top Navigation Bar -->
   <header class="border-b border-slate-800/80 bg-slate-900/60 sticky top-0 z-50 backdrop-blur-md">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 min-h-16 py-2.5 flex flex-wrap items-center justify-between gap-3">
       <div class="flex items-center space-x-3">
         <div class="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-lg text-white shadow-lg shadow-blue-500/20">
           AP
@@ -72,7 +72,7 @@
       </div>
 
       <!-- Navigation Tabs -->
-      <nav class="flex items-center space-x-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700/50">
+      <nav class="flex items-center space-x-1 bg-slate-800/50 p-1 rounded-lg border border-slate-700/50 overflow-x-auto max-w-full">
         <button id="tab-live-btn" onclick="switchTab('live')" class="px-3.5 py-1.5 rounded-md text-xs font-medium bg-blue-600 text-white shadow-sm flex items-center space-x-1.5 transition">
           <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
           <span>Live Run View</span>
@@ -121,7 +121,7 @@
           </div>
 
           <div class="flex flex-wrap items-center gap-3">
-            <select id="scenario-select" onchange="onScenarioChange()" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-72">
+            <select id="scenario-select" onchange="onScenarioChange()" class="bg-slate-900 border border-slate-700 text-xs rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 w-full sm:w-72">
               <!-- Dynamically populated -->
             </select>
             
@@ -571,7 +571,7 @@
     }
 
     async function loadScenarios() {
-      const res = await fetch('/api/scenarios');
+      const res = await fetch('/legacy-api/api/scenarios');
       scenarios = await res.json();
       const select = document.getElementById('scenario-select');
       select.innerHTML = '';
@@ -633,7 +633,7 @@
       formData.append('file', file);
 
       try {
-        const res = await fetch('/api/upload-invoice', { method: 'POST', body: formData });
+        const res = await fetch('/legacy-api/api/upload-invoice', { method: 'POST', body: formData });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({ detail: res.statusText }));
           throw new Error(errData.detail || 'Upload failed');
@@ -666,7 +666,7 @@
       document.getElementById('pipeline-status-indicator').innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span><span class="text-blue-400">STREAMING...</span>';
 
       // Connect to Server-Sent Events (SSE)
-      const eventSource = new EventSource(`/api/stream-scenario/${scenarioId}`);
+      const eventSource = new EventSource(`/legacy-api/api/stream-scenario/${scenarioId}`);
 
       eventSource.onmessage = (e) => {
         const data = JSON.parse(e.data);
@@ -887,7 +887,7 @@
       if (notes === null) return; // user cancelled prompt
 
       try {
-        const resp = await fetch(`/api/invoices/${currentAudit.run_id}/action`, {
+        const resp = await fetch(`/legacy-api/api/invoices/${currentAudit.run_id}/action`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: action, notes: notes || defaultNote })
@@ -906,7 +906,7 @@
 
     async function resetDemoData() {
       try {
-        const resp = await fetch('/api/reset-data', { method: 'POST' });
+        const resp = await fetch('/legacy-api/api/reset-data', { method: 'POST' });
         const res = await resp.json();
         alert(res.message || 'Demo data and ERP database reset to baseline.');
         loadRunsHistory();
@@ -973,7 +973,7 @@
     }
 
     async function refreshHistory() {
-      const res = await fetch('/api/runs');
+      const res = await fetch('/legacy-api/api/runs');
       const data = await res.json();
 
       document.getElementById('kpi-total').textContent = data.metrics.total_runs;
@@ -1015,8 +1015,8 @@
 
     async function loadERPData() {
       const [posRes, vendorsRes] = await Promise.all([
-        fetch('/api/erp/purchase-orders'),
-        fetch('/api/erp/vendors')
+        fetch('/legacy-api/api/erp/purchase-orders'),
+        fetch('/legacy-api/api/erp/vendors')
       ]);
       const pos = await posRes.json();
       const vendors = await vendorsRes.json();
