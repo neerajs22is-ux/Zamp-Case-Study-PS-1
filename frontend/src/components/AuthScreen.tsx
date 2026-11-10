@@ -356,7 +356,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
     return (
       <div
-        className={`auth-screen mx-auto w-full rounded-xl border ${canShowQuickLogin ? "auth-screen--split" : "auth-screen--single"}`}
+        className="auth-screen auth-screen--split mx-auto w-full rounded-xl border"
       >
         <div className="auth-intro">
           <div className="auth-brand flex items-center gap-3">
@@ -579,26 +579,26 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
           </section>
         </div>
 
-        {isLocalEnv && (
-          <div className="auth-evaluation">
-            {canShowQuickLogin && (
-              <section
-                className="auth-secondary"
-                aria-labelledby="quick-access-title"
+        <div className="auth-evaluation">
+          <section
+            className="auth-secondary"
+            aria-labelledby="quick-access-title"
+          >
+            <div className="flex flex-wrap items-baseline justify-between gap-1">
+              <h2
+                id="quick-access-title"
+                className="text-base font-semibold"
               >
-                <div className="flex flex-wrap items-baseline justify-between gap-1">
-                  <h2
-                    id="quick-access-title"
-                    className="text-base font-semibold"
-                  >
-                    Evaluation workspace
-                  </h2>
+                Evaluation workspace
+              </h2>
 
-                  <span className="auth-muted text-xs font-medium">
-                    Quick sign-in
-                  </span>
-                </div>
+              <span className="auth-muted text-xs font-medium">
+                {canShowQuickLogin ? "Quick sign-in" : "Zero-Setup Entry"}
+              </span>
+            </div>
 
+            {canShowQuickLogin ? (
+              <>
                 <p className="auth-muted mt-2 text-sm leading-relaxed">
                   Choose a role for local evaluation. The server verifies
                   access; this workspace may contain imported or live records.
@@ -611,19 +611,16 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       description: "Review invoices",
                       email: "sme_lead@company.internal",
                     },
-
                     {
                       label: "Financial Controller",
                       description: "Review and sign off",
                       email: "sme_controller@company.internal",
                     },
-
                     {
                       label: "Auditor",
                       description: "Read-only access",
                       email: "sme_auditor@company.internal",
                     },
-
                     {
                       label: "AP Associate",
                       description: "Review invoice details",
@@ -642,53 +639,75 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                       <span className="block text-sm font-semibold">
                         {item.label}
                       </span>
-
                       <span className="auth-muted mt-1 block text-xs">
                         {actionLoading ? "Signing in…" : item.description}
                       </span>
                     </button>
                   ))}
                 </div>
-              </section>
-            )}
-
-            {isLocalEnv && (
-              <details className="auth-developer mt-5 border-t pt-4">
-                <summary className="auth-link cursor-pointer text-sm">
-                  Developer token access
-                </summary>
-
-                <div className="mt-3 space-y-2">
-                  <label
-                    htmlFor="developer-token"
-                    className="block text-sm font-medium"
-                  >
-                    Bearer token
-                  </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    <input
-                      id="developer-token"
-                      type="password"
-                      autoComplete="off"
-                      value={devTokenInput}
-                      onChange={(e) => setDevTokenInput(e.target.value)}
-                      className="auth-input min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => handleApplyDevToken(devTokenInput)}
-                      className="auth-option rounded-lg border px-3 py-2 text-sm font-medium"
-                    >
-                      Apply token
-                    </button>
-                  </div>
+              </>
+            ) : (
+              <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 leading-relaxed">
+                  <strong className="block text-xs font-bold text-emerald-950 mb-1">One-Click Evaluator Access</strong>
+                  Click <strong>Continue with Google</strong> on the left. Any authenticated evaluator identity is automatically onboarded into <code>org_sme_eval</code> as <strong>AP Lead</strong>.
                 </div>
-              </details>
+
+                <div className="space-y-1">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">Pre-Loaded Live Fixtures</span>
+                  <p className="auth-muted leading-relaxed">
+                    Evaluator workspace is pre-seeded with 35 Indian GST invoices, purchase orders, goods receipts, and 7-gate audit trails.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <span className="font-semibold text-slate-800 dark:text-slate-200">Evaluation Personas:</span>
+                  <ul className="space-y-1 text-[11.5px] list-disc list-inside auth-muted">
+                    <li><strong className="text-slate-700 dark:text-slate-300">AP Lead:</strong> Full approval authority & exception routing</li>
+                    <li><strong className="text-slate-700 dark:text-slate-300">Financial Controller:</strong> Dual approval on ₹10L+ liability</li>
+                    <li><strong className="text-slate-700 dark:text-slate-300">Auditor:</strong> Read-only immutable audit ledger</li>
+                    <li><strong className="text-slate-700 dark:text-slate-300">AP Associate:</strong> Line-item discrepancy checks</li>
+                  </ul>
+                </div>
+              </div>
             )}
-          </div>
-        )}
+          </section>
+
+          <details className="auth-developer mt-5 border-t pt-4" open={!canShowQuickLogin}>
+            <summary className="auth-link cursor-pointer text-sm font-medium">
+              Evaluator token access
+            </summary>
+
+            <div className="mt-3 space-y-2">
+              <label
+                htmlFor="developer-token"
+                className="block text-xs font-medium text-slate-700 dark:text-slate-300"
+              >
+                Bearer token (for specific personas)
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                <input
+                  id="developer-token"
+                  type="password"
+                  placeholder="Paste JWT token..."
+                  autoComplete="off"
+                  value={devTokenInput}
+                  onChange={(e) => setDevTokenInput(e.target.value)}
+                  className="auth-input min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => handleApplyDevToken(devTokenInput)}
+                  className="auth-option rounded-lg border px-3 py-2 text-sm font-medium"
+                >
+                  Apply token
+                </button>
+              </div>
+            </div>
+          </details>
+        </div>
       </div>
     );
   }

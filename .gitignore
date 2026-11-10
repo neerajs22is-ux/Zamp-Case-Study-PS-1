@@ -11,6 +11,9 @@ htmlcov/
 .venv/
 .env
 .env.*
+*.production.env
+render.production.env
+zamp_render.env
 !.env.example
 !.env.cloudrun.example
 *.token

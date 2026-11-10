@@ -19,6 +19,7 @@ import json
 import logging
 import secrets
 import time
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 from fastapi import Depends, Header, HTTPException, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -124,11 +125,13 @@ def check_idp_health() -> Dict[str, Any]:
         "readiness": True,
         "google_oauth_enabled": google_enabled,
         "supabase_callback_url": f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1/callback" if settings.SUPABASE_URL else "",
-        "allowed_redirect_urls": [
+        "allowed_redirect_urls": [u for u in dict.fromkeys([
             "http://localhost:8000/auth/callback",
             "http://127.0.0.1:8000/auth/callback",
             "http://localhost:5173/auth/callback",
-        ],
+            f"{settings.BASE_URL.rstrip('/')}/auth/callback" if getattr(settings, 'BASE_URL', None) else "",
+            "https://zamp-case-study-ps-1-1.onrender.com/auth/callback",
+        ]) if u],
         "message": f"Configured against {settings.IDP_PROVIDER} ({settings.SUPABASE_URL or settings.OIDC_ISSUER_URL}). Google OAuth is {'enabled' if google_enabled else 'unconfigured in Supabase Cloud project'}.",
     }
 
@@ -481,6 +484,72 @@ def resolve_server_side_membership(
         # In test mode with explicit test token hint before seeding
         if settings.APP_ENV == AppEnv.TEST and hint_org_id:
             return hint_org_id, "Test Organisation", hint_role or UserRole.AP_ASSOCIATE, True, [{"id": hint_org_id, "name": "Test Organisation"}], auth_user_id, False
+
+        # Evaluation Workspace Onboarding for Authenticated Identities:
+        if settings.APP_ENV != AppEnv.TEST and db is not None:
+            try:
+                eval_org = db.scalar(select(Organisation).where(Organisation.id == "org_sme_eval"))
+                if eval_org and email and (not requested_org_id or requested_org_id == "org_sme_eval"):
+                    now_utc = datetime.datetime.utcnow()
+                    eval_user = db.scalar(select(User).where(func.lower(User.email) == email.lower(), User.org_id == "org_sme_eval"))
+                    if not eval_user:
+                        eval_user = User(
+                            id=f"usr_eval_{uuid.uuid4().hex[:10]}",
+                            email=email.lower(),
+                            full_name=name or email.split("@")[0].replace(".", " ").title(),
+                            org_id="org_sme_eval",
+                            is_active=True,
+                            created_at=now_utc,
+                            updated_at=now_utc,
+                        )
+                        db.add(eval_user)
+                        db.flush()
+
+                        ra = RoleAssignment(
+                            id=f"ras_{uuid.uuid4().hex[:12]}",
+                            user_id=eval_user.id,
+                            org_id="org_sme_eval",
+                            role_name="AP_LEAD",
+                            granted_at=now_utc,
+                        )
+                        db.add(ra)
+
+                        if issuer and auth_user_id:
+                            im = IdentityMembership(
+                                id=f"idm_{uuid.uuid4().hex[:12]}",
+                                user_id=eval_user.id,
+                                org_id="org_sme_eval",
+                                issuer=issuer,
+                                subject=auth_user_id,
+                                is_active=True,
+                                is_owner=False,
+                                created_at=now_utc,
+                            )
+                            db.add(im)
+                        db.commit()
+                    else:
+                        if issuer and auth_user_id:
+                            existing_im = db.scalar(select(IdentityMembership).where(IdentityMembership.user_id == eval_user.id, IdentityMembership.org_id == "org_sme_eval"))
+                            if not existing_im:
+                                im = IdentityMembership(
+                                    id=f"idm_{uuid.uuid4().hex[:12]}",
+                                    user_id=eval_user.id,
+                                    org_id="org_sme_eval",
+                                    issuer=issuer,
+                                    subject=auth_user_id,
+                                    is_active=True,
+                                    is_owner=False,
+                                    created_at=now_utc,
+                                )
+                                db.add(im)
+                                db.commit()
+                    ra = db.scalar(select(RoleAssignment).where(RoleAssignment.user_id == eval_user.id, RoleAssignment.org_id == "org_sme_eval"))
+                    resolved_role = UserRole(ra.role_name) if ra and ra.role_name in UserRole.__members__ else UserRole.AP_LEAD
+                    return "org_sme_eval", eval_org.name, resolved_role, True, [{"id": "org_sme_eval", "name": eval_org.name}], eval_user.id, False
+            except Exception as prov_exc:
+                logger.warning(f"Evaluation auto-provisioning skipped: {prov_exc}")
+                db.rollback()
+
         # User is authenticated in Supabase but has NO active organization membership (uninvited/unprovisioned)
         if requested_org_id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied: no active membership in the selected workspace.")

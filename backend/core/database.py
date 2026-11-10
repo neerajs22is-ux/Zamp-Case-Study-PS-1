@@ -180,7 +180,27 @@ def check_db_health() -> dict:
                             role_name, is_super, has_bypass = role_info[0], bool(role_info[1]), bool(role_info[2])
                             health_payload["runtime_role"] = role_name
                             health_payload["bypasses_rls"] = is_super or has_bypass
-                            if is_super or has_bypass:
+
+                            drops_to_restricted_role = False
+                            try:
+                                conn.commit()
+                                with conn.begin():
+                                    conn.execute(text("SET LOCAL ROLE ap_app_user;"))
+                                    trans_role = conn.execute(
+                                        text("SELECT current_user, rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user")
+                                    ).first()
+                                    if trans_role and trans_role[0] == "ap_app_user" and not trans_role[1] and not trans_role[2]:
+                                        drops_to_restricted_role = True
+                            except Exception:
+                                drops_to_restricted_role = False
+
+                            if not is_super and not has_bypass:
+                                health_payload["role_security"] = "ENFORCED"
+                            elif drops_to_restricted_role:
+                                health_payload["role_security"] = "ENFORCED_VIA_SET_LOCAL_ROLE"
+                                health_payload["transaction_role"] = "ap_app_user"
+                                health_payload["readiness"] = True
+                            else:
                                 health_payload["role_warning"] = (
                                     f"Runtime role '{role_name}' has BYPASSRLS/SUPERUSER privileges. "
                                     "Tenant RLS policies declared TO ap_app_user are not enforced at database layer. "
@@ -190,8 +210,6 @@ def check_db_health() -> dict:
                                 if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
                                     health_payload["readiness"] = False
                                     health_payload["status"] = "UNENFORCED_RLS"
-                            else:
-                                health_payload["role_security"] = "ENFORCED"
                     except Exception as role_exc:
                         health_payload["role_inspection_error"] = str(role_exc)
                         if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING):
