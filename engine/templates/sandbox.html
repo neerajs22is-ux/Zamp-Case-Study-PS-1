@@ -1664,6 +1664,14 @@
 
     // Upload custom PDF
     async function uploadCustomPdf(file) {
+      if (!getAuthToken()) {
+        const shouldLogin = confirm("Authentication required: Live invoice ingestion requires an authenticated evaluation session. Would you like to log in to the AP Command Center now?");
+        if (shouldLogin) {
+          window.location.href = '/login';
+        }
+        return;
+      }
+
       resetViews();
       document.getElementById('scene-landing').classList.add('hidden');
       document.getElementById('processing-view').classList.remove('hidden');
@@ -1680,6 +1688,17 @@
           headers: getAuthHeaders(),
           body: formData,
         });
+
+        if (res.status === 401) {
+          stopTimer();
+          const shouldLogin = confirm("Session expired or unauthorized. Would you like to log in to the AP Command Center to process custom invoices?");
+          if (shouldLogin) {
+            window.location.href = '/login';
+          } else {
+            returnToLanding();
+          }
+          return;
+        }
 
         if (res.status === 409) {
           const conflictData = await res.json();
