@@ -116,22 +116,14 @@ def run_acceptance():
         page.screenshot(path=gates_shot, full_page=False)
         print("Captured Interactive Gates screenshot:", gates_shot)
 
-        # 5. TEST EVIDENCE TABS
+        # 5. TEST EVIDENCE TABS (Document PDF & Streamlined Structured Procurement Evidence)
         print("\n--- 5. Evidence Tabs Switching ---")
-        page.click("#tab-btn-fields")
-        time.sleep(0.3)
-        assert not page.query_selector("#tab-pane-fields").evaluate("el => el.classList.contains('hidden')")
-        print("Extracted fields tab active!")
-
         page.click("#tab-btn-procurement")
         time.sleep(0.3)
         assert not page.query_selector("#tab-pane-procurement").evaluate("el => el.classList.contains('hidden')")
-        print("Procurement tab active!")
-
-        page.click("#tab-btn-audit")
-        time.sleep(0.3)
-        assert not page.query_selector("#tab-pane-audit").evaluate("el => el.classList.contains('hidden')")
-        print("Audit trail tab active!")
+        proc_structured = page.query_selector("#drawer-procurement-structured")
+        assert proc_structured is not None
+        print("Streamlined Procurement evidence active with structured 3-way match cards!")
 
         page.click("#tab-btn-document")
         time.sleep(0.3)
