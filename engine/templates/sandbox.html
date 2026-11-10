@@ -198,7 +198,7 @@
   <!-- ========================================================================= -->
   <!-- 2. SCENE 0: LANDING EXPERIENCE — "THE INVOICE JOURNEY" -->
   <!-- ========================================================================= -->
-  <main id="scene-landing" class="flex-1 flex flex-col justify-center max-w-7xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-10 scene-animate-in">
+  <main id="scene-landing" class="flex-1 flex flex-col justify-center max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 sm:pt-10 pb-32 sm:pb-48 scene-animate-in">
     
     <!-- Section 1: Hero Header & Immersive Pipeline Visual -->
     <div class="text-center max-w-4xl mx-auto mb-8 sm:mb-12">
@@ -360,7 +360,7 @@
     </div>
 
     <!-- Section 3 & 4: Progressive Experience Decks (Guided Scenarios Gallery vs Upload Studio) -->
-    <div id="landing-decks-container" class="max-w-5xl mx-auto w-full">
+    <div id="landing-decks-container" class="max-w-5xl mx-auto w-full scroll-mt-20 min-h-[70vh]">
       
       <!-- Deck Navigation Tabs / Switcher -->
       <div class="flex items-center justify-center mb-6">
@@ -1417,10 +1417,20 @@
         }
 
         if (shouldScroll) {
-          const targetDeck = isScenarios ? scenariosDeck : uploadDeck;
-          if (targetDeck) {
-            targetDeck.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+          setTimeout(() => {
+            const container = document.getElementById('landing-decks-container');
+            if (container) {
+              const header = document.querySelector('header');
+              const headerHeight = header ? header.offsetHeight : 64;
+              const headerOffset = headerHeight + 16;
+              const elementPosition = container.getBoundingClientRect().top;
+              const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+              window.scrollTo({
+                top: Math.max(0, offsetPosition),
+                behavior: 'smooth'
+              });
+            }
+          }, 40);
         }
       }
     }
