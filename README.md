@@ -12,6 +12,8 @@
 > **Evaluation Scope:** Problem Statement 1 (PS-1: Automated Invoice Processing, 3-Way Matching & Governance Engine)  
 > **Core Architectural Invariant:** *"Models Read, Rules Decide"* — Multimodal AI extracts messy layout tokens with coordinate provenance; deterministic Python/PostgreSQL engines enforce Indian GST math, 3-way procurement tolerances, and seven financial policy gates with database-level audit immutability.
 
+> 🚀 **EVALUATORS START HERE:** Read the **[START_HERE.md](./START_HERE.md)** 1-page guide for live Render deployment links ([zamp-case-study-ps-1-1.onrender.com](https://zamp-case-study-ps-1-1.onrender.com)), Google SSO authentication instructions, 5-minute evaluation walkthrough, and golden scenario walkthroughs.
+
 ---
 
 ## 📑 Table of Contents
@@ -361,8 +363,9 @@ Authoritative verification snapshot executed on 2026-11-10 against Windows (Pyth
 
 ## 10. Repository Documentation Index
 
-For in-depth technical analysis and operational procedures, consult the authoritative documentation in [`docs/`](./docs/):
+For in-depth technical analysis and operational procedures, consult the authoritative documentation:
 
+- **[START_HERE.md](./START_HERE.md):** ⚡ **Evaluator Quick Start Guide** — Live Render links, Google SSO access, 5-minute walkthrough sequence, and scenario guide.
 - **[ARCHITECTURE.md](./ARCHITECTURE.md):** Detailed system architecture, data flows, and security model.
 - **[PROJECT_STATUS.md](./PROJECT_STATUS.md):** Milestone ledger, live provider findings, and test summary.
 - **[OPERATIONS_RUNBOOK.md](./OPERATIONS_RUNBOOK.md):** Production runbook, incident triage, and monitoring procedures.

@@ -13,10 +13,15 @@ Every ingested invoice passes through 7 sequential policy gates implemented in P
 | **Gate 1** | **Vendor Master Verification** | Confirms supplier is an active, approved vendor. | Vendor GSTIN and PAN match active record in `vendors` table. Status != `SUSPENDED`. | `REJECTED` (`VENDOR_UNAPPROVED` or `VENDOR_SUSPENDED`). |
 | **Gate 2** | **PO Authorization** | Confirms invoice references a valid, open Purchase Order. | Referenced PO exists in `purchase_orders` for the same tenant; remaining balance covers invoice amount. | `FLAGGED_EXCEPTION` (`MISSING_PO_REFERENCE` or `PO_EXHAUSTED`). |
 | **Gate 3** | **GRN Receipt Match** | Verifies physical receipt of goods in warehouse. | Linked Goods Receipt Note (`goods_receipt_notes`) exists; received quantity $\ge$ billed quantity. | `FLAGGED_EXCEPTION` (`GRN_NOT_FOUND` or `UNRECEIVED_QUANTITY`). |
-| **Gate 4** | **QC Technical Acceptance** | Verifies delivered items passed quality inspection. | Linked Quality Certificate (`qc_certificates`) exists with status `ACCEPTED`. | `FLAGGED_EXCEPTION` (`QC_REJECTED` or `QC_PENDING`). |
-| **Gate 5** | **GST Arithmetic & Tax Match** | Verifies tax math and interstate/intrastate classification. | $\left\|\text{Subtotal} + \text{Taxes} - \text{Total}\right\| \le ₹20.00$; correct IGST vs CGST+SGST based on state codes. | `FLAGGED_EXCEPTION` (`GST_MATH_MISMATCH` or `INVALID_TAX_SPLIT`). |
-| **Gate 6** | **PO Price & Qty Tolerance** | Checks billed unit rates against contracted PO prices. | Line unit rate variance $\le 1.50\%$; line quantity does not exceed remaining PO quantity. | `FLAGGED_EXCEPTION` (`PRICE_VARIANCE_EXCEEDED` or `QTY_OVERRUN`). |
-| **Gate 7** | **Duplicate Payment Check** | Prevents double payment of identical invoices. | No existing record with identical SHA-256 hash or identical (Vendor GSTIN + Invoice Number + FY). | `REJECTED` (`DUPLICATE_DETECTED`). |
+| **Gate 4** | **QC Technical Acceptance** | Verifies delivered items passed quality inspection. | Linked Quality Certificate (`qc_certificates`) exists with status in (`ACCEPTED`, `PASS`, `PASSED`). Statuses `HOLD`, `QUARANTINE`, or `REJECTED` fail deterministically. | `FLAGGED_EXCEPTION` (`QC_REJECTED` or `QC_PENDING`). |
+| **Gate 5** | **GST Arithmetic & Tax Match** | Verifies tax math and interstate/intrastate classification. | $\left\|\text{Subtotal} + \text{Taxes} - \text{Total}\right\| \le ₹20.00$; correct IGST vs CGST+SGST based on state codes; line arithmetic balanced. | `FLAGGED_EXCEPTION` (`GST_MATH_MISMATCH` or `INVALID_TAX_SPLIT`). |
+| **Gate 6** | **PO Price & Qty Tolerance** | Checks billed unit rates against contracted PO prices. | Line unit rate variance $\le 1.50\%$ (rate variance $> 1.50\%$ fails); line quantity does not exceed remaining PO quantity ($0.00\%$ over-delivery tolerance). | `FLAGGED_EXCEPTION` (`PRICE_VARIANCE_EXCEEDED` or `QTY_OVERRUN`). |
+| **Gate 7** | **Duplicate Commercial Voucher Check** | Prevents double payment of identical commercial vouchers. | No existing record with identical (Vendor GSTIN + normalized Invoice Number) in tenant ledger. | `REJECTED` (`DUPLICATE_DETECTED`). |
+
+> [!NOTE]
+> **Two-Tier Deduplication Defense:**
+> 1. **Ingestion File Upload Check:** Intercepts byte-identical documents at upload time via cryptographic SHA-256 hash collision, returning `HTTP 409 Conflict`.
+> 2. **Gate 7 Commercial Deduplication:** Evaluates normalized commercial invoice identity (Vendor GSTIN + Invoice Number stripped of hyphens, slashes, spaces) against the tenant database. Even if a file is re-scanned (generating different bytes) or formats change, duplicate liability is intercepted.
 
 ---
 
@@ -41,15 +46,15 @@ The system implements GST verification tailored to Indian corporate statutory co
 stateDiagram-v2
     [*] --> INGESTED: Document Uploaded
     INGESTED --> EXTRACTION_COMPLETE: Text/Visual Extraction Done
-    EXTRACTION_COMPLETE --> QUARANTINED: Class = PAYMENT_RECEIPT
+    EXTRACTION_COMPLETE --> QUARANTINED: Class = PAYMENT_RECEIPT (Autonomous Rejection)
     EXTRACTION_COMPLETE --> MATCHING_IN_PROGRESS: Class = TAX_INVOICE
     
     MATCHING_IN_PROGRESS --> REJECTED: Gate 1 or 7 Fails (Duplicate / Unapproved)
     MATCHING_IN_PROGRESS --> ACTION_REQUIRED: Gate 2-6 Fails or Scanned HITL
     MATCHING_IN_PROGRESS --> PENDING_APPROVAL: All 7 Gates PASS (Match Candidate)
     
-    PENDING_APPROVAL --> INTERNAL_APPROVAL_COMPLETE: AP Lead Sign-Off (< ₹5L) -> MANUALLY_APPROVED
-    PENDING_APPROVAL --> ACTION_REQUIRED: Net Payable ≥ ₹5L (Dual Control Triggered)
+    PENDING_APPROVAL --> INTERNAL_APPROVAL_COMPLETE: AP Lead Sign-Off (< ₹5,00,000) -> MANUALLY_APPROVED
+    PENDING_APPROVAL --> ACTION_REQUIRED: Net Payable ≥ ₹5,00,000 (Dual Control Triggered)
     
     ACTION_REQUIRED --> INTERNAL_APPROVAL_COMPLETE: Controller Sign-Off (Dual Control Cleared)
     ACTION_REQUIRED --> ACTION_REQUIRED: AP Lead Query Hold (HOLD_PENDING_EVIDENCE)
@@ -63,10 +68,10 @@ stateDiagram-v2
 ### Critical State Definitions
 
 - **`MATCH_CANDIDATE` (Recommendation):** Initial pipeline status when all 7 match gates pass. It is **not** an approval. It indicates that the invoice is clean and awaiting human sign-off.
-- **`AUTO_APPROVED` (Straight-Through Processing):** Reserved strictly for fully automated, touchless processing where zero human intervention took place. Conflating human approvals with `AUTO_APPROVED` is forbidden as it skews touchless rate analytics.
+- **`AUTO_APPROVED` (Straight-Through Processing):** Reserved strictly for fully automated, touchless processing where zero human intervention took place. In the current enterprise deployment, touchless auto-disbursement is intentionally deferred; all candidate matches require human review.
 - **`MANUALLY_APPROVED` (Human Review Complete):** Assigned when an `AP_LEAD` or `CONTROLLER` reviews the document evidence and gate results and submits `APPROVE_AP_REVIEW`.
 - **`HOLD_PENDING_EVIDENCE` (Query Hold):** Applied when an AP Lead places an operational hold (e.g., waiting for vendor rate credit note or amended PO).
-- **`QUARANTINED`:** Assigned to non-payable commercial files (receipts, statements). Zero liability is registered in the AP ledger.
+- **`QUARANTINED`:** Assigned to non-payable commercial files (payment receipts, account statements). Autonomous rejection occurs with zero liability registered in the AP ledger.
 
 ---
 
@@ -77,7 +82,7 @@ stateDiagram-v2
 - **Dual Approval ($\ge ₹5,00,000$):**
   1. `AP_LEAD` submits first approval. Invoice stage transitions to `ACTION_REQUIRED` with `ApprovalRequest` status `PENDING_SECOND_APPROVAL`.
   2. Second sign-off must be performed by a different user with role `CONTROLLER` (`usr_sme_ctrl_01`) or `SYSTEM_ADMIN`.
-  3. **Anti-Self-Approval Rule:** If the Controller's user ID matches the initial approver, the request is rejected with HTTP 400.
+  3. **Anti-Self-Approval Rule:** If the Controller's user ID matches the initial approver (`actor_id == first_approver_id`), the action is blocked with HTTP 400.
 
 ---
 

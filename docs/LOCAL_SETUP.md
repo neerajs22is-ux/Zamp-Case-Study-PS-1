@@ -104,30 +104,34 @@ The application consists of a FastAPI backend and a React 19 / Vite frontend.
    Frontend will be live at `http://localhost:5173`.
    Vite is configured with a reverse-proxy routing all `/api` requests to `http://127.0.0.1:8000`.
 
-### Option B: Unified Production Container / Single-Port Mode
+### Option B: Unified Production / Single-Port Mode
 
-FastAPI is configured to serve the compiled frontend production bundle directly from `frontend/dist`:
+FastAPI serves the compiled frontend production bundle directly from `frontend/dist`:
 
 1. **Build the Frontend Assets:**
    ```bash
-   cd frontend
-   npm run build
-   cd ..
+   npm --prefix frontend run build
    ```
 
-2. **Launch Unified Production Runner:**
+2. **Launch Unified Local Server:**
+   ```bash
+   python run.py
+   ```
+   Access the Flagship application on `http://127.0.0.1:8001` and the Sandbox on `http://127.0.0.1:8001/sandbox`.
+   
+   For containerized production runtimes respecting `$PORT`:
    ```bash
    python run_production.py
    ```
-   Access the entire application on `http://127.0.0.1:8000`.
 
 ---
 
 ## 5. Verification & Test Execution
 
-Run the complete automated test suite (244 tests):
+Run the complete automated test suite (authoritative baseline: 520 passed, 0 failed, 43 skipped across 563 collected Python tests; 20 frontend unit tests):
 ```bash
-python -m pytest tests/ -v
+python -m pytest tests/ -q
+npm test --prefix frontend
 ```
 
 Run specific test phases:
@@ -153,7 +157,7 @@ When `ENABLE_DEV_SESSION=true` is set in local development, navigate to `http://
 
 | Persona Name | Email | Role | Granted Permissions |
 | :--- | :--- | :--- | :--- |
-| **Priya Sharma** | `sme_lead@company.internal` | `AP_LEAD` | View inbox, 3-pane review, approve invoices (< ₹5,00,000), place query holds, reject invoices. |
+| **Priya Sharma** | `sme_lead@company.internal` | `AP_LEAD` | View inbox, 2-column review workspace, approve invoices (< ₹5,00,000), place query holds, reject invoices. |
 | **Rajesh Nair** | `sme_controller@company.internal` | `CONTROLLER` | Financial dashboards, metrics, secondary dual-control approval on high-value invoices ($\ge ₹5,00,000$). |
 | **Ananya Iyer** | `sme_assoc@company.internal` | `AP_ASSOCIATE` | Document ingestion, viewing, initial triage. |
 | **Vikram Malhotra** | `sme_auditor@company.internal` | `AUDITOR` | Strictly read-only inspection; all mutation actions return HTTP 403 Forbidden. |

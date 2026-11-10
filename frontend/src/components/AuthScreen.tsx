@@ -664,7 +664,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                   <span className="font-semibold text-slate-800 dark:text-slate-200">Evaluation Personas:</span>
                   <ul className="space-y-1 text-[11.5px] list-disc list-inside auth-muted">
                     <li><strong className="text-slate-700 dark:text-slate-300">AP Lead:</strong> Full approval authority & exception routing</li>
-                    <li><strong className="text-slate-700 dark:text-slate-300">Financial Controller:</strong> Dual approval on ₹10L+ liability</li>
+                    <li><strong className="text-slate-700 dark:text-slate-300">Financial Controller:</strong> Dual approval on ≥ ₹5,00,000 liability</li>
                     <li><strong className="text-slate-700 dark:text-slate-300">Auditor:</strong> Read-only immutable audit ledger</li>
                     <li><strong className="text-slate-700 dark:text-slate-300">AP Associate:</strong> Line-item discrepancy checks</li>
                   </ul>

@@ -79,9 +79,10 @@ All contributors must adhere to strict security policies:
 Before submitting changes or staging commits:
 
 1. **Run Full Test Suite:**
-   All 244 automated tests must pass:
+   All automated tests must pass (authoritative baseline: 520 passed, 0 failed, 43 skipped across 563 collected Python tests; 20 frontend unit tests):
    ```bash
-   python -m pytest tests/ -v
+   python -m pytest tests/ -q
+   npm test --prefix frontend
    ```
 2. **Verify Frontend Build:**
    The frontend build must succeed with 0 errors:
@@ -105,6 +106,6 @@ Before submitting changes or staging commits:
 
 If you are an independent AI model conducting a UI/UX audit or redesign:
 - Read [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md) first to understand existing operator pain points.
-- Review the 3-pane workflow in [`frontend/src/pages/InvoiceDetailPage.tsx`](./frontend/src/pages/InvoiceDetailPage.tsx).
+- Review the 2-column responsive review workspace in [`frontend/src/pages/InvoiceDetailPage.tsx`](./frontend/src/pages/InvoiceDetailPage.tsx).
 - Respect business terminology: `MATCH_CANDIDATE` (recommendation), `MANUALLY_APPROVED` (human sign-off), `AUTO_APPROVED` (STP only), `HOLD_PENDING_EVIDENCE` (query hold), `QUARANTINED` (non-payable document).
 - Maintain statutory compliance: Action justification must remain mandatory for audit trails.

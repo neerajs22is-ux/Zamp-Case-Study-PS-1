@@ -15,7 +15,7 @@ This document provides an authoritative, truthful accounting of completed milest
 | **Palmyra Vision**| Multimodal visual extraction evaluation (writer.palmyra-vision-7b) on degraded scans. | Live Palmyra API calls, latency and cost benchmarking, fail-closed rule. | **COMPLETED** | Feature-flagged OFF by default |
 | **Phase E** | Controlled SME acceptance testing on evaluation tenant `org_sme_eval` & security hardening. | Real browser-level Playwright tests, enterprise JWT auth, dual-control policy. | **COMPLETED** | 100% Pass (244 tests) |
 | **Phase U** | **Unified Engine & Dual Experiences (Sandbox + Flagship):** Retire USD mock rules; establish Flagship as sole authoritative business engine; rebuild sandbox to consume shared APIs. | Parity testing suite `tests/test_sandbox_flagship_parity.py`, Decimal INR, 7 gates, 6 genuine scenarios. | **COMPLETED** | 11 parity tests recorded passing (see §4) |
-| **Render Deploy** | Production container deployment on Render Web Service. | Production deployment. | **NOT DEPLOYED (ON HOLD)** | Blocked on the P0 items in §8 (migrations 011–013, public deployment, browser acceptance) |
+| **Render Deploy** | Production container deployment on Render Web Service. | Live HTTPS endpoint, Supabase DB & Storage, Bedrock Mantle, Google SSO. | **LIVE PRODUCTION** | Fully deployed at https://zamp-case-study-ps-1-1.onrender.com |
 | **Phase P0** | Multimodal OCR + Vision pipeline (RapidOCR ONNX, Palmyra Vision, Mantle Qwen 235B) & Ask4i-inspired grounding tripwires. | Multimodal token coordinates, page provenance, fail-closed hallucination detection. | **COMPLETED** | Verified with live/scanned docs |
 | **Phase P1** | **Sandbox 2.0 & Multi-App Responsiveness:** Redesigned Sandbox landing ('The Invoice Journey') & 9-viewport responsiveness audit. | 44 automated Playwright viewport checks (320px–1920px), zero overflow, acceptance suite 100%. | **COMPLETED** | 100% Pass (44/44 checks) |
 | **Step 1** | **Repository Packaging & Dependency Hygiene:** Declared OCR dependencies (rapidocr, onnxruntime, numpy), curated visual assets, and rebuilt README. | Dependency audit and secret scan (recorded by author). Docker image build not re-run in the hygiene pass. | **COMPLETED** | Recorded, see §4 |
@@ -62,7 +62,7 @@ This document provides an authoritative, truthful accounting of completed milest
 - **Live Supabase Private Storage:** Verified file uploads, SHA-256 integrity, and signed URL generation (300s TTL) against private bucket `invoices`.
 - **Live AWS Bedrock Mantle Endpoint:** Verified inference against model `qwen.qwen3-235b-a22b-2507-v1:0` in `ap-south-1`. Latency 2.9s–3.1s, cost $0.0022 USD/call. Zero mock fallbacks.
 - **Live AWS Bedrock Palmyra Vision Endpoint:** Verified API authentication and vision inference against model `writer.palmyra-vision-7b` in `us-east-1`. Latency 4.1s, cost $0.0018 USD/call.
-- **Real Browser Automation (Playwright & Edge):** Verified all 4 commercial SME acceptance scenarios, 3-pane UI rendering, hold controls, and quarantine views in headless Microsoft Edge.
+- **Real Browser Automation (Playwright & Edge):** Verified all 4 commercial SME acceptance scenarios, 2-column responsive UI rendering, hold controls, and quarantine views in headless Microsoft Edge.
 
 ---
 
@@ -105,29 +105,34 @@ Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3
 
 ## 6. Current Deployment Status
 
-- **Status:** **ON HOLD** awaiting explicit user sign-off.
-- **Packaging:** Multi-stage Dockerfile and `render.yaml` are validated and container-ready.
-- **Local Application:** `python run.py` serves the Flagship, Sandbox and (development-only) Legacy experiences on `http://127.0.0.1:8001`.
+- **Status:** **LIVE ON RENDER**
+- **Public URL:** `https://zamp-case-study-ps-1-1.onrender.com`
+- **Sandbox URL:** `https://zamp-case-study-ps-1-1.onrender.com/sandbox`
+- **Health Check Endpoints:**
+  - Liveness: `GET /healthz` (returns `{"status": "ok", "app": "zamp-ap-command-center"}`) or `GET /`
+  - Dependency Readiness: `GET /api/v1/system/status` or `GET /health/ready`
+- **Packaging:** Multi-stage Dockerfile deployed via Render Web Service (Starter plan, Docker runtime, Port 8000).
+- **Database Status:** Live Supabase PostgreSQL database is fully synchronized at migration revision `013_revoke_access_tokens`.
+- **Local Application:** `python run.py` serves the unified server on `http://127.0.0.1:8001` (Flagship on root `/`, Sandbox on `/sandbox`).
 
 ---
 
-## 7. Next Recommended Development Milestone
+## 7. Current Project State & Submission Status
 
-Complete the P0 items in §8 (migrations 011–013, public deployment, browser-based acceptance). UI ergonomics follow-ups (review-workspace density, keyboard triage, bulk actions) are tracked in [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md).
-
+The system has completed all functional, security, database migration, parity, and deployment milestones. All P0 production readiness criteria (migrations 011–013 applied to live database, Render public HTTPS deployment operational, evaluator Google SSO with server-side allowlist, live Bedrock Mantle inference, and dual-experience parity) are **RESOLVED, VERIFIED, and LIVE**. Code freeze is recommended for submission.
 
 ---
 
-## 8. Current Readiness & Product Strategy Assessment (8 November 2026)
+## 8. Current Readiness & Product Strategy Assessment
 
 ### Product Strategy Realignment:
-- **Primary Flagship Target:** The **Autonomous AP Command Center** (`backend/` + `frontend/`) is the central product, 5-minute video walkthrough target, and primary planned hosted deployment for the Zamp PS-1 submission (currently verified on local loopback `127.0.0.1:8001`, pending P0 public cloud launch).
-- **Auxiliary Tool:** The standalone engine (`engine/`) is an optional, secondary offline evaluation sandbox for local algorithmic inspection without cloud credentials.
+- **Primary Flagship Target:** The **Autonomous AP Command Center** (`backend/` + `frontend/`) is the central product, 5-minute video walkthrough target, and authoritative hosted deployment for the Zamp PS-1 submission at `https://zamp-case-study-ps-1-1.onrender.com` (and on local loopback `127.0.0.1:8001`).
+- **Interactive Sandbox:** The AP Command Center Sandbox (`/sandbox`) is the guided demonstration experience featuring 6 authentic commercial scenarios and custom PDF execution through the unified backend engine.
 
 ### Current Technical Verification & Findings Ledger:
 1. **Provider Acceptance Report (Nov 6):** **`[HISTORICALLY VERIFIED]`** Real execution of 5 cases using 4 live AWS Mantle Qwen-235B calls; resources were ephemerally cleaned up.
 2. **`render.yaml` Configuration:** **`[CONFIRMED & REMEDIATED in commit d6f03d0]`** Added `STORAGE_BUCKET_NAME: invoices` to render.yaml.
-3. **Database Migration State:** **`[CONFIRMED]`** Persistent Supabase PostgreSQL database reported migration `010_identity_memberships`. Applying migrations `011`–`013` per `docs/MIGRATION_READINESS_PROCEDURE.md` is a P0 requirement before live traffic to resolve `revoked_access_tokens`.
+3. **Database Migration State:** **`[CONFIRMED & APPLIED]`** Live Supabase PostgreSQL database is fully migrated to `013_revoke_access_tokens`. Table `revoked_access_tokens` is active, verified, and enforcing token revocation.
 4. **Safety Guard in `sme_eval_setup.py`:** **`[CONFIRMED & REMEDIATED in commits d6f03d0 & 8979bce & current]`** Checks `settings.APP_ENV`, requires `ALLOW_SYNTHETIC_SEEDING=True`, enforces cloud host blocklist, and restricts non-loopback databases to verified disposable targets with authentication keys.
 5. **Evaluator Authentication:** **`[CONFIRMED & REMEDIATED]`** Shared-JWT URL links rejected. Frontend implements provider-supported Supabase Email OTP (`create_user: false`), refresh token rotation (`grant_type=refresh_token`), deduplicated 401 retry, clean logout, and unknown-email 403 gating; loopback `dev-session` strictly barred in production.
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
