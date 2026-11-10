@@ -649,8 +649,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
             ) : (
               <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 leading-relaxed">
-                  <strong className="block text-xs font-bold text-emerald-950 mb-1">One-Click Evaluator Access</strong>
-                  Click <strong>Continue with Google</strong> on the left. Any authenticated evaluator identity is automatically onboarded into <code>org_sme_eval</code> as <strong>AP Lead</strong>.
+                  <strong className="block text-xs font-bold text-emerald-950 mb-1">Pre-Authorized Evaluator Access</strong>
+                  Click <strong>Continue with Google</strong> on the left. Pre-authorized evaluator accounts receive direct access to <code>org_sme_eval</code>. Unapproved accounts will remain unprovisioned pending administrator review.
                 </div>
 
                 <div className="space-y-1">
@@ -675,7 +675,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
 
           <details className="auth-developer mt-5 border-t pt-4" open={!canShowQuickLogin}>
             <summary className="auth-link cursor-pointer text-sm font-medium">
-              Evaluator token access
+              Authorized evaluator token
             </summary>
 
             <div className="mt-3 space-y-2">
@@ -683,7 +683,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
                 htmlFor="developer-token"
                 className="block text-xs font-medium text-slate-700 dark:text-slate-300"
               >
-                Bearer token (for specific personas)
+                Cryptographic Bearer token (pre-authorized personas)
               </label>
 
               <div className="flex flex-wrap gap-2">

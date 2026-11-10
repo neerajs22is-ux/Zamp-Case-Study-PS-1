@@ -600,8 +600,11 @@ def submit_access_request(
             detail=f"Organisation '{payload.org_id}' does not exist.",
         )
 
-    # Safe instant onboarding for the dedicated evaluation workspace org_sme_eval
-    if payload.org_id == "org_sme_eval":
+    # Safe instant onboarding for the dedicated evaluation workspace org_sme_eval (Approved Evaluators ONLY)
+    allowed_evaluators = {e.lower().strip() for e in (getattr(settings, "EVALUATOR_ALLOWLIST_EMAILS", []) or [])}
+    is_approved_evaluator = bool(current_user.email and (current_user.email.lower().strip() in allowed_evaluators))
+
+    if payload.org_id == "org_sme_eval" and is_approved_evaluator:
         now_utc = datetime.datetime.utcnow()
         role = payload.requested_role or UserRole.AP_LEAD
         eval_user = db.scalar(select(User).where(func.lower(User.email) == current_user.email.lower(), User.org_id == "org_sme_eval"))

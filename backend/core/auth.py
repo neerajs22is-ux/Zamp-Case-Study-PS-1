@@ -485,12 +485,15 @@ def resolve_server_side_membership(
         if settings.APP_ENV == AppEnv.TEST and hint_org_id:
             return hint_org_id, "Test Organisation", hint_role or UserRole.AP_ASSOCIATE, True, [{"id": hint_org_id, "name": "Test Organisation"}], auth_user_id, False
 
-        # Evaluation Workspace Onboarding for Authenticated Identities:
+        # Evaluation Workspace Onboarding for Approved Evaluator Identities ONLY:
         if settings.APP_ENV != AppEnv.TEST and db is not None:
             try:
-                eval_org = db.scalar(select(Organisation).where(Organisation.id == "org_sme_eval"))
-                if eval_org and email and (not requested_org_id or requested_org_id == "org_sme_eval"):
-                    now_utc = datetime.datetime.utcnow()
+                allowed_evaluators = {e.lower().strip() for e in (getattr(settings, "EVALUATOR_ALLOWLIST_EMAILS", []) or [])}
+                is_approved = bool(email and (email.lower().strip() in allowed_evaluators))
+                if is_approved and (not requested_org_id or requested_org_id == "org_sme_eval"):
+                    eval_org = db.scalar(select(Organisation).where(Organisation.id == "org_sme_eval"))
+                    if eval_org and email:
+                        now_utc = datetime.datetime.utcnow()
                     eval_user = db.scalar(select(User).where(func.lower(User.email) == email.lower(), User.org_id == "org_sme_eval"))
                     if not eval_user:
                         eval_user = User(

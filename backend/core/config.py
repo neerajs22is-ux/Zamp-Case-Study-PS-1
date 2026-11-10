@@ -83,6 +83,28 @@ class Settings(BaseSettings):
     # Emergency recovery cutoff, Unix seconds UTC; requires signed token iat.
     AUTH_REJECT_TOKENS_ISSUED_BEFORE: Optional[int] = Field(default=None, ge=0)
     OIDC_ISSUER_URL: Optional[str] = "https://accounts.google.com"
+
+    # Server-Controlled Allowlist for Automatic Evaluator Onboarding
+    EVALUATOR_ALLOWLIST_EMAILS: List[str] = Field(
+        default_factory=lambda: [
+            "neeraj2016year@gmail.com",
+            "sme_lead@company.internal",
+            "sme_controller@company.internal",
+            "sme_auditor@company.internal",
+            "sme_associate@company.internal",
+            "evaluator@zamp.ai",
+            "evaluator@company.internal",
+        ]
+    )
+
+    @field_validator("EVALUATOR_ALLOWLIST_EMAILS", mode="before")
+    @classmethod
+    def parse_evaluator_allowlist(cls, v: Any) -> List[str]:
+        if isinstance(v, str):
+            return [e.strip().lower() for e in v.split(",") if e.strip()]
+        if isinstance(v, (list, tuple, set)):
+            return [str(e).strip().lower() for e in v if str(e).strip()]
+        return []
     OIDC_CLIENT_ID: Optional[str] = None
     OIDC_CLIENT_SECRET: Optional[str] = None
     OIDC_REDIRECT_URI: str = "http://localhost:8000/api/v1/auth/callback"
