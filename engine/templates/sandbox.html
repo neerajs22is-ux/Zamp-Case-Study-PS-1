@@ -131,14 +131,284 @@
         transition: none !important;
       }
     }
+
+    /* ===== Sandbox 2.0 — shared visual system ===== */
+    body { background-color: #070204; }
+    .ambient-glow {
+      background:
+        radial-gradient(ellipse 70% 55% at 72% -8%, rgba(118, 0, 49, 0.55), transparent 62%),
+        radial-gradient(ellipse 45% 40% at 96% 34%, rgba(213, 28, 57, 0.18), transparent 70%),
+        radial-gradient(ellipse 45% 45% at 4% 76%, rgba(118, 0, 49, 0.24), transparent 70%),
+        #070204;
+    }
+    .site-header {
+      background: rgba(7, 2, 4, 0.86);
+      border-color: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 18px 50px -36px rgba(0, 0, 0, 0.95);
+    }
+
+    .sandbox-eyebrow {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      padding: 0.38rem 0.78rem; border-radius: 999px;
+      background: rgba(118, 0, 49, 0.38);
+      border: 1px solid rgba(255, 96, 96, 0.3);
+      color: #ffb3b3; font-size: 0.72rem; font-weight: 650; letter-spacing: 0.01em;
+    }
+    .eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff6060; box-shadow: 0 0 0 4px rgba(255, 96, 96, 0.14); }
+
+    .hero-grid {
+      display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 0.95fr);
+      gap: clamp(1.5rem, 4vw, 4rem); align-items: center;
+      max-width: 76rem; margin: 0 auto; width: 100%;
+    }
+    .hero-copy { max-width: 39rem; }
+    .hero-title {
+      margin: 1rem 0 1.1rem; color: #fff;
+      font-size: clamp(2.65rem, 5.4vw, 4.7rem); line-height: 0.98;
+      letter-spacing: -0.052em; font-weight: 800;
+    }
+    .hero-title .title-accent {
+      background: linear-gradient(100deg, #ff6060 8%, #feec41 92%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero-subtitle {
+      color: #cbd5e1; font-size: clamp(0.98rem, 1.35vw, 1.12rem);
+      line-height: 1.72; max-width: 36rem;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 0.7rem; margin-top: 1.5rem; }
+    .hero-trust { display: flex; flex-wrap: wrap; gap: 1.1rem; margin-top: 1.4rem; color: #94a3b8; font-size: 0.72rem; }
+    .hero-trust span { display: inline-flex; align-items: center; gap: 0.4rem; }
+    .hero-trust svg { width: 14px; height: 14px; color: #feec41; }
+
+    .cta-primary, .cta-ghost {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.72rem 1.05rem; border-radius: 0.8rem;
+      font-size: 0.78rem; font-weight: 750; letter-spacing: 0.005em;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+    }
+    .cta-primary {
+      color: #fff; border: 1px solid rgba(255, 96, 96, 0.38);
+      background: linear-gradient(110deg, #d51c39, #760031);
+      box-shadow: 0 12px 30px -14px rgba(213, 28, 57, 0.75);
+    }
+    .cta-primary:hover { transform: translateY(-1px); box-shadow: 0 16px 34px -14px rgba(213, 28, 57, 0.9); background: linear-gradient(110deg, #e42a47, #8a063b); }
+    .cta-ghost {
+      color: #e2e8f0; background: rgba(18, 4, 9, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .cta-ghost:hover { border-color: rgba(255, 96, 96, 0.5); color: #fff; background: rgba(30, 7, 17, 0.9); transform: translateY(-1px); }
+    .cta-primary svg, .cta-ghost svg { width: 15px; height: 15px; }
+
+    /* Premium invoice illustration, built from CSS + Lucide icons. */
+    .hero-art { position: relative; min-height: 390px; display: flex; align-items: center; justify-content: center; isolation: isolate; }
+    .hero-art-glow {
+      position: absolute; width: 420px; height: 420px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(213, 28, 57, 0.3), rgba(118, 0, 49, 0.12) 45%, transparent 70%);
+      filter: blur(12px); z-index: -1;
+    }
+    .invoice-stack { position: relative; width: 245px; height: 320px; transform: rotate(-7deg); }
+    .invoice-paper {
+      position: absolute; inset: 0; border-radius: 18px;
+      background: linear-gradient(145deg, #fff9f3 0%, #f6e5e4 55%, #e9cbd2 100%);
+      box-shadow: 0 35px 70px -26px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.35) inset;
+    }
+    .paper-back { transform: rotate(11deg) translate(26px, -10px); opacity: 0.3; background: linear-gradient(145deg, #ff6060, #760031); }
+    .paper-mid { transform: rotate(5deg) translate(13px, -4px); opacity: 0.72; }
+    .paper-front { padding: 24px 22px; color: #3a0a1a; overflow: hidden; }
+    .invoice-topline { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+    .invoice-brand { font-size: 0.58rem; font-weight: 800; letter-spacing: 0.18em; color: #760031; }
+    .invoice-tag { font-size: 0.52rem; font-weight: 800; letter-spacing: 0.14em; color: #9f1239; padding: 0.18rem 0.4rem; border: 1px solid rgba(118, 0, 49, 0.24); border-radius: 999px; }
+    .invoice-meta { display: flex; justify-content: space-between; gap: 0.5rem; margin-top: 0.8rem; color: #9d6b78; font-family: 'JetBrains Mono', monospace; font-size: 0.48rem; }
+    .invoice-lines { margin-top: 1.4rem; display: grid; gap: 0.62rem; }
+    .invoice-lines span { display: block; height: 6px; border-radius: 999px; background: #d9bcc3; }
+    .invoice-lines span:nth-child(1) { width: 82%; background: #c99aa6; }
+    .invoice-lines span:nth-child(2) { width: 64%; }
+    .invoice-lines span:nth-child(3) { width: 74%; }
+    .invoice-lines span:nth-child(4) { width: 48%; }
+    .invoice-total { display: flex; align-items: flex-end; justify-content: space-between; gap: 0.5rem; margin-top: 1.5rem; padding-top: 0.85rem; border-top: 1px solid rgba(118, 0, 49, 0.18); }
+    .invoice-total span { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.12em; color: #9d6b78; }
+    .invoice-total strong { font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; color: #760031; }
+    .invoice-stamp {
+      position: absolute; right: 18px; bottom: 18px; width: 46px; height: 46px; border-radius: 50%;
+      display: grid; place-items: center; color: #feec41;
+      background: linear-gradient(135deg, #d51c39, #760031);
+      box-shadow: 0 10px 22px -8px rgba(118, 0, 49, 0.8), 0 0 0 5px rgba(213, 28, 57, 0.1);
+    }
+    .invoice-stamp svg { width: 21px; height: 21px; stroke-width: 2.6; }
+    .float-chip {
+      position: absolute; width: 46px; height: 46px; border-radius: 14px;
+      display: grid; place-items: center; color: #ff8d8d;
+      background: rgba(24, 6, 14, 0.88); border: 1px solid rgba(255, 96, 96, 0.28);
+      box-shadow: 0 18px 35px -20px rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    }
+    .float-chip svg { width: 20px; height: 20px; }
+    .chip-1 { top: 34px; left: -36px; transform: rotate(7deg); }
+    .chip-2 { top: 116px; left: -58px; transform: rotate(-5deg); color: #feec41; }
+    .chip-3 { top: 58px; right: -34px; transform: rotate(-6deg); color: #feec41; }
+    .chip-4 { bottom: 66px; right: -44px; transform: rotate(5deg); }
+
+    .pipeline-panel {
+      max-width: 76rem; margin: clamp(2rem, 4vw, 3.2rem) auto 0; width: 100%;
+      padding: 1.15rem 1.25rem 1.3rem; border-radius: 1.35rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(28, 8, 17, 0.86), rgba(12, 3, 8, 0.92));
+      box-shadow: 0 24px 70px -46px rgba(0, 0, 0, 0.95);
+    }
+    .pipeline-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.35rem; }
+    .pipeline-kicker { display: inline-flex; align-items: center; gap: 0.6rem; color: #f1f5f9; font-size: 0.82rem; font-weight: 700; }
+    .pipeline-kicker svg { width: 17px; height: 17px; color: #ff6060; }
+    .pipeline-hint { color: #64748b; font-size: 0.68rem; }
+    .pipeline-grid { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.5rem; }
+    .pipeline-grid::before {
+      content: ""; position: absolute; left: 8%; right: 8%; top: 23px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 96, 96, 0.36) 12%, rgba(254, 236, 65, 0.28) 50%, rgba(255, 96, 96, 0.36) 88%, transparent);
+    }
+    .stage-card { position: relative; z-index: 1; text-align: center; padding: 0.2rem 0.35rem; }
+    .stage-icon {
+      width: 46px; height: 46px; margin: 0 auto 0.7rem; border-radius: 14px;
+      display: grid; place-items: center; color: #ffb3b3;
+      background: linear-gradient(180deg, rgba(53, 12, 28, 0.96), rgba(26, 6, 14, 0.96));
+      border: 1px solid rgba(255, 96, 96, 0.24);
+      box-shadow: 0 12px 24px -16px rgba(0, 0, 0, 0.9);
+      transition: transform 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .stage-icon svg { width: 19px; height: 19px; }
+    .stage-card:hover .stage-icon { transform: translateY(-3px); border-color: rgba(255, 96, 96, 0.62); color: #feec41; }
+    .stage-title { color: #f8fafc; font-size: 0.76rem; font-weight: 750; letter-spacing: -0.01em; }
+    .stage-card p { margin-top: 0.28rem; color: #94a3b8; font-size: 0.62rem; line-height: 1.45; }
+    .stage-card p span { color: #64748b; }
+
+    .choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 76rem; margin: 2.2rem auto 2rem; width: 100%; }
+    .choice-card {
+      position: relative; display: flex; flex-direction: column; justify-content: space-between;
+      gap: 1.1rem; padding: 1.5rem; border-radius: 1.35rem; cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: linear-gradient(160deg, rgba(35, 9, 21, 0.92), rgba(15, 4, 10, 0.96));
+      box-shadow: 0 24px 60px -44px rgba(0, 0, 0, 0.95);
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .choice-primary { border-color: rgba(213, 28, 57, 0.34); background: radial-gradient(ellipse at 18% 0%, rgba(118, 0, 49, 0.42), transparent 60%), linear-gradient(160deg, rgba(35, 9, 21, 0.94), rgba(15, 4, 10, 0.97)); }
+    .choice-card:hover { transform: translateY(-3px); border-color: rgba(255, 96, 96, 0.45); box-shadow: 0 28px 65px -38px rgba(213, 28, 57, 0.4); }
+    .choice-top { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .choice-icon {
+      width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; flex: none;
+      color: #ffb3b3; background: rgba(118, 0, 49, 0.35); border: 1px solid rgba(255, 96, 96, 0.28);
+    }
+    .choice-icon svg { width: 21px; height: 21px; }
+    .choice-badge { padding: 0.28rem 0.6rem; border-radius: 999px; background: rgba(118, 0, 49, 0.4); border: 1px solid rgba(255, 96, 96, 0.26); color: #ffb3b3; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.07em; text-transform: uppercase; }
+    .choice-meta { color: #feec41; font-size: 0.66rem; font-family: 'JetBrains Mono', monospace; font-weight: 650; }
+    .choice-card h2 { color: #fff; font-size: 1.28rem; line-height: 1.2; font-weight: 750; letter-spacing: -0.02em; margin: 0 0 0.55rem; }
+    .choice-card p { color: #b6c2d1; font-size: 0.82rem; line-height: 1.65; margin: 0; max-width: 34rem; }
+    .choice-checks { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; margin-top: 0.95rem; color: #cbd5e1; font-size: 0.68rem; }
+    .choice-checks span { display: inline-flex; align-items: center; gap: 0.32rem; }
+    .choice-checks svg { width: 13px; height: 13px; color: #feec41; }
+
+    #landing-decks-container, #previous-runs-section { max-width: 76rem; }
+    #landing-decks-container { margin-top: 0.5rem; min-height: 0; }
+    #tab-choice-scenarios, #tab-choice-upload { border-radius: 0.65rem; }
+    #deck-scenarios > div:first-child { border-color: rgba(255, 255, 255, 0.08); padding-bottom: 0.8rem; }
+    #deck-scenarios h3 { letter-spacing: -0.01em; text-transform: none; font-size: 1.02rem; }
+
+    .scenario-card {
+      display: flex; flex-direction: column; justify-content: space-between; gap: 1rem;
+      min-height: 185px; padding: 1.05rem; border-radius: 1.15rem; cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.085);
+      background: linear-gradient(160deg, rgba(30, 8, 18, 0.88), rgba(14, 4, 9, 0.94));
+      box-shadow: 0 18px 45px -38px rgba(0, 0, 0, 0.95);
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .scenario-card:hover { transform: translateY(-3px); border-color: rgba(255, 96, 96, 0.42); box-shadow: 0 24px 55px -38px rgba(213, 28, 57, 0.42); }
+    .scenario-head { display: flex; align-items: flex-start; gap: 0.8rem; }
+    .scenario-icon {
+      width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; flex: none;
+      border: 1px solid rgba(255, 255, 255, 0.1); background: rgba(118, 0, 49, 0.28); color: #ffb3b3;
+    }
+    .scenario-icon svg { width: 20px; height: 20px; }
+    .scenario-icon.tone-match { color: #feec41; background: rgba(118, 0, 49, 0.4); border-color: rgba(254, 236, 65, 0.26); }
+    .scenario-icon.tone-warn { color: #feec41; background: rgba(254, 236, 65, 0.09); border-color: rgba(254, 236, 65, 0.24); }
+    .scenario-icon.tone-hitl { color: #ff9a9a; background: rgba(255, 96, 96, 0.1); border-color: rgba(255, 96, 96, 0.26); }
+    .scenario-icon.tone-reject { color: #ff7b7b; background: rgba(213, 28, 57, 0.12); border-color: rgba(213, 28, 57, 0.3); }
+    .scenario-title-row { display: flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+    .scenario-title { color: #fff; font-size: 0.84rem; line-height: 1.3; font-weight: 750; letter-spacing: -0.01em; margin: 0; }
+    .status-badge { padding: 0.18rem 0.4rem; border-radius: 0.35rem; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; font-weight: 800; border: 1px solid transparent; white-space: nowrap; }
+    .scenario-desc { margin: 0.45rem 0 0; color: #aebac9; font-size: 0.7rem; line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .scenario-footer { display: flex; align-items: center; gap: 0.55rem; padding-top: 0.8rem; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+    .scenario-supplier { min-width: 0; flex: 1; color: #94a3b8; font-size: 0.65rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .scenario-amount { color: #feec41; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 750; white-space: nowrap; }
+    .scenario-arrow { width: 27px; height: 27px; border-radius: 999px; display: grid; place-items: center; flex: none; color: #ffb3b3; border: 1px solid rgba(255, 96, 96, 0.24); background: rgba(118, 0, 49, 0.24); transition: all 0.18s ease; }
+    .scenario-arrow svg { width: 14px; height: 14px; }
+    .scenario-card:hover .scenario-arrow { color: #fff; background: linear-gradient(135deg, #d51c39, #760031); border-color: rgba(255, 96, 96, 0.5); }
+
+    .history-shell {
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      width: 100%; max-width: 76rem; margin: 2.4rem 0 0; padding: 1rem 1.15rem; border-radius: 1.15rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(25, 7, 15, 0.9), rgba(12, 3, 8, 0.94));
+    }
+    .history-head { display: flex; align-items: center; gap: 0.8rem; }
+    .history-icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; color: #ffb3b3; background: rgba(118, 0, 49, 0.3); border: 1px solid rgba(255, 96, 96, 0.22); flex: none; }
+    .history-icon svg { width: 18px; height: 18px; }
+    .history-head h3 { color: #f1f5f9; font-size: 0.8rem; font-weight: 750; margin: 0; }
+    .history-head p { color: #7c8ba1; font-size: 0.67rem; margin: 0.15rem 0 0; }
+    .history-list { display: flex; flex-wrap: wrap; gap: 0.5rem; max-width: 76rem; margin: 0.75rem auto 0; }
+    .history-empty { color: #64748b; font-size: 0.7rem; font-style: italic; }
+    .history-run { display: inline-flex; align-items: center; gap: 0.45rem; padding: 0.45rem 0.65rem; border-radius: 0.6rem; border: 1px solid rgba(255, 255, 255, 0.09); background: rgba(20, 5, 12, 0.8); color: #cbd5e1; font-family: 'JetBrains Mono', monospace; font-size: 0.62rem; transition: all 0.18s ease; }
+    .history-run:hover { border-color: rgba(255, 96, 96, 0.42); color: #fff; background: rgba(35, 9, 20, 0.9); }
+    .history-dot { width: 6px; height: 6px; border-radius: 50%; background: #ff6060; box-shadow: 0 0 0 3px rgba(255, 96, 96, 0.12); }
+
+    /* Shared treatment for upload, processing and journey results. */
+    .glass-card, .glass-card-interactive {
+      border-radius: 1.25rem !important;
+      border-color: rgba(255, 255, 255, 0.08) !important;
+      background: linear-gradient(165deg, rgba(27, 7, 16, 0.9), rgba(12, 3, 8, 0.94)) !important;
+      box-shadow: 0 24px 60px -46px rgba(0, 0, 0, 0.98);
+    }
+    .glass-card-interactive:hover { border-color: rgba(255, 96, 96, 0.36) !important; box-shadow: 0 28px 62px -42px rgba(213, 28, 57, 0.4); }
+    #drop-zone {
+      border-radius: 1.35rem; border-color: rgba(255, 96, 96, 0.3);
+      background: radial-gradient(ellipse at 50% 0%, rgba(118, 0, 49, 0.35), rgba(15, 4, 10, 0.9) 68%);
+    }
+    #drop-zone:hover { border-color: rgba(255, 96, 96, 0.7); background: radial-gradient(ellipse at 50% 0%, rgba(213, 28, 57, 0.22), rgba(20, 5, 11, 0.94) 68%); }
+    #processing-view .glass-card { border-color: rgba(255, 96, 96, 0.22) !important; }
+    #results-view .glass-card:hover { border-color: rgba(255, 96, 96, 0.26) !important; }
+    #journey-nav-strip { background: rgba(18, 4, 9, 0.94); border-color: rgba(255, 96, 96, 0.24); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04); }
+    .ch-nav-btn { transition: all 0.18s ease; }
+
+    @media (max-width: 1023px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 2.4rem; }
+      .hero-copy { max-width: 46rem; }
+      .hero-art { min-height: 330px; }
+      .pipeline-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2rem 0.75rem; }
+      .pipeline-grid::before { display: none; }
+      .choice-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 640px) {
+      .hero-title { font-size: clamp(2.35rem, 11vw, 3.2rem); }
+      .hero-actions .cta-primary, .hero-actions .cta-ghost { flex: 1 1 auto; }
+      .hero-art { min-height: 300px; transform: scale(0.9); transform-origin: center; }
+      .chip-1 { left: -18px; } .chip-2 { left: -26px; } .chip-3 { right: -16px; } .chip-4 { right: -18px; }
+      .pipeline-panel { padding: 1rem; }
+      .pipeline-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .choice-card { padding: 1.2rem; }
+      .history-shell { flex-direction: column; align-items: flex-start; }
+      .history-shell .cta-ghost { width: 100%; }
+      #scenarios-container { grid-template-columns: 1fr; }
+      #deck-scenarios > div:first-child > span { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .invoice-stack, .float-chip { transform: none !important; }
+    }
+
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 </head>
 <body class="bg-[#070204] text-slate-100 min-h-screen flex flex-col antialiased selection:bg-crimson selection:text-white ambient-glow">
 
   <!-- ========================================================================= -->
   <!-- 1. MINIMAL PERSISTENT JOURNEY HEADER & CHAPTER NAVIGATOR -->
   <!-- ========================================================================= -->
-  <header class="border-b border-slate-800/80 bg-slate-900/85 backdrop-blur-md sticky top-0 z-50">
+  <header class="site-header border-b border-slate-800/80 bg-slate-900/85 backdrop-blur-md sticky top-0 z-50">
     <div class="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 overflow-hidden">
       
       <!-- Brand & Mode Title -->
@@ -237,166 +507,141 @@
   <!-- ========================================================================= -->
   <!-- 2. SCENE 0: LANDING EXPERIENCE — "THE INVOICE JOURNEY" -->
   <!-- ========================================================================= -->
-  <main id="scene-landing" class="flex-1 flex flex-col justify-center max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 sm:pt-10 pb-32 sm:pb-48 scene-animate-in">
-    
-    <!-- Section 1: Hero Header & Immersive Pipeline Visual -->
-    <div class="text-center max-w-4xl mx-auto mb-8 sm:mb-12">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-burgundy/60 border border-coral/40 text-coral text-xs font-semibold mb-3">
-        <span class="w-2 h-2 rounded-full bg-coral animate-ping"></span>
-        <span>Zamp PS-1 • Autonomous Accounts Payable</span>
-      </div>
-      <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-3 sm:mb-4">
-        THE INVOICE JOURNEY
-      </h1>
-      <p class="text-sm sm:text-lg text-slate-300 leading-relaxed font-normal max-w-2xl mx-auto">
-        Experience how an invoice travels from raw document to financial decision: observe multimodal AI read characters, ground evidence, verify procurement contracts, and enforce the seven policy gates in real time.
-      </p>
+    <main id="scene-landing" class="flex-1 flex flex-col max-w-7xl mx-auto w-full px-4 sm:px-6 pt-8 sm:pt-12 pb-16 scene-animate-in">
 
-      <!-- Dominant Interactive Pipeline Visualization (Responsive Glass Grid) -->
-      <div class="mt-8 p-4 sm:p-6 rounded-2xl glass-card border border-slate-800 shadow-xl overflow-hidden relative">
-        <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-4 flex items-center justify-between">
-          <span class="flex items-center gap-1.5 text-coral font-semibold">
-            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Interactive Document-to-Decision Pipeline
-          </span>
-          <span class="hidden sm:inline text-slate-500 text-[10.5px]">Hover nodes to explore stage mechanics</span>
+    <section class="hero-grid">
+      <div class="hero-copy">
+        <div class="sandbox-eyebrow"><span class="eyebrow-dot"></span> Zamp PS-1 · Autonomous Accounts Payable</div>
+        <h1 class="hero-title">The <span class="title-accent">Invoice</span> Journey</h1>
+        <p class="hero-subtitle">
+          Experience how an invoice travels from raw document to financial decision — multimodal AI read, grounded evidence, procurement matching, and seven policy gates in real time.
+        </p>
+        <div class="hero-actions">
+          <button type="button" onclick="switchLandingDeck('scenarios', true)" class="cta-primary">
+            Explore scenarios <i data-lucide="arrow-right"></i>
+          </button>
+          <button type="button" onclick="switchLandingDeck('upload', true)" class="cta-ghost">
+            <i data-lucide="upload-cloud"></i> Upload invoice
+          </button>
         </div>
-
-        <!-- Responsive Pipeline Node Grid -->
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3 text-left">
-          
-          <!-- Station 1: Intake -->
-          <div class="p-3 rounded-xl bg-[#14050b]/90 border border-burgundy/40 hover:border-crimson/70 transition-all group">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-mono text-coral font-bold">STAGE 01</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-coral"></span>
-            </div>
-            <div class="font-bold text-xs text-white group-hover:text-coral transition-colors">PDF Intake</div>
-            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Magic bytes checked & SHA-256 fingerprint calculated.</p>
-          </div>
-
-          <!-- Station 2: Reading -->
-          <div class="p-3 rounded-xl bg-[#14050b]/90 border border-burgundy/40 hover:border-crimson/70 transition-all group">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-mono text-coral font-bold">STAGE 02</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-coral"></span>
-            </div>
-            <div class="font-bold text-xs text-white group-hover:text-coral transition-colors">AI Vision & OCR</div>
-            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Palmyra Vision + Mantle extraction with token coordinates.</p>
-          </div>
-
-          <!-- Station 3: Grounding -->
-          <div class="p-3 rounded-xl bg-[#14050b]/90 border border-burgundy/40 hover:border-crimson/70 transition-all group">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-mono text-coral font-bold">STAGE 03</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-coral"></span>
-            </div>
-            <div class="font-bold text-xs text-white group-hover:text-coral transition-colors">Grounding Tripwire</div>
-            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Fixed-point GST math & anti-hallucination token check.</p>
-          </div>
-
-          <!-- Station 4: Procurement -->
-          <div class="p-3 rounded-xl bg-[#14050b]/90 border border-burgundy/40 hover:border-crimson/70 transition-all group">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-mono text-coral font-bold">STAGE 04</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-coral"></span>
-            </div>
-            <div class="font-bold text-xs text-white group-hover:text-coral transition-colors">3-Way Match</div>
-            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">PO contract rates, GRN goods receipt & plant QC status.</p>
-          </div>
-
-          <!-- Station 5: 7 Gates -->
-          <div class="p-3 rounded-xl bg-[#14050b]/90 border border-burgundy/40 hover:border-crimson/70 transition-all group">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-mono text-coral font-bold">STAGE 05</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-coral"></span>
-            </div>
-            <div class="font-bold text-xs text-white group-hover:text-coral transition-colors">Seven Policy Gates</div>
-            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Deterministic rules (Vendor ID, price tolerance, duplicates).</p>
-          </div>
-
-          <!-- Station 6: Decision -->
-          <div class="p-3 rounded-xl bg-[#14050b]/90 border border-burgundy/40 hover:border-accentyellow/70 transition-all group">
-            <div class="flex items-center justify-between mb-1.5">
-              <span class="text-[10px] font-mono text-accentyellow font-bold">STAGE 06</span>
-              <span class="w-1.5 h-1.5 rounded-full bg-accentyellow"></span>
-            </div>
-            <div class="font-bold text-xs text-white group-hover:text-accentyellow transition-colors">Decision & Audit</div>
-            <p class="text-[10.5px] text-slate-400 mt-1 line-clamp-2">Immutable PostgreSQL ledger entry & human review queue.</p>
-          </div>
-
+        <div class="hero-trust">
+          <span><i data-lucide="shield-check"></i> Deterministic 7-gate checks</span>
+          <span><i data-lucide="database"></i> Immutable audit trail</span>
         </div>
       </div>
-    </div>
 
-    <!-- Section 2: Two Large, Beautiful, Balanced Entry Choices -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 max-w-5xl mx-auto w-full mb-8">
-      
-      <!-- Choice A Card: Explore a Guided Scenario -->
-      <div 
+      <div class="hero-art" aria-hidden="true">
+        <div class="hero-art-glow"></div>
+        <div class="invoice-stack">
+          <div class="invoice-paper paper-back"></div>
+          <div class="invoice-paper paper-mid"></div>
+          <div class="invoice-paper paper-front">
+            <div class="invoice-topline">
+              <span class="invoice-brand">ZAMP AP</span>
+              <span class="invoice-tag">INVOICE</span>
+            </div>
+            <div class="invoice-meta"><span>AP-26-001</span><span>10 NOV 2026</span></div>
+            <div class="invoice-lines"><span></span><span></span><span></span><span></span></div>
+            <div class="invoice-total"><span>Total due</span><strong>₹26,196</strong></div>
+            <div class="invoice-stamp"><i data-lucide="check"></i></div>
+          </div>
+          <div class="float-chip chip-1"><i data-lucide="file-text"></i></div>
+          <div class="float-chip chip-2"><i data-lucide="scan-line"></i></div>
+          <div class="float-chip chip-3"><i data-lucide="shield-check"></i></div>
+          <div class="float-chip chip-4"><i data-lucide="bar-chart-3"></i></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pipeline-panel">
+      <div class="pipeline-head">
+        <div class="pipeline-kicker"><i data-lucide="workflow"></i> Interactive Document-to-Decision Pipeline</div>
+        <span class="pipeline-hint">Hover a stage to explore</span>
+      </div>
+      <div class="pipeline-grid">
+        <div class="stage-card">
+          <div class="stage-icon"><i data-lucide="file-text"></i></div>
+          <div class="stage-title">PDF Intake</div>
+          <p>Ingest &amp; validate <span>(SHA-256)</span></p>
+        </div>
+        <div class="stage-card">
+          <div class="stage-icon"><i data-lucide="scan-line"></i></div>
+          <div class="stage-title">AI Vision &amp; OCR</div>
+          <p>Extract &amp; structure <span>(Mantle / Qwen)</span></p>
+        </div>
+        <div class="stage-card">
+          <div class="stage-icon"><i data-lucide="layers"></i></div>
+          <div class="stage-title">Grounding</div>
+          <p>GST, vendor &amp; contract checks</p>
+        </div>
+        <div class="stage-card">
+          <div class="stage-icon"><i data-lucide="git-compare"></i></div>
+          <div class="stage-title">3-Way Match</div>
+          <p>PO, GRN &amp; price variance</p>
+        </div>
+        <div class="stage-card">
+          <div class="stage-icon"><i data-lucide="shield-check"></i></div>
+          <div class="stage-title">Seven Policy Gates</div>
+          <p>Deterministic business rules</p>
+        </div>
+        <div class="stage-card">
+          <div class="stage-icon"><i data-lucide="circle-check"></i></div>
+          <div class="stage-title">Decision &amp; Audit</div>
+          <p>Traceable outcome &amp; immutable log</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="choice-grid">
+      <div
         onclick="switchLandingDeck('scenarios', true)"
         id="choice-card-scenarios"
-        class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-crimson/50 hover:border-crimson shadow-xl shadow-crimson/10 relative group bg-[#14050b]/90"
+        class="choice-card choice-primary group"
       >
         <div>
-          <div class="flex items-center justify-between mb-3">
-            <span class="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-burgundy/60 text-coral border border-coral/40">
-              Option A — Guided Scenarios
-            </span>
-            <span class="text-xs font-mono text-accentyellow font-semibold">6 Verified Cases</span>
+          <div class="choice-top">
+            <span class="choice-icon"><i data-lucide="layers"></i></span>
+            <span class="choice-badge">Option A — Guided Scenarios</span>
+            <span class="choice-meta">6 Verified Cases</span>
           </div>
-          <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-coral transition-colors mb-2 flex items-center gap-2">
-            <span>Explore a Guided Scenario</span>
-            <svg class="w-5 h-5 text-coral group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-          </h2>
-          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-            Step through authentic commercial invoices — from clean straight-through matching to unit price overruns, degraded scans, quarantined receipts, and duplicate safeguards.
-          </p>
-          <div class="flex flex-wrap gap-2 text-[11px] text-slate-300 mb-6">
-            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Instant Replay</span>
-            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Zero Setup</span>
-            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Full 7-Gate Evidence</span>
+          <h2>Explore a Guided Scenario</h2>
+          <p>Walk through authentic commercial invoices — from clean matching to price overruns, degraded scans, quarantined receipts, and duplicate safeguards.</p>
+          <div class="choice-checks">
+            <span><i data-lucide="check"></i> Instant replay</span>
+            <span><i data-lucide="check"></i> Zero setup</span>
+            <span><i data-lucide="check"></i> Full 7-gate evidence</span>
           </div>
         </div>
-        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('scenarios', true);" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-crimson/30 hover:scale-[1.01] active:scale-[0.99]">
-          <span>Select an Authentic Scenario</span>
-          <svg class="w-4 h-4 text-accentyellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('scenarios', true);" class="cta-primary w-full">
+          Select an Authentic Scenario <i data-lucide="arrow-right"></i>
         </button>
       </div>
 
-      <!-- Choice B Card: Upload Your Own Invoice -->
-      <div 
+      <div
         onclick="switchLandingDeck('upload', true)"
         id="choice-card-upload"
-        class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-burgundy/60 hover:border-coral/60 shadow-lg relative group bg-[#14050b]/90"
+        class="choice-card group"
       >
         <div>
-          <div class="flex items-center justify-between mb-3">
-            <span class="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-burgundy/60 text-accentyellow border border-accentyellow/30">
-              Option B — Upload Custom PDF
-            </span>
-            <span class="text-xs font-mono text-coral font-semibold">Live Ingestion</span>
+          <div class="choice-top">
+            <span class="choice-icon"><i data-lucide="upload-cloud"></i></span>
+            <span class="choice-badge">Option B — Upload Custom PDF</span>
+            <span class="choice-meta">Live Ingestion</span>
           </div>
-          <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-accentyellow transition-colors mb-2 flex items-center gap-2">
-            <span>Upload Your Own Invoice</span>
-            <svg class="w-5 h-5 text-coral group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-          </h2>
-          <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
-            Upload any genuine PDF tax invoice. Our multimodal pipeline will run optical character detection, vision layout analysis, and 7-gate deterministic evaluation against your sandbox ERP records.
-          </p>
-          <div class="flex flex-wrap gap-2 text-[11px] text-slate-300 mb-6">
-            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ RapidOCR + Vision</span>
-            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ SHA-256 Fingerprint</span>
-            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Real Audit Events</span>
+          <h2>Upload Your Own Invoice</h2>
+          <p>Upload any genuine PDF tax invoice. Our multimodal pipeline runs OCR, vision layout analysis, and 7-gate deterministic evaluation against sandbox ERP records.</p>
+          <div class="choice-checks">
+            <span><i data-lucide="check"></i> RapidOCR + Vision</span>
+            <span><i data-lucide="check"></i> SHA-256 fingerprint</span>
+            <span><i data-lucide="check"></i> Real audit events</span>
           </div>
         </div>
-        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('upload', true);" class="w-full py-2.5 px-4 rounded-xl bg-[#1e0711] hover:bg-burgundy/50 text-coral hover:text-white border border-coral/40 font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-sm hover:scale-[1.01] active:scale-[0.99]">
-          <span>Open Upload Studio</span>
-          <svg class="w-4 h-4 text-accentyellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('upload', true);" class="cta-ghost w-full">
+          Open Upload Studio <i data-lucide="arrow-right"></i>
         </button>
       </div>
+    </section>
 
-    </div>
 
     <!-- Section 3 & 4: Progressive Experience Decks (Guided Scenarios Gallery vs Upload Studio) -->
     <div id="landing-decks-container" class="max-w-5xl mx-auto w-full scroll-mt-20 min-h-[70vh]">
@@ -518,14 +763,20 @@
     </div>
 
     <!-- Previous Evaluation Runs Drawer -->
-    <div id="previous-runs-section" class="border-t border-slate-800 pt-6 mt-8 max-w-5xl mx-auto w-full">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Previous Evaluation Runs</h3>
-        <button onclick="loadRunHistory()" class="text-xs text-coral hover:text-accentyellow transition-colors">Refresh History</button>
+    <div id="previous-runs-section" class="history-shell">
+      <div class="history-head">
+        <span class="history-icon"><i data-lucide="history"></i></span>
+        <div>
+          <h3>Previous Evaluation Runs</h3>
+          <p>Resume a prior decision or refresh this session.</p>
+        </div>
       </div>
-      <div id="previous-runs-container" class="flex flex-wrap gap-2 text-xs">
-        <span class="text-slate-500 italic">No previous runs recorded in this session.</span>
-      </div>
+      <button type="button" onclick="loadRunHistory()" class="cta-ghost">
+        <i data-lucide="refresh-cw"></i> Refresh History
+      </button>
+    </div>
+    <div id="previous-runs-container" class="history-list">
+      <span class="history-empty">No previous runs recorded in this session.</span>
     </div>
 
   </main>
@@ -1511,42 +1762,42 @@
           'SCN-01-HAPPY-PATH': {
             name: 'Clean 3-Way Match',
             objective: '🎯 Learn: Straight-through auto-approval criteria',
-            icon: '✓',
+            icon: 'file-text',
             iconBg: 'bg-burgundy/60 text-accentyellow border border-accentyellow/30 border-accentyellow/30',
             desc: 'Clean manufacturing invoice matching open PO-26-1001, GRN-26-501, and accepted QC certificate with 0.00% variance.',
           },
           'SCN-02-PRICE-VARIANCE': {
             name: 'Unit Price Variance (+18.9%)',
             objective: '🎯 Learn: Tolerance limit breach (+18.9% vs ±1.5%)',
-            icon: '⚠',
+            icon: 'alert-triangle',
             iconBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
             desc: 'Billed rate ₹220/unit exceeds contract PO ₹185 (+18.92% variance) and exceeds GRN accepted units, halting at Gate 6.',
           },
           'SCN-03-DEGRADED-SCAN': {
             name: 'Low-Contrast Scanned Invoice',
             objective: '🎯 Learn: Optical grounding tripwire halts unverified AI',
-            icon: '👁',
+            icon: 'search',
             iconBg: 'bg-burgundy/50 text-coral border-burgundy/60',
             desc: 'Challenging raster scan testing optical character detection and evidence grounding tripwires. Safely routed to human reviewer.',
           },
           'SCN-04-QUARANTINE-QC': {
             name: 'Defective Material & QC Hold',
             objective: '🎯 Learn: Blocking disbursement on rejected goods',
-            icon: '⛨',
+            icon: 'package',
             iconBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
             desc: 'Factory goods receipt was quarantined due to quality defects. Plant inspection certificate HOLD status blocks payment at Gate 4.',
           },
           'SCN-05-NON-PAYABLE': {
             name: 'Non-Payable Commercial Receipt',
             objective: '🎯 Learn: Autonomous document classification safeguard',
-            icon: '✕',
+            icon: 'receipt',
             iconBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
             desc: 'Classified as Payment Receipt rather than commercial tax invoice or debit note. Autonomously rejected to prevent double liability.',
           },
           'SCN-06-DUPLICATE': {
             name: 'Duplicate Invoice Safeguard',
             objective: '🎯 Learn: SHA-256 fingerprint collision prevention',
-            icon: '🛡',
+            icon: 'copy',
             iconBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
             desc: 'Re-submission of identical invoice processed earlier. Cryptographic SHA-256 fingerprinting catches duplicate submission.',
           },
@@ -1566,50 +1817,36 @@
                             isHitl ? 'bg-coral/20 text-coral border-coral/40' :
                             'bg-crimson/25 text-coral border-crimson/40';
 
+          const tone = isMatch ? 'tone-match' : isExc ? 'tone-warn' : isHitl ? 'tone-hitl' : 'tone-reject';
+
           const meta = scenarioMetaMap[scn.id] || {
             name: scn.title,
             objective: '🎯 Learn: AP Decision Policy Evaluation',
-            icon: '📄',
+            icon: 'file-text',
             iconBg: 'bg-burgundy/50 text-coral border-burgundy/60',
             desc: scn.description,
           };
 
           card.innerHTML = `
-            <div>
-              <div class="flex items-center justify-between gap-2 mb-2.5">
-                <div class="flex items-center gap-2 min-w-0">
-                  <div class="w-7 h-7 rounded-lg ${meta.iconBg} border flex items-center justify-center font-bold text-xs shrink-0">${meta.icon}</div>
-                  <span class="text-xs font-bold text-white group-hover:text-coral transition-colors truncate">${escapeHtml(meta.name)}</span>
+            <div class="scenario-head">
+              <div class="scenario-icon ${tone}"><i data-lucide="${meta.icon}"></i></div>
+              <div class="min-w-0">
+                <div class="scenario-title-row">
+                  <h4 class="scenario-title">${escapeHtml(meta.name)}</h4>
+                  <span class="status-badge ${badgeTone}">${escapeHtml(scn.expected_decision || 'TEST')}</span>
                 </div>
-                <span class="px-2 py-0.5 rounded font-mono font-bold text-[9.5px] border shrink-0 ${badgeTone}">
-                  ${escapeHtml(scn.expected_decision || 'TEST')}
-                </span>
-              </div>
-              <p class="text-[11.5px] text-slate-300 line-clamp-2 leading-relaxed mb-2.5">
-                ${escapeHtml(meta.desc || scn.description)}
-              </p>
-              <div class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-[10.5px] text-coral font-medium mb-3">
-                ${escapeHtml(meta.objective)}
-              </div>
-              <div class="tech-only hidden text-[10px] font-mono text-slate-400 pb-2 mb-2 border-b border-burgundy/40">
-                Fixture: <span class="text-accentyellow">${escapeHtml(scn.id)}</span> • ${escapeHtml(scn.pdf_filename || '')}
+                <p class="scenario-desc">${escapeHtml(meta.desc || scn.description)}</p>
               </div>
             </div>
-            <div>
-              <div class="flex items-center justify-between text-[11px] pt-2.5 border-t border-burgundy/40">
-                <span class="text-slate-400 font-medium truncate max-w-[140px]">${escapeHtml(scn.supplier_name || scn.vendor_name || 'Vendor')}</span>
-                <span class="font-mono font-bold text-accentyellow">${scn.invoice_total_inr || scn.total_amount ? formatINR(scn.invoice_total_inr || scn.total_amount) : 'INR 0.00'}</span>
-              </div>
-              <div class="mt-3">
-                <div class="w-full py-2 px-3 rounded-xl bg-[#1e0711] group-hover:bg-gradient-to-r group-hover:from-crimson group-hover:to-burgundy text-coral group-hover:text-white border border-burgundy/60 group-hover:border-coral/50 font-bold text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs">
-                  <span>Start Journey</span>
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
-                </div>
-              </div>
+            <div class="scenario-footer">
+              <span class="scenario-supplier">${escapeHtml(scn.supplier_name || scn.vendor_name || 'Vendor')}</span>
+              <span class="scenario-amount">${scn.invoice_total_inr || scn.total_amount ? formatINR(scn.invoice_total_inr || scn.total_amount) : 'INR 0.00'}</span>
+              <span class="scenario-arrow"><i data-lucide="arrow-right"></i></span>
             </div>
           `;
           container.appendChild(card);
         });
+        if (window.lucide) lucide.createIcons();
 
       } catch (err) {
         console.error('Failed to load scenarios:', err);
@@ -2646,7 +2883,8 @@
       try {
         const res = await fetch('/api/v1/sandbox/runs', { headers: getAuthHeaders() });
         if (!res.ok) return;
-        const runs = await res.json();
+        const payload = await res.json();
+        const runs = Array.isArray(payload) ? payload : (payload.runs || payload.items || []);
         const container = document.getElementById('previous-runs-container');
         if (runs.length === 0) {
           container.innerHTML = '<span class="text-slate-500 italic">No previous runs recorded.</span>';
@@ -2655,9 +2893,9 @@
         container.innerHTML = '';
         runs.slice(0, 5).forEach(r => {
           const btn = document.createElement('button');
-          btn.className = 'px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-mono text-[11px] flex items-center gap-1.5 transition-colors';
+          btn.className = 'history-run';
           btn.onclick = () => loadExistingRun(r.invoice_id);
-          btn.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-coral"></span> ${escapeHtml(r.invoice_number || r.invoice_id)} (${escapeHtml(r.decision || 'DONE')})`;
+          btn.innerHTML = `<span class="history-dot"></span><span>${escapeHtml(r.invoice_number || r.invoice_id)} (${escapeHtml(r.decision || 'DONE')})</span>`;
           container.appendChild(btn);
         });
       } catch (e) {
@@ -2704,6 +2942,7 @@
       setExplanationMode(explanationMode);
       loadScenarios();
       loadRunHistory();
+      if (window.lucide) lucide.createIcons();
     });
   </script>
 
