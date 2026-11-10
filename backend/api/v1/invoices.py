@@ -72,6 +72,30 @@ def retry_invoice_processing(
     if db is None:
         raise HTTPException(status_code=503, detail='Database not connected.')
 
+    # Fast, lock-free preflight for the normal double-click case. Acquiring the
+    # invoice/document/job locks before discovering an active worker can deadlock
+    # with the worker's own short result transaction on PostgreSQL.
+    active_job = db.scalar(
+        select(IngestionJob)
+        .join(Document, IngestionJob.document_id == Document.id)
+        .where(
+            Document.invoice_id == invoice_id,
+            Document.org_id == current_user.org_id,
+            Document.is_original == True,
+            IngestionJob.org_id == current_user.org_id,
+        )
+        .order_by(IngestionJob.created_at.desc(), IngestionJob.id.desc())
+        .limit(1)
+    )
+    if active_job and active_job.status == 'PROCESSING' and active_job.lease_expires_at:
+        if active_job.lease_expires_at > lease_now(db):
+            return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+                'status': 'ALREADY_PROCESSING',
+                'invoice_id': invoice_id,
+                'job_id': active_job.id,
+                'detail': 'This invoice still has an active processing lease. No duplicate worker was started.',
+            })
+
     inv = db.scalar(select(Invoice).where(
         Invoice.id == invoice_id, Invoice.org_id == current_user.org_id,
     ).with_for_update())
