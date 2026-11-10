@@ -94,6 +94,8 @@ export interface InvoiceItem {
   decision_reason: string | null;
   job_status?: string | null;
   job_error?: string | null;
+  job_id?: string | null;
+  job_lease_expired?: boolean;
   msme_statutory_deadline: string | null;
   msme_deadline_status: string | null;
   created_at: string;

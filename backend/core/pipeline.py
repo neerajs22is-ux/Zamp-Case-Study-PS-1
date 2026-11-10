@@ -25,7 +25,7 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import delete, select, text
+from sqlalchemy import delete, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.core.config import settings
@@ -176,6 +176,7 @@ def claim_ingestion_job(
     org_id: Optional[str] = None,
     lease_seconds: int = 180,
     job_id: Optional[str] = None,
+    recover_expired: bool = True,
 ) -> Optional[Tuple[str, str, str, str]]:
     """Atomically claims a queued or expired ingestion job using FOR UPDATE SKIP LOCKED.
 
@@ -184,11 +185,14 @@ def claim_ingestion_job(
         org_id: Optional tenant isolation filter.
         lease_seconds: Worker lease duration in seconds.
         job_id: Optional specific job identifier to claim. If provided, claims this exact job.
+        recover_expired: Whether to opportunistically recover unrelated expired
+            jobs first. Targeted retries pass False after recovering their own row.
 
     Returns:
         Tuple of (job_id, org_id, document_id, lock_token) or None if no job available.
     """
-    recover_expired_jobs(db, org_id=org_id)
+    if recover_expired:
+        recover_expired_jobs(db, org_id=org_id)
     stmt = (
         select(IngestionJob)
         .where(
@@ -241,16 +245,26 @@ def renew_job_lease(db: Session, job_id: str, lock_token: str, additional_second
     return True
 
 
-def recover_expired_jobs(db: Session, org_id: Optional[str] = None, max_retries: int = 3) -> int:
+def recover_expired_jobs(db: Session, org_id: Optional[str] = None, max_retries: int = 3,
+                         job_id: Optional[str] = None) -> int:
     """Scans for abandoned or interrupted PROCESSING jobs whose lease has expired.
 
     Reclaims them to QUEUED if retry_count < max_retries, else marks them FAILED.
+    Passing ``job_id`` scopes recovery to that exact row; a PROCESSING row with
+    no lease is also recoverable because it cannot make further progress.
     """
     now = lease_now(db)
-    stmt = select(IngestionJob).where(
-        IngestionJob.status == "PROCESSING",
-        IngestionJob.lease_expires_at < now,
-    )
+    stmt = select(IngestionJob).where(IngestionJob.status == "PROCESSING")
+    if job_id:
+        stmt = stmt.where(
+            IngestionJob.id == job_id,
+            or_(
+                IngestionJob.lease_expires_at <= now,
+                IngestionJob.lease_expires_at.is_(None),
+            ),
+        )
+    else:
+        stmt = stmt.where(IngestionJob.lease_expires_at <= now)
     if org_id:
         stmt = stmt.where(IngestionJob.org_id == org_id)
 
@@ -330,9 +344,13 @@ def execute_document_pipeline(
         document_id = job.document_id
         org_id = job.org_id
 
-        doc = db.scalar(select(Document).where(Document.id == document_id, Document.org_id == org_id))
+        doc = db.scalar(select(Document).where(
+            Document.id == document_id,
+            Document.org_id == org_id,
+            Document.is_deleted == False,
+        ))
         if not doc:
-            append_checkpoint(db, job, 'DOCUMENT_READ', 'FAILED', 'Processing document is unavailable.')
+            append_checkpoint(db, job, 'DOCUMENT_READ', 'FAILED', 'Processing document is unavailable or was soft-deleted.')
             job.status = "FAILED"
             job.error_message = f"Document '{document_id}' not found."
             job.lock_token = None
@@ -436,6 +454,13 @@ def execute_document_pipeline(
             logger.warning(f"Lock lost during inference for job {job_id}; rolling back persistence.")
             persist_db.rollback()
             return {"status": "ABORTED", "reason": "Lock expired during inference execution."}
+
+        source_document = persist_db.scalar(select(Document).where(
+            Document.id == document_id,
+            Document.org_id == org_id,
+        ))
+        if source_document is None or source_document.is_deleted:
+            raise ValueError("Source document was removed before the result could be committed")
 
         now_utc = datetime.datetime.utcnow()
 

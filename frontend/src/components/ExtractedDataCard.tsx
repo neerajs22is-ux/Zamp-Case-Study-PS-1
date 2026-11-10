@@ -83,7 +83,9 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   const groundingFailed =
     extractionGate?.status === "FAIL" ||
     Boolean(invoice.decision_reason?.toLowerCase().includes("grounding tripwire failed"));
-  const tripwireStatus = groundingFailed ? "FAILED" : "PASS";
+  const tripwireStatus = !extractionGate
+    ? "NOT EVALUATED"
+    : groundingFailed ? "FAILED" : "PASS";
 
   // Check if invoice total is genuinely unreadable / unextracted
   const isDegradedOrUnavailable =
@@ -328,7 +330,9 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
 
           <span
             className={`font-mono text-[10px] font-bold shrink-0 ${
-              groundingFailed ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+              !extractionGate
+                ? "text-amber-600 dark:text-amber-400"
+                : groundingFailed ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
             }`}
           >
             Tripwire: {tripwireStatus}

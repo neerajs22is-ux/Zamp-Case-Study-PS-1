@@ -44,7 +44,7 @@ from backend.core.pipeline import (
     claim_ingestion_job, recover_expired_jobs, process_document_pipeline_background
 )
 from engine.pdf_safety import InvalidPDF, extract_pdf_pages
-from backend.core.processing_events import append_checkpoint
+from backend.core.processing_events import append_checkpoint, lease_now
 
 logger = logging.getLogger("ap_command_center.documents")
 
@@ -499,8 +499,15 @@ def soft_delete_document(
     ),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Soft deletes document record while preserving physical file in storage."""
-    doc = db.execute(select(Document).where(Document.id == document_id)).scalar_one_or_none()
+    """Soft deletes a document and fences any active processing job.
+
+    Financial rows and audit history are retained. Claiming, queuing or running
+    work is terminated transactionally so a late provider result cannot commit
+    against a document the operator removed.
+    """
+    doc = db.execute(select(Document).where(
+        Document.id == document_id,
+    ).with_for_update()).scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
@@ -516,14 +523,45 @@ def soft_delete_document(
             "document_id": doc.id,
             "is_deleted": True,
             "deleted_at": doc.deleted_at.isoformat() + "Z" if doc.deleted_at else None,
+            "cancelled_job_ids": [],
         }
 
-    now = datetime.datetime.utcnow()
+    now = lease_now(db)
+    jobs = db.scalars(select(IngestionJob).where(
+        IngestionJob.document_id == doc.id,
+        IngestionJob.org_id == current_user.org_id,
+    ).with_for_update()).all()
+    cancelled_job_ids = []
+    for job in jobs:
+        if job.status not in ("QUEUED", "PROCESSING"):
+            continue
+        append_checkpoint(
+            db, job, 'RUN', 'CANCELLED',
+            f"Processing cancelled because the source document was soft-deleted by {current_user.email}.",
+            actor_id=current_user.id,
+            actor_role=current_user.role.value if current_user.role else 'UNKNOWN',
+        )
+        job.status = "FAILED"
+        job.error_message = "Processing cancelled: source document was soft-deleted by an operator."
+        job.lock_token = None
+        job.lease_expires_at = None
+        cancelled_job_ids.append(job.id)
+
     doc.is_deleted = True
     doc.deleted_at = now
     doc.deleted_by_user_id = current_user.id
 
-    # Append immutable audit event
+    if cancelled_job_ids and doc.invoice_id:
+        inv = db.scalar(select(Invoice).where(
+            Invoice.id == doc.invoice_id, Invoice.org_id == current_user.org_id,
+        ).with_for_update())
+        if inv and inv.stage != "INTERNAL_APPROVAL_COMPLETE":
+            inv.stage = "ACTION_REQUIRED"
+            inv.decision = "FLAGGED_HITL_REVIEW"
+            inv.decision_reason = "Source document was removed by an operator; processing was cancelled before a verified result was recorded."
+            inv.updated_at = now
+
+    # Append immutable audit event; includes the fenced jobs and preserved file key.
     audit = AuditEvent(
         id=f"evt_{uuid.uuid4().hex[:12]}",
         invoice_id=doc.invoice_id,
@@ -533,6 +571,8 @@ def soft_delete_document(
         action="DOCUMENT_SOFT_DELETED",
         reason=reason or f"Soft deleted document {doc.filename}",
         source_reference=doc.storage_key,
+        before_state={"is_deleted": False, "cancelled_job_ids": []},
+        after_state={"is_deleted": True, "cancelled_job_ids": cancelled_job_ids},
     )
     db.add(audit)
     db.commit()
@@ -540,8 +580,11 @@ def soft_delete_document(
     return {
         "status": "SOFT_DELETED",
         "document_id": doc.id,
+        "invoice_id": doc.invoice_id,
         "is_deleted": True,
         "deleted_at": now.isoformat() + "Z",
+        "cancelled_job_ids": cancelled_job_ids,
+        "message": "Document soft-deleted. Immutable financial and audit evidence was preserved.",
     }
 
 

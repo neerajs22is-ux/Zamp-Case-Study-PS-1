@@ -11,10 +11,12 @@ from __future__ import annotations
 
 import datetime
 from decimal import Decimal
+import os
 import re
 import uuid
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Query, status
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -22,6 +24,10 @@ from sqlalchemy.orm import Session
 from backend.core.auth import AuthenticatedUser, UserRole, require_active_membership, require_role
 from backend.core.config import settings
 from backend.core.database import get_db
+from backend.core.pipeline import (
+    claim_ingestion_job, process_document_pipeline_background, recover_expired_jobs,
+)
+from backend.core.processing_events import append_checkpoint, lease_now
 from backend.core.storage import storage_adapter
 from backend.models.domain import (
     ApprovalRequest, AuditEvent, Document, ExceptionRecord, ExtractedField, ExtractionRun,
@@ -43,6 +49,130 @@ def get_invoice_processing(invoice_id: str,
         raise HTTPException(status_code=404, detail='Invoice not found.')
     from backend.core.processing_events import processing_snapshot
     return processing_snapshot(db, invoice_id, current_user.org_id)
+
+
+MAX_INGESTION_JOBS_PER_DOCUMENT = 3
+
+
+@router.post('/{invoice_id}/processing/retry', status_code=status.HTTP_202_ACCEPTED)
+def retry_invoice_processing(
+    invoice_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: AuthenticatedUser = Depends(require_role([
+        UserRole.AP_ASSOCIATE, UserRole.AP_LEAD, UserRole.CONTROLLER, UserRole.SYSTEM_ADMIN,
+    ])),
+    db: Session = Depends(get_db),
+) -> Any:
+    """Recover or reprocess the latest job for this invoice only.
+
+    The invoice row and source document are locked so two browser tabs cannot
+    claim duplicate work. Expired leases are recovered first; terminal failures
+    receive at most three durable job records, each retaining its checkpoints.
+    """
+    if db is None:
+        raise HTTPException(status_code=503, detail='Database not connected.')
+
+    inv = db.scalar(select(Invoice).where(
+        Invoice.id == invoice_id, Invoice.org_id == current_user.org_id,
+    ).with_for_update())
+    if not inv:
+        raise HTTPException(status_code=404, detail='Invoice not found.')
+
+    doc = db.scalar(select(Document).where(
+        Document.invoice_id == inv.id,
+        Document.org_id == current_user.org_id,
+        Document.is_original == True,
+    ).order_by(Document.uploaded_at.desc()).with_for_update())
+    if not doc:
+        raise HTTPException(status_code=409, detail='The original document is unavailable; upload a replacement before reprocessing.')
+    if doc.is_deleted:
+        raise HTTPException(status_code=409, detail='The source document was soft-deleted. Processing cannot be restarted.')
+
+    jobs = db.scalars(select(IngestionJob).where(
+        IngestionJob.document_id == doc.id,
+        IngestionJob.org_id == current_user.org_id,
+    ).order_by(IngestionJob.created_at.desc(), IngestionJob.id.desc()).with_for_update()).all()
+    latest = jobs[0] if jobs else None
+    now = lease_now(db)
+
+    if latest and latest.status == 'COMPLETED':
+        raise HTTPException(status_code=409, detail='Processing already completed; start a new upload to run a fresh extraction.')
+
+    if latest and latest.status == 'PROCESSING' and latest.lease_expires_at and latest.lease_expires_at > now:
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            'status': 'ALREADY_PROCESSING',
+            'invoice_id': inv.id,
+            'job_id': latest.id,
+            'detail': 'This invoice still has an active processing lease. No duplicate worker was started.',
+        })
+
+    # An expired PROCESSING row is requeued with its retry counter advanced.
+    if latest and latest.status == 'PROCESSING':
+        recover_expired_jobs(
+            db, org_id=current_user.org_id, max_retries=3, job_id=latest.id,
+        )
+        db.refresh(latest)
+        now = lease_now(db)
+
+    if latest and latest.status == 'QUEUED':
+        job_id = latest.id
+    else:
+        if len(jobs) >= MAX_INGESTION_JOBS_PER_DOCUMENT:
+            raise HTTPException(status_code=409, detail=(
+                'Retry limit reached for this document. Upload a new PDF or contact an administrator; '
+                'the existing processing evidence is retained.'
+            ))
+        if latest and latest.status not in ('FAILED', 'PROCESSING'):
+            raise HTTPException(status_code=409, detail='The current processing job cannot be retried from its present state.')
+
+        job_id = f"job_{uuid.uuid4().hex[:12]}"
+        job = IngestionJob(
+            id=job_id,
+            org_id=current_user.org_id,
+            document_id=doc.id,
+            idempotency_key=f"reprocess_{doc.id}_{job_id}",
+            source_channel='MANUAL_UPLOAD',
+            status='QUEUED',
+        )
+        db.add(job)
+        db.flush()
+        append_checkpoint(
+            db, job, 'RECOVERY', 'QUEUED',
+            f"Operator requested reprocessing after {latest.status.lower() if latest else 'no previous job'}.",
+            attempt=0, invoice_id=inv.id, actor_id=current_user.id,
+            actor_role=current_user.role.value if current_user.role else 'UNKNOWN',
+            source_reference=doc.storage_key,
+        )
+        inv.stage = 'RECEIVED'
+        inv.decision = 'NEEDS_REVIEW'
+        inv.decision_reason = 'Reprocessing requested by an operator. Prior results remain in the immutable audit history.'
+        inv.updated_at = now
+        db.commit()
+
+    if os.getenv('ENABLE_BACKGROUND_PIPELINE', 'true').lower() != 'true':
+        return {'status': 'QUEUED', 'invoice_id': inv.id, 'job_id': job_id,
+                'detail': 'Job queued. Background dispatch is disabled in this environment.'}
+
+    claimed = claim_ingestion_job(
+        db, org_id=current_user.org_id, job_id=job_id, recover_expired=False,
+    )
+    if not claimed:
+        current = db.scalar(select(IngestionJob).where(
+            IngestionJob.id == job_id, IngestionJob.org_id == current_user.org_id,
+        ))
+        if current and current.status == 'PROCESSING':
+            return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+                'status': 'ALREADY_PROCESSING', 'invoice_id': inv.id, 'job_id': job_id,
+                'detail': 'Another worker claimed this job first. No duplicate worker was started.',
+            })
+        return JSONResponse(status_code=status.HTTP_202_ACCEPTED, content={
+            'status': 'QUEUED', 'invoice_id': inv.id, 'job_id': job_id,
+            'detail': 'Job is queued; retry again if no worker claims it.',
+        })
+
+    claimed_job_id, claimed_org_id, _, lock_token = claimed
+    background_tasks.add_task(process_document_pipeline_background, claimed_job_id, lock_token, claimed_org_id)
+    return {'status': 'PROCESSING', 'invoice_id': inv.id, 'job_id': claimed_job_id}
 
 
 class ActionPayload(BaseModel):
@@ -248,6 +378,8 @@ def get_invoice_detail(
 
     job_status = None
     job_error = None
+    job_id = None
+    job_lease_expired = False
     if doc:
         job_rec = db.scalar(
             select(IngestionJob)
@@ -257,6 +389,12 @@ def get_invoice_detail(
         if job_rec:
             job_status = job_rec.status
             job_error = job_rec.error_message
+            job_id = job_rec.id
+            job_lease_expired = bool(
+                job_rec.status == 'PROCESSING'
+                and job_rec.lease_expires_at
+                and job_rec.lease_expires_at <= lease_now(db)
+            )
 
     return {
         "invoice": {
@@ -275,6 +413,8 @@ def get_invoice_detail(
             "decision_reason": inv.decision_reason,
             "job_status": job_status,
             "job_error": job_error,
+            "job_id": job_id,
+            "job_lease_expired": job_lease_expired,
             "workflow_substatus": getattr(inv, "workflow_substatus", None),
             "msme_statutory_deadline": inv.msme_statutory_deadline.isoformat() + "Z" if inv.msme_statutory_deadline else None,
             "msme_deadline_status": inv.msme_deadline_status,

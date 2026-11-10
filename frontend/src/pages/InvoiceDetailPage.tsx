@@ -76,6 +76,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   // Document Operational Actions State
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteReason, setDeleteReason] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletingDoc, setDeletingDoc] = useState(false);
   const [retryingProcessing, setRetryingProcessing] = useState(false);
 
@@ -160,12 +161,19 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const handleRetryProcessing = async () => {
     setRetryingProcessing(true);
     setActionError(null);
+    setActionSuccess(null);
     try {
-      await api.processNextDocument();
+      const result = await api.retryInvoiceProcessing(invoiceId);
       await loadDetail();
-      setActionSuccess("Processing job triggered for this document.");
+      setActionSuccess(
+        result.status === "ALREADY_PROCESSING"
+          ? "This invoice already has an active worker; no duplicate run was started."
+          : result.status === "QUEUED"
+            ? "Recovery job queued for this invoice. Refresh if no worker claims it."
+            : "Reprocessing started for this invoice only.",
+      );
     } catch (err: any) {
-      setActionError(err.message || "Failed to trigger retry for document processing.");
+      setActionError(err.message || "Failed to recover processing for this invoice.");
     } finally {
       setRetryingProcessing(false);
     }
@@ -174,6 +182,8 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
   const handleConfirmDelete = async () => {
     if (!data?.document?.document_id) return;
     setDeletingDoc(true);
+    setDeleteError(null);
+    setActionError(null);
     try {
       await api.softDeleteDocument(
         data.document.document_id,
@@ -182,8 +192,7 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       setShowDeleteModal(false);
       onBack();
     } catch (err: any) {
-      setActionError(err.message || "Could not delete document.");
-      setShowDeleteModal(false);
+      setDeleteError(err.message || "Could not delete document.");
     } finally {
       setDeletingDoc(false);
     }
@@ -303,16 +312,22 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
     !isAuditor &&
       (invoice.job_status === "QUEUED" ||
         invoice.job_status === "PROCESSING" ||
-        invoice.job_status === "FAILED" ||
-        invoice.decision === "FLAGGED_EXCEPTION" ||
-        invoice.decision === "FLAGGED_HITL_REVIEW")
+        invoice.job_status === "FAILED")
   );
   const canDelete = Boolean(!isAuditor && data?.document?.document_id);
   const isController =
     currentUser?.role === "CONTROLLER" || currentUser?.role === "SYSTEM_ADMIN";
   const totalAmount = invoice.total_amount || 0;
   const isDualApprovalRequired = totalAmount >= dualApprovalThreshold;
-  const hasFailedGates = matchGates.length < 7 || matchGates.some((g: any) => g.status !== "PASS");
+  const hasActiveJob =
+    invoice.job_status === "QUEUED" || invoice.job_status === "PROCESSING";
+  const hasActualFailures = matchGates.some((gate: any) => gate.status === "FAIL");
+  const allSevenGatesPassed =
+    [1, 2, 3, 4, 5, 6, 7].every((number) =>
+      matchGates.some((gate: any) => gate.gate_number === number && gate.status === "PASS"),
+    );
+  const verificationComplete = allSevenGatesPassed && !hasActualFailures;
+  const hasFailedGates = !verificationComplete;
   const isApproved = invoice.stage === "INTERNAL_APPROVAL_COMPLETE";
   const isPendingSecondApproval =
     invoice.workflow_substatus === "PENDING_SECOND_APPROVAL";
@@ -352,6 +367,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           </Badge>
         );
       }
+    } else if (hasActiveJob || matchGates.length === 0) {
+      primaryActionBtn = (
+        <Badge tone="warning" size="md">
+          {hasActiveJob ? "Verification in progress — review locked" : "Verification pending — review locked"}
+        </Badge>
+      );
     } else if (!hasFailedGates) {
       primaryActionBtn = (
         <Button
@@ -430,8 +451,14 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         {/* Header Right: Grand Total & Policy Gates Trigger */}
         <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
           {hasFailedGates && (
-            <Badge tone="error" size="sm" className="hidden md:inline-flex">
-              Approval blocked until the failed checks are resolved
+            <Badge
+              tone={hasActualFailures ? "error" : "warning"}
+              size="sm"
+              className="hidden md:inline-flex"
+            >
+              {hasActualFailures
+                ? "Approval blocked until the failed checks are resolved"
+                : "Approval blocked until verification is complete"}
             </Badge>
           )}
 
@@ -470,10 +497,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
 
       {/* 2. Compact Status Summary (Collapsed by default for completed/held/rejected invoices) */}
       <InvoiceRunView
-        key={invoiceId}
+        key={`${invoiceId}:${invoice.job_id || "no-job"}`}
         invoiceId={invoiceId}
         invoiceStage={invoice.stage}
         invoiceDecision={invoice.decision}
+        onRetry={canRetry ? handleRetryProcessing : undefined}
+        retrying={retryingProcessing}
         onOutcome={async () => {
           try {
             const latest = await api.getInvoiceDetail(invoiceId);
@@ -482,6 +511,31 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
           catch { setActionError("The processing run changed, but the invoice result could not be refreshed. Reload before taking action."); }
         }}
       />
+
+      {error && data && (
+        <div role="alert" className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <span>Refresh failed: {error}</span>
+          </div>
+          <button onClick={() => setError(null)} className="text-rose-600 hover:text-rose-800" aria-label="Dismiss refresh error">
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Processing recovery and document-control errors */}
+      {actionError && !selectedAction && (
+        <div role="alert" className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-800 dark:text-rose-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-600" />
+            <span>{actionError}</span>
+          </div>
+          <button onClick={() => setActionError(null)} className="text-rose-600 hover:text-rose-800" aria-label="Dismiss processing error">
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Success Banner */}
       {actionSuccess && (
@@ -736,7 +790,10 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 <Button
                   variant="danger"
                   size="xs"
-                  onClick={() => setShowDeleteModal(true)}
+                  onClick={() => {
+                    setDeleteError(null);
+                    setShowDeleteModal(true);
+                  }}
                   leftIcon={<Trash2 className="w-3 h-3" />}
                   title="Soft delete document"
                 >
@@ -841,38 +898,6 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
                 </p>
               </div>
 
-              {(invoice.job_status === "QUEUED" ||
-                invoice.job_status === "PROCESSING") &&
-                currentUser?.role &&
-                [
-                  "AP_ASSOCIATE",
-                  "AP_LEAD",
-                  "CONTROLLER",
-                  "SYSTEM_ADMIN",
-                ].includes(currentUser.role) && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={actionLoading}
-                    onClick={async () => {
-                      setActionLoading(true);
-                      setActionError(null);
-                      try {
-                        await api.processNextDocument();
-                        await loadDetail();
-                      } catch (err: any) {
-                        setActionError(
-                          err.message ||
-                            "Could not resume processing. Try again.",
-                        );
-                      } finally {
-                        setActionLoading(false);
-                      }
-                    }}
-                  >
-                    Resume workspace queue
-                  </Button>
-                )}
             </div>
 
             {/* Explanations & Truth Disclosures */}
@@ -1094,7 +1119,12 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
       {/* Delete Document Confirmation Modal */}
       <Modal
         isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
+        onClose={() => {
+          if (!deletingDoc) {
+            setShowDeleteModal(false);
+            setDeleteError(null);
+          }
+        }}
         title="Confirm Document Deletion"
       >
         <div className="space-y-4 text-xs">
@@ -1117,11 +1147,19 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
               className="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
             />
           </div>
+          {deleteError && (
+            <div role="alert" className="p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300">
+              {deleteError}
+            </div>
+          )}
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setShowDeleteModal(false)}
+              onClick={() => {
+                setShowDeleteModal(false);
+                setDeleteError(null);
+              }}
               disabled={deletingDoc}
             >
               Cancel

@@ -53,7 +53,6 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
   const totalGates = matchGates.length;
   const failedGates = matchGates.filter((g) => g.status === 'FAIL');
   const hasFailedGates = failedGates.length > 0;
-  const passedGates = matchGates.filter((g) => g.status === 'PASS');
   const incompleteGates = matchGates.filter((g) => g.status !== 'PASS' && g.status !== 'FAIL');
 
   const isUnreadable = Boolean(
@@ -132,6 +131,16 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
     };
   });
 
+  const allSevenPassed = gateItems.every((gate) => gate.status === 'PASS');
+  const canonicalPassedCount = gateItems.filter((gate) => gate.status === 'PASS').length;
+  const verificationBadge = failedGates.length > 0
+    ? `${failedGates.length} failed · ${canonicalPassedCount} passed`
+    : allSevenPassed
+      ? '7/7 checks passed'
+      : totalGates === 0
+        ? 'No checks recorded'
+        : `${canonicalPassedCount}/7 passed · ${7 - canonicalPassedCount} pending`;
+
   return (
     <div className={`review-summary rounded-xl border p-4 space-y-3.5 transition-all ${toneBg} `}>
       {/* 1. Header Bar: Verdict + Discrepancy count + Actions */}
@@ -171,9 +180,7 @@ export const CaseSummaryCard: React.FC<CaseSummaryCardProps> = ({
             className="cursor-pointer"
           >
             <Badge tone={tone} size="md" className="font-semibold px-2.5 py-1">
-              {failedGates.length > 0
-                ? `${failedGates.length} failed · ${passedGates.length} passed`
-                : 'All 7 checks passed'}
+              {verificationBadge}
             </Badge>
           </button>
           <button

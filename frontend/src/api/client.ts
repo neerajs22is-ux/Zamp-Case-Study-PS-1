@@ -276,6 +276,7 @@ export const api = {
     return request<InboxResponse>(`/api/v1/inbox?${q.toString()}`);
   },
   getInvoiceDetail: (id: string) => request<any>(`/api/v1/invoices/${id}`),
+  retryInvoiceProcessing: (id: string) => request<{ status: string; invoice_id: string; job_id: string; detail?: string }>(`/api/v1/invoices/${encodeURIComponent(id)}/processing/retry`, { method: 'POST' }),
   processNextDocument: () => request<{ status: string }>('/api/v1/documents/process-next', { method: 'POST' }),
   correctInvoiceLine: (
     invoiceId: string,

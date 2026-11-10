@@ -58,11 +58,15 @@ export function InvoiceRunView({
   onOutcome,
   invoiceStage,
   invoiceDecision,
+  onRetry,
+  retrying = false,
 }: {
   invoiceId: string;
   onOutcome: () => void;
   invoiceStage?: string | null;
   invoiceDecision?: string | null;
+  onRetry?: () => void;
+  retrying?: boolean;
 }) {
   const [snapshot, setSnapshot] = useState<ProcessingSnapshot | null>(null);
   const [connection, setConnection] = useState('Loading recorded checkpoints…');
@@ -103,7 +107,9 @@ export function InvoiceRunView({
         },
         active: (next) =>
           next.jobs.some(
-            (job) => job.status === 'QUEUED' || job.status === 'PROCESSING',
+            (job) =>
+              job.status === 'QUEUED' ||
+              (job.status === 'PROCESSING' && !job.lease_expired),
           ),
       }),
     [invoiceId],
@@ -113,15 +119,15 @@ export function InvoiceRunView({
   const allEvents = snapshot?.jobs.flatMap((j) => j.events) || [];
   const totalEvents = allEvents.length;
 
-  const latestOutcomeEvent = allEvents.slice().reverse().find((e) => e.outcome);
+  const latestOutcomeEvent = latestJob?.events.slice().reverse().find((e) => e.outcome);
   const outcome = latestOutcomeEvent?.outcome;
 
   const isCompleted = latestJob?.status === 'COMPLETED';
-  const isFailed =
-    latestJob?.status === 'FAILED' ||
-    Boolean(latestJob?.error_message || latestJob?.error_recorded);
+  const isFailed = latestJob?.status === 'FAILED';
   const isQueued = latestJob?.status === 'QUEUED';
   const isProcessing = latestJob?.status === 'PROCESSING';
+  const isStalled = Boolean(isProcessing && latestJob?.lease_expired);
+  const isActivelyProcessing = Boolean(isProcessing && !isStalled);
 
   const completedTime = latestJob?.completed_at
     ? time(latestJob.completed_at)
@@ -136,11 +142,13 @@ export function InvoiceRunView({
     ? 'success'
     : isFailed
       ? 'error'
-      : isProcessing
-        ? 'info'
-        : isQueued
-          ? 'warning'
-          : 'neutral';
+      : isStalled
+        ? 'warning'
+        : isActivelyProcessing
+          ? 'info'
+          : isQueued
+            ? 'warning'
+            : 'neutral';
 
   return (
     <section
@@ -153,9 +161,9 @@ export function InvoiceRunView({
           {/* Status Icon */}
           {isCompleted ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          ) : isFailed ? (
-            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-          ) : isProcessing ? (
+          ) : isFailed || isStalled ? (
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          ) : isActivelyProcessing ? (
             <RefreshCw className="w-4 h-4 text-indigo-600 dark:text-indigo-400 animate-spin shrink-0" />
           ) : isQueued ? (
             <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -165,20 +173,26 @@ export function InvoiceRunView({
 
           {/* Status Badge */}
           <Badge tone={statusTone} size="sm">
-            {latestJob ? words(latestJob.status).toUpperCase() : 'QUEUED'}
+            {isStalled
+              ? 'STALLED'
+              : isFailed
+                ? 'FAILED'
+                : latestJob ? words(latestJob.status).toUpperCase() : 'QUEUED'}
           </Badge>
 
           {/* Processing Outcome Description */}
           <span className="font-semibold text-xs text-slate-800 dark:text-slate-100 truncate">
             {outcome
               ? `Outcome: ${words(outcome.decision)} (${words(outcome.stage)})`
-              : invoiceDecision
-                ? `Recorded decision: ${words(invoiceDecision)}${invoiceStage ? ` (${words(invoiceStage)})` : ''}`
-                : isCompleted
-                  ? 'Extraction and matching completed'
-                  : isProcessing
-                    ? 'Extraction and verification in progress…'
-                    : 'Queued for processing'}
+              : isStalled
+                ? 'Processing stalled — worker lease expired'
+                : invoiceDecision
+                  ? `Recorded decision: ${words(invoiceDecision)}${invoiceStage ? ` (${words(invoiceStage)})` : ''}`
+                  : isCompleted
+                    ? 'Extraction and matching completed'
+                    : isActivelyProcessing
+                      ? 'Extraction and verification in progress…'
+                      : 'Queued for processing'}
           </span>
 
           <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">
@@ -189,9 +203,11 @@ export function InvoiceRunView({
           <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
             {completedTime
               ? `Completed ${completedTime}`
-              : isProcessing
-                ? 'Processing active'
-                : 'Intake registered'}
+              : isStalled
+                ? 'Recovery required'
+                : isActivelyProcessing
+                  ? 'Processing active'
+                  : 'Intake registered'}
             {totalEvents > 0 &&
               ` · ${totalEvents} checkpoint${totalEvents === 1 ? '' : 's'} recorded`}
           </span>
@@ -206,6 +222,17 @@ export function InvoiceRunView({
 
         {/* Action Toggle Button */}
         <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          {onRetry && (isStalled || isFailed || isQueued) && (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={retrying}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-950 disabled:opacity-60 transition-colors shadow-2xs cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${retrying ? 'animate-spin' : ''}`} />
+              <span>{retrying ? 'Retrying…' : 'Retry processing'}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
@@ -280,8 +307,8 @@ export function InvoiceRunView({
 
               {job.status === 'QUEUED' && (
                 <p className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-200 dark:border-amber-900">
-                  Waiting for an active background worker. An authorized
-                  operator can resume the workspace queue.
+                  Waiting for a worker. Use Retry processing to claim this
+                  invoice; the action is scoped to this document only.
                 </p>
               )}
 
@@ -290,8 +317,8 @@ export function InvoiceRunView({
                   role="status"
                   className="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2 rounded border border-amber-200 dark:border-amber-900"
                 >
-                  Worker lease expired. Completion is unconfirmed; resume queue
-                  to recover.
+                  Worker lease expired. Completion is unconfirmed. Use Retry
+                  processing to recover this invoice; stale results cannot commit.
                 </p>
               )}
 

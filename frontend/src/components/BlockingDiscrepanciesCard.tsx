@@ -6,6 +6,7 @@ import {
   ChevronUp,
   ArrowRight,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import { Card, Badge } from "./ui";
 import type { InvoiceDetailInvoice, MatchGateItem } from "../types";
@@ -70,6 +71,7 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
   );
   const issuesList = [...failedGates, ...incompleteGates];
   const totalIssues = issuesList.length;
+  const allPassed = matchGates.length >= 7 && matchGates.every((g) => g.status === "PASS");
 
   return (
     <Card className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs rounded-xl overflow-hidden transition-all">
@@ -91,9 +93,13 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
             <Badge tone="error" size="sm" className="font-bold">
               {totalIssues} {totalIssues === 1 ? "Issue" : "Issues"}
             </Badge>
-          ) : (
+          ) : allPassed ? (
             <Badge tone="success" size="sm">
               All Clear
+            </Badge>
+          ) : (
+            <Badge tone="warning" size="sm">
+              Not verified
             </Badge>
           )}
         </div>
@@ -209,8 +215,8 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
               )}
             </div>
           </>
-        ) : (
-          /* Empty State */
+        ) : allPassed ? (
+          /* Verified clear state: only after every recorded gate passed. */
           <div className="py-6 text-center space-y-1.5">
             <div className="w-8 h-8 mx-auto rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <CheckCircle2 className="w-5 h-5" />
@@ -219,8 +225,22 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
               Zero Blocking Discrepancies
             </h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
-              All 7 policy validation gates passed with zero tolerance violations.
+              All recorded policy validation gates passed with zero tolerance violations.
               Document is cleared for straight-through approval.
+            </p>
+          </div>
+        ) : (
+          /* No completed verification: never imply that checks passed. */
+          <div className="py-6 text-center space-y-1.5">
+            <div className="w-8 h-8 mx-auto rounded-full bg-amber-100 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 flex items-center justify-center text-amber-600 dark:text-amber-400">
+              <Clock className="w-5 h-5" />
+            </div>
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              Verification Not Complete
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
+              No completed seven-gate result is available. Approval remains blocked until
+              processing succeeds and recorded checks are available.
             </p>
           </div>
         )}
