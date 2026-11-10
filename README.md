@@ -3,9 +3,9 @@
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?logo=react&logoColor=black)](https://react.dev)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-7.0-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v3-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38B2AC?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > **Flagship Candidate Submission:** Neeraj Shivkumar — AI Solutions Associate Candidate  
@@ -279,7 +279,7 @@ Pre-seeded and fully verified in evaluation tenant `org_sme_eval`:
 | :--- | :--- | :--- |
 | **Backend Framework** | Python / FastAPI | Python 3.12, FastAPI 0.110+ (Asynchronous REST API) |
 | **Web Server** | Uvicorn | High-performance ASGI server |
-| **Frontend Framework** | React 19 / TypeScript | React 19.0, TypeScript 5.5, Vite 8.3 |
+| **Frontend Framework** | React 19 / TypeScript | React 19.3, TypeScript 7.0, Vite 8.3 |
 | **Styling & Icons** | Tailwind CSS / Lucide Icons | Responsive utility-first dark theme styling |
 | **Multimodal OCR** | RapidOCR + ONNX Runtime | Local ONNX-based optical character detection |
 | **Cloud Vision** | AWS Bedrock Palmyra Vision | `writer.palmyra-vision-7b` (us-east-1) |
@@ -319,7 +319,7 @@ Copy the provided `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-*(For local development and evaluation, default settings use pre-seeded evaluation tenant `org_sme_eval` and loopback dev session authentication).*
+*(`.env.example` ships with `ENABLE_DEV_SESSION=false`. For local development only, set `ENABLE_DEV_SESSION=true` to use the persona quick-login buttons, and seed the evaluation tenant `org_sme_eval` with `python engine/sme_eval_setup.py` — see [`docs/LOCAL_SETUP.md`](./docs/LOCAL_SETUP.md). Live extraction requires `MANTLE_API_KEY`.)*
 
 ### Step 3: Launch the Unified Server
 ```bash
@@ -340,11 +340,11 @@ Access the three experiences in your browser:
 
 ## 9. Testing, Verification & Parity Scorecard
 
-Independent verification snapshot executed on 2026-11-10 against Windows (Python 3.12.10, pytest 9.0.3, Node.js v20.18.0):
+Authoritative verification snapshot executed on 2026-11-10 against Windows (Python 3.12.10, pytest 9.0.3, Node.js v20.18.0) following application of test-isolation hygiene fixes:
 
 | Test Suite | Target Scope | Commands Executed | Result | Status |
 | :--- | :--- | :--- | :---: | :---: |
-| **Full Backend Regression Suite** | Complete Python backend test corpus across all operational modules | `python -m pytest tests/ -q` | **489 Passed, 31 Failed, 43 Skipped** (563 collected) | ⚠️ 489 / 520 Executed Passed (94.0%) |
+| **Full Backend Regression Suite** | Complete Python backend test corpus across all operational modules | `python -m pytest tests/ -q` | **520 Passed, 0 Failed, 43 Skipped** (563 collected) | ✅ 520 / 520 Executed Passed (100.0%) |
 | **Legacy Route Security (P1-1)** | Environment-gated production 404 blocking vs development parity | `pytest tests/test_legacy_api_security.py -v` | **2 / 2 Passed (100%)** | ✅ PASS |
 | **Flagship-Sandbox Parity** | Deterministic matching, Decimal INR currency, and 7-gate parity | `pytest tests/test_sandbox_flagship_parity.py -v` | **11 / 11 Passed (100%)** | ✅ PASS |
 | **Frontend Unit & Auth Lifecycle** | Token rotation, concurrency locks, session recovery, polling | `npm test --prefix frontend` | **20 / 20 Passed (100%)** | ✅ PASS |
@@ -355,7 +355,7 @@ Independent verification snapshot executed on 2026-11-10 against Windows (Python
 | **OCR Dependencies** | RapidOCR, ONNX Runtime, and NumPy import validation | `python -c "import rapidocr, onnxruntime, numpy"` | **All Verified Installed** | ✅ PASS |
 
 > [!NOTE]
-> In the full backend suite, 43 skipped tests correspond to disposable PostgreSQL cluster fixtures (which require the optional `--disposable-postgres-port` runner) and live external Gmail Pub/Sub network probes. The 31 failed tests correspond to legacy Phase A/D unit stubs expecting historical mock feature flags (e.g. `ENABLE_PALMYRA_VISION=False`) or obsolete in-memory session assumptions superseded by the production multimodal pipeline. All authoritative flagship, sandbox, parity, and security suites pass cleanly.
+> In the full backend suite, 43 skipped tests correspond to disposable PostgreSQL cluster fixtures (which require the optional `--disposable-postgres-port` runner) and live external Gmail Pub/Sub network probes. With the two test-isolation defects resolved (subprocess isolation in `tests/test_legacy_api_security.py` preventing module cache poisoning, and schema default assertion in `tests/phase_d/test_phase_d_palmyra_vision.py`), all 520 executed tests pass cleanly (100% pass rate).
 
 ---
 

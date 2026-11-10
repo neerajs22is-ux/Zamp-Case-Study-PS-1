@@ -64,7 +64,7 @@ stateDiagram-v2
 
 - **`MATCH_CANDIDATE` (Recommendation):** Initial pipeline status when all 7 match gates pass. It is **not** an approval. It indicates that the invoice is clean and awaiting human sign-off.
 - **`AUTO_APPROVED` (Straight-Through Processing):** Reserved strictly for fully automated, touchless processing where zero human intervention took place. Conflating human approvals with `AUTO_APPROVED` is forbidden as it skews touchless rate analytics.
-- **`MANUALLY_APPROVED` (Human Review Complete):** Assigned when an `AP_LEAD` or `CONTROLLER` reviews the 3-pane evidence and submits `APPROVE_AP_REVIEW`.
+- **`MANUALLY_APPROVED` (Human Review Complete):** Assigned when an `AP_LEAD` or `CONTROLLER` reviews the document evidence and gate results and submits `APPROVE_AP_REVIEW`.
 - **`HOLD_PENDING_EVIDENCE` (Query Hold):** Applied when an AP Lead places an operational hold (e.g., waiting for vendor rate credit note or amended PO).
 - **`QUARANTINED`:** Assigned to non-payable commercial files (receipts, statements). Zero liability is registered in the AP ledger.
 

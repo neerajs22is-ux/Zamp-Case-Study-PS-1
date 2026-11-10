@@ -14,11 +14,11 @@ This document provides an authoritative, truthful accounting of completed milest
 | **Phase D** | Production readiness hardening, modality classification separation, grounding verification. | Digital text vs scanned image separation, contrast pre-screening. | **COMPLETED** | 100% Pass (15 tests) |
 | **Palmyra Vision**| Multimodal visual extraction evaluation (writer.palmyra-vision-7b) on degraded scans. | Live Palmyra API calls, latency and cost benchmarking, fail-closed rule. | **COMPLETED** | Feature-flagged OFF by default |
 | **Phase E** | Controlled SME acceptance testing on evaluation tenant `org_sme_eval` & security hardening. | Real browser-level Playwright tests, enterprise JWT auth, dual-control policy. | **COMPLETED** | 100% Pass (244 tests) |
-| **Phase U** | **Unified Engine & Dual Experiences (Sandbox + Flagship):** Retire USD mock rules; establish Flagship as sole authoritative business engine; rebuild sandbox to consume shared APIs. | Parity testing suite `tests/test_sandbox_flagship_parity.py`, Decimal INR, 7 gates, 6 genuine scenarios. | **COMPLETED** | 100% Pass (11 tests, 482 total) |
-| **Render Deploy** | Production container deployment on Render Web Service. | Production deployment. | **READY FOR DEPLOY** | All gates verified |
+| **Phase U** | **Unified Engine & Dual Experiences (Sandbox + Flagship):** Retire USD mock rules; establish Flagship as sole authoritative business engine; rebuild sandbox to consume shared APIs. | Parity testing suite `tests/test_sandbox_flagship_parity.py`, Decimal INR, 7 gates, 6 genuine scenarios. | **COMPLETED** | 11 parity tests recorded passing (see §4) |
+| **Render Deploy** | Production container deployment on Render Web Service. | Production deployment. | **NOT DEPLOYED (ON HOLD)** | Blocked on the P0 items in §8 (migrations 011–013, public deployment, browser acceptance) |
 | **Phase P0** | Multimodal OCR + Vision pipeline (RapidOCR ONNX, Palmyra Vision, Mantle Qwen 235B) & Ask4i-inspired grounding tripwires. | Multimodal token coordinates, page provenance, fail-closed hallucination detection. | **COMPLETED** | Verified with live/scanned docs |
 | **Phase P1** | **Sandbox 2.0 & Multi-App Responsiveness:** Redesigned Sandbox landing ('The Invoice Journey') & 9-viewport responsiveness audit. | 44 automated Playwright viewport checks (320px–1920px), zero overflow, acceptance suite 100%. | **COMPLETED** | 100% Pass (44/44 checks) |
-| **Step 1** | **Repository Packaging & Dependency Hygiene:** Declared OCR dependencies (rapidocr, onnxruntime, numpy), curated visual assets, and rebuilt README. | Dependency audit, secret scan (529 files clean), Docker verification. | **COMPLETED** | 100% Verified |
+| **Step 1** | **Repository Packaging & Dependency Hygiene:** Declared OCR dependencies (rapidocr, onnxruntime, numpy), curated visual assets, and rebuilt README. | Dependency audit and secret scan (recorded by author). Docker image build not re-run in the hygiene pass. | **COMPLETED** | Recorded, see §4 |
 
 ---
 
@@ -34,7 +34,7 @@ This document provides an authoritative, truthful accounting of completed milest
    - 7 sequential policy gates: Vendor master, PO authorization, GRN match, QC acceptance, GST arithmetic, rate/quantity tolerance, and duplicate check.
    - Indian GST tax math: interstate IGST vs intrastate CGST+SGST, state code checking, ₹20 rounding tolerance.
    - Cryptographic SHA-256 duplicate detection.
-   - Financial approval state machine separating straight-through processing (`AUTO_APPROVED`) from human review (`MANUALLY_APPROVED`).
+   - Financial approval state machine: the pipeline outputs `MATCH_CANDIDATE` (or an exception state) and a human approval produces `MANUALLY_APPROVED`. `AUTO_APPROVED` is read by the inbox/dashboard/sandbox statistics but no code path under `backend/` assigns it today, so touchless straight-through approval is not implemented.
    - Dual-control threshold enforcement (₹5,00,000 INR) with anti-self-approval protection.
 3. **Document Intelligence & AI Pipeline:**
    - Pre-screener distinguishing machine-readable PDFs from low-contrast raster scans ($\sigma < 10.0$).
@@ -45,10 +45,10 @@ This document provides an authoritative, truthful accounting of completed milest
    - Modern Tailwind CSS interface with real-time SSE stream support.
    - Operational Dashboard with live metrics (Ingested count, open exceptions, blocked exposure value).
    - Filterable Invoice Inbox table.
-   - 3-Pane Review Workspace (Document PDF Evidence, Line Reconciliation & GST Math, Match Gates & Actions).
+   - Two-column Review Workspace (`InvoiceDetailPage.tsx`): sticky original-PDF viewer on the left; 7-gate status, extracted data, line reconciliation and review actions on the right.
    - Connections and Quarantined Documents ledger.
    - Enterprise authentication screen supporting Supabase Email OTP (one-time passcode) and Google OAuth, with dev-session quick logins strictly restricted to local loopback development.
-5. **Database & Persistence (`supabase/` & `alembic/`):**
+5. **Database & Persistence (`backend/migrations/` + `alembic.ini`):**
    - PostgreSQL 15 schema with Alembic migrations.
    - Connection separation: Port 6543 (transaction pooler) vs Port 5432 (direct DDL / migrations).
    - PostgreSQL trigger `prevent_audit_events_mutation()` enforcing database-level audit immutability.
@@ -68,14 +68,15 @@ This document provides an authoritative, truthful accounting of completed milest
 
 ## 4. Test Suite Execution Summary
 
-Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3.12.10, Node.js v20.18.0):
+Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3.12.10, Node.js v20.18.0) following application of test-isolation hygiene fixes:
 
 - **Full Backend Python Suite (`python -m pytest tests/ -q`):**
   - **Total Items Collected:** 563
-  - **Passed:** 489 (94.0% of executed tests)
-  - **Failed:** 31 (Historical unit stubs expecting superseded mock flags or in-memory bypasses)
+  - **Passed:** 520 (100% of executed tests)
+  - **Failed:** 0
   - **Skipped:** 43 (Disposable PostgreSQL runner fixtures and live Gmail network probes)
-  - **Execution Time:** ~26 minutes
+  - **Execution Time:** 196.95s (~3m 16s)
+  - **Test Isolation Resolution:** The 31 previously observed failures were resolved by two targeted hygiene fixes: (1) `tests/test_legacy_api_security.py` now runs environment probes in clean subprocesses rather than mutating the parent process module cache and JWT secrets; (2) `tests/phase_d/test_phase_d_palmyra_vision.py::test_01` asserts the schema default (`model_fields["ENABLE_PALMYRA_VISION"].default is False`) rather than the runtime `.env` state.
 - **Frontend Test Suite (`npm test --prefix frontend`):**
   - **Total Items:** 20
   - **Passed:** 20 (100% Pass)
@@ -97,7 +98,7 @@ Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3
 1. **Banking & Payment Rails:** Intentionally decoupled; zero payment disbursement integrations exist.
 2. **Direct ERP Ledger Mutations:** The system does not write debit/credit journal entries to SAP S/4HANA live databases. Voucher export is an asynchronous batch process.
 3. **Bulk Inbox Operations:** Invoices must currently be reviewed and approved individually. Batch bulk-approval is not implemented.
-4. **Keyboard Shortcuts:** The review workspace lacks power-user hotkeys for triage.
+4. **Keyboard Shortcuts:** A global shortcuts hook exists (`useKeyboardShortcuts` in `AppShell.tsx`); dedicated per-row triage hotkeys for the review workspace are not verified.
 5. **Multi-Currency Customs Duty:** Foreign currency imports (USD/EUR with IGST customs assessments) require manual HITL review.
 
 ---
@@ -106,13 +107,13 @@ Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3
 
 - **Status:** **ON HOLD** awaiting explicit user sign-off.
 - **Packaging:** Multi-stage Dockerfile and `render.yaml` are validated and container-ready.
-- **Local Application:** Actively running on `http://127.0.0.1:8000` (FastAPI) and `http://localhost:5173` (Vite).
+- **Local Application:** `python run.py` serves the Flagship, Sandbox and (development-only) Legacy experiences on `http://127.0.0.1:8001`.
 
 ---
 
 ## 7. Next Recommended Development Milestone
 
-**Independent UI/UX Audit & Redesign:** Hand off repository to an independent design-focused AI model to evaluate AP employee ergonomics, 3-pane density, keyboard triage shortcuts, and bulk action workflows based on the specifications in [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md).
+Complete the P0 items in §8 (migrations 011–013, public deployment, browser-based acceptance). UI ergonomics follow-ups (review-workspace density, keyboard triage, bulk actions) are tracked in [`docs/architecture/FREE_TIER_LIMITATIONS.md`](./docs/architecture/FREE_TIER_LIMITATIONS.md).
 
 
 ---
@@ -132,8 +133,8 @@ Authoritative verification snapshot executed on **2026-11-10** (Windows Python 3
 6. **Demo Reset Policy:** **`[CONFIRMED]`** `/api/v1/system/reset-demo` is disabled in production/staging; demo resets must be specifically authorized for `org_sme_eval`.
 7. **Persisted Processing Run View:** **`[CONFIRMED]`** `InvoiceRunView.tsx` consumes actual persisted PostgreSQL audit checkpoints from `backend/core/processing_events.py`.
 8. **Modality Boundary:** **`[CONFIRMED]`** Production hybrid pipeline routes degraded scans fail-closed to `FLAGGED_HITL_REVIEW`. Palmyra Vision was evaluated in a separate benchmark harness and remains feature-flagged OFF in production.
-9. **Test Suite Accounting:** Current canonical local regression test results: **464 passed, 43 skipped, 0 failed** in ~43s (`python -m pytest tests/`, 507 collected), plus **14 passed, 0 failed** in Node.js (`cd frontend; npm test`). Total **478 passing tests**.
-10. **Launcher Alignment:** `Dockerfile` targets the flagship (`backend.main:app`), while `run.py` currently targets the standalone mock; `run.py` will be realigned in P0.
+9. **Test Suite Accounting:** **`[SUPERSEDED]`** An earlier snapshot recorded 464 passed / 43 skipped / 0 failed (507 collected) and 14 Node tests. It conflicts with the later 2026-11-10 snapshot in §4 (563 collected, 489 passed, 31 failed, 43 skipped; 20 Node tests) and was superseded by the hygiene pass in §4 (563 collected, 520 passed, 0 failed, 43 skipped; 20 Node tests).
+10. **Launcher Alignment:** **`[RESOLVED]`** `Dockerfile` and `run.py` both launch `backend.main:app` (`run.py` on `127.0.0.1:8001`). The standalone engine is reachable only at `/legacy` in development.
 11. **Evaluation Database Bootstrap Tool & Disposable Lifecycle:** **`[CONFIRMED & HARDENED]`** Administrative out-of-band CLI tool `engine/bootstrap_eval_db.py` enforces multi-layer safety invariants (`IS_DEDICATED_EVALUATION_DATABASE=True`, `EVAL_BOOTSTRAP_SECRET_KEY` ≥ 32 chars from env, `--confirm-isolated-eval-database`, database target verification against `--expected-db-name` or `EXPECTED_EVAL_DATABASE_NAME`, fail-closed query inspection, production blacklist guard, RLS bypass privilege check, zero foreign orgs/users, exact Alembic migration revision `013_revoke_access_tokens` enforced, single atomic transaction with complete rollback on error, disposable database lifecycle respecting trigger `trg_audit_events_immutable`, `--dry-run` mode, and environment state restoration).
 12. **Multi-Tab Refresh Race Resolution:** **`[CONFIRMED & REMEDIATED]`** Cross-tab coordination in `frontend/src/api/client.ts` uses active token polling (`tokenNow !== initialToken`), 4000ms crash takeover, and logout abort checks, eliminating premature session drops during simultaneous requests.
 13. **Render Auto-Deployment Decoupled:** **`[CONFIRMED & REMEDIATED]`** Set `autoDeploy: false` in `render.yaml` to prevent automatic production deployment on Git push.

@@ -92,7 +92,7 @@ backend/
 ├── api/
 │   └── v1/
 │       ├── auth.py          # Session minting & authentication endpoints
-│       ├── invoices.py      # Ingestion, matching, review actions, and 3-pane detail
+│       ├── invoices.py      # Ingestion, matching, review actions, and invoice detail
 │       ├── dashboard.py     # Executive KPI metrics & financial summaries
 │       ├── connections.py   # Ingestion channel status & quarantined documents
 │       ├── webhooks.py      # Google Cloud Pub/Sub push notification receivers
@@ -129,7 +129,7 @@ frontend/src/
 ├── pages/
 │   ├── DashboardPage.tsx     # Executive KPIs (Total Ingested, Exceptions, Blocked Value)
 │   ├── InboxPage.tsx         # Ledger table with stage/decision filters & search
-│   ├── InvoiceDetailPage.tsx # 3-Pane Review Workspace (Evidence, Reconciliation, Match Gates)
+│   ├── InvoiceDetailPage.tsx # Two-column Review Workspace (Evidence | Gates, Reconciliation, Actions)
 │   ├── ConnectionsPage.tsx   # Mailbox ingestion status & Quarantined Documents ledger
 │   └── SettingsPage.tsx      # Policy tolerances, thresholds, and role assignments
 │
@@ -142,11 +142,10 @@ frontend/src/
     └── client.ts             # Typed HTTP client handling Bearer tokens and error propagation
 ```
 
-### 3-Pane Inspection Architecture
-The flagship user interface view is the 3-Pane Review Workspace (`InvoiceDetailPage.tsx`):
-- **Pane 1 (Left):** Document Evidence. Embeds the original vendor PDF via signed Supabase storage URL (300s expiration).
-- **Pane 2 (Center):** Line Reconciliation. Maps extracted invoice line items against PO line items, showing billed vs contracted rates, calculated GST tax amounts, and net payable.
-- **Pane 3 (Right):** Match Decision Gates & Human Actions. Displays the real-time status of all 7 deterministic policy gates, exception explanations, and operational action buttons (`APPROVE_AP_REVIEW`, `HOLD_PENDING_EVIDENCE`, `REJECT_INVOICE`).
+### Two-Column Inspection Architecture
+The flagship invoice view is a two-column Review Workspace (`InvoiceDetailPage.tsx`):
+- **Left column (~42%):** Document Evidence. Embeds the original vendor PDF via signed Supabase storage URL (300s expiration).
+- **Right column (~58%):** Match Decision Gates, Line Reconciliation & Human Actions. Displays the status of all 7 deterministic policy gates, exception explanations, extracted data, billed-vs-contracted line reconciliation with GST amounts, and operational action buttons (`APPROVE_AP_REVIEW`, `HOLD_PENDING_EVIDENCE`, `REJECT_INVOICE`).
 
 ---
 

@@ -19,7 +19,7 @@ flowchart TD
         A["Flagship AP Command Center<br/>(backend/ + frontend/)"]
         A --> B["5-Minute Video Walkthrough Target"]
         A --> C["Planned Primary Public Hosted URL<br/>(Milestone P0)"]
-        A --> D["React 19 Command Center UI<br/>(3-Pane Audit View, Live Inbox, Exposure KPIs)"]
+        A --> D["React 19 Command Center UI<br/>(Two-column Review Workspace, Live Inbox, Exposure KPIs)"]
         A --> E["FastAPI v1 + PostgreSQL RLS<br/>(13 Alembic Migrations, Private Storage Adapter)"]
         A --> F["Deterministic 3-Way Match & GST Math<br/>(PO, GRN, QC Snapshots)"]
     end

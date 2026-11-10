@@ -33,10 +33,18 @@ def real_pdf_bytes():
 
 
 def test_01_feature_flag_disabled_by_default():
-    """Verifies Palmyra Vision feature flag defaults to False, maintaining existing processing path."""
-    assert settings.ENABLE_PALMYRA_VISION is False
-    assert settings.PALMYRA_MODEL_ID == "writer.palmyra-vision-7b"
-    assert "us-east-1" in settings.PALMYRA_BASE_URL or "us-west-2" in settings.PALMYRA_BASE_URL
+    """Verifies Palmyra Vision feature flag defaults to False, maintaining existing processing path.
+
+    Asserts the *declared* defaults of the settings schema rather than the loaded ``settings``
+    instance: the instance reflects the developer's local ``.env``/process environment (for example a
+    deliberate ``ENABLE_PALMYRA_VISION=true`` used for provider benchmarks), which made this test
+    environment-dependent. The schema default is what ships to a fresh deployment.
+    """
+    fields = type(settings).model_fields
+    assert fields["ENABLE_PALMYRA_VISION"].default is False
+    assert fields["PALMYRA_MODEL_ID"].default == "writer.palmyra-vision-7b"
+    default_base_url = fields["PALMYRA_BASE_URL"].default
+    assert "us-east-1" in default_base_url or "us-west-2" in default_base_url
 
 
 def test_02_palmyra_adapter_key_resolution():
