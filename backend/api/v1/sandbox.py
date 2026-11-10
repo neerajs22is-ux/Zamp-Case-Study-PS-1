@@ -597,11 +597,62 @@ def _execute_pipeline_core(
 # -----------------------------------------------------------------------------
 
 @router.get("/scenarios")
-def list_sandbox_scenarios(
-    current_user: AuthenticatedUser = Depends(require_active_membership),
-) -> List[Dict[str, Any]]:
-    """Returns the genuine synthetic test scenarios available in the sandbox."""
+def list_sandbox_scenarios() -> List[Dict[str, Any]]:
+    """Returns the genuine synthetic test scenarios available in the sandbox (public read-only)."""
     return GENUINE_SCENARIOS
+
+
+@router.get("/scenarios/{scenario_id}/explore")
+def explore_sandbox_scenario(
+    scenario_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Public read-only exploration of a genuine scenario with stored execution provenance."""
+    if not re.match(r"^SCN-[A-Za-z0-9_-]+$", scenario_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Malformed scenario identifier.",
+        )
+    scenario = next((s for s in GENUINE_SCENARIOS if s["id"] == scenario_id or s["id"].split("-")[1] in scenario_id), None)
+    if not scenario:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
+
+    # 1. Establish tenant context and look up existing document in org_sme_eval
+    set_tenant_context(db, SANDBOX_ORG_ID)
+    existing_doc = db.scalar(
+        select(Document).where(
+            Document.filename == scenario["pdf_filename"],
+            Document.org_id == SANDBOX_ORG_ID,
+            Document.is_deleted == False,
+        )
+    )
+    if existing_doc:
+        res = _get_invoice_sandbox_view(db, existing_doc.invoice_id, SANDBOX_ORG_ID, scenario=scenario, is_previous_run=True)
+        res["mode"] = "STORED_RESULT"
+        res["is_previous_run"] = True
+        return res
+
+    # 2. Look up by SHA-256 hash if filename was modified
+    try:
+        pdf_path = get_scenario_pdf_path(scenario["pdf_filename"])
+        with open(pdf_path, "rb") as f:
+            pdf_bytes = f.read()
+        sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+        doc_by_hash = db.scalar(
+            select(Document).where(
+                Document.sha256_hash == sha256,
+                Document.is_deleted == False,
+            )
+        )
+        if doc_by_hash:
+            res = _get_invoice_sandbox_view(db, doc_by_hash.invoice_id, doc_by_hash.org_id, scenario=scenario, is_previous_run=True)
+            res["mode"] = "STORED_RESULT"
+            res["is_previous_run"] = True
+            return res
+    except Exception as exc:
+        logger.warning(f"Failed to lookup scenario by hash: {exc}")
+
+    raise HTTPException(status_code=404, detail="Scenario execution record not found in evaluation ledger.")
 
 
 @router.post("/run-scenario/{scenario_id}")
@@ -615,11 +666,13 @@ def run_sandbox_scenario(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Executes a genuine test scenario through the authoritative flagship AP Command Center engine."""
-    # 1. Enforce Evaluation Workspace Guard (Requirement 5)
-    if current_user.org_id != SANDBOX_ORG_ID:
+    # 1. Enforce Evaluation & Demo Workspace Guard
+    is_eval_org = current_user.org_id == SANDBOX_ORG_ID
+    is_demo_org = bool(current_user.org_id and current_user.org_id.startswith("org_demo_"))
+    if not is_eval_org and not is_demo_org:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Demonstration scenarios are restricted to authorized evaluation workspaces ('org_sme_eval').",
+            detail="Demonstration scenarios are restricted to authorized evaluation and demo workspaces.",
         )
 
     # 2. Validate scenario identifier format
@@ -850,6 +903,15 @@ async def upload_sandbox_invoice(
 
     sha256 = hashlib.sha256(content).hexdigest()
     set_tenant_context(db, current_user.org_id)
+
+    # Demo workspace upload quota guard
+    if current_user.org_id and current_user.org_id.startswith("org_demo_"):
+        existing_count = db.scalar(select(func.count(Document.id)).where(Document.org_id == current_user.org_id, Document.is_deleted == False)) or 0
+        if existing_count >= 5:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Demo workspace upload limit reached (maximum 5 documents per demo session).",
+            )
 
     # Tenant duplicate detection
     existing_doc = db.scalar(

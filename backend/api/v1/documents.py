@@ -118,6 +118,15 @@ async def upload_document(
 
     content = b"".join(chunks)
 
+    # Demo tenant quota guard
+    if current_user.org_id and current_user.org_id.startswith("org_demo_"):
+        existing_count = db.scalar(select(func.count(Document.id)).where(Document.org_id == current_user.org_id, Document.is_deleted == False)) or 0
+        if existing_count >= 5:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Demo workspace upload limit reached (maximum 5 documents per demo session). Sign in with Google for full evaluation access.",
+            )
+
     # 3. Magic bytes validation
     if not content.startswith(b"%PDF-"):
         raise HTTPException(

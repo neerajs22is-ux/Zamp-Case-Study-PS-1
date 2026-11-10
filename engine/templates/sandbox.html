@@ -1624,6 +1624,21 @@
       let startTime = performance.now();
       startTimer(startTime);
 
+      // Public unauthenticated scenario exploration
+      if (!getAuthToken()) {
+        try {
+          const exploreRes = await fetch(`/api/v1/sandbox/scenarios/${scenarioId}/explore`);
+          if (exploreRes.ok) {
+            const data = await exploreRes.json();
+            stopTimer();
+            onProcessingComplete(data);
+            return;
+          }
+        } catch (exploreErr) {
+          console.warn("Public scenario exploration failed, attempting standard run:", exploreErr);
+        }
+      }
+
       try {
         const res = await fetch(`/api/v1/sandbox/run-scenario/${scenarioId}`, {
           method: 'POST',
@@ -1665,11 +1680,25 @@
     // Upload custom PDF
     async function uploadCustomPdf(file) {
       if (!getAuthToken()) {
-        const shouldLogin = confirm("Authentication required: Live invoice ingestion requires an authenticated evaluation session. Would you like to log in to the AP Command Center now?");
-        if (shouldLogin) {
+        const launchDemo = confirm("Live invoice ingestion requires an isolated evaluation workspace.\n\nClick 'OK' to launch an instant 1-click Demo Workspace to process your invoice, or 'Cancel' to sign in with Google.");
+        if (launchDemo) {
+          try {
+            const demoRes = await fetch('/api/v1/auth/demo-session', { method: 'POST' });
+            if (demoRes.ok) {
+              const demoData = await demoRes.json();
+              localStorage.setItem('ap_command_access_token', demoData.access_token);
+            } else {
+              window.location.href = '/login';
+              return;
+            }
+          } catch (e) {
+            window.location.href = '/login';
+            return;
+          }
+        } else {
           window.location.href = '/login';
+          return;
         }
-        return;
       }
 
       resetViews();

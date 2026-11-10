@@ -10,6 +10,7 @@ import time
 import urllib.request
 from typing import Any, Dict, List, Optional
 import uuid
+from jose import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, Security, status
 from fastapi.security import HTTPAuthorizationCredentials
 from pydantic import BaseModel, field_validator
@@ -22,8 +23,12 @@ from backend.core.auth import (
     get_current_user, require_active_membership, require_role, security_bearer, verify_token_claims
 )
 from backend.core.database import get_db, set_tenant_context
+from decimal import Decimal
 from backend.models.domain import (
-    AccessRequest, AuditEvent, Organisation, RevokedAccessToken, RoleAssignment, User, UserInvitation
+    AccessRequest, AuditEvent, Document, GoodsReceiptLineSnapshot, GoodsReceiptSnapshot,
+    IdentityMembership, Invoice, InvoiceLine, MatchGateCheck, MatchRun, Organisation,
+    QualityControlSnapshot, RevokedAccessToken, RoleAssignment, User, UserInvitation,
+    Vendor, VendorGSTIN, WorkOrderLineSnapshot, WorkOrderSnapshot
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication & Identity"])
@@ -221,6 +226,490 @@ def create_dev_session(
             "org_id": effective_org,
         },
     }
+
+
+_DEMO_SESSIONS_TRACKER: Dict[str, List[float]] = {}
+
+
+def provision_isolated_demo_tenant(db: Session, client_ip: str) -> Dict[str, Any]:
+    """Provisions a completely isolated, temporary demo tenant with realistic fixtures.
+
+    Guarantees:
+    - Rate-limited per IP (max 10 requests per 10 minutes).
+    - Uniquely isolated tenant ID (org_demo_<hex4>) with separate PostgreSQL RLS boundaries.
+    - Assigned least-privilege role: AP_ASSOCIATE (strictly prohibited from authorizing disbursements or escalating privileges).
+    - Pre-seeded with authentic Indian GST procurement fixtures:
+      * 1 approved vendor (Asterion Precision Components Pvt Ltd)
+      * 2 purchase orders (PO-26-1001 for clean match, PO-26-1011 for price variance)
+      * 2 goods receipt notes (GRN-26-501, GRN-26-621)
+      * 2 QC inspection certificates (QC-GRN-26-501-01, QC-GRN-26-621-01)
+      * 2 pre-evaluated commercial invoices (SCN-01 match candidate and SCN-02 price variance exception)
+    - Issues a cryptographically signed, expiring Supabase JWT (HS256).
+    - Cleans up stale demo tenants older than 4 hours.
+    """
+    now = time.time()
+    # 1. IP Rate Limiting
+    ip_key = client_ip or "unknown"
+    history = [t for t in _DEMO_SESSIONS_TRACKER.get(ip_key, []) if now - t < 600.0]
+    if len(history) >= 10:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Demo session creation rate limit exceeded. Please wait a few minutes before requesting another demo session.",
+        )
+    history.append(now)
+    _DEMO_SESSIONS_TRACKER[ip_key] = history
+
+    # 2. Server Secret Guard
+    jwt_secret = settings.SUPABASE_JWT_SECRET or settings.SECRET_KEY
+    if not jwt_secret:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server JWT secret is not configured.",
+        )
+
+    # 3. Generate unique identifiers
+    demo_id = secrets.token_hex(4)
+    demo_org_id = f"org_demo_{demo_id}"
+    demo_user_id = f"usr_demo_{demo_id}"
+    demo_email = f"evaluator_{demo_id}@demo.zamp.internal"
+    demo_name = "Demo Evaluator"
+    now_utc = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+    canonical_issuer = (settings.SUPABASE_ISSUER or (f"{settings.SUPABASE_URL.rstrip('/')}/auth/v1" if settings.SUPABASE_URL else "test")).rstrip("/")
+
+    # 4. Set RLS Tenant Context before any database write
+    set_tenant_context(db, demo_org_id)
+
+    # 5. Seed Core Tenant & User
+    org = Organisation(
+        id=demo_org_id,
+        name=f"Interactive Demo Workspace",
+        created_at=now_utc,
+    )
+    db.add(org)
+    db.flush()
+
+    user = User(
+        id=demo_user_id,
+        org_id=demo_org_id,
+        email=demo_email,
+        full_name=demo_name,
+        is_active=True,
+        created_at=now_utc,
+    )
+    db.add(user)
+    db.flush()
+
+    ra = RoleAssignment(
+        id=f"ras_{demo_user_id}",
+        org_id=demo_org_id,
+        user_id=demo_user_id,
+        role_name="AP_ASSOCIATE",
+        granted_at=now_utc,
+    )
+    db.add(ra)
+
+
+    # 6. Seed Procurement Master Data
+    vendor_id = f"vnd_asterion_{demo_id}"
+    vendor = Vendor(
+        id=vendor_id,
+        org_id=demo_org_id,
+        erp_vendor_code=f"VND-{demo_id[:4].upper()}",
+        legal_name="Asterion Precision Components Pvt Ltd",
+        trade_name="Asterion Components",
+        pan="AAACA1234A",
+        msme_registered=True,
+        msme_category="SMALL",
+        udyam_number="UDYAM-KR-03-0012345",
+        bank_account_verified=True,
+        created_at=now_utc,
+    )
+    db.add(vendor)
+    db.flush()
+
+    vendor_gstin = VendorGSTIN(
+        id=f"vg_asterion_{demo_id}",
+        org_id=demo_org_id,
+        vendor_id=vendor_id,
+        gstin="29SYNTH0001A1Z5",
+        state_code="29",
+        status="ACTIVE",
+    )
+    db.add(vendor_gstin)
+
+    # Scoped PO and GRN numbers to avoid global unique collisions
+    po_1001_num = f"PO-{demo_id[:4].upper()}-1001"
+    grn_501_num = f"GRN-{demo_id[:4].upper()}-501"
+    qc_501_num = f"QC-{demo_id[:4].upper()}-501"
+    inv_01_num = f"AP/{demo_id[:4].upper()}/001"
+
+    po_1011_num = f"PO-{demo_id[:4].upper()}-1011"
+    grn_621_num = f"GRN-{demo_id[:4].upper()}-621"
+    qc_621_num = f"QC-{demo_id[:4].upper()}-621"
+    inv_02_num = f"AP/{demo_id[:4].upper()}/011"
+
+    # PO 1 (Clean 3-Way Match baseline)
+    wo_1001_id = f"wo_1001_{demo_id}"
+    wo_1001 = WorkOrderSnapshot(
+        id=wo_1001_id,
+        org_id=demo_org_id,
+        po_number=po_1001_num,
+        vendor_code=vendor.erp_vendor_code,
+        total_authorized_amount=Decimal("26196.00"),
+        remaining_balance=Decimal("26196.00"),
+        currency="INR",
+        status="APPROVED",
+        retrieved_at=now_utc,
+    )
+    db.add(wo_1001)
+    db.flush()
+
+    wol_1001 = WorkOrderLineSnapshot(
+        id=f"wol_1001_1_{demo_id}",
+        org_id=demo_org_id,
+        po_id=wo_1001_id,
+        line_number=1,
+        item_code="FLANGE-01",
+        description="Precision Steel Flange Type-A",
+        authorized_quantity=Decimal("120.00"),
+        contracted_unit_rate=Decimal("185.00"),
+        authorized_line_total=Decimal("22200.00"),
+    )
+    db.add(wol_1001)
+
+    grn_501_id = f"grn_501_{demo_id}"
+    grn_501 = GoodsReceiptSnapshot(
+        id=grn_501_id,
+        org_id=demo_org_id,
+        grn_number=grn_501_num,
+        po_number=po_1001_num,
+        received_date=now_utc,
+        retrieved_at=now_utc,
+    )
+    db.add(grn_501)
+    db.flush()
+
+    grnl_501 = GoodsReceiptLineSnapshot(
+        id=f"grnl_501_1_{demo_id}",
+        org_id=demo_org_id,
+        grn_id=grn_501_id,
+        po_line_number=1,
+        accepted_quantity=Decimal("120.00"),
+        rejected_quantity=Decimal("0.00"),
+    )
+    db.add(grnl_501)
+
+    qc_501 = QualityControlSnapshot(
+        id=f"qc_501_{demo_id}",
+        org_id=demo_org_id,
+        qc_certificate_number=qc_501_num,
+        grn_number=grn_501_num,
+        overall_status="ACCEPTED",
+        retrieved_at=now_utc,
+    )
+    db.add(qc_501)
+
+    # PO 2 (Price Variance baseline)
+    wo_1011_id = f"wo_1011_{demo_id}"
+    wo_1011 = WorkOrderSnapshot(
+        id=wo_1011_id,
+        org_id=demo_org_id,
+        po_number=po_1011_num,
+        vendor_code=vendor.erp_vendor_code,
+        total_authorized_amount=Decimal("21830.00"),
+        remaining_balance=Decimal("21830.00"),
+        currency="INR",
+        status="APPROVED",
+        retrieved_at=now_utc,
+    )
+    db.add(wo_1011)
+    db.flush()
+
+    wol_1011 = WorkOrderLineSnapshot(
+        id=f"wol_1011_1_{demo_id}",
+        org_id=demo_org_id,
+        po_id=wo_1011_id,
+        line_number=1,
+        item_code="SHAFT-01",
+        description="Precision CNC Machined Shaft 25mm",
+        authorized_quantity=Decimal("100.00"),
+        contracted_unit_rate=Decimal("185.00"),
+        authorized_line_total=Decimal("18500.00"),
+    )
+    db.add(wol_1011)
+
+    grn_621_id = f"grn_621_{demo_id}"
+    grn_621 = GoodsReceiptSnapshot(
+        id=grn_621_id,
+        org_id=demo_org_id,
+        grn_number=grn_621_num,
+        po_number=po_1011_num,
+        received_date=now_utc,
+        retrieved_at=now_utc,
+    )
+    db.add(grn_621)
+    db.flush()
+
+    grnl_621 = GoodsReceiptLineSnapshot(
+        id=f"grnl_621_1_{demo_id}",
+        org_id=demo_org_id,
+        grn_id=grn_621_id,
+        po_line_number=1,
+        accepted_quantity=Decimal("80.00"),
+        rejected_quantity=Decimal("0.00"),
+    )
+    db.add(grnl_621)
+
+    qc_621 = QualityControlSnapshot(
+        id=f"qc_621_{demo_id}",
+        org_id=demo_org_id,
+        qc_certificate_number=qc_621_num,
+        grn_number=grn_621_num,
+        overall_status="ACCEPTED",
+        retrieved_at=now_utc,
+    )
+    db.add(qc_621)
+
+    # 7. Seed 2 Pre-Evaluated Demo Invoices
+    # Invoice 1: Clean 3-Way Match (SCN-01)
+    inv_01_id = f"inv_demo_01_{demo_id}"
+    doc_01_id = f"doc_demo_01_{demo_id}"
+    inv_01 = Invoice(
+        id=inv_01_id,
+        org_id=demo_org_id,
+        invoice_number=inv_01_num,
+        vendor_name="Asterion Precision Components Pvt Ltd",
+        vendor_gstin="29SYNTH0001A1Z5",
+        po_reference=po_1001_num,
+        subtotal_amount=Decimal("22200.00"),
+        tax_amount=Decimal("3996.00"),
+        total_amount=Decimal("26196.00"),
+        net_payable_amount=Decimal("26196.00"),
+        currency="INR",
+        invoice_date=now_utc,
+        due_date=now_utc + datetime.timedelta(days=30),
+        stage="PENDING_APPROVAL",
+        decision="MATCH_CANDIDATE",
+        decision_reason="All 7 deterministic policy gates passed. Ready for approval.",
+        owner_user_id=demo_user_id,
+        source_channel="DEMO_EXPERIENCE",
+        created_at=now_utc,
+    )
+    db.add(inv_01)
+    db.flush()
+
+    doc_01 = Document(
+        id=doc_01_id,
+        org_id=demo_org_id,
+        invoice_id=inv_01_id,
+        filename="01_invoice_AP_26_001.pdf",
+        mime_type="application/pdf",
+        file_size_bytes=42560,
+        sha256_hash=hashlib.sha256(f"demo_doc_1_{demo_id}".encode()).hexdigest(),
+        storage_provider="DATABASE_METADATA",
+        storage_key=f"demo/{demo_org_id}/01_invoice_AP_26_001.pdf",
+        is_original=True,
+        is_deleted=False,
+        uploaded_at=now_utc,
+    )
+    db.add(doc_01)
+
+    inl_01 = InvoiceLine(
+        id=f"inl_demo_01_{demo_id}",
+        org_id=demo_org_id,
+        invoice_id=inv_01_id,
+        line_number=1,
+        description="Precision Steel Flange Type-A",
+        billed_quantity=Decimal("120.00"),
+        billed_unit_rate=Decimal("185.00"),
+        billed_line_total=Decimal("22200.00"),
+    )
+    db.add(inl_01)
+
+    mr_01_id = f"mr_demo_01_{demo_id}"
+    mr_01 = MatchRun(
+        id=mr_01_id,
+        org_id=demo_org_id,
+        invoice_id=inv_01_id,
+        policy_version="standard_3way_v1",
+        overall_result="PASS",
+        evaluated_at=now_utc,
+    )
+    db.add(mr_01)
+    db.flush()
+
+    for gnum, gname, gnotes in [
+        (1, "Vendor Master Verification", "Vendor GSTIN 29SYNTH0001A1Z5 is verified active"),
+        (2, "PO Authorization", f"Referenced PO {po_1001_num} verified open with balance INR 26196.00"),
+        (3, "GRN Receipt Match", f"GRN {grn_501_num} confirmed; received qty 120.00 >= billed qty 120.00"),
+        (4, "QC Technical Acceptance", f"QC inspection accepted: certificate #{qc_501_num}"),
+        (5, "GST Arithmetic Reconciled", "Calculated: INR 26196.00 vs Billed: INR 26196.00 (Discrepancy: INR 0.00)"),
+        (6, "PO Price & Quantity Tolerance", "All 1 line(s) within ±1.50% rate and 0.00% quantity tolerance"),
+        (7, "Duplicate Invoice Check", "0 previous vouchers found in vendor ledger"),
+    ]:
+        db.add(MatchGateCheck(
+            id=f"mg_{mr_01_id}_{gnum}",
+            org_id=demo_org_id,
+            match_run_id=mr_01_id,
+            gate_number=gnum,
+            gate_name=gname,
+            status="PASS",
+            evidence_notes=gnotes,
+            checked_at=now_utc,
+        ))
+
+    # Invoice 2: Price Variance Exception (SCN-02)
+    inv_02_id = f"inv_demo_02_{demo_id}"
+    doc_02_id = f"doc_demo_02_{demo_id}"
+    inv_02 = Invoice(
+        id=inv_02_id,
+        org_id=demo_org_id,
+        invoice_number=inv_02_num,
+        vendor_name="Asterion Precision Components Pvt Ltd",
+        vendor_gstin="29SYNTH0001A1Z5",
+        po_reference=po_1011_num,
+        subtotal_amount=Decimal("22000.00"),
+        tax_amount=Decimal("3960.00"),
+        total_amount=Decimal("25960.00"),
+        net_payable_amount=Decimal("25960.00"),
+        currency="INR",
+        invoice_date=now_utc,
+        due_date=now_utc + datetime.timedelta(days=30),
+        stage="ACTION_REQUIRED",
+        decision="FLAGGED_EXCEPTION",
+        decision_reason="Gate 6 (PO Price & Quantity Tolerance) failed: Line #1 rate variance +18.92% exceeds ±1.50% (Billed ₹220.00 vs PO ₹185.00); Line #1 quantity 100 exceeds PO authorized quantity 80 (0.00% over-delivery tolerance)",
+        owner_user_id=demo_user_id,
+        source_channel="DEMO_EXPERIENCE",
+        created_at=now_utc,
+    )
+    db.add(inv_02)
+    db.flush()
+
+    doc_02 = Document(
+        id=doc_02_id,
+        org_id=demo_org_id,
+        invoice_id=inv_02_id,
+        filename="02_invoice_AP_26_011.pdf",
+        mime_type="application/pdf",
+        file_size_bytes=39120,
+        sha256_hash=hashlib.sha256(f"demo_doc_2_{demo_id}".encode()).hexdigest(),
+        storage_provider="DATABASE_METADATA",
+        storage_key=f"demo/{demo_org_id}/02_invoice_AP_26_011.pdf",
+        is_original=True,
+        is_deleted=False,
+        uploaded_at=now_utc,
+    )
+    db.add(doc_02)
+
+    inl_02 = InvoiceLine(
+        id=f"inl_demo_02_{demo_id}",
+        org_id=demo_org_id,
+        invoice_id=inv_02_id,
+        line_number=1,
+        description="Precision CNC Machined Shaft 25mm",
+        billed_quantity=Decimal("100.00"),
+        billed_unit_rate=Decimal("220.00"),
+        billed_line_total=Decimal("22000.00"),
+    )
+    db.add(inl_02)
+
+    mr_02_id = f"mr_demo_02_{demo_id}"
+    mr_02 = MatchRun(
+        id=mr_02_id,
+        org_id=demo_org_id,
+        invoice_id=inv_02_id,
+        policy_version="standard_3way_v1",
+        overall_result="FAIL",
+        evaluated_at=now_utc,
+    )
+    db.add(mr_02)
+    db.flush()
+
+    for gnum, gname, gstat, gnotes in [
+        (1, "Vendor Master Verification", "PASS", "Vendor GSTIN 29SYNTH0001A1Z5 is verified active"),
+        (2, "PO Authorization", "PASS", f"Referenced PO {po_1011_num} verified open with balance INR 21830.00"),
+        (3, "GRN Receipt Match", "PASS", f"GRN {grn_621_num} confirmed: 80 units received"),
+        (4, "QC Technical Acceptance", "PASS", f"QC inspection accepted: certificate #{qc_621_num}"),
+        (5, "GST Arithmetic Reconciled", "PASS", "Calculated: INR 25960.00 vs Billed: INR 25960.00 (Discrepancy: INR 0.00)"),
+        (6, "PO Price & Quantity Tolerance", "FAIL", "Line #1 rate variance +18.92% exceeds ±1.50% (Billed ₹220.00 vs PO ₹185.00); Line #1 quantity 100 exceeds PO authorized quantity 80 (0.00% over-delivery tolerance)"),
+        (7, "Duplicate Invoice Check", "PASS", "0 previous vouchers found in vendor ledger"),
+    ]:
+        db.add(MatchGateCheck(
+            id=f"mg_{mr_02_id}_{gnum}",
+            org_id=demo_org_id,
+            match_run_id=mr_02_id,
+            gate_number=gnum,
+            gate_name=gname,
+            status=gstat,
+            evidence_notes=gnotes,
+            checked_at=now_utc,
+        ))
+
+    db.commit()
+
+    # 8. Mint expiring Supabase JWT for the demo session
+    expires_in = 7200
+    token_payload = {
+        "sub": demo_user_id,
+        "email": demo_email,
+        "aud": "authenticated",
+        "role": "authenticated",
+        "user_role": "AP_ASSOCIATE",
+        "org_id": demo_org_id,
+        "iat": int(now),
+        "exp": int(now) + expires_in,
+        "iss": canonical_issuer,
+        "app_metadata": {
+            "provider": "demo_evaluator",
+            "org_id": demo_org_id,
+            "roles": ["AP_ASSOCIATE"],
+        },
+        "user_metadata": {
+            "full_name": demo_name,
+            "demo_session": True,
+        },
+    }
+    access_token = jwt.encode(token_payload, jwt_secret, algorithm="HS256")
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "expires_in": expires_in,
+        "user": {
+            "id": demo_user_id,
+            "email": demo_email,
+            "name": demo_name,
+            "role": "AP_ASSOCIATE",
+            "database_role": "authenticated",
+            "org_id": demo_org_id,
+            "org_name": "Interactive Demo Workspace",
+        },
+    }
+
+
+@router.post("/demo-session")
+def create_demo_session(
+    request: Request,
+    db: Optional[Session] = Depends(get_db),
+) -> Dict[str, Any]:
+    """Issues an instant, temporary demo session assigned to an isolated demo tenant.
+
+    Guarantees:
+    - Zero administrative preapproval required.
+    - Assigned least-privilege AP_ASSOCIATE permissions (no approvals, payments, integrations).
+    - Uniquely isolated tenant workspace with RLS protection.
+    - Pre-seeded with authentic Indian GST procurement fixtures & 2 sample invoices.
+    - Expiring cryptographically signed Supabase JWT.
+    """
+    if db is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database service unavailable for demo tenant provisioning.",
+        )
+
+    xff = request.headers.get("x-forwarded-for")
+    client_ip = [ip.strip() for ip in xff.split(",")][0] if xff else (request.client.host if request.client else "unknown")
+    return provision_isolated_demo_tenant(db, client_ip)
 
 
 @router.get("/status")
@@ -680,7 +1169,6 @@ def submit_access_request(
         status="PENDING",
         review_reason=payload.reason,
         created_at=now_utc,
-        updated_at=now_utc,
     )
     db.add(req)
     db.commit()

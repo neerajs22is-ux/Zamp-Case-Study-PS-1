@@ -215,6 +215,9 @@ export const api = {
     method: 'POST',
     body: JSON.stringify({ email, org_id, unprovisioned }),
   }),
+  createDemoSession: () => request<{ access_token: string; token_type: string; expires_in: number; user: any }>('/api/v1/auth/demo-session', {
+    method: 'POST',
+  }),
   logout: () => request<{ status: string; message: string }>('/api/v1/auth/logout', { method: 'POST' }),
   createInvitation: (email: string, role: string) => request<UserInvitation>('/api/v1/auth/invitations', {
     method: 'POST',

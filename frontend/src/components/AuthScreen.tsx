@@ -10,6 +10,11 @@ import {
   Send,
   Loader2,
   Mail,
+  Sparkles,
+  PlayCircle,
+  Compass,
+  ArrowRight,
+  ExternalLink,
 } from "lucide-react";
 
 import { api, setAuthToken, setSession } from "../api/client";
@@ -65,10 +70,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
   const [requestsError, setRequestsError] = useState(false);
 
   const [authStatus, setAuthStatus] = useState<any>(null);
-
-  const [authStatusFailed, setAuthStatusFailed] = useState(false);
-
-  const [showGoogleSetup, setShowGoogleSetup] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(false);
   const [emailOtp, setEmailOtp] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [otpStep, setOtpStep] = useState<"input" | "verify">("input");
@@ -79,7 +81,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     api
       .getAuthStatus()
       .then(setAuthStatus)
-      .catch(() => setAuthStatusFailed(true));
+      .catch(() => setAuthStatus(null));
 
     const { error: errDesc } = oauthCallbackParams(
       window.location.search,
@@ -240,6 +242,23 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
     onRefreshUser();
   };
 
+  const handleTryLiveDemo = async () => {
+    try {
+      setActionLoading(true);
+      setActionMessage(null);
+      const res = await api.createDemoSession();
+      setAuthToken(res.access_token);
+      onRefreshUser();
+    } catch (err: any) {
+      setActionMessage({
+        type: "error",
+        text: err.message || "Failed to launch demo session. Please try again.",
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleQuickLogin = async (
     email: string,
     orgId = "org_sme_eval",
@@ -355,356 +374,278 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({
       isLocalEnv && authStatus?.dev_session_enabled === true;
 
     return (
-      <div
-        className="auth-screen auth-screen--split mx-auto w-full rounded-xl border"
-      >
-        <div className="auth-intro">
-          <div className="auth-brand flex items-center gap-3">
-            <span className="auth-mark flex h-11 w-11 items-center justify-center rounded-lg">
-              <Shield className="h-5 w-5" aria-hidden="true" />
-            </span>
+      <div className="auth-screen auth-screen--split mx-auto w-full rounded-2xl border shadow-xl overflow-hidden">
+        {/* Left Column: Context & The 2 Public / Instant Entry Paths */}
+        <div className="auth-intro p-6 sm:p-8 flex flex-col justify-between space-y-6">
+          <div>
+            <div className="auth-brand flex items-center gap-2.5">
+              <span className="auth-mark flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400">
+                <Shield className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <span className="text-sm font-bold tracking-tight block">Autonomous AP Command Center</span>
+                <span className="text-[11px] text-slate-500 font-mono">Zamp PS-1 Evaluation Flagship</span>
+              </div>
+            </div>
 
-            <span className="text-sm font-semibold">AP Command Center</span>
-          </div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white mt-6">
+              Evaluate Live AP Intelligence
+            </h1>
 
-          <h1 className="auth-title mt-7 font-semibold tracking-tight">
-            Sign in to your workspace
-          </h1>
+            <p className="auth-muted mt-2 text-xs sm:text-sm leading-relaxed">
+              Experience deterministic 3-way matching, Indian GST compliance arithmetic, and 7 sequential financial policy gates.
+            </p>
 
-          <p className="auth-muted mt-2 text-sm leading-relaxed">
-            Sign in to review supplier invoices and manage internal approvals.
-          </p>
+            {error && (
+              <div role="alert" className="auth-error mt-4 rounded-xl border p-3.5 text-xs">
+                <p className="font-semibold">Session Issue</p>
+                <p className="mt-0.5 break-words">{error}</p>
+                <button
+                  type="button"
+                  onClick={onRefreshUser}
+                  disabled={loading}
+                  className="mt-2 font-semibold underline underline-offset-2 disabled:opacity-50"
+                >
+                  Retry session
+                </button>
+              </div>
+            )}
 
-          {error && (
-            <div
-              role="alert"
-              className="auth-error mt-6 rounded-lg border p-4 text-sm"
-            >
-              <p className="font-semibold">Could not sign in</p>
+            {actionMessage && (
+              <div
+                role={actionMessage.type === "error" ? "alert" : "status"}
+                className="auth-notice mt-4 rounded-xl border p-3.5 text-xs break-words"
+              >
+                {actionMessage.text}
+              </div>
+            )}
 
-              <p className="mt-1 break-words">{error}</p>
+            {/* Entry Path 1: Try Live Demo */}
+            <div className="mt-6 p-4 sm:p-5 rounded-xl border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-emerald-200 text-emerald-900 dark:bg-emerald-800 dark:text-emerald-100">
+                  <Sparkles className="w-3 h-3" /> Recommended
+                </span>
+                <span className="text-[11px] font-mono text-emerald-800 dark:text-emerald-300">1-Click Instant</span>
+              </div>
 
-              <p className="mt-2">
-                Retry your session or sign in again. If the problem continues,
-                contact your workspace administrator.
-              </p>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  Try Live Demo
+                </h2>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                  Launch a private, isolated demo workspace pre-seeded with authentic Indian GST invoices, POs, and 7-gate match results.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] text-slate-500">
+                <span className="bg-white dark:bg-slate-900 border rounded-md px-2 py-0.5">Isolated RLS Tenant</span>
+                <span className="bg-white dark:bg-slate-900 border rounded-md px-2 py-0.5">Zero Sign-Up Required</span>
+                <span className="bg-white dark:bg-slate-900 border rounded-md px-2 py-0.5">Custom PDF Upload</span>
+              </div>
 
               <button
                 type="button"
-                onClick={onRefreshUser}
-                disabled={loading}
-                className="mt-2 font-semibold underline underline-offset-2 disabled:opacity-50"
+                onClick={handleTryLiveDemo}
+                disabled={actionLoading}
+                className="w-full mt-2 py-2.5 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50 cursor-pointer"
               >
-                Retry session
+                {actionLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Provisioning Demo Workspace…</span>
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="w-4 h-4" />
+                    <span>Launch Live Demo Workspace</span>
+                    <ArrowRight className="w-4 h-4 ml-auto" />
+                  </>
+                )}
               </button>
             </div>
-          )}
 
-          {actionMessage && (
-            <div
-              role={actionMessage.type === "error" ? "alert" : "status"}
-              className="auth-notice mt-6 rounded-lg border p-4 text-sm break-words"
-            >
-              {actionMessage.text}
-            </div>
-          )}
-
-          <ul
-            className="auth-journey"
-            aria-label="What you can do in the workspace"
-          >
-            <li>
-              <strong>Submit</strong>
-              <span>Bring in a supplier’s bill as a document.</span>
-            </li>
-
-            <li>
-              <strong>Inspect</strong>
-              <span>Compare the bill with orders, receipts and checks.</span>
-            </li>
-
-            <li>
-              <strong>Explain</strong>
-              <span>Follow the recorded decision and its evidence.</span>
-            </li>
-          </ul>
-
-          <section className="auth-sign-in mt-7 space-y-4" aria-label="Sign in">
-            <div className="auth-email-flow space-y-3">
-              {otpStep === "input" ? (
-                <form onSubmit={handleSendOtp} className="space-y-3">
-                  <div>
-                    <label htmlFor="evaluator-email" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Evaluator or Work Email
-                    </label>
-                    <input
-                      id="evaluator-email"
-                      type="email"
-                      required
-                      autoComplete="email"
-                      placeholder="evaluator@company.com"
-                      value={emailOtp}
-                      onChange={(e) => setEmailOtp(e.target.value)}
-                      disabled={otpLoading}
-                      className="auth-input w-full rounded-lg border px-3 py-2.5 text-sm"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={otpLoading || !emailOtp.trim()}
-                    className="auth-primary w-full rounded-lg px-4 py-2.5 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    {otpLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Sending code…</span>
-                      </>
-                    ) : (
-                      <>
-                        <Mail className="w-4 h-4" />
-                        <span>Send Verification Code</span>
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifyOtp} className="space-y-3">
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800">
-                    {otpSuccessMessage || `Code sent to ${emailOtp}`}
-                  </div>
-                  <div>
-                    <label htmlFor="otp-code" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Enter 6-Digit Verification Code
-                    </label>
-                    <input
-                      id="otp-code"
-                      type="text"
-                      required
-                      autoFocus
-                      maxLength={6}
-                      placeholder="123456"
-                      value={verificationCode}
-                      onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
-                      disabled={otpLoading}
-                      className="auth-input w-full text-center tracking-widest font-mono text-lg rounded-lg border px-3 py-2"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setOtpStep("input");
-                        setVerificationCode("");
-                      }}
-                      disabled={otpLoading}
-                      className="auth-option px-3 py-2 text-xs font-medium rounded-lg border"
-                    >
-                      Change Email
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={otpLoading || verificationCode.length < 6}
-                      className="auth-primary flex-1 rounded-lg px-4 py-2 text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-                    >
-                      {otpLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Verifying…</span>
-                        </>
-                      ) : (
-                        <span>Verify & Sign In</span>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
-            </div>
-
-            <div className="relative my-3 flex items-center justify-center">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"></div></div>
-              <span className="relative bg-white dark:bg-slate-900 px-3 text-xs uppercase text-slate-400">or</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={!isGoogleEnabled}
-              aria-describedby={
-                !isGoogleEnabled ? "google-sign-in-status" : undefined
-              }
-              className="auth-option w-full rounded-lg px-4 py-2.5 text-sm font-semibold border flex items-center justify-center gap-2 disabled:cursor-not-allowed"
-            >
-              Continue with Google
-            </button>
-
-            {!isGoogleEnabled && (
-              <p
-                id="google-sign-in-status"
-                className="auth-muted text-sm leading-relaxed"
-                role="status"
-              >
-                {authStatusFailed
-                  ? "Sign-in options could not be checked. Refresh this page or contact your workspace administrator."
-                  : !authStatus
-                    ? "Checking available sign-in options…"
-                    : "Google sign-in is not reported as available. Contact your workspace administrator."}
-              </p>
-            )}
-
-            {!isGoogleEnabled && authStatus && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShowGoogleSetup(!showGoogleSetup)}
-                  aria-expanded={showGoogleSetup}
-                  className="auth-link text-sm font-medium"
-                >
-                  {showGoogleSetup
-                    ? "Hide administrator setup details"
-                    : "Administrator setup details"}
-                </button>
-
-                {showGoogleSetup && (
-                  <p className="auth-muted mt-2 text-sm leading-relaxed">
-                    The administrator can configure the Google provider and
-                    allowed redirect URLs in the connected identity service.
-                  </p>
-                )}
+            {/* Entry Path 2: Explore Guided Sandbox */}
+            <div className="mt-3.5 p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <Compass className="w-3.5 h-3.5 text-crimson" /> Explore Guided Sandbox
+                </span>
+                <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">No Login</span>
               </div>
-            )}
-
-            <p className="auth-muted text-sm">
-              Need access? Ask your workspace administrator for an invitation.
-            </p>
-          </section>
+              <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Step through 6 verified commercial scenarios with optical grounding tripwires and 7-gate evidence without logging in.
+              </p>
+              <a
+                href="/sandbox"
+                className="w-full py-2 px-3 rounded-lg border border-slate-300 dark:border-slate-700 hover:border-slate-400 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-slate-700 dark:text-slate-200 font-semibold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <span>Open Guided Sandbox Experience</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+          </div>
         </div>
 
-        <div className="auth-evaluation">
-          <section
-            className="auth-secondary"
-            aria-labelledby="quick-access-title"
-          >
-            <div className="flex flex-wrap items-baseline justify-between gap-1">
-              <h2
-                id="quick-access-title"
-                className="text-base font-semibold"
-              >
-                Evaluation workspace
+        {/* Right Column: Entry Path 3 (Google SSO & Team Sign-In) + Local Dev (if local) */}
+        <div className="auth-evaluation p-6 sm:p-8 flex flex-col justify-between space-y-6 bg-slate-50/70 dark:bg-slate-950/40 border-l border-slate-200 dark:border-slate-800">
+          <div>
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Enterprise & Evaluator Access
               </h2>
-
-              <span className="auth-muted text-xs font-medium">
-                {canShowQuickLogin ? "Quick sign-in" : "Zero-Setup Entry"}
-              </span>
+              <span className="text-xs font-mono text-slate-500 uppercase tracking-wider">Production</span>
             </div>
 
-            {canShowQuickLogin ? (
-              <>
-                <p className="auth-muted mt-2 text-sm leading-relaxed">
-                  Choose a role for local evaluation. The server verifies
-                  access; this workspace may contain imported or live records.
-                </p>
+            <p className="auth-muted mt-1.5 text-xs leading-relaxed">
+              For pre-authorized evaluators and enterprise AP team members.
+            </p>
 
-                <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+            {/* Google SSO Button */}
+            <div className="mt-5 space-y-3">
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={!isGoogleEnabled}
+                aria-describedby={!isGoogleEnabled ? "google-sign-in-status" : undefined}
+                className="w-full rounded-xl py-3 px-4 text-sm font-semibold border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-white flex items-center justify-center gap-2.5 shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-xl text-xs text-blue-900 dark:text-blue-300 leading-relaxed">
+                <span className="font-semibold block mb-0.5">Approved Evaluator Whitelist</span>
+                Google accounts on the evaluator allowlist receive immediate <strong>AP_LEAD</strong> access to the shared <code>org_sme_eval</code> tenant.
+              </div>
+
+              {/* Email OTP toggle */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(!showEmailForm)}
+                  className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium underline underline-offset-2"
+                >
+                  {showEmailForm ? "Hide email code sign-in" : "Or sign in with email verification code"}
+                </button>
+
+                {showEmailForm && (
+                  <div className="mt-3 p-3.5 bg-white dark:bg-slate-900 border rounded-xl space-y-3">
+                    {otpStep === "input" ? (
+                      <form onSubmit={handleSendOtp} className="space-y-2.5">
+                        <label htmlFor="evaluator-email" className="block text-[11.5px] font-semibold text-slate-700 dark:text-slate-300">
+                          Work or Evaluator Email
+                        </label>
+                        <input
+                          id="evaluator-email"
+                          type="email"
+                          required
+                          placeholder="name@company.com"
+                          value={emailOtp}
+                          onChange={(e) => setEmailOtp(e.target.value)}
+                          disabled={otpLoading}
+                          className="w-full rounded-lg border px-3 py-2 text-xs"
+                        />
+                        <button
+                          type="submit"
+                          disabled={otpLoading || !emailOtp.trim()}
+                          className="w-full py-2 px-3 rounded-lg bg-slate-800 text-white font-semibold text-xs flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {otpLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mail className="w-3.5 h-3.5" />}
+                          <span>Send Code</span>
+                        </button>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleVerifyOtp} className="space-y-2.5">
+                        <div className="text-xs text-emerald-700">{otpSuccessMessage || `Code sent to ${emailOtp}`}</div>
+                        <input
+                          id="otp-code"
+                          type="text"
+                          required
+                          autoFocus
+                          maxLength={6}
+                          placeholder="123456"
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                          disabled={otpLoading}
+                          className="w-full text-center tracking-widest font-mono text-base rounded-lg border px-3 py-2"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => { setOtpStep("input"); setVerificationCode(""); }}
+                            className="text-xs border rounded-lg px-2 py-1"
+                          >
+                            Change
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={otpLoading || verificationCode.length < 6}
+                            className="flex-1 py-1.5 px-3 rounded-lg bg-emerald-700 text-white font-semibold text-xs"
+                          >
+                            Verify
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Local dev personas (only when canShowQuickLogin is true) */}
+            {canShowQuickLogin && (
+              <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-2">
+                  Local Development Personas (1-Click)
+                </span>
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    {
-                      label: "AP Lead",
-                      description: "Review invoices",
-                      email: "sme_lead@company.internal",
-                    },
-                    {
-                      label: "Financial Controller",
-                      description: "Review and sign off",
-                      email: "sme_controller@company.internal",
-                    },
-                    {
-                      label: "Auditor",
-                      description: "Read-only access",
-                      email: "sme_auditor@company.internal",
-                    },
-                    {
-                      label: "AP Associate",
-                      description: "Review invoice details",
-                      email: "sme_associate@company.internal",
-                    },
-                  ].map((item) => (
+                    { label: "AP Lead", email: "sme_lead@company.internal" },
+                    { label: "Controller", email: "sme_controller@company.internal" },
+                    { label: "Auditor", email: "sme_auditor@company.internal" },
+                    { label: "Associate", email: "sme_associate@company.internal" },
+                  ].map((p) => (
                     <button
-                      key={item.email}
+                      key={p.email}
                       type="button"
                       disabled={actionLoading}
-                      onClick={() =>
-                        handleQuickLogin(item.email, "org_sme_eval", false)
-                      }
-                      className="auth-option rounded-lg border px-4 py-3 text-left disabled:opacity-50"
+                      onClick={() => handleQuickLogin(p.email, "org_sme_eval", false)}
+                      className="py-1.5 px-2.5 rounded-lg border text-xs font-medium text-left hover:bg-white dark:hover:bg-slate-900 truncate"
                     >
-                      <span className="block text-sm font-semibold">
-                        {item.label}
-                      </span>
-                      <span className="auth-muted mt-1 block text-xs">
-                        {actionLoading ? "Signing in…" : item.description}
-                      </span>
+                      {p.label}
                     </button>
                   ))}
                 </div>
-              </>
-            ) : (
-              <div className="mt-3 space-y-3.5 text-xs text-slate-600 dark:text-slate-300">
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 leading-relaxed">
-                  <strong className="block text-xs font-bold text-emerald-950 mb-1">Pre-Authorized Evaluator Access</strong>
-                  Click <strong>Continue with Google</strong> on the left. Pre-authorized evaluator accounts receive direct access to <code>org_sme_eval</code>. Unapproved accounts will remain unprovisioned pending administrator review.
-                </div>
-
-                <div className="space-y-1">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Pre-Loaded Live Fixtures</span>
-                  <p className="auth-muted leading-relaxed">
-                    Evaluator workspace is pre-seeded with 35 Indian GST invoices, purchase orders, goods receipts, and 7-gate audit trails.
-                  </p>
-                </div>
-
-                <div className="space-y-1.5 pt-1">
-                  <span className="font-semibold text-slate-800 dark:text-slate-200">Evaluation Personas:</span>
-                  <ul className="space-y-1 text-[11.5px] list-disc list-inside auth-muted">
-                    <li><strong className="text-slate-700 dark:text-slate-300">AP Lead:</strong> Full approval authority & exception routing</li>
-                    <li><strong className="text-slate-700 dark:text-slate-300">Financial Controller:</strong> Dual approval on ≥ ₹5,00,000 liability</li>
-                    <li><strong className="text-slate-700 dark:text-slate-300">Auditor:</strong> Read-only immutable audit ledger</li>
-                    <li><strong className="text-slate-700 dark:text-slate-300">AP Associate:</strong> Line-item discrepancy checks</li>
-                  </ul>
-                </div>
               </div>
             )}
-          </section>
+          </div>
 
-          <details className="auth-developer mt-5 border-t pt-4" open={!canShowQuickLogin}>
-            <summary className="auth-link cursor-pointer text-sm font-medium">
-              Authorized evaluator token
+          {/* Collapsed / Relocated Bearer Token Drawer */}
+          <details className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800 text-xs">
+            <summary className="cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 select-none">
+              Advanced: Authenticate with Bearer Token
             </summary>
-
-            <div className="mt-3 space-y-2">
-              <label
-                htmlFor="developer-token"
-                className="block text-xs font-medium text-slate-700 dark:text-slate-300"
+            <div className="mt-2.5 flex gap-2">
+              <input
+                type="password"
+                placeholder="Paste JWT token..."
+                value={devTokenInput}
+                onChange={(e) => setDevTokenInput(e.target.value)}
+                className="flex-1 rounded-lg border px-2.5 py-1.5 text-xs font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => handleApplyDevToken(devTokenInput)}
+                className="px-3 py-1.5 rounded-lg border text-xs font-semibold bg-white dark:bg-slate-900"
               >
-                Cryptographic Bearer token (pre-authorized personas)
-              </label>
-
-              <div className="flex flex-wrap gap-2">
-                <input
-                  id="developer-token"
-                  type="password"
-                  placeholder="Paste JWT token..."
-                  autoComplete="off"
-                  value={devTokenInput}
-                  onChange={(e) => setDevTokenInput(e.target.value)}
-                  className="auth-input min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm"
-                />
-
-                <button
-                  type="button"
-                  onClick={() => handleApplyDevToken(devTokenInput)}
-                  className="auth-option rounded-lg border px-3 py-2 text-sm font-medium"
-                >
-                  Apply token
-                </button>
-              </div>
+                Apply
+              </button>
             </div>
           </details>
         </div>
