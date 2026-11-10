@@ -144,7 +144,7 @@
       <!-- Brand & Mode Title -->
       <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
         <a href="/sandbox" class="flex items-center space-x-2 sm:space-x-2.5 group">
-          <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-crimson/30 to-burgundy/50 border border-coral/50 flex items-center justify-center font-bold text-accentyellow text-xs sm:text-sm shadow-sm shadow-emerald-500/10 group-hover:scale-105 transition-transform">
+          <div class="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-crimson/30 to-burgundy/50 border border-coral/50 flex items-center justify-center font-bold text-accentyellow text-xs sm:text-sm shadow-sm shadow-crimson/10 group-hover:scale-105 transition-transform">
             Z
           </div>
           <div>
@@ -241,8 +241,8 @@
     
     <!-- Section 1: Hero Header & Immersive Pipeline Visual -->
     <div class="text-center max-w-4xl mx-auto mb-8 sm:mb-12">
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold mb-3">
-        <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-burgundy/60 border border-coral/40 text-coral text-xs font-semibold mb-3">
+        <span class="w-2 h-2 rounded-full bg-coral animate-ping"></span>
         <span>Zamp PS-1 • Autonomous Accounts Payable</span>
       </div>
       <h1 class="text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white mb-3 sm:mb-4">
@@ -336,31 +336,31 @@
       <div 
         onclick="switchLandingDeck('scenarios', true)"
         id="choice-card-scenarios"
-        class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-indigo-500/40 hover:border-indigo-400 shadow-lg relative group bg-slate-900/90"
+        class="glass-card-interactive p-6 sm:p-7 rounded-2xl cursor-pointer flex flex-col justify-between border-2 border-crimson/50 hover:border-crimson shadow-xl shadow-crimson/10 relative group bg-[#14050b]/90"
       >
         <div>
           <div class="flex items-center justify-between mb-3">
-            <span class="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-burgundy/50 text-coral border border-coral/30">
+            <span class="px-2.5 py-1 rounded-full text-[10.5px] font-bold uppercase tracking-wider bg-burgundy/60 text-coral border border-coral/40">
               Option A — Guided Scenarios
             </span>
-            <span class="text-xs font-mono text-slate-400">6 Verified Cases</span>
+            <span class="text-xs font-mono text-accentyellow font-semibold">6 Verified Cases</span>
           </div>
-          <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-indigo-300 transition-colors mb-2 flex items-center gap-2">
+          <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-coral transition-colors mb-2 flex items-center gap-2">
             <span>Explore a Guided Scenario</span>
-            <svg class="w-5 h-5 text-indigo-400 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            <svg class="w-5 h-5 text-coral group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
           </h2>
           <p class="text-xs sm:text-sm text-slate-300 leading-relaxed mb-4">
             Step through authentic commercial invoices — from clean straight-through matching to unit price overruns, degraded scans, quarantined receipts, and duplicate safeguards.
           </p>
-          <div class="flex flex-wrap gap-2 text-[11px] text-slate-400 mb-6">
-            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Instant Replay</span>
-            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Zero Setup</span>
-            <span class="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">✓ Full 7-Gate Evidence</span>
+          <div class="flex flex-wrap gap-2 text-[11px] text-slate-300 mb-6">
+            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Instant Replay</span>
+            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Zero Setup</span>
+            <span class="px-2.5 py-1 rounded-lg bg-[#1a050e] border border-burgundy/60 text-slate-200">✓ Full 7-Gate Evidence</span>
           </div>
         </div>
-        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('scenarios', true);" class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 shadow-sm">
+        <button type="button" onclick="event.stopPropagation(); switchLandingDeck('scenarios', true);" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md shadow-crimson/30 hover:scale-[1.01] active:scale-[0.99]">
           <span>Select an Authentic Scenario</span>
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+          <svg class="w-4 h-4 text-accentyellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </button>
       </div>
 
@@ -430,7 +430,7 @@
             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Choose a Supported Scenario</h3>
             <p class="text-xs text-slate-400">Click any card below to launch its interactive invoice journey.</p>
           </div>
-          <span class="text-xs text-indigo-400 font-mono">6 Authenticated Fixtures</span>
+          <span class="text-xs text-accentyellow font-mono">6 Authenticated Fixtures</span>
         </div>
 
         <!-- 6 Authentic Scenario Cards Container -->
@@ -443,13 +443,14 @@
       </div>
 
       <!-- DECK 2: CUSTOM UPLOAD STUDIO (Hidden by default, revealed on tab or card click) -->
+            <!-- DECK 2: CUSTOM UPLOAD STUDIO (Hidden by default, revealed on tab or card click) -->
       <div id="deck-upload" class="hidden space-y-4 scroll-mt-20">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="flex items-center justify-between pb-2 border-b border-burgundy/40">
           <div>
             <h3 class="text-sm font-bold text-white uppercase tracking-wider">Upload Custom Invoice PDF</h3>
             <p class="text-xs text-slate-400">Process an arbitrary vendor invoice through the live flagship backend pipeline.</p>
           </div>
-          <span class="text-xs text-emerald-400 font-mono">Live Extraction</span>
+          <span class="text-xs text-accentyellow font-mono font-semibold">Live Extraction</span>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
@@ -458,60 +459,60 @@
           <div class="lg:col-span-7 flex flex-col">
             <div 
               id="drop-zone"
-              class="border-2 border-dashed border-slate-700 hover:border-emerald-500/70 bg-slate-900/60 hover:bg-slate-900/90 rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center flex-1 min-h-[280px] group shadow-inner"
+              class="border-2 border-dashed border-burgundy/60 hover:border-coral bg-[#14050b]/80 hover:bg-[#1a050e] rounded-2xl p-8 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center flex-1 min-h-[280px] group shadow-inner"
               onclick="document.getElementById('file-input').click()"
             >
               <input type="file" id="file-input" class="hidden" accept="application/pdf" onchange="handleFileSelect(event)">
-              <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 group-hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center mb-4 transition-colors">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              <div class="w-16 h-16 rounded-2xl bg-burgundy/50 group-hover:bg-burgundy text-coral border border-coral/40 flex items-center justify-center mb-4 transition-all group-hover:scale-105 shadow-sm">
+                <svg class="w-8 h-8 text-coral group-hover:text-accentyellow transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
               </div>
-              <p class="text-base font-bold text-slate-200 mb-1">
+              <p class="text-base font-bold text-slate-100 mb-1">
                 Drag & drop your vendor PDF here
               </p>
-              <p class="text-xs text-emerald-400 underline font-medium mb-4">
+              <p class="text-xs text-coral hover:text-accentyellow underline font-medium mb-4 transition-colors">
                 or click to browse local files
               </p>
-              <div class="flex flex-wrap gap-2 justify-center text-[11px] text-slate-400">
-                <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">PDF Format Only</span>
-                <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">Max 50MB</span>
-                <span class="px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800">SHA-256 Fingerprinted</span>
+              <div class="flex flex-wrap gap-2 justify-center text-[10.5px] text-slate-300">
+                <span class="px-2 py-0.5 rounded bg-[#1a050e] border border-burgundy/50 text-slate-200">PDF Format Only</span>
+                <span class="px-2 py-0.5 rounded bg-[#1a050e] border border-burgundy/50 text-slate-200">Max 50MB</span>
+                <span class="px-2 py-0.5 rounded bg-[#1a050e] border border-burgundy/50 text-slate-200">SHA-256 Fingerprinted</span>
               </div>
             </div>
           </div>
 
-          <!-- Pipeline & Security Architecture Notice (5 cols) -->
-          <div class="lg:col-span-5 p-5 rounded-2xl bg-slate-900/80 border border-slate-800 flex flex-col justify-between text-xs space-y-3">
+          <!-- Upload Guarantees & Constraints (5 cols) -->
+          <div class="lg:col-span-5 flex flex-col justify-between glass-card p-6 rounded-2xl border border-burgundy/40 text-xs bg-[#14050b]/90 shadow-md">
             <div>
-              <div class="flex items-center gap-2 text-slate-200 font-bold mb-3 pb-2 border-b border-slate-800">
-                <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              <div class="flex items-center gap-2 font-bold text-slate-100 mb-4 pb-2 border-b border-burgundy/40">
+                <svg class="w-4 h-4 text-accentyellow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                 <span>Pipeline Execution Guarantees</span>
               </div>
-              <ul class="space-y-2.5 text-slate-300 text-[11.5px]">
+              <ul class="space-y-3 text-slate-300">
                 <li class="flex items-start gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-coral mt-1.5 shrink-0"></span>
                   <span><strong>Zero Mock Data:</strong> File is processed through the genuine backend ingestion pipeline.</span>
                 </li>
                 <li class="flex items-start gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-coral mt-1.5 shrink-0"></span>
                   <span><strong>Multimodal Extraction:</strong> RapidOCR text detection coupled with Palmyra Vision and Mantle Qwen 235B.</span>
                 </li>
                 <li class="flex items-start gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
-                  <span><strong>Tenant Sandbox Isolation:</strong> Scoped strictly to <code class="font-mono text-indigo-300">org_sme_eval</code> with isolated RLS policies.</span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-coral mt-1.5 shrink-0"></span>
+                  <span><strong>Tenant Sandbox Isolation:</strong> Scoped strictly to <code class="font-mono text-accentyellow font-semibold">org_sme_eval</code> with isolated RLS policies.</span>
                 </li>
                 <li class="flex items-start gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-coral mt-1.5 shrink-0"></span>
                   <span><strong>Deterministic 7-Gate Validation:</strong> Evaluated against Indian GST arithmetic and policy tolerances.</span>
                 </li>
               </ul>
             </div>
-            
-            <div class="pt-3 border-t border-slate-800 text-[11px] text-slate-500">
+            <div class="mt-6 pt-4 border-t border-burgundy/40 text-[11px] text-slate-400">
               After upload, you will automatically step through all 7 chapters of the invoice journey.
             </div>
           </div>
 
         </div>
+      </div>
       </div>
 
     </div>
@@ -520,7 +521,7 @@
     <div id="previous-runs-section" class="border-t border-slate-800 pt-6 mt-8 max-w-5xl mx-auto w-full">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Previous Evaluation Runs</h3>
-        <button onclick="loadRunHistory()" class="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Refresh History</button>
+        <button onclick="loadRunHistory()" class="text-xs text-coral hover:text-accentyellow transition-colors">Refresh History</button>
       </div>
       <div id="previous-runs-container" class="flex flex-wrap gap-2 text-xs">
         <span class="text-slate-500 italic">No previous runs recorded in this session.</span>
@@ -534,7 +535,7 @@
   <!-- ========================================================================= -->
   <section id="processing-view" class="hidden flex-1 flex flex-col justify-center items-center max-w-2xl mx-auto w-full px-4 py-16 scene-animate-in">
     <div class="w-full glass-card p-8 rounded-3xl text-center shadow-2xl relative overflow-hidden">
-      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 pulse-subtle">
+      <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-burgundy/50 border border-coral/40 flex items-center justify-center text-coral pulse-subtle">
         <svg class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
       </div>
 
@@ -543,7 +544,7 @@
 
       <div class="flex items-center justify-center gap-2 text-xs font-mono text-slate-400">
         <span>Elapsed:</span>
-        <span id="progress-timer" class="font-bold text-indigo-400">0.0s</span>
+        <span id="progress-timer" class="font-bold text-accentyellow">0.0s</span>
       </div>
     </div>
   </section>
@@ -558,7 +559,7 @@
       
       <!-- Document & Scenario Identity -->
       <div class="flex items-center gap-3 min-w-0">
-        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-burgundy/50 text-coral border border-coral/40 flex items-center justify-center shrink-0">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
         </div>
         <div class="min-w-0">
@@ -585,7 +586,7 @@
           <span>Stored Replay</span>
         </span>
         <button onclick="scrollToEvidence()" class="px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5">
-          <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
+          <svg class="w-3.5 h-3.5 text-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"/></svg>
           <span class="hidden sm:inline">Evidence Explorer</span>
           <span class="sm:hidden">Evidence</span>
         </button>
@@ -594,7 +595,7 @@
           <span class="hidden sm:inline">Explore Another Scenario or Upload New PDF</span>
           <span class="sm:hidden">Exit</span>
         </button>
-        <a id="btn-open-flagship-top" href="/invoices" target="_blank" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+        <a id="btn-open-flagship-top" href="/invoices" target="_blank" class="px-2.5 sm:px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-semibold transition-all flex items-center gap-1.5 shadow-md shadow-crimson/25">
           <span>Flagship</span>
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         </a>
@@ -612,16 +613,16 @@
         <div class="lg:col-span-5 glass-card rounded-2xl p-4 shadow-sm">
           <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
             <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-              <svg class="w-3.5 h-3.5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              <svg class="w-3.5 h-3.5 text-coral" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               Original Source Document
             </span>
-            <button onclick="openOrDownloadPdf()" class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Download PDF</button>
+            <button onclick="openOrDownloadPdf()" class="text-xs text-coral hover:text-accentyellow font-medium">Download PDF</button>
           </div>
           <div class="relative bg-slate-950 rounded-xl overflow-hidden border border-slate-800 min-h-[460px] flex items-center justify-center">
             <iframe id="ch1-pdf-iframe" class="w-full h-[460px] border-none" title="Invoice PDF Preview"></iframe>
             <div id="ch1-pdf-fallback" class="hidden text-center p-6 text-xs text-slate-400">
               <p>Preview rendering unavailable in this browser session.</p>
-              <button onclick="openOrDownloadPdf()" class="mt-2 px-3 py-1 bg-slate-800 text-indigo-300 rounded">Open Document</button>
+              <button onclick="openOrDownloadPdf()" class="mt-2 px-3 py-1 bg-slate-800 text-coral rounded">Open Document</button>
             </div>
           </div>
         </div>
@@ -631,10 +632,10 @@
           <div class="glass-card rounded-2xl p-6 shadow-sm">
             <div class="flex items-center justify-between mb-4">
               <div>
-                <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 1</span>
+                <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 1</span>
                 <h3 class="text-xl font-bold text-white">The Invoice Arrives</h3>
               </div>
-              <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-burgundy/60 text-accentyellow border border-accentyellow/40">
                 Verified Intake
               </span>
             </div>
@@ -642,24 +643,24 @@
             <!-- Verified Intake Events Stream -->
             <div class="space-y-2.5 mb-6 text-xs">
               <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-3">
-                <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                <span class="w-5 h-5 rounded-full bg-burgundy/60 text-accentyellow border border-accentyellow/30 flex items-center justify-center shrink-0 mt-0.5">✓</span>
                 <div>
                   <div class="font-semibold text-slate-200">1. File Byte Stream Received</div>
                   <div class="text-slate-400 text-[11px] mt-0.5">MIME magic byte verification confirmed genuine Adobe PDF format (<code class="text-slate-300">%PDF-1.4</code>).</div>
                 </div>
               </div>
               <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-3">
-                <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                <span class="w-5 h-5 rounded-full bg-burgundy/60 text-accentyellow border border-accentyellow/30 flex items-center justify-center shrink-0 mt-0.5">✓</span>
                 <div>
                   <div class="font-semibold text-slate-200">2. Cryptographic Fingerprint Computed</div>
                   <div class="text-slate-400 text-[11px] mt-0.5 font-mono break-all" id="ch1-sha256-display">SHA-256: calculating...</div>
                 </div>
               </div>
               <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/80 flex items-start gap-3">
-                <span class="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                <span class="w-5 h-5 rounded-full bg-burgundy/60 text-accentyellow border border-accentyellow/30 flex items-center justify-center shrink-0 mt-0.5">✓</span>
                 <div>
                   <div class="font-semibold text-slate-200">3. Isolated Tenant Storage Written</div>
-                  <div class="text-slate-400 text-[11px] mt-0.5">Persisted securely inside tenant boundary (<code class="text-indigo-300">org_sme_eval</code>) with immutable access logging.</div>
+                  <div class="text-slate-400 text-[11px] mt-0.5">Persisted securely inside tenant boundary (<code class="text-coral">org_sme_eval</code>) with immutable access logging.</div>
                 </div>
               </div>
             </div>
@@ -680,13 +681,13 @@
               </div>
               <div>
                 <span class="text-slate-500 text-[10.5px] block">Tenant Workspace</span>
-                <span class="font-mono text-indigo-400 font-semibold block">org_sme_eval</span>
+                <span class="font-mono text-coral font-semibold block">org_sme_eval</span>
               </div>
             </div>
 
             <!-- Educational Expandable Card -->
-            <div class="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/20 text-xs">
-              <div class="font-bold text-indigo-300 mb-1 flex items-center gap-1.5">
+            <div class="p-4 rounded-xl bg-crimson/5 border border-crimson/20 text-xs">
+              <div class="font-bold text-coral mb-1 flex items-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 <span>Why Secure Document Intake Matters in Accounts Payable</span>
               </div>
@@ -698,7 +699,7 @@
             <!-- Chapter Navigation Controls -->
             <div class="flex items-center justify-between pt-6 mt-6 border-t border-slate-800">
               <span class="text-xs text-slate-500">Chapter 1 of 7</span>
-              <button onclick="goToChapter(2)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+              <button onclick="goToChapter(2)" class="px-5 py-2 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-crimson/25">
                 <span>Continue to Chapter 2: Watch AI Read</span>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
               </button>
@@ -720,7 +721,7 @@
         <div class="lg:col-span-6 glass-card rounded-2xl p-5 shadow-sm space-y-4">
           <div class="flex items-center justify-between pb-2 border-b border-slate-800">
             <div>
-              <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 2</span>
+              <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 2</span>
               <h3 class="text-lg font-bold text-white">Watch the AI Read</h3>
             </div>
             <span class="text-xs text-slate-400">Select any field to inspect</span>
@@ -728,22 +729,22 @@
 
           <!-- Interactive Field Pills Selector -->
           <div class="flex flex-wrap gap-2 text-xs">
-            <button onclick="inspectField('supplier_name')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-950/60 border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-supplier">
+            <button onclick="inspectField('supplier_name')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-burgundy/40 hover:border-coral/50 hover:text-coral border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-supplier">
               Supplier Name
             </button>
-            <button onclick="inspectField('supplier_gstin')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-950/60 border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-gstin">
+            <button onclick="inspectField('supplier_gstin')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-burgundy/40 hover:border-coral/50 hover:text-coral border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-gstin">
               Supplier GSTIN
             </button>
-            <button onclick="inspectField('invoice_number')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-950/60 border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-number">
+            <button onclick="inspectField('invoice_number')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-burgundy/40 hover:border-coral/50 hover:text-coral border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-number">
               Invoice Number
             </button>
-            <button onclick="inspectField('invoice_date')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-950/60 border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-date">
+            <button onclick="inspectField('invoice_date')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-burgundy/40 hover:border-coral/50 hover:text-coral border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-date">
               Invoice Date
             </button>
-            <button onclick="inspectField('po_reference')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-950/60 border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-po">
+            <button onclick="inspectField('po_reference')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-burgundy/40 hover:border-coral/50 hover:text-coral border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-po">
               PO Reference
             </button>
-            <button onclick="inspectField('total_amount')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-indigo-950/60 border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-total">
+            <button onclick="inspectField('total_amount')" class="field-btn px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-burgundy/40 hover:border-coral/50 hover:text-coral border border-slate-800 text-slate-300 font-medium transition-all" id="btn-f-total">
               Grand Total
             </button>
           </div>
@@ -752,7 +753,7 @@
           <div id="field-inspector-panel" class="p-4 rounded-xl bg-slate-900/90 border border-slate-800 text-xs space-y-3">
             <div class="flex items-center justify-between pb-2 border-b border-slate-800/80">
               <span id="inspect-field-title" class="font-bold text-slate-200 uppercase tracking-wider text-[11px]">Field: Supplier Name</span>
-              <span id="inspect-field-status" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">GROUNDED</span>
+              <span id="inspect-field-status" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/30 border border-accentyellow/30">GROUNDED</span>
             </div>
             <div>
               <span class="text-slate-500 text-[10.5px] block">Extracted Value</span>
@@ -771,11 +772,11 @@
               </div>
               <div>
                 <span class="text-slate-500 block">Extraction Method</span>
-                <span id="inspect-field-method" class="font-semibold text-indigo-300">Bedrock Mantle</span>
+                <span id="inspect-field-method" class="font-semibold text-coral">Bedrock Mantle</span>
               </div>
               <div>
                 <span class="text-slate-500 block">Confidence</span>
-                <span id="inspect-field-conf" class="font-mono font-semibold text-emerald-400">98.5%</span>
+                <span id="inspect-field-conf" class="font-mono font-semibold text-accentyellow">98.5%</span>
               </div>
             </div>
           </div>
@@ -815,7 +816,7 @@
               <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-slate-200">Multimodal Layout Reasoner</span>
-                  <span id="ch2-model-id" class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                  <span id="ch2-model-id" class="px-2 py-0.5 rounded text-[10px] font-mono bg-crimson/20 text-coral border border-crimson/40">
                     Mantle Qwen 235B
                   </span>
                 </div>
@@ -827,7 +828,7 @@
               <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5">
                 <div class="flex items-center justify-between">
                   <span class="font-bold text-slate-200">OCR & Visual Layout Engine</span>
-                  <span id="ch2-ocr-id" class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <span id="ch2-ocr-id" class="px-2 py-0.5 rounded text-[10px] font-mono bg-burgundy/50 text-accentyellow border border-accentyellow/40">
                     RapidOCR + pdfplumber
                   </span>
                 </div>
@@ -849,7 +850,7 @@
               <button onclick="goToChapter(1)" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all">
                 ← Chapter 1
               </button>
-              <button onclick="goToChapter(3)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+              <button onclick="goToChapter(3)" class="px-5 py-2 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-crimson/25">
                 <span>Continue to Chapter 3: Can We Trust Extraction?</span>
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
               </button>
@@ -870,10 +871,10 @@
         <div class="glass-card rounded-2xl p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
             <div>
-              <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 3</span>
+              <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 3</span>
               <h3 class="text-xl font-bold text-white">Can We Trust the Extraction?</h3>
             </div>
-            <span id="ch3-tripwire-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            <span id="ch3-tripwire-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/40">
               TRIPWIRE: PASS
             </span>
           </div>
@@ -896,19 +897,19 @@
               
               <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
                 <span class="text-[10.5px] text-slate-400 block uppercase">Calculated GST (CGST/SGST/IGST)</span>
-                <span id="ch3-calc-tax" class="text-base font-bold text-indigo-300 font-mono block mt-1">+ ₹0.00</span>
+                <span id="ch3-calc-tax" class="text-base font-bold text-coral font-mono block mt-1">+ ₹0.00</span>
               </div>
 
-              <div class="p-3.5 rounded-xl bg-slate-950 border border-indigo-500/40 shadow-xs">
-                <span class="text-[10.5px] text-indigo-300 block uppercase">Reconciled Total</span>
-                <span id="ch3-calc-total" class="text-lg font-extrabold text-emerald-400 font-mono block mt-1">= ₹0.00</span>
+              <div class="p-3.5 rounded-xl bg-slate-950 border border-crimson/40 shadow-xs">
+                <span class="text-[10.5px] text-coral block uppercase">Reconciled Total</span>
+                <span id="ch3-calc-total" class="text-lg font-extrabold text-accentyellow font-mono block mt-1">= ₹0.00</span>
               </div>
             </div>
 
             <!-- Mathematical Comparison Bar -->
             <div class="mt-4 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-xs font-mono">
               <span class="text-slate-400">Invoiced Billed Total: <strong id="ch3-invoiced-total" class="text-slate-200">₹0.00</strong></span>
-              <span id="ch3-variance-label" class="text-emerald-400 font-semibold">Variance: ₹0.00 (Exact Match)</span>
+              <span id="ch3-variance-label" class="text-accentyellow font-semibold">Variance: ₹0.00 (Exact Match)</span>
             </div>
           </div>
 
@@ -919,8 +920,8 @@
             </span>
 
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-              <div class="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                <span class="font-bold text-emerald-400 block text-sm" id="ch3-grounded-count">10 Fields</span>
+              <div class="p-3.5 rounded-xl bg-burgundy/40 border border-accentyellow/30">
+                <span class="font-bold text-accentyellow block text-sm" id="ch3-grounded-count">10 Fields</span>
                 <span class="text-slate-300 font-medium">Verified Grounded</span>
                 <p class="text-[11px] text-slate-400 mt-1">Exact token coordinates found on source document.</p>
               </div>
@@ -944,7 +945,7 @@
             <button onclick="goToChapter(2)" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all">
               ← Chapter 2
             </button>
-            <button onclick="goToChapter(4)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+            <button onclick="goToChapter(4)" class="px-5 py-2 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-crimson/25">
               <span>Continue to Chapter 4: Does Procurement Agree?</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
@@ -964,7 +965,7 @@
         <div class="glass-card rounded-2xl p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
             <div>
-              <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 4</span>
+              <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 4</span>
               <h3 class="text-xl font-bold text-white">Does Procurement Agree?</h3>
             </div>
             <span class="text-xs text-slate-400">Interactive 3-Way Match Network</span>
@@ -979,17 +980,17 @@
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
               
               <!-- Center: The Invoiced Document Node -->
-              <div class="md:col-span-1 p-4 rounded-xl bg-indigo-600/20 border-2 border-indigo-500 text-center shadow-lg">
-                <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-indigo-500 text-white flex items-center justify-center font-bold text-xs">INV</div>
+              <div class="md:col-span-1 p-4 rounded-xl bg-crimson/20 border-2 border-crimson text-center shadow-lg">
+                <div class="w-8 h-8 mx-auto mb-2 rounded-lg bg-crimson text-white flex items-center justify-center font-bold text-xs">INV</div>
                 <div class="font-bold text-white text-xs" id="ch4-inv-node-num">Invoice Document</div>
-                <div class="text-[11px] text-indigo-300 font-mono mt-0.5" id="ch4-inv-node-total">₹0.00</div>
+                <div class="text-[11px] text-coral font-mono mt-0.5" id="ch4-inv-node-total">₹0.00</div>
               </div>
 
               <!-- Connecting Line Indicator -->
               <div class="md:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 
                 <!-- Node 1: Purchase Order (PO) -->
-                <div onclick="selectProcurementNode('po')" id="node-po-card" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500 cursor-pointer transition-all">
+                <div onclick="selectProcurementNode('po')" id="node-po-card" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-crimson cursor-pointer transition-all">
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-[10.5px] font-bold uppercase text-slate-400">1. Purchase Order</span>
                     <span id="node-po-badge" class="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-slate-800 text-slate-400">NOT ON FILE</span>
@@ -999,7 +1000,7 @@
                 </div>
 
                 <!-- Node 2: Goods Receipt Note (GRN) -->
-                <div onclick="selectProcurementNode('grn')" id="node-grn-card" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500 cursor-pointer transition-all">
+                <div onclick="selectProcurementNode('grn')" id="node-grn-card" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-crimson cursor-pointer transition-all">
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-[10.5px] font-bold uppercase text-slate-400">2. Goods Receipt</span>
                     <span id="node-grn-badge" class="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-slate-800 text-slate-400">PENDING</span>
@@ -1009,7 +1010,7 @@
                 </div>
 
                 <!-- Node 3: Quality Control (QC) -->
-                <div onclick="selectProcurementNode('qc')" id="node-qc-card" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500 cursor-pointer transition-all">
+                <div onclick="selectProcurementNode('qc')" id="node-qc-card" class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-crimson cursor-pointer transition-all">
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="text-[10.5px] font-bold uppercase text-slate-400">3. Quality Inspection</span>
                     <span id="node-qc-badge" class="px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-slate-800 text-slate-400">PENDING</span>
@@ -1038,7 +1039,7 @@
             <button onclick="goToChapter(3)" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all">
               ← Chapter 3
             </button>
-            <button onclick="goToChapter(5)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+            <button onclick="goToChapter(5)" class="px-5 py-2 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-crimson/25">
               <span>Continue to Chapter 5: The Seven Financial Gates</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
@@ -1058,7 +1059,7 @@
         <div class="glass-card rounded-2xl p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
             <div>
-              <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 5</span>
+              <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 5</span>
               <h3 class="text-xl font-bold text-white">The Seven Financial Gates</h3>
             </div>
             <span id="interactive-gates-summary" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-burgundy/50 text-coral border border-coral/30">
@@ -1081,7 +1082,7 @@
           <div id="selected-gate-detail" class="p-6 rounded-2xl bg-slate-900 border border-slate-800 shadow-inner">
             <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
               <h4 id="detail-gate-title" class="text-base font-bold text-white">Gate 1: Vendor GSTIN Identity Check</h4>
-              <span id="detail-gate-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+              <span id="detail-gate-badge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-burgundy/50 text-accentyellow border border-accentyellow/40">
                 PASS
               </span>
             </div>
@@ -1098,14 +1099,14 @@
               <!-- Dual Mode Explanation Block -->
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                  <span class="text-indigo-400 font-bold block mb-1">Business Impact (Beginner)</span>
+                  <span class="text-coral font-bold block mb-1">Business Impact (Beginner)</span>
                   <p id="detail-gate-beginner" class="text-slate-400 text-[11px] leading-relaxed">
                     Confirms that this invoice comes from an authorized, legally registered vendor.
                   </p>
                 </div>
 
                 <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800">
-                  <span class="text-emerald-400 font-bold block mb-1">Deterministic Rule (Technical)</span>
+                  <span class="text-accentyellow font-bold block mb-1">Deterministic Rule (Technical)</span>
                   <p id="detail-gate-technical" class="text-slate-400 text-[11px] font-mono leading-relaxed">
                     Exact regex and master table lookup: 29SYNTH0001A1Z5 matches registered vendor.
                   </p>
@@ -1120,7 +1121,7 @@
             <button onclick="goToChapter(4)" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all">
               ← Chapter 4
             </button>
-            <button onclick="goToChapter(6)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+            <button onclick="goToChapter(6)" class="px-5 py-2 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-crimson/25">
               <span>Continue to Chapter 6: The Decision & Human Review</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
@@ -1140,14 +1141,14 @@
         <div class="glass-card rounded-2xl p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
             <div>
-              <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 6</span>
+              <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 6</span>
               <h3 class="text-xl font-bold text-white">The Decision & Human Review</h3>
             </div>
             <span class="text-xs text-slate-400">Narrative Climax</span>
           </div>
 
           <!-- Cinematic Decision Banner -->
-          <div id="ch6-decision-banner" class="p-6 rounded-2xl bg-gradient-to-br from-slate-900 to-indigo-950/40 border border-indigo-500/40 text-center mb-6 shadow-lg">
+          <div id="ch6-decision-banner" class="p-6 rounded-2xl bg-gradient-to-br from-[#1a050e] to-[#120409] border border-crimson/50 text-center mb-6 shadow-xl shadow-crimson/15">
             <div id="ch6-decision-tag" class="inline-block px-3 py-1 rounded-full text-xs font-mono font-bold bg-burgundy/50 text-coral border border-coral/30 mb-2">
               DECISION OUTCOME
             </div>
@@ -1173,12 +1174,12 @@
           </div>
 
           <!-- Flagship Deep-Link CTA -->
-          <div class="p-5 rounded-2xl bg-indigo-600/10 border border-indigo-500/30 flex flex-wrap items-center justify-between gap-4">
+          <div class="p-5 rounded-2xl bg-burgundy/30 border border-coral/40 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h5 class="text-sm font-bold text-white">Ready for Operational Execution?</h5>
               <p class="text-xs text-slate-300 mt-0.5">Open this authentic invoice in the Flagship AP Command Center to execute authorized approvals, credit notes, or exception sign-offs.</p>
             </div>
-            <a id="btn-open-flagship-ch6" href="/invoices" target="_blank" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-colors flex items-center gap-2 shadow-md">
+            <a id="btn-open-flagship-ch6" href="/invoices" target="_blank" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white font-bold text-xs transition-all flex items-center gap-2 shadow-md shadow-crimson/30">
               <span>Open Invoice in Flagship</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
             </a>
@@ -1189,7 +1190,7 @@
             <button onclick="goToChapter(5)" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-all">
               ← Chapter 5
             </button>
-            <button onclick="goToChapter(7)" class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all flex items-center gap-2 shadow-sm">
+            <button onclick="goToChapter(7)" class="px-5 py-2 rounded-xl bg-gradient-to-r from-crimson to-burgundy hover:from-coral hover:to-crimson text-white text-xs font-bold transition-all flex items-center gap-2 shadow-md shadow-crimson/25">
               <span>Continue to Chapter 7: Reconstruct the Decision</span>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
             </button>
@@ -1209,7 +1210,7 @@
         <div class="glass-card rounded-2xl p-6 shadow-sm">
           <div class="flex items-center justify-between mb-4 pb-2 border-b border-slate-800">
             <div>
-              <span class="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">CHAPTER 7</span>
+              <span class="text-[11px] font-bold text-coral uppercase tracking-wider block">CHAPTER 7</span>
               <h3 class="text-xl font-bold text-white">Reconstruct the Decision</h3>
             </div>
             <span class="text-xs text-slate-400 font-mono">Immutable Audit Trail</span>
@@ -1241,10 +1242,10 @@
               <p class="text-[11px] text-slate-400">Observe variances, OCR scans, and duplicate checks.</p>
             </button>
             <button onclick="triggerNewUpload()" class="p-4 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-left transition-colors">
-              <span class="font-bold text-indigo-300 text-xs block mb-1">Upload Another PDF</span>
+              <span class="font-bold text-accentyellow text-xs block mb-1">Upload Another PDF</span>
               <p class="text-[11px] text-slate-400">Test with your own company vendor invoice.</p>
             </button>
-            <a id="btn-open-flagship-ch7" href="/invoices" target="_blank" class="p-4 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-left transition-colors">
+            <a id="btn-open-flagship-ch7" href="/invoices" target="_blank" class="p-4 rounded-xl bg-[#1e0711] hover:bg-burgundy/40 border border-coral/40 text-left transition-colors">
               <span class="font-bold text-white text-xs block mb-1">Open in Flagship AP Center</span>
               <p class="text-[11px] text-slate-300">Review in the production operational command center.</p>
             </a>
@@ -1509,7 +1510,7 @@
             name: 'Clean 3-Way Match',
             objective: '🎯 Learn: Straight-through auto-approval criteria',
             icon: '✓',
-            iconBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+            iconBg: 'bg-burgundy/60 text-accentyellow border border-accentyellow/30 border-accentyellow/30',
             desc: 'Clean manufacturing invoice matching open PO-26-1001, GRN-26-501, and accepted QC certificate with 0.00% variance.',
           },
           'SCN-02-PRICE-VARIANCE': {
@@ -1523,7 +1524,7 @@
             name: 'Low-Contrast Scanned Invoice',
             objective: '🎯 Learn: Optical grounding tripwire halts unverified AI',
             icon: '👁',
-            iconBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+            iconBg: 'bg-burgundy/50 text-coral border-burgundy/60',
             desc: 'Challenging raster scan testing optical character detection and evidence grounding tripwires. Safely routed to human reviewer.',
           },
           'SCN-04-QUARANTINE-QC': {
@@ -1558,7 +1559,7 @@
           const isExc = scn.expected_decision === 'FLAGGED_EXCEPTION';
           const isHitl = scn.expected_decision === 'FLAGGED_HITL_REVIEW';
 
-          const badgeTone = isMatch ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+          const badgeTone = isMatch ? 'bg-burgundy/50 text-accentyellow border-accentyellow/40' :
                             isExc ? 'bg-accentyellow/20 text-accentyellow border-accentyellow/40' :
                             isHitl ? 'bg-coral/20 text-coral border-coral/40' :
                             'bg-crimson/25 text-coral border-crimson/40';
@@ -1715,13 +1716,13 @@
       ['dragenter', 'dragover'].forEach(eventName => {
         dropZone.addEventListener(eventName, (e) => {
           e.preventDefault();
-          dropZone.classList.add('border-indigo-500', 'bg-indigo-500/10');
+          dropZone.classList.add('border-coral', 'bg-burgundy/30');
         });
       });
       ['dragleave', 'drop'].forEach(eventName => {
         dropZone.addEventListener(eventName, (e) => {
           e.preventDefault();
-          dropZone.classList.remove('border-indigo-500', 'bg-indigo-500/10');
+          dropZone.classList.remove('border-coral', 'bg-burgundy/30');
         });
       });
       dropZone.addEventListener('drop', (e) => {
@@ -1806,11 +1807,11 @@
       const decBadge = document.getElementById('res-decision-badge');
       decBadge.textContent = decision;
       if (decision === 'MATCH_CANDIDATE' || decision === 'AUTO_APPROVED') {
-        decBadge.className = 'px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        decBadge.className = 'px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/30 border border-accentyellow/40';
       } else if (decision === 'FLAGGED_EXCEPTION') {
         decBadge.className = 'px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40';
       } else if (decision === 'FLAGGED_HITL_REVIEW') {
-        decBadge.className = 'px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-500/40';
+        decBadge.className = 'px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-burgundy/50 text-coral border-coral/40';
       } else {
         decBadge.className = 'px-2.5 py-0.5 rounded-full font-mono text-xs font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40';
       }
@@ -1956,9 +1957,9 @@
         const varianceEl = document.getElementById('ch3-variance-label');
         if (diff <= 1.0) {
           varianceEl.textContent = `Variance: ${formatINR(diff)} (Within ₹1.00 Rounding Tolerance — PASS)`;
-          varianceEl.className = 'text-emerald-400 font-semibold';
+          varianceEl.className = 'text-accentyellow font-semibold';
           document.getElementById('ch3-tripwire-badge').textContent = 'TRIPWIRE: PASS';
-          document.getElementById('ch3-tripwire-badge').className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          document.getElementById('ch3-tripwire-badge').className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/40';
         } else {
           varianceEl.textContent = `Variance: ${formatINR(diff)} (Exceeds Tolerance — RECONCILIATION FAILED)`;
           varianceEl.className = 'text-rose-400 font-semibold';
@@ -1994,7 +1995,7 @@
         if (poRef && poRef !== 'NONE') {
           poVal.textContent = poRef;
           poBadge.textContent = 'LINKED';
-          poBadge.className = 'px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          poBadge.className = 'px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/30 border border-accentyellow/30';
         } else {
           poVal.textContent = 'None (Direct / Non-PO)';
           poBadge.textContent = 'NON-PO';
@@ -2007,7 +2008,7 @@
         if (grn && (grn.grn_number || grn.receipt_number)) {
           grnVal.textContent = grn.grn_number || grn.receipt_number;
           grnBadge.textContent = 'CONFIRMED';
-          grnBadge.className = 'px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          grnBadge.className = 'px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/30 border border-accentyellow/30';
         } else {
           grnVal.textContent = 'Not on file';
           grnBadge.textContent = 'MISSING';
@@ -2020,7 +2021,7 @@
         if (qc && (qc.status === 'ACCEPTED' || qc.qc_passed)) {
           qcVal.textContent = 'QC Passed & Signed';
           qcBadge.textContent = 'ACCEPTED';
-          qcBadge.className = 'px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          qcBadge.className = 'px-1.5 py-0.5 rounded text-[9.5px] font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/30 border border-accentyellow/30';
         } else if (qc && qc.status === 'QUARANTINED') {
           qcVal.textContent = 'Defect Hold: Quarantined';
           qcBadge.textContent = 'HOLD';
@@ -2048,7 +2049,7 @@
 
         if (dec === 'MATCH_CANDIDATE' || dec === 'AUTO_APPROVED') {
           actionsList.innerHTML = `
-            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300">
+            <div class="p-3 rounded-xl bg-burgundy/40 border border-accentyellow/30 text-accentyellow">
               <strong>Straight-Through Approval Cleared:</strong> Document passed all 7 policy gates within tolerances. AP Lead may approve in Flagship with dual-control governance.
             </div>
           `;
@@ -2060,7 +2061,7 @@
           `;
         } else if (dec === 'FLAGGED_HITL_REVIEW') {
           actionsList.innerHTML = `
-            <div class="p-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300">
+            <div class="p-3 rounded-xl bg-burgundy/30 border border-coral/40 text-coral">
               <strong>Human-in-the-Loop Inspection:</strong> Degraded scan or ungrounded evidence tripped the safeguard. Verify original physical copy before approving.
             </div>
           `;
@@ -2115,7 +2116,7 @@
       const statusEl = document.getElementById('inspect-field-status');
       if (val && val !== 'Unverified / Absent' && val !== 'UNKNOWN') {
         statusEl.textContent = 'GROUNDED';
-        statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-burgundy/60 text-accentyellow border border-accentyellow/30 border border-accentyellow/30';
       } else {
         statusEl.textContent = 'UNVERIFIED';
         statusEl.className = 'px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
@@ -2169,13 +2170,13 @@
         const card = document.createElement('div');
         const isPass = g.status === 'PASS';
         const isFail = g.status === 'FAIL';
-        const badgeClass = isPass ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' :
+        const badgeClass = isPass ? 'bg-burgundy/50 text-accentyellow border-accentyellow/40' :
                            isFail ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' :
                            'bg-slate-800 text-slate-400 border-slate-700';
 
         const gateLabel = g.gate_number >= 8 ? 'SAFEGUARD' : `G${g.gate_number}`;
 
-        card.className = 'p-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500 cursor-pointer transition-all flex flex-col justify-between text-center';
+        card.className = 'p-2.5 rounded-xl bg-slate-950 hover:bg-slate-900 border border-slate-800 hover:border-crimson cursor-pointer transition-all flex flex-col justify-between text-center';
         card.onclick = () => selectGateDetail(g);
 
         card.innerHTML = `
@@ -2203,7 +2204,7 @@
       badge.textContent = gate.status || 'EVALUATED';
 
       if (gate.status === 'PASS') {
-        badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-burgundy/50 text-accentyellow border border-accentyellow/40';
       } else if (gate.status === 'FAIL') {
         badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40';
       } else {
@@ -2260,7 +2261,7 @@
         const item = document.createElement('div');
         item.className = 'p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex items-start gap-3 text-xs';
         item.innerHTML = `
-          <div class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-mono font-bold flex items-center justify-center shrink-0 mt-0.5 text-[11px]">
+          <div class="w-6 h-6 rounded-full bg-crimson/20 text-accentyellow font-mono font-bold flex items-center justify-center shrink-0 mt-0.5 text-[11px]">
             ${idx + 1}
           </div>
           <div class="flex-1 min-w-0">
@@ -2307,7 +2308,7 @@
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-[10px] font-mono text-coral uppercase tracking-wider font-bold">1. Purchase Order (PO)</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${po.status === 'OPEN' || po.status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-burgundy/40 text-coral border border-coral/30'}">${escapeHtml(po.status || 'RECORDED')}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${po.status === 'OPEN' || po.status === 'APPROVED' ? 'bg-burgundy/60 text-accentyellow border border-accentyellow/40' : 'bg-burgundy/40 text-coral border border-coral/30'}">${escapeHtml(po.status || 'RECORDED')}</span>
               </div>
               <div class="text-sm font-bold text-white mb-1 font-mono">${escapeHtml(po.po_number || 'N/A')}</div>
               <div class="text-[11px] text-slate-400 mb-3">Vendor Code: <span class="font-mono text-slate-200 font-semibold">${escapeHtml(po.vendor_code || 'VEND-001')}</span></div>
@@ -2334,7 +2335,7 @@
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-[10px] font-mono text-coral uppercase tracking-wider font-bold">2. Goods Receipt (GRN)</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${grn.grn_number ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-burgundy/40 text-accentyellow border border-accentyellow/30'}">${grn.grn_number ? 'RECEIVED' : 'PENDING'}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${grn.grn_number ? 'bg-burgundy/60 text-accentyellow border border-accentyellow/40' : 'bg-burgundy/40 text-accentyellow border border-accentyellow/30'}">${grn.grn_number ? 'RECEIVED' : 'PENDING'}</span>
               </div>
               <div class="text-sm font-bold text-white mb-1 font-mono">${escapeHtml(grn.grn_number || 'Pending Intake')}</div>
               <div class="text-[11px] text-slate-400 mb-3">Receipt Date: <span class="font-mono text-slate-200 font-semibold">${escapeHtml(grn.received_date || 'Inbound')}</span></div>
@@ -2346,7 +2347,7 @@
                 </div>
                 <div class="flex justify-between">
                   <span class="text-slate-400">Physical Receipt:</span>
-                  <span class="font-semibold text-emerald-400">Verified at Dock</span>
+                  <span class="font-semibold text-accentyellow">Verified at Dock</span>
                 </div>
               </div>
             </div>
@@ -2361,10 +2362,10 @@
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-[10px] font-mono text-coral uppercase tracking-wider font-bold">3. QC Inspection</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${qc.overall_status === 'PASSED' || qc.overall_status === 'APPROVED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : qc.overall_status ? 'bg-crimson/30 text-coral border border-crimson/40' : 'bg-burgundy/40 text-slate-400 border border-burgundy/50'}">${escapeHtml(qc.overall_status || 'PASSED')}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold ${qc.overall_status === 'PASSED' || qc.overall_status === 'APPROVED' ? 'bg-burgundy/60 text-accentyellow border border-accentyellow/40' : qc.overall_status ? 'bg-crimson/30 text-coral border border-crimson/40' : 'bg-burgundy/40 text-slate-400 border border-burgundy/50'}">${escapeHtml(qc.overall_status || 'PASSED')}</span>
               </div>
               <div class="text-sm font-bold text-white mb-1 font-mono">${escapeHtml(qc.qc_certificate_number || 'QC-CERT-VERIFIED')}</div>
-              <div class="text-[11px] text-slate-400 mb-3">Gate 5 Status: <span class="font-semibold ${qc.overall_status === 'PASSED' || !qc.overall_status ? 'text-emerald-400' : 'text-accentyellow'}">${qc.overall_status === 'PASSED' || !qc.overall_status ? 'Zero Defects' : 'Inspected'}</span></div>
+              <div class="text-[11px] text-slate-400 mb-3">Gate 5 Status: <span class="font-semibold ${qc.overall_status === 'PASSED' || !qc.overall_status ? 'text-accentyellow' : 'text-accentyellow'}">${qc.overall_status === 'PASSED' || !qc.overall_status ? 'Zero Defects' : 'Inspected'}</span></div>
               
               <div class="space-y-1.5 pt-2.5 border-t border-burgundy/30 text-[11px]">
                 <div class="flex justify-between">
@@ -2399,7 +2400,7 @@
             <td class="p-2.5 text-slate-300 font-medium">${escapeHtml(f.field_name)}</td>
             <td class="p-2.5 text-white font-bold">${escapeHtml(f.value || '--')}</td>
             <td class="p-2.5 text-slate-400">${escapeHtml(f.extraction_method || 'Mantle')}</td>
-            <td class="p-2.5 font-bold ${f.is_verified ? 'text-emerald-400' : 'text-amber-400'}">${f.is_verified ? 'GROUNDED' : 'UNVERIFIED'}</td>
+            <td class="p-2.5 font-bold ${f.is_verified ? 'text-accentyellow' : 'text-amber-400'}">${f.is_verified ? 'GROUNDED' : 'UNVERIFIED'}</td>
           `;
           tbody.appendChild(tr);
         });
