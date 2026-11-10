@@ -24,9 +24,10 @@ import time
 import uuid
 from decimal import Decimal
 from typing import Any, Dict, List, Literal, Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Security, UploadFile, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, func, select
 from sqlalchemy.orm import Session
@@ -653,6 +654,34 @@ def explore_sandbox_scenario(
         logger.warning(f"Failed to lookup scenario by hash: {exc}")
 
     raise HTTPException(status_code=404, detail="Scenario execution record not found in evaluation ledger.")
+
+
+@router.get("/scenarios/{scenario_id}/document")
+def get_sandbox_scenario_document(scenario_id: str) -> FileResponse:
+    """Serves the shipped scenario fixture PDF for public, read-only preview.
+
+    Only the six static evaluation fixtures are exposed here. Tenant-uploaded
+    documents remain protected behind the authenticated documents API, so this
+    endpoint cannot be used to read workspace data.
+    """
+    if not re.match(r"^SCN-[A-Za-z0-9_-]+$", scenario_id):
+        raise HTTPException(status_code=400, detail="Malformed scenario identifier.")
+    scenario = next(
+        (s for s in GENUINE_SCENARIOS if s["id"] == scenario_id or s["id"].split("-")[1] in scenario_id),
+        None,
+    )
+    if not scenario:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
+
+    pdf_path = get_scenario_pdf_path(scenario["pdf_filename"])
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"inline; filename*=UTF-8''{quote(scenario['pdf_filename'])}",
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.post("/run-scenario/{scenario_id}")

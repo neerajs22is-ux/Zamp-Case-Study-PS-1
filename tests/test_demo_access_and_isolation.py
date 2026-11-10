@@ -24,6 +24,18 @@ def test_public_sandbox_scenarios_accessible_without_auth(test_client):
         assert "expected_decision" in s
 
 
+def test_public_sandbox_scenario_document_without_auth(test_client):
+    """The scenario PDF must be viewable without login, but only for shipped fixtures."""
+    resp = test_client.get("/api/v1/sandbox/scenarios/SCN-01-HAPPY-PATH/document")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"].startswith("application/pdf")
+    assert resp.content.startswith(b"%PDF-")
+    assert "inline" in resp.headers.get("content-disposition", "")
+
+    missing = test_client.get("/api/v1/sandbox/scenarios/SCN-99-UNKNOWN/document")
+    assert missing.status_code == 404
+
+
 def test_public_sandbox_scenario_explore_without_auth(test_client):
     """Verifies that public evaluators can explore full 7-gate scenario evidence without login."""
     resp = test_client.get("/api/v1/sandbox/scenarios/SCN-01/explore")

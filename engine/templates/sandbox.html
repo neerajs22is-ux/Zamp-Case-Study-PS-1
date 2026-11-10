@@ -1349,6 +1349,8 @@
     let activeRunData = null;
     let activeInvoiceId = null;
     let activeDocumentId = null;
+    let activeScenarioId = null;
+    let activePdfObjectUrl = null;
     let timerInterval = null;
     let pollInterval = null;
 
@@ -1617,6 +1619,7 @@
 
     // Run Scenario
     async function runScenario(scenarioId) {
+      activeScenarioId = scenarioId;
       resetViews();
       document.getElementById('scene-landing').classList.add('hidden');
       document.getElementById('processing-view').classList.remove('hidden');
@@ -1679,6 +1682,7 @@
 
     // Upload custom PDF
     async function uploadCustomPdf(file) {
+      activeScenarioId = null;
       if (!getAuthToken()) {
         const launchDemo = confirm("Live invoice ingestion requires an isolated evaluation workspace.\n\nClick 'OK' to launch an instant 1-click Demo Workspace to process your invoice, or 'Cancel' to sign in with Google.");
         if (launchDemo) {
@@ -1883,6 +1887,7 @@
       activeRunData = data;
       activeInvoiceId = data.invoice_id || (data.invoice && data.invoice.id);
       activeDocumentId = data.document_id || (data.document && data.document.id);
+      activeScenarioId = (data.scenario && data.scenario.id) || activeScenarioId;
 
       // Hide processing view, show results view and journey nav strip
       document.getElementById('processing-view').classList.add('hidden');
@@ -2545,26 +2550,71 @@
       });
     }
 
+    // Shipped scenario fixtures are public read-only artefacts; custom uploads
+    // continue to use the authenticated, tenant-scoped documents endpoint.
+    function scenarioDocumentUrl() {
+      return activeScenarioId
+        ? `/api/v1/sandbox/scenarios/${encodeURIComponent(activeScenarioId)}/document`
+        : null;
+    }
+
+    async function resolveDocumentUrl() {
+      const fixtureUrl = scenarioDocumentUrl();
+      const sourceUrl = fixtureUrl || (activeDocumentId ? `/api/v1/documents/${activeDocumentId}/download` : null);
+      if (!sourceUrl) return null;
+      const res = await fetch(sourceUrl, { headers: fixtureUrl ? {} : getAuthHeaders() });
+      if (!res.ok) return null;
+      if (activePdfObjectUrl) URL.revokeObjectURL(activePdfObjectUrl);
+      activePdfObjectUrl = URL.createObjectURL(await res.blob());
+      return activePdfObjectUrl;
+    }
+
+    function showPdfFallback() {
+      const fallback = document.getElementById('ch1-pdf-fallback');
+      const iframe = document.getElementById('ch1-pdf-iframe');
+      if (fallback) fallback.classList.remove('hidden');
+      if (iframe) iframe.classList.add('hidden');
+    }
+
+    function hidePdfFallback() {
+      const fallback = document.getElementById('ch1-pdf-fallback');
+      const iframe = document.getElementById('ch1-pdf-iframe');
+      if (fallback) fallback.classList.add('hidden');
+      if (iframe) iframe.classList.remove('hidden');
+    }
+
     async function loadPdfPreview(documentId) {
-      if (!documentId) return;
+      if (!documentId && !activeScenarioId) return;
       try {
-        const res = await fetch(`/api/v1/documents/${documentId}/download`, { headers: getAuthHeaders() });
-        if (res.ok) {
-          const blob = await res.blob();
-          const objUrl = URL.createObjectURL(blob);
-          const if1 = document.getElementById('ch1-pdf-iframe');
-          const if2 = document.getElementById('inline-pdf-iframe');
-          if (if1) if1.src = objUrl;
-          if (if2) if2.src = objUrl;
-        }
+        const url = await resolveDocumentUrl();
+        if (!url) { showPdfFallback(); return; }
+        const if1 = document.getElementById('ch1-pdf-iframe');
+        const if2 = document.getElementById('inline-pdf-iframe');
+        if (if1) if1.src = url;
+        if (if2) if2.src = url;
+        hidePdfFallback();
       } catch (e) {
         console.warn('PDF load warning:', e);
+        showPdfFallback();
       }
     }
 
-    function openOrDownloadPdf() {
-      if (!activeDocumentId) return;
-      window.open(`/api/v1/documents/${activeDocumentId}/download`, '_blank');
+    async function openOrDownloadPdf() {
+      const fixtureUrl = scenarioDocumentUrl();
+      if (fixtureUrl) {
+        window.open(fixtureUrl, '_blank', 'noopener');
+        return;
+      }
+      try {
+        const url = await resolveDocumentUrl();
+        if (!url) {
+          alert('The source document could not be loaded for this record.');
+          return;
+        }
+        window.open(url, '_blank', 'noopener');
+      } catch (e) {
+        alert('The source document could not be loaded for this record.');
+      }
     }
 
     function returnToLanding() {
@@ -2616,6 +2666,7 @@
     }
 
     async function loadExistingRun(invoiceId) {
+      activeScenarioId = null;
       try {
         const res = await fetch(`/api/v1/sandbox/invoices/${invoiceId}/result`, { headers: getAuthHeaders() });
         if (res.ok) {
