@@ -1756,13 +1756,31 @@
     function pollProcessingStatus(invoiceId, startTime) {
       if (pollInterval) clearInterval(pollInterval);
       
+      const statusTextEl = document.getElementById('processing-status-text');
+
       pollInterval = setInterval(async () => {
         try {
           const res = await fetch(`/api/v1/invoices/${invoiceId}/processing`, { headers: getAuthHeaders() });
           if (!res.ok) return;
           const statusData = await res.json();
 
-          if (statusData.stage === 'COMPLETED' || statusData.stage === 'ACTION_REQUIRED') {
+          const jobs = statusData.jobs || [];
+          const job = jobs[0] || {};
+          const events = job.events || [];
+
+          // Live status text update based on latest event checkpoint
+          if (events.length > 0 && statusTextEl) {
+            const latest = events[events.length - 1];
+            const stageName = latest.stage || 'PROCESSING';
+            const msg = latest.message || 'Processing document...';
+            statusTextEl.innerText = `${stageName}: ${msg}`;
+          }
+
+          // Check if job completed or failed or statusData indicates finished
+          const isJobComplete = job.status === 'COMPLETED' || job.status === 'FAILED';
+          const isTopComplete = statusData.stage === 'COMPLETED' || statusData.stage === 'ACTION_REQUIRED';
+
+          if (isJobComplete || isTopComplete) {
             clearInterval(pollInterval);
             pollInterval = null;
             stopTimer();
@@ -1771,7 +1789,39 @@
             const resultRes = await fetch(`/api/v1/sandbox/invoices/${invoiceId}/result`, { headers: getAuthHeaders() });
             if (resultRes.ok) {
               const fullData = await resultRes.json();
-              onProcessingComplete(fullData, statusData.events || []);
+              onProcessingComplete(fullData, events);
+            } else {
+              alert('Pipeline completed, loading results view...');
+              returnToLanding();
+            }
+            return;
+          }
+
+          // Also check if result is already available with a finalized decision
+          const resultCheck = await fetch(`/api/v1/sandbox/invoices/${invoiceId}/result`, { headers: getAuthHeaders() });
+          if (resultCheck.ok) {
+            const checkData = await resultCheck.json();
+            if (checkData.stage && checkData.stage !== 'RECEIVED' && checkData.decision && checkData.decision !== 'NEEDS_REVIEW') {
+              clearInterval(pollInterval);
+              pollInterval = null;
+              stopTimer();
+              onProcessingComplete(checkData, events);
+              return;
+            }
+          }
+
+          // Safety timeout: if 50s have elapsed, attempt fallback result fetch
+          if (performance.now() - startTime > 50000) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+            stopTimer();
+            const fallbackRes = await fetch(`/api/v1/sandbox/invoices/${invoiceId}/result`, { headers: getAuthHeaders() });
+            if (fallbackRes.ok) {
+              const fullData = await fallbackRes.json();
+              onProcessingComplete(fullData, events);
+            } else {
+              alert('Pipeline processing timed out after 50s. You can view or manage this invoice in the Flagship Command Center.');
+              returnToLanding();
             }
           }
         } catch (e) {
