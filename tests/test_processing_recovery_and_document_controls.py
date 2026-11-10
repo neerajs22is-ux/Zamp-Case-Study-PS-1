@@ -191,3 +191,30 @@ def test_soft_delete_fences_active_processing_and_preserves_audit(
     assert repeat.status_code == 200
     assert repeat.json()["status"] == "ALREADY_SOFT_DELETED"
     assert repeat.json()["cancelled_job_ids"] == []
+
+
+def test_inbox_removes_invoice_whose_only_document_was_soft_deleted(
+    db, api_client  # noqa: F811
+):
+    _seed_job(db, status="COMPLETED")
+    before = api_client.get("/api/v1/inbox", headers=token())
+    assert before.status_code == 200
+    assert "inv" in [item["id"] for item in before.json()["items"]]
+
+    deleted = api_client.delete(
+        "/api/v1/documents/doc?reason=Remove%20from%20review%20queue",
+        headers=token(),
+    )
+    assert deleted.status_code == 200
+
+    after = api_client.get("/api/v1/inbox", headers=token())
+    assert after.status_code == 200
+    assert "inv" not in [item["id"] for item in after.json()["items"]]
+
+    # The financial record and evidence remain directly retrievable.
+    detail = api_client.get("/api/v1/invoices/inv", headers=token())
+    assert detail.status_code == 200
+    assert any(
+        event["action"] == "DOCUMENT_SOFT_DELETED"
+        for event in detail.json()["timeline"]
+    )

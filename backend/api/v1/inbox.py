@@ -47,6 +47,20 @@ def list_invoices(
 
     stmt = select(Invoice).where(Invoice.org_id == current_user.org_id)
 
+    # A soft-deleted source is no longer a reviewable queue item. Keep invoices
+    # that never had a document visible so genuine data exceptions stay actionable;
+    # the invoice and its audit history remain directly addressable.
+    active_document = select(Document.id).where(
+        Document.invoice_id == Invoice.id,
+        Document.org_id == current_user.org_id,
+        Document.is_deleted == False,
+    ).exists()
+    any_document = select(Document.id).where(
+        Document.invoice_id == Invoice.id,
+        Document.org_id == current_user.org_id,
+    ).exists()
+    stmt = stmt.where(or_(active_document, ~any_document))
+
     if stage:
         stmt = stmt.where(Invoice.stage == stage)
     if decision:
