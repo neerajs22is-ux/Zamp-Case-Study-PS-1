@@ -1348,13 +1348,15 @@ def process_pubsub_push_notification(db: Session, request_body: Dict[str, Any]) 
     if not email_address or not history_id:
         raise GmailIntegrationError("Pub/Sub data payload missing 'emailAddress' or 'historyId'.")
 
-    # 2. Resolve mailbox to registered organisation
+    # 2. Resolve mailbox to registered organisation. Mailbox uniqueness is scoped
+    #    per organisation (migration 014), so resolve deterministically instead of
+    #    failing when more than one tenant has bound the same address.
     account = db.execute(
         select(GmailAccount).where(
             GmailAccount.mailbox_address == email_address,
             GmailAccount.oauth_status == "AUTHORIZED",
-        )
-    ).scalar_one_or_none()
+        ).order_by(GmailAccount.created_at.asc()).limit(1)
+    ).scalars().first()
 
     if not account:
         logger.warning(f"Pub/Sub notification received for unknown/unauthorized mailbox: {email_address}")
@@ -1447,12 +1449,13 @@ def reclaim_unfinished_pubsub_events(
     details = []
 
     for event in unfinished_events:
+        # Uniqueness is per organisation, so a shared address resolves deterministically.
         account = db.execute(
             select(GmailAccount).where(
                 GmailAccount.mailbox_address == event.mailbox_address,
                 GmailAccount.oauth_status == "AUTHORIZED",
-            )
-        ).scalar_one_or_none()
+            ).order_by(GmailAccount.created_at.asc()).limit(1)
+        ).scalars().first()
 
         if not account:
             logger.warning(f"Cannot reclaim event {event.id}: account {event.mailbox_address} unauthorized or not found.")
