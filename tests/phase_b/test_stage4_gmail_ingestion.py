@@ -726,7 +726,8 @@ def test_16_oauth_callback_persistence_failure_returns_safe_503(monkeypatch, sta
 
     assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
     detail = resp.json()["detail"]
-    assert "row-level security" not in detail
+    assert "new row violates" not in detail
+    assert "gmail_accounts\"" not in detail
     assert "SECRET_REFRESH_TOKEN_XYZ" not in resp.text
     assert "mock_at" not in resp.text
     assert "could not be saved" in detail
@@ -735,3 +736,72 @@ def test_16_oauth_callback_persistence_failure_returns_safe_503(monkeypatch, sta
     assert session.execute(
         select(GmailAccount).where(GmailAccount.org_id == "org_alpha")
     ).scalar_one_or_none() is None
+
+def test_17_reauthorization_survives_duplicate_mailbox_rows(stage4_client):
+    """Test 17: the org already holding a second mailbox row must not break
+    re-authorization. The lookup previously used scalar_one_or_none(), which raised
+    MultipleResultsFound (HTTP 500/503) when an organisation had more than one row."""
+    client, session = stage4_client
+    seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+    session.add_all([
+        GmailAccount(id="gacc_old", org_id="org_alpha", mailbox_address="ap-inbox@testcorp.com",
+                     oauth_status="EXPIRED", encrypted_refresh_token=None),
+        GmailAccount(id="gacc_second", org_id="org_alpha", mailbox_address="second@testcorp.com",
+                     oauth_status="REVOKED", encrypted_refresh_token=None),
+    ])
+    session.commit()
+
+    state = generate_oauth_state("org_alpha", "usr_admin", db=session)
+    with patch("backend.api.v1.integrations_gmail.exchange_code_for_tokens",
+               return_value={"access_token": "mock_at", "refresh_token": "mock_rt"} ),          patch("backend.api.v1.integrations_gmail.fetch_mailbox_profile_address",
+               return_value="ap-inbox@testcorp.com"):
+        resp = client.get(
+            f"/api/v1/integrations/gmail/callback?code=mock_code&state={state}",
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+
+    rows = session.execute(
+        select(GmailAccount).where(GmailAccount.org_id == "org_alpha")
+    ).scalars().all()
+    assert len(rows) == 2  # re-authorization reuses the matching row, never duplicates it
+    reused = [r for r in rows if r.id == "gacc_old"][0]
+    assert reused.oauth_status == "AUTHORIZED"
+    assert decrypt_refresh_token(reused.encrypted_refresh_token) == "mock_rt"
+
+    audits = session.execute(
+        select(AuditEvent).where(AuditEvent.org_id == "org_alpha")
+    ).scalars().all()
+    assert len(audits) == 1
+    assert audits[0].action == "GMAIL_MAILBOX_CONNECTED"
+
+def test_18_oauth_callback_encryption_failure_is_reported_separately(stage4_client):
+    """Test 18: a refresh-token encryption failure names the encryption boundary instead of
+    being conflated with a database rejection, leaks nothing, and persists nothing."""
+    client, session = stage4_client
+    seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+    state = generate_oauth_state("org_alpha", "usr_admin", db=session)
+
+    with patch("backend.api.v1.integrations_gmail.exchange_code_for_tokens",
+               return_value={"access_token": "mock_at", "refresh_token": "SECRET_REFRESH_TOKEN_XYZ"}),          patch("backend.api.v1.integrations_gmail.fetch_mailbox_profile_address",
+               return_value="ap-inbox@testcorp.com"),          patch("backend.api.v1.integrations_gmail.encrypt_refresh_token",
+               side_effect=ValueError("Invalid GMAIL_ENCRYPTION_KEY configured: Fernet key must be 32 url-safe base64-encoded bytes.")):
+        resp = client.get(
+            f"/api/v1/integrations/gmail/callback?code=mock_code&state={state}",
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = resp.json()["detail"]
+    assert "GMAIL_ENCRYPTION_KEY" in detail
+    assert "Fernet key must be" not in detail
+    assert "SECRET_REFRESH_TOKEN_XYZ" not in resp.text
+    assert "mock_at" not in resp.text
+
+    assert session.execute(
+        select(GmailAccount).where(GmailAccount.org_id == "org_alpha")
+    ).scalar_one_or_none() is None
+    assert session.execute(
+        select(AuditEvent).where(AuditEvent.org_id == "org_alpha")
+    ).scalars().all() == []

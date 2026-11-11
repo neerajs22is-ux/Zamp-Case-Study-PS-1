@@ -232,16 +232,41 @@ def gmail_oauth_callback(
             detail=f"Failed to query mailbox profile address: {str(exc)}",
         )
 
-    # Persist the encrypted token and audit trail; expected failures become a safe,
-    # actionable response instead of an unhandled HTTP 500.
+    # Persist the encrypted refresh token, then the mailbox and audit records.
+    # Each boundary reports a distinct, safe, actionable failure instead of an
+    # unhandled HTTP 500.
     try:
-        # 4. Encrypt refresh token (if provided in token exchange)
         encrypted_refresh = encrypt_refresh_token(refresh_token) if refresh_token else None
+    except Exception:
+        if db is not None:
+            db.rollback()
+        logger.exception("Gmail refresh token could not be encrypted for organisation %s.", org_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "The mailbox refresh token could not be encrypted, so the connection was not saved. "
+                "An operator must verify that GMAIL_ENCRYPTION_KEY is a valid Fernet key."
+            ),
+        )
 
-        # 5. Upsert GmailAccount record (do not overwrite existing refresh token if Google omitted it)
+    try:
+        # 4. Upsert the mailbox record. Prefer the row already bound to this exact
+        #    mailbox address, otherwise reuse the organisation's existing mailbox row,
+        #    so re-authorization never creates a duplicate tenant mailbox and a stray
+        #    duplicate row can never turn this into a 500/503.
         account = db.execute(
-            select(GmailAccount).where(GmailAccount.org_id == org_id)
-        ).scalar_one_or_none()
+            select(GmailAccount).where(
+                GmailAccount.org_id == org_id,
+                GmailAccount.mailbox_address == mailbox_address,
+            )
+        ).scalars().first()
+        if account is None:
+            account = db.execute(
+                select(GmailAccount)
+                .where(GmailAccount.org_id == org_id)
+                .order_by(GmailAccount.created_at.asc())
+                .limit(1)
+            ).scalars().first()
 
         now = datetime.datetime.utcnow()
         if account:
@@ -263,7 +288,7 @@ def gmail_oauth_callback(
             )
             db.add(account)
 
-        # 6. Append immutable audit event
+        # 5. Append immutable audit event
         audit = AuditEvent(
             id=f"evt_{uuid.uuid4().hex[:12]}",
             org_id=org_id,
@@ -282,8 +307,9 @@ def gmail_oauth_callback(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
-                "Gmail mailbox authorization could not be saved. Please retry the authorization link; "
-                "if it repeats, an operator must check database permissions and GMAIL_ENCRYPTION_KEY."
+                "Gmail mailbox authorization could not be saved because the database rejected the "
+                "mailbox record. Please retry the authorization link; if it repeats, an operator must "
+                "check the schema, grants and row-level security for gmail_accounts."
             ),
         )
 
