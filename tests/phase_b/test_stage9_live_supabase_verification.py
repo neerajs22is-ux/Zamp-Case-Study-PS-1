@@ -69,7 +69,7 @@ def test_02_live_alembic_migrations_applied_to_head(direct_pg_engine):
         assert len(res) == 1
         current_rev = res[0][0]
         conn.rollback()
-        assert current_rev in ("007_stage52_pubsub_recovery", "008_phase1_durable_jobs", "009_phase_a_core", "010_identity_memberships", "011_require_assigned_roles", "012_invitation_utc_expiry", "013_revoke_access_tokens"), f"Expected applied migration revision, got {current_rev}"
+        assert current_rev in ("007_stage52_pubsub_recovery", "008_phase1_durable_jobs", "009_phase_a_core", "010_identity_memberships", "011_require_assigned_roles", "012_invitation_utc_expiry", "013_revoke_access_tokens", "014_gmail_mailbox_scoping"), f"Expected applied migration revision, got {current_rev}"
 
 
 def test_03_live_schema_tables_and_indexes_exist(direct_pg_engine):
