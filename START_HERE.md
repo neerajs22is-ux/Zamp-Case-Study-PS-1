@@ -33,9 +33,9 @@ The AP Command Center strictly decouples **probabilistic document interpretation
 
 ### A. Live Hosted Environment (Render)
 1. Navigate to **[https://zamp-case-study-ps-1-1.onrender.com](https://zamp-case-study-ps-1-1.onrender.com)**.
-2. Sign in using **Google OAuth (SSO)**. Evaluators included in the server-side allowlist (`EVALUATOR_ALLOWLIST_EMAILS`) receive privileged `AP_LEAD` access to the pre-seeded evaluation tenant `org_sme_eval`.
-3. Alternatively, evaluators with an authorized evaluator token can expand the **"Authorized evaluator token"** drawer on the login screen.
-4. *Note on Security:* In production, development-session bypasses and one-click demo logins are strictly barred (`ENABLE_DEV_SESSION=false`) to protect tenant isolation.
+2. Choose **Launch Live Demo Workspace** for an isolated AP associate session without sign-up. The five-example implementation provides prepared clean match, price variance, QC hold, low-confidence scan and non-payable receipt examples. These are synthetic prepared records, not OCR or LLM runs. The first three use the deterministic policy evaluator; the remaining two have prepared outcomes.
+3. Open a record to inspect its PDF and checks. The demo role cannot approve; authorized internal sign-off does not send payment. Five additional custom uploads use the actual processing path, subject to service availability.
+4. The [guided Sandbox](https://zamp-case-study-ps-1-1.onrender.com/sandbox) has its own scenarios. Google sign-in and evaluator tokens require server-side authorization. The checked-in Render blueprint disables automatic deployment; verify the deployed version separately.
 
 ### B. Local Development Environment (`http://127.0.0.1:8001`)
 1. Clone the repository and run `python run.py`.
@@ -49,7 +49,7 @@ The AP Command Center strictly decouples **probabilistic document interpretation
 
 ## 4. Recommended 5-Minute Evaluation Walkthrough
 
-Follow this sequence to test all key aspects of the engine in under five minutes:
+The following legacy walkthrough refers to the separately authorized shared evaluator workspace and its Sandbox fixtures, not the instant demo. Availability and permissions depend on server configuration. For the instant demo, use the prepared examples described above.
 
 1. **Step 1: Inspect the Operations Dashboard & Inbox**
    - Log into the Flagship app. Review the live metrics: Total Invoices Ingested, Exceptions Requiring Action, Blocked Exposure Value (INR), and Clean Match Candidates.

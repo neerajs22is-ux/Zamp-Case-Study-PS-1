@@ -33,6 +33,10 @@
 
 ## 1. Executive Summary & Problem-Solution
 
+### Instant demo
+
+The five-example implementation creates a private demo workspace with prepared synthetic PDFs: clean match, price variance, QC hold, low-confidence scan, and a non-payable receipt. The procurement cases use the seven deterministic checks; the scan and receipt have prepared outcomes. These examples are not OCR or LLM runs. Five additional custom uploads use the actual processing path, subject to service availability. Internal approval does not send payment. The checked-in Render blueprint disables automatic deployment, so deployment must be verified separately.
+
 ### The Problem
 Traditional Accounts Payable processes are bogged down by high-friction bottlenecks:
 1. **Diverse Document Modalities:** Commercial tax invoices arrive as digital text PDFs, low-contrast raster scans, mobile photos, and non-payable payment receipts.

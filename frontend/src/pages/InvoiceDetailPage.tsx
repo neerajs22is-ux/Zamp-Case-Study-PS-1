@@ -495,6 +495,11 @@ export const InvoiceDetailPage: React.FC<InvoiceDetailPageProps> = ({
         </div>
       </div>
 
+      {invoice.source_channel === "DEMO_EXPERIENCE" && (
+        <div role="note" className="mx-4 my-2 rounded border border-indigo-200 bg-indigo-50 p-3 text-sm text-indigo-900">
+          Prepared synthetic example. No OCR or ingestion run was performed; policy checks shown were evaluated against prepared records.
+        </div>
+      )}
       {/* 2. Compact Status Summary (Collapsed by default for completed/held/rejected invoices) */}
       <InvoiceRunView
         key={`${invoiceId}:${invoice.job_id || "no-job"}`}

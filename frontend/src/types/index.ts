@@ -248,6 +248,7 @@ export interface MatchGateItem {
 }
 
 export interface InvoiceDetailInvoice extends InvoiceItem {
+  source_channel?: string;
   subtotal?: number | null;
   subtotal_amount?: number | null;
   tax_amount?: number | null;

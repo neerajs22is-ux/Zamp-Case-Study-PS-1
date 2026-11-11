@@ -177,7 +177,7 @@ export function InvoiceRunView({
               ? 'STALLED'
               : isFailed
                 ? 'FAILED'
-                : latestJob ? words(latestJob.status).toUpperCase() : 'QUEUED'}
+                : latestJob ? words(latestJob.status).toUpperCase() : 'NO PROCESSING RUN'}
           </Badge>
 
           {/* Processing Outcome Description */}
@@ -192,7 +192,7 @@ export function InvoiceRunView({
                     ? 'Extraction and matching completed'
                     : isActivelyProcessing
                       ? 'Extraction and verification in progress…'
-                      : 'Queued for processing'}
+                      : latestJob ? 'Queued for processing' : 'No processing run recorded'}
           </span>
 
           <span className="text-slate-300 dark:text-slate-700 hidden sm:inline">

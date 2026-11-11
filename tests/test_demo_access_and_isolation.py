@@ -52,7 +52,7 @@ def test_create_demo_session_provisions_isolated_tenant(test_client):
     """Verifies 1-click live demo session minting:
     - Generates a uniquely isolated demo tenant (org_demo_<hex4>)
     - Assigns least-privilege role AP_ASSOCIATE
-    - Pre-seeds realistic Indian GST fixtures and 2 sample invoices
+    - Pre-seeds five prepared synthetic examples
     - Returns valid bearer JWT token
     """
     resp = test_client.post("/api/v1/auth/demo-session", headers={"x-forwarded-for": "198.51.100.1"})
@@ -82,9 +82,9 @@ def test_create_demo_session_provisions_isolated_tenant(test_client):
     assert inbox_resp.status_code == 200
     inbox_data = inbox_resp.json()
     invoices = inbox_data.get("items", inbox_data) if isinstance(inbox_data, dict) else inbox_data
-    assert len(invoices) >= 2
-    assert any("001" in inv["invoice_number"] for inv in invoices)
-    assert any("011" in inv["invoice_number"] for inv in invoices)
+    assert len(invoices) == 5
+    assert any("001" in (inv["invoice_number"] or "") for inv in invoices)
+    assert any("002" in (inv["invoice_number"] or "") for inv in invoices)
 
     # 3. Dashboard metrics verification
     dash_resp = test_client.get("/api/v1/dashboard/metrics", headers={"Authorization": f"Bearer {token}"})
@@ -102,7 +102,7 @@ def test_demo_user_least_privilege_approval_blocked(test_client):
     assert inbox_resp.status_code == 200
     inbox_data = inbox_resp.json()
     invoices = inbox_data.get("items", inbox_data) if isinstance(inbox_data, dict) else inbox_data
-    clean_inv = next(inv for inv in invoices if "001" in inv["invoice_number"])
+    clean_inv = next(inv for inv in invoices if "001" in (inv["invoice_number"] or ""))
 
     # Attempt approval action: must fail with HTTP 403 Forbidden due to role restriction
     action_resp = test_client.post(

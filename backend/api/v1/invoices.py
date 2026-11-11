@@ -423,6 +423,7 @@ def get_invoice_detail(
     return {
         "invoice": {
             "id": inv.id,
+            "source_channel": inv.source_channel,
             "invoice_number": inv.invoice_number,
             "vendor_name": inv.vendor_name,
             "vendor_gstin": inv.vendor_gstin,
