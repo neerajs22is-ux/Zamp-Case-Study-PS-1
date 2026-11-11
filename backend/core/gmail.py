@@ -27,6 +27,7 @@ import logging
 import re
 import secrets
 import time
+import urllib.parse
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -49,6 +50,7 @@ GMAIL_API_BASE = "https://gmail.googleapis.com/gmail/v1/users/me"
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
+GMAIL_CALLBACK_PATH = "/api/v1/integrations/gmail/callback"
 
 
 class GmailIntegrationError(Exception):
@@ -216,6 +218,53 @@ def validate_and_consume_oauth_state(
 validate_oauth_state = validate_and_consume_oauth_state
 
 
+def canonical_gmail_redirect_uri(base_url: Optional[str] = None) -> str:
+    """Builds the public Gmail OAuth callback URL from the configured public origin.
+
+    Joins with exactly one slash, so a BASE_URL ending in '/' cannot yield
+    '//api/...' (which Google treats as a different, unregistered URI).
+    """
+    origin = (base_url if base_url is not None else settings.BASE_URL) or ""
+    return f"{origin.rstrip('/')}{GMAIL_CALLBACK_PATH}"
+
+
+def resolve_gmail_redirect_uri() -> str:
+    """Returns the exact redirect URI used for both the authorization request and the code exchange.
+
+    Google requires the value in the token exchange to match the authorization
+    request byte for byte, so every caller reads this single resolver.
+
+    GMAIL_REDIRECT_URI overrides the BASE_URL-derived canonical URI, but in
+    production/staging a non-public override (http://, localhost, loopback) is
+    rejected in favour of the canonical URI, so a stale local value cannot break
+    the OAuth round trip.
+    """
+    canonical = canonical_gmail_redirect_uri()
+    override = (settings.GMAIL_REDIRECT_URI or "").strip()
+    if not override:
+        return canonical
+
+    parsed = urllib.parse.urlsplit(override)
+    host = (parsed.hostname or "").lower()
+    loopback_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+    if parsed.scheme not in ("https", "http") or not host:
+        logger.warning("Ignoring malformed GMAIL_REDIRECT_URI %r; using canonical %r.", override, canonical)
+        return canonical
+
+    if settings.APP_ENV in (AppEnv.PRODUCTION, AppEnv.STAGING) and (
+        parsed.scheme != "https" or host in loopback_hosts
+    ):
+        logger.warning(
+            "Ignoring GMAIL_REDIRECT_URI %r: production requires a public HTTPS callback. Using canonical %r.",
+            override,
+            canonical,
+        )
+        return canonical
+
+    return override
+
+
 def build_authorization_url(
     org_id: str,
     user_id: str,
@@ -229,7 +278,7 @@ def build_authorization_url(
         raise GmailNotConfiguredError("GMAIL_CLIENT_ID is not configured.")
 
     state = generate_oauth_state(org_id, user_id, db=db, session_binding=session_binding, ttl_seconds=ttl_seconds)
-    effective_redirect_uri = redirect_uri or settings.GMAIL_REDIRECT_URI or f"{settings.BASE_URL.rstrip('/')}/api/v1/integrations/gmail/callback"
+    effective_redirect_uri = redirect_uri or resolve_gmail_redirect_uri()
     params = {
         "client_id": settings.GMAIL_CLIENT_ID,
         "redirect_uri": effective_redirect_uri,
@@ -252,7 +301,7 @@ def exchange_code_for_tokens(code: str, redirect_uri: Optional[str] = None) -> D
     if not (settings.GMAIL_CLIENT_ID and settings.GMAIL_CLIENT_SECRET):
         raise GmailNotConfiguredError("GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET are required.")
 
-    effective_redirect_uri = redirect_uri or settings.GMAIL_REDIRECT_URI or f"{settings.BASE_URL.rstrip('/')}/api/v1/integrations/gmail/callback"
+    effective_redirect_uri = redirect_uri or resolve_gmail_redirect_uri()
     payload = {
         "code": code,
         "client_id": settings.GMAIL_CLIENT_ID,

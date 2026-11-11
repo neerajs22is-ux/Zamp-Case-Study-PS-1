@@ -24,6 +24,7 @@ from backend.core.auth import (
 )
 from backend.core.config import AppEnv, settings
 from backend.core.database import check_db_health, get_db
+from backend.core.gmail import resolve_gmail_redirect_uri
 from backend.core.storage import storage_adapter
 from backend.models.domain import (
     AuditEvent, Document, IngestionJob, Invoice, QuarantinedDocument
@@ -50,7 +51,7 @@ def get_connections_status(
         "mailbox": settings.GMAIL_TARGET_MAILBOX,
         "scopes": ["https://www.googleapis.com/auth/gmail.readonly"],
         "required_env": ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_TARGET_MAILBOX"],
-        "redirect_uri": f"{settings.BASE_URL}/api/v1/integrations/gmail/callback",
+        "redirect_uri": resolve_gmail_redirect_uri(),
         "readiness": settings.is_gmail_configured(),
         "message": "Gmail credentials configured; mailbox authorization must be verified separately." if settings.is_gmail_configured() else "Gmail OAuth 2.0 credentials not provisioned.",
     }

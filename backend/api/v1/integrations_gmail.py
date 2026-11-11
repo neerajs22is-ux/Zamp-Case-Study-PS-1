@@ -37,7 +37,8 @@ from backend.core.gmail import (
     encrypt_refresh_token, exchange_code_for_tokens, fetch_mailbox_profile,
     fetch_mailbox_profile_address, mailbox_sync_lease,
     process_pubsub_push_notification, reclaim_unfinished_pubsub_events,
-    reconcile_all_active_mailboxes, renew_expiring_watches, setup_mailbox_watch,
+    reconcile_all_active_mailboxes, resolve_gmail_redirect_uri, renew_expiring_watches,
+    setup_mailbox_watch,
     sync_gmail_history, sync_gmail_mailbox, validate_oauth_state,
     validate_pubsub_oidc_token,
 )
@@ -90,7 +91,7 @@ def get_gmail_status(
         "mailbox": account.mailbox_address if account else settings.GMAIL_TARGET_MAILBOX,
         "scopes": ["https://www.googleapis.com/auth/gmail.readonly"],
         "required_env": ["GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "GMAIL_TARGET_MAILBOX"],
-        "redirect_uri": settings.GMAIL_REDIRECT_URI or f"{settings.BASE_URL.rstrip('/')}/api/v1/integrations/gmail/callback",
+        "redirect_uri": resolve_gmail_redirect_uri(),
         "last_synced_at": account.last_synced_at.isoformat() + "Z" if account and account.last_synced_at else None,
         "last_history_id": account.last_history_id if account else None,
         "initial_sync_pending": bool(account and account.oauth_status == "AUTHORIZED" and not account.last_synced_at),

@@ -20,6 +20,7 @@ import datetime
 import hashlib
 import io
 import json
+import urllib.parse
 from typing import Any, Dict, Optional
 from unittest.mock import MagicMock, patch
 
@@ -34,8 +35,10 @@ from sqlalchemy.pool import StaticPool
 from backend.core.config import AppEnv, settings
 from backend.core.database import Base, get_db
 from backend.core.gmail import (
+    build_authorization_url, canonical_gmail_redirect_uri,
     decrypt_refresh_token, encrypt_refresh_token,
-    generate_oauth_state, sync_gmail_mailbox, validate_oauth_state
+    generate_oauth_state, resolve_gmail_redirect_uri, sync_gmail_mailbox,
+    validate_oauth_state
 )
 from backend.core.storage import storage_adapter
 from backend.main import app
@@ -478,3 +481,145 @@ def test_10_casa_compliance_metadata_disclosure(stage4_client):
     assert compliance["scope"] == "https://www.googleapis.com/auth/gmail.readonly"
     assert compliance["casa_status"] == "CASA_ASSESSMENT_PENDING_PRODUCTION_APPROVAL"
     assert "CASA Tier 2 assessment required" in compliance["notes"]
+
+# ==============================================================================
+# Focused regression tests: Gmail OAuth redirect URI & mailbox import gating
+# ==============================================================================
+
+def test_11_gmail_redirect_uri_is_one_canonical_public_callback(monkeypatch):
+    """Test 11: A single canonical redirect URI is sent to Google for both the
+    authorization request and the code exchange, with no double slash and no
+    stale localhost/loopback override leaking into production."""
+    monkeypatch.setattr(settings, "APP_ENV", AppEnv.TEST)
+    monkeypatch.setattr(settings, "BASE_URL", "https://zamp-case-study-ps-1-1.onrender.com")
+    monkeypatch.setattr(settings, "GMAIL_REDIRECT_URI", None)
+
+    expected = "https://zamp-case-study-ps-1-1.onrender.com/api/v1/integrations/gmail/callback"
+    assert resolve_gmail_redirect_uri() == expected
+    assert canonical_gmail_redirect_uri() == expected
+
+    # A trailing slash on BASE_URL must not produce '//api/...'
+    monkeypatch.setattr(settings, "BASE_URL", "https://zamp-case-study-ps-1-1.onrender.com/")
+    assert resolve_gmail_redirect_uri() == expected
+    assert "//api" not in resolve_gmail_redirect_uri()
+
+    # The authorization request carries exactly that URI, with the minimum scope
+    parsed = urllib.parse.urlparse(build_authorization_url("org_alpha", "usr_admin"))
+    query = urllib.parse.parse_qs(parsed.query)
+    assert query["redirect_uri"] == [expected]
+    assert query["scope"] == ["https://www.googleapis.com/auth/gmail.readonly"]
+    assert query["access_type"] == ["offline"]
+
+    # An explicit public HTTPS override is honoured verbatim (exact-match semantics)
+    override = "https://ap.example.com/api/v1/integrations/gmail/callback"
+    monkeypatch.setattr(settings, "GMAIL_REDIRECT_URI", override)
+    assert resolve_gmail_redirect_uri() == override
+
+    # In production, stale localhost / plain-HTTP / wrong-path overrides are rejected
+    monkeypatch.setattr(settings, "APP_ENV", AppEnv.PRODUCTION)
+    monkeypatch.setattr(settings, "BASE_URL", "https://zamp-case-study-ps-1-1.onrender.com")
+    for stale in (
+        "http://localhost:8000/api/v1/integrations/gmail/callback",
+        "http://localhost:8000/api/v1/connections/gmail/callback",
+        "https://localhost/api/v1/integrations/gmail/callback",
+        "http://zamp-case-study-ps-1-1.onrender.com/api/v1/integrations/gmail/callback",
+    ):
+        monkeypatch.setattr(settings, "GMAIL_REDIRECT_URI", stale)
+        assert resolve_gmail_redirect_uri() == expected
+
+
+def test_12_import_now_reports_disconnected_mailbox_without_ingesting(stage4_client):
+    """Test 12: Import now fails closed with a truthful 404 when no mailbox is
+    authorized, and never calls Gmail when the mailbox is revoked/expired."""
+    from unittest.mock import patch as _patch
+
+    client, session = stage4_client
+    token = seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # No mailbox record at all
+    resp_none = client.post("/api/v1/integrations/gmail/sync", headers=headers)
+    assert resp_none.status_code == status.HTTP_404_NOT_FOUND
+    assert "No authorized Gmail mailbox configured" in resp_none.json()["detail"]
+
+    # Revoked mailbox: still no authorized mailbox, and no Gmail API call is made
+    session.add(GmailAccount(
+        id="gacc_revoked",
+        org_id="org_alpha",
+        mailbox_address="revoked@alpha.com",
+        oauth_status="REVOKED",
+        encrypted_refresh_token=None,
+    ))
+    session.commit()
+
+    with _patch("backend.api.v1.integrations_gmail.sync_gmail_mailbox") as full_sync,          _patch("backend.api.v1.integrations_gmail.sync_gmail_history") as history_sync:
+        resp = client.post("/api/v1/integrations/gmail/sync", headers=headers)
+        assert resp.status_code == status.HTTP_404_NOT_FOUND
+        assert "No authorized Gmail mailbox configured" in resp.json()["detail"]
+        full_sync.assert_not_called()
+        history_sync.assert_not_called()
+
+    # Status reports the degradation truthfully rather than claiming a healthy mailbox
+    resp_status = client.get("/api/v1/integrations/gmail/status", headers=headers)
+    assert resp_status.status_code == status.HTTP_200_OK
+    assert resp_status.json()["status"] == "REVOKED"
+    assert resp_status.json()["readiness"] is False
+
+
+def test_13_connected_import_ingests_into_correct_tenant_only(stage4_client):
+    """Test 13: With an authorized mailbox, Import now ingests PDFs for the calling
+    tenant only, and a second tenant's mailbox is left untouched."""
+    from unittest.mock import patch as _patch
+
+    _, session = stage4_client
+    seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+    session.add(GmailAccount(
+        id="gacc_alpha",
+        org_id="org_alpha",
+        mailbox_address="invoices@alpha.com",
+        oauth_status="AUTHORIZED",
+        encrypted_refresh_token=encrypt_refresh_token("alpha_refresh_token"),
+    ))
+    beta_account = GmailAccount(
+        id="gacc_beta",
+        org_id="org_beta",
+        mailbox_address="invoices@beta.com",
+        oauth_status="AUTHORIZED",
+        encrypted_refresh_token=encrypt_refresh_token("beta_refresh_token"),
+    )
+    session.add(beta_account)
+    session.commit()
+
+    b64_pdf = base64.urlsafe_b64encode(SAMPLE_PDF_BYTES).decode()
+    mock_detail = {
+        "id": "msg_alpha_1",
+        "payload": {
+            "headers": [
+                {"name": "From", "value": "Acme Supplies <billing@acme.com>"},
+                {"name": "Subject", "value": "Invoice INV-4242"},
+            ],
+            "parts": [{
+                "filename": "INV-4242.pdf",
+                "mimeType": "application/pdf",
+                "body": {"data": b64_pdf},
+            }],
+        },
+    }
+
+    with _patch("backend.core.gmail.refresh_access_token", return_value="fresh_access_token"),          _patch("backend.core.gmail.list_mailbox_messages", return_value=[{"id": "msg_alpha_1"}]),          _patch("backend.core.gmail.get_message_detail", return_value=mock_detail):
+
+        result = sync_gmail_mailbox(session, "org_alpha", "usr_admin")
+
+    assert result["status"] == "SUCCESS"
+    assert result["ingested_count"] == 1
+    assert result["duplicates_skipped"] == 0
+
+    alpha_docs = session.execute(select(Document).where(Document.org_id == "org_alpha")).scalars().all()
+    assert len(alpha_docs) == 1
+    assert alpha_docs[0].storage_key.startswith("org_alpha/invoices/")
+
+    assert session.execute(select(Document).where(Document.org_id == "org_beta")).scalars().all() == []
+    assert session.execute(select(Invoice).where(Invoice.org_id == "org_beta")).scalars().all() == []
+
+    session.refresh(beta_account)
+    assert beta_account.last_synced_at is None
