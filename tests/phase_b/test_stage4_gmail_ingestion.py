@@ -44,7 +44,7 @@ from backend.core.storage import storage_adapter
 from backend.main import app
 from backend.models.domain import (
     AuditEvent, Document, GmailAccount, IngestionJob, Invoice,
-    Organisation, QuarantinedDocument, RoleAssignment, User
+    OAuthStateNonce, Organisation, QuarantinedDocument, RoleAssignment, User
 )
 
 TEST_JWT_SECRET = "stage4-gmail-test-secret-32-chars-long"
@@ -623,3 +623,115 @@ def test_13_connected_import_ingests_into_correct_tenant_only(stage4_client):
 
     session.refresh(beta_account)
     assert beta_account.last_synced_at is None
+
+# ==============================================================================
+# Focused regression tests: OAuth callback tenant context & safe failure modes
+# ==============================================================================
+
+def test_14_oauth_callback_binds_tenant_context_before_persisting(stage4_client):
+    """Test 14 (production HTTP 500): the callback runs without a user session, so it must
+    establish tenant context from the signed state before writing RLS-protected tables.
+    Without it PostgreSQL rejects the gmail_accounts insert (FORCE RLS + WITH CHECK on
+    app.current_org_id) and the browser receives an unhandled 500."""
+    client, session = stage4_client
+    seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+    session.info.pop("tenant_org_id", None)
+    session.info.pop("app.current_org_id", None)
+
+    state = generate_oauth_state("org_alpha", "usr_admin", db=session)
+    assert not session.info.get("tenant_org_id"), "callback request must start without tenant context"
+
+    with patch("backend.api.v1.integrations_gmail.exchange_code_for_tokens",
+               return_value={"access_token": "mock_at", "refresh_token": "mock_rt_secret"}),          patch("backend.api.v1.integrations_gmail.fetch_mailbox_profile_address",
+               return_value="ap-inbox@testcorp.com"):
+        resp = client.get(
+            f"/api/v1/integrations/gmail/callback?code=mock_code&state={state}",
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert "gmail=connected" in resp.headers["location"]
+
+    # Tenant context was bound to the organisation proven by the signed state
+    assert session.info["tenant_org_id"] == "org_alpha"
+
+    account = session.execute(
+        select(GmailAccount).where(GmailAccount.org_id == "org_alpha")
+    ).scalar_one()
+    assert account.oauth_status == "AUTHORIZED"
+    assert account.mailbox_address == "ap-inbox@testcorp.com"
+    assert decrypt_refresh_token(account.encrypted_refresh_token) == "mock_rt_secret"
+
+    # The state nonce was consumed exactly once (single-use replay protection)
+    nonce = session.execute(
+        select(OAuthStateNonce).where(OAuthStateNonce.org_id == "org_alpha")
+    ).scalar_one()
+    assert nonce.is_consumed is True
+
+
+def test_15_oauth_callback_expected_failures_are_safe_4xx_not_500(stage4_client):
+    """Test 15: Google-reported errors, missing parameters, tampered state and replayed
+    state all produce controlled redirects/4xx responses rather than HTTP 500."""
+    client, session = stage4_client
+    seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+
+    # Google-reported error returns an explicit UI redirect
+    resp_error = client.get("/api/v1/integrations/gmail/callback?error=access_denied", follow_redirects=False)
+    assert resp_error.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert "gmail=error" in resp_error.headers["location"]
+
+    # Missing code/state
+    assert client.get("/api/v1/integrations/gmail/callback").status_code == status.HTTP_400_BAD_REQUEST
+
+    # Tampered state signature
+    good_state = generate_oauth_state("org_alpha", "usr_admin")
+    tampered = "dGFtcGVyZWQ." + good_state.split(".")[1]
+    resp_tampered = client.get(f"/api/v1/integrations/gmail/callback?code=x&state={tampered}")
+    assert resp_tampered.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Replayed state is rejected before any token exchange happens
+    replayed_state = generate_oauth_state("org_alpha", "usr_admin", db=session)
+    validate_oauth_state(replayed_state, db=session)
+    with patch("backend.api.v1.integrations_gmail.exchange_code_for_tokens") as exchange:
+        resp_replay = client.get(f"/api/v1/integrations/gmail/callback?code=x&state={replayed_state}")
+        assert resp_replay.status_code == status.HTTP_400_BAD_REQUEST
+        exchange.assert_not_called()
+
+
+def test_16_oauth_callback_persistence_failure_returns_safe_503(monkeypatch, stage4_client):
+    """Test 16: a database failure while persisting the mailbox yields a safe, actionable
+    503 instead of a generic 500, and leaks neither tokens nor raw database errors."""
+    client, session = stage4_client
+    seed_tenant_user(session, org_id="org_alpha", user_id="usr_admin", role_name="SYSTEM_ADMIN")
+    state = generate_oauth_state("org_alpha", "usr_admin", db=session)
+
+    real_commit = session.commit
+    calls = {"n": 0}
+
+    def flaky_commit():
+        calls["n"] += 1
+        if calls["n"] > 1:  # 1st commit consumes the nonce; 2nd persists the mailbox
+            raise RuntimeError('new row violates row-level security policy for table "gmail_accounts"')
+        return real_commit()
+
+    monkeypatch.setattr(session, "commit", flaky_commit)
+
+    with patch("backend.api.v1.integrations_gmail.exchange_code_for_tokens",
+               return_value={"access_token": "mock_at", "refresh_token": "SECRET_REFRESH_TOKEN_XYZ"}),          patch("backend.api.v1.integrations_gmail.fetch_mailbox_profile_address",
+               return_value="ap-inbox@testcorp.com"):
+        resp = client.get(
+            f"/api/v1/integrations/gmail/callback?code=mock_code&state={state}",
+            follow_redirects=False,
+        )
+
+    assert resp.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    detail = resp.json()["detail"]
+    assert "row-level security" not in detail
+    assert "SECRET_REFRESH_TOKEN_XYZ" not in resp.text
+    assert "mock_at" not in resp.text
+    assert "could not be saved" in detail
+
+    session.rollback()
+    assert session.execute(
+        select(GmailAccount).where(GmailAccount.org_id == "org_alpha")
+    ).scalar_one_or_none() is None

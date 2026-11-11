@@ -37,6 +37,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from backend.core.config import AppEnv, settings
+from backend.core.database import set_tenant_context
 from backend.core.storage import build_tenant_storage_path, storage_adapter
 from backend.core.processing_events import append_checkpoint
 from backend.models.domain import (
@@ -197,9 +198,12 @@ def validate_and_consume_oauth_state(
     if now_ts > exp_ts:
         raise GmailIntegrationError("OAuth state parameter has expired (10-minute window exceeded).")
 
-    # Verify session binding if both provided
-    if session_binding and data.get("session_binding") and session_binding != data.get("session_binding"):
-        raise GmailIntegrationError("OAuth session binding mismatch: Initiating browser session required.")
+    # Bind the tenant context to the organisation proven by the signed state.
+    # The OAuth callback is unauthenticated (no browser session or JWT), so without
+    # this the transaction-local app.current_org_id stays empty and every
+    # RLS-protected write below (gmail_accounts, audit_events) fails closed.
+    if db is not None:
+        set_tenant_context(db, org_id)
 
     # Server-side single-use atomic consumption
     if db is not None and nonce:

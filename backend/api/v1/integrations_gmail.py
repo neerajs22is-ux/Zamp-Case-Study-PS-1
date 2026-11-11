@@ -30,7 +30,7 @@ from backend.core.auth import (
     require_maintenance_auth, require_role
 )
 from backend.core.config import settings
-from backend.core.database import get_db
+from backend.core.database import get_db, set_tenant_context
 from backend.core.gmail import (
     GmailIntegrationError, GmailNotConfiguredError, MailboxSyncLockError,
     PubSubPersistenceError, build_authorization_url, clean_expired_mailbox_locks,
@@ -192,6 +192,21 @@ def gmail_oauth_callback(
         org_id, user_id = validate_oauth_state(state, db=db)
     except GmailIntegrationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+    except Exception:
+        # Infrastructure failure while consuming the state nonce: never surface raw errors.
+        if db is not None:
+            db.rollback()
+        logger.exception("Gmail OAuth state verification failed due to a database/infrastructure error.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gmail authorization state could not be verified. Please retry the authorization link.",
+        )
+
+    # Establish tenant context from the organisation proven by the signed state.
+    # This callback runs without a user session, and RLS-protected tables fail closed
+    # when app.current_org_id is unset.
+    if db is not None:
+        set_tenant_context(db, org_id)
 
     # 2. Exchange authorization code for tokens
     try:
@@ -217,46 +232,60 @@ def gmail_oauth_callback(
             detail=f"Failed to query mailbox profile address: {str(exc)}",
         )
 
-    # 4. Encrypt refresh token (if provided in token exchange)
-    encrypted_refresh = encrypt_refresh_token(refresh_token) if refresh_token else None
+    # Persist the encrypted token and audit trail; expected failures become a safe,
+    # actionable response instead of an unhandled HTTP 500.
+    try:
+        # 4. Encrypt refresh token (if provided in token exchange)
+        encrypted_refresh = encrypt_refresh_token(refresh_token) if refresh_token else None
 
-    # 5. Upsert GmailAccount record (do not overwrite existing refresh token if Google omitted it)
-    account = db.execute(
-        select(GmailAccount).where(GmailAccount.org_id == org_id)
-    ).scalar_one_or_none()
+        # 5. Upsert GmailAccount record (do not overwrite existing refresh token if Google omitted it)
+        account = db.execute(
+            select(GmailAccount).where(GmailAccount.org_id == org_id)
+        ).scalar_one_or_none()
 
-    now = datetime.datetime.utcnow()
-    if account:
-        account.mailbox_address = mailbox_address
-        account.oauth_status = "AUTHORIZED"
-        if encrypted_refresh:
-            account.encrypted_refresh_token = encrypted_refresh
-        account.updated_at = now
-    else:
-        account = GmailAccount(
-            id=f"gacc_{uuid.uuid4().hex[:12]}",
+        now = datetime.datetime.utcnow()
+        if account:
+            account.mailbox_address = mailbox_address
+            account.oauth_status = "AUTHORIZED"
+            if encrypted_refresh:
+                account.encrypted_refresh_token = encrypted_refresh
+            account.updated_at = now
+        else:
+            account = GmailAccount(
+                id=f"gacc_{uuid.uuid4().hex[:12]}",
+                org_id=org_id,
+                mailbox_address=mailbox_address,
+                oauth_status="AUTHORIZED",
+                encrypted_refresh_token=encrypted_refresh,
+                last_history_id=None,  # Intentionally None so initial sync performs full reconciliation
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(account)
+
+        # 6. Append immutable audit event
+        audit = AuditEvent(
+            id=f"evt_{uuid.uuid4().hex[:12]}",
             org_id=org_id,
-            mailbox_address=mailbox_address,
-            oauth_status="AUTHORIZED",
-            encrypted_refresh_token=encrypted_refresh,
-            last_history_id=None,  # Intentionally None so initial sync performs full reconciliation
-            created_at=now,
-            updated_at=now,
+            actor_id=user_id,
+            actor_role="ADMINISTRATOR",
+            action="GMAIL_MAILBOX_CONNECTED",
+            reason=f"Authorized Gmail mailbox {mailbox_address} with gmail.readonly scope.",
+            source_reference=mailbox_address,
         )
-        db.add(account)
-
-    # 6. Append immutable audit event
-    audit = AuditEvent(
-        id=f"evt_{uuid.uuid4().hex[:12]}",
-        org_id=org_id,
-        actor_id=user_id,
-        actor_role="ADMINISTRATOR",
-        action="GMAIL_MAILBOX_CONNECTED",
-        reason=f"Authorized Gmail mailbox {mailbox_address} with gmail.readonly scope.",
-        source_reference=mailbox_address,
-    )
-    db.add(audit)
-    db.commit()
+        db.add(audit)
+        db.commit()
+    except Exception:
+        if db is not None:
+            db.rollback()
+        logger.exception("Gmail mailbox authorization could not be persisted for organisation %s.", org_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Gmail mailbox authorization could not be saved. Please retry the authorization link; "
+                "if it repeats, an operator must check database permissions and GMAIL_ENCRYPTION_KEY."
+            ),
+        )
 
     return RedirectResponse(
         url=f"{settings.BASE_URL.rstrip('/')}/connections?gmail=connected&mailbox={mailbox_address}"
