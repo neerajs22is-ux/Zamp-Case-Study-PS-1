@@ -9,6 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Card, Badge } from "./ui";
+import { getRemediation } from "../utils/remediation";
 import type { InvoiceDetailInvoice, MatchGateItem } from "../types";
 
 interface BlockingDiscrepanciesCardProps {
@@ -18,35 +19,6 @@ interface BlockingDiscrepanciesCardProps {
   onOpenPolicyDrawer?: () => void;
 }
 
-function getRemediation(gate: MatchGateItem, invoice: InvoiceDetailInvoice): string {
-  const num = gate.gate_number;
-  const name = (gate.gate_name || "").toLowerCase();
-
-  if (num === 1 || name.includes("vendor")) {
-    return "Verify vendor legal identity and GST credentials in ERP master vendor ledger.";
-  }
-  if (num === 2 || name.includes("po auth")) {
-    return invoice.po_reference
-      ? "PO not found in active ERP contracts. Link a registered purchase order."
-      : "Non-PO invoice: Obtain departmental approval or register an approved PO.";
-  }
-  if (num === 3 || name.includes("grn") || name.includes("goods receipt")) {
-    return "Check warehouse receiving records or wait for Goods Receipt Note (GRN) posting.";
-  }
-  if (num === 4 || name.includes("qc") || name.includes("quality")) {
-    return "Physical material inspection required. Request quality certificate sign-off from plant manager.";
-  }
-  if (num === 5 || name.includes("gst") || name.includes("tax")) {
-    return "Tax calculation mismatch. Reconcile GST percentage, taxable value, and line sums.";
-  }
-  if (num === 6 || name.includes("tolerance") || name.includes("price")) {
-    return "Billed rate exceeds PO schedule tolerance. Request vendor credit note or Controller override.";
-  }
-  if (num === 7 || name.includes("duplicate")) {
-    return "Potential duplicate document. Compare voucher history and SHA-256 fingerprint in audit ledger.";
-  }
-  return "Grounding tripwire tripped on unverified tokens. Verify scan coordinates against source document.";
-}
 
 export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps> = ({
   invoice,
@@ -201,7 +173,7 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
             {/* Concise Footer with Action & Rules */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
               <span className="text-[10.5px] text-slate-500 dark:text-slate-400 truncate">
-                Action: <strong className="text-slate-700 dark:text-slate-300">{invoice.po_reference ? "Request vendor rate correction" : "Route for exception sign-off"}</strong>
+                Action: <strong className="text-slate-700 dark:text-slate-300">{getRemediation(issuesList[0], invoice)}</strong>
               </span>
 
               {onOpenPolicyDrawer && (
@@ -226,7 +198,7 @@ export const BlockingDiscrepanciesCard: React.FC<BlockingDiscrepanciesCardProps>
             </h4>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 max-w-xs mx-auto">
               All recorded policy validation gates passed with zero tolerance violations.
-              Document is cleared for straight-through approval.
+              An authorized reviewer can inspect the invoice before any approval.
             </p>
           </div>
         ) : (

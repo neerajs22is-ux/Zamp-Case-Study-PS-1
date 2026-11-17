@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Literal, Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, Security, UploadFile, status
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, desc, func, select
 from sqlalchemy.orm import Session
@@ -70,6 +70,7 @@ from backend.models.domain import (
     InvoiceLine,
     MatchGateCheck,
     MatchRun,
+    Organisation,
     QualityControlSnapshot,
     Vendor,
     VendorGSTIN,
@@ -86,6 +87,20 @@ logger = logging.getLogger("sandbox_api")
 router = APIRouter(prefix="/sandbox", tags=["AP Command Center Sandbox"])
 
 SANDBOX_ORG_ID = "org_sme_eval"
+
+
+@router.get('/demo-invoice/{kind}')
+def download_fresh_demo_invoice(kind: Literal['clean', 'variance'],
+        current_user: AuthenticatedUser = Depends(require_active_membership)):
+    """Generate a new synthetic document matching this demo tenant's seed."""
+    if not current_user.org_id.startswith('org_demo_'):
+        raise HTTPException(status_code=403, detail='Fresh examples are available in an instant demo workspace.')
+    from backend.core.demo_seed import render_pdf, scenario_definitions
+    case = dict(scenario_definitions(current_user.org_id, datetime.datetime.utcnow())[0 if kind == 'clean' else 1])
+    case['invoice'] = f"INV-{uuid.uuid4().hex[:16].upper()}"
+    case['fresh'] = True
+    return Response(content=render_pdf(case), media_type='application/pdf',
+        headers={'Content-Disposition': f'attachment; filename="fresh-{kind}-invoice.pdf"', 'Cache-Control': 'no-store'})
 
 # Reliable application-relative fixture paths (works in local repo and containerized runtime)
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -258,6 +273,10 @@ def _build_duplicate_response(
         "is_previous_run": True,
         "document_id": existing_doc.id,
         "invoice_id": existing_doc.invoice_id,
+        "document_sha256": existing_doc.sha256_hash,
+        "file_size_bytes": existing_doc.file_size_bytes,
+        "page_count": None,
+        "filename": existing_doc.filename,
         "decision": "REJECTED",
         "stage": "ACTION_REQUIRED",
         "decision_reason": f"Duplicate invoice intake rejected: identical SHA-256 hash ({sha256[:12]}...) exists as invoice '{existing_doc.invoice_id}'. Rejection safeguard prevents double payment without mutating original records.",
@@ -280,22 +299,23 @@ def _build_duplicate_response(
         } if inv else None,
         "invoice": {
             "id": existing_doc.invoice_id,
-            "invoice_number": inv.invoice_number if inv else "AP-26-001",
-            "vendor_name": inv.vendor_name if inv else "Asterion Precision Components Pvt Ltd",
+            "invoice_number": inv.invoice_number if inv else None,
+            "vendor_name": inv.vendor_name if inv else None,
             "vendor_gstin": inv.vendor_gstin if inv else None,
             "po_reference": inv.po_reference if inv else None,
-            "subtotal": float(inv.subtotal_amount or 0.0) if inv else 0.0,
-            "tax_amount": float(inv.tax_amount or 0.0) if inv else 0.0,
-            "total_amount": float(inv.total_amount or 0.0) if inv else 0.0,
-            "net_payable": float(inv.net_payable_amount or 0.0) if inv else 0.0,
-            "currency": inv.currency if inv else "INR",
-            "stage": inv.stage if inv else "ACTION_REQUIRED",
-            "decision": inv.decision if inv else "MATCH_CANDIDATE",
-            "decision_reason": inv.decision_reason if inv else "Original invoice preserved.",
+            "subtotal": float(inv.subtotal_amount) if inv and inv.subtotal_amount is not None else None,
+            "tax_amount": float(inv.tax_amount) if inv and inv.tax_amount is not None else None,
+            "total_amount": float(inv.total_amount) if inv and inv.total_amount is not None else None,
+            "net_payable": float(inv.net_payable_amount) if inv and inv.net_payable_amount is not None else None,
+            "currency": inv.currency if inv else None,
+            "stage": inv.stage if inv else None,
+            "decision": inv.decision if inv else None,
+            "decision_reason": inv.decision_reason if inv else None,
         },
         "line_items": [],
         "procurement": {"po": None, "grn": None, "qc": None},
-        "grounding": {"tripwire_passed": True, "unverified_fields": []},
+        "grounding": {"tripwire_passed": None, "unverified_fields": None},
+        "processing_events": [],
         "reasons": [f"Duplicate invoice intake rejected: identical SHA-256 hash ({sha256[:12]}...) already recorded in ledger."],
     }
 
@@ -381,14 +401,24 @@ def _get_invoice_sandbox_view(
         mode = "LIVE_INFERENCE" if is_live else "DETERMINISTIC_RULES"
         inf_provider = "AWS Bedrock Mantle (Qwen 235B)" if is_live else ("Deterministic AP Engine" if (ext_run and ext_run.parser_version != "NONE_ROUTED_HITL") else "Deterministic Tripwire")
 
-    is_hitl = inv.decision == "FLAGGED_HITL_REVIEW"
+    jobs = processing_snapshot(db, inv_id, org_id)["jobs"] if doc else []
+    latest_job = jobs[-1] if jobs else None
+    # Prepared examples have no ingestion job. Keep their stored decision separate
+    # from live execution, and never infer a completed job from an invoice stage.
+    result_status = (latest_job["status"] if latest_job else
+                     "STORED_RESULT" if match_run or (inv.decision != "NEEDS_REVIEW" and inv.stage != "RECEIVED")
+                     else "NOT_STARTED")
 
     return {
-        "status": "COMPLETED",
+        "status": result_status,
         "document_id": doc.id if doc else None,
         "invoice_id": inv.id,
-        "job_id": None,
+        "job_id": latest_job["id"] if latest_job else None,
         "filename": doc.filename if doc else None,
+        "document_sha256": doc.sha256_hash if doc else None,
+        "file_size_bytes": doc.file_size_bytes if doc else None,
+        "page_count": None,
+        "processing_events": latest_job["events"] if latest_job else [],
         "mode": mode,
         "is_previous_run": is_previous_run,
         "is_live_mantle": is_live,
@@ -406,10 +436,10 @@ def _get_invoice_sandbox_view(
             "vendor_name": inv.vendor_name or "Unknown Supplier",
             "vendor_gstin": inv.vendor_gstin,
             "po_reference": inv.po_reference,
-            "subtotal": float(inv.subtotal_amount or 0.0),
-            "tax_amount": float(inv.tax_amount or 0.0),
-            "total_amount": float(inv.total_amount or 0.0),
-            "net_payable": float(inv.net_payable_amount or 0.0),
+            "subtotal": float(inv.subtotal_amount) if inv.subtotal_amount is not None else None,
+            "tax_amount": float(inv.tax_amount) if inv.tax_amount is not None else None,
+            "total_amount": float(inv.total_amount) if inv.total_amount is not None else None,
+            "net_payable": float(inv.net_payable_amount) if inv.net_payable_amount is not None else None,
             "currency": inv.currency or "INR",
             "stage": inv.stage,
             "decision": inv.decision,
@@ -444,10 +474,8 @@ def _get_invoice_sandbox_view(
             } if qc else None,
         },
         "match_gates": match_gates,
-        "grounding": {
-            "tripwire_passed": not (is_hitl and "grounding" in (inv.decision_reason or "").lower()),
-            "unverified_fields": ["scanned_document_no_text"] if is_hitl and "raster" in (inv.decision_reason or "").lower() else [],
-        },
+        # The persisted record does not store the overall tripwire result.
+        "grounding": {"tripwire_passed": None, "unverified_fields": None},
         "reasons": [inv.decision_reason] if inv.decision_reason else [],
     }
 
@@ -618,6 +646,7 @@ def explore_sandbox_scenario(
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
 
+
     # 1. Establish tenant context and look up existing document in org_sme_eval
     set_tenant_context(db, SANDBOX_ORG_ID)
     existing_doc = db.scalar(
@@ -642,11 +671,12 @@ def explore_sandbox_scenario(
         doc_by_hash = db.scalar(
             select(Document).where(
                 Document.sha256_hash == sha256,
+                Document.org_id == SANDBOX_ORG_ID,
                 Document.is_deleted == False,
             )
         )
         if doc_by_hash:
-            res = _get_invoice_sandbox_view(db, doc_by_hash.invoice_id, doc_by_hash.org_id, scenario=scenario, is_previous_run=True)
+            res = _get_invoice_sandbox_view(db, doc_by_hash.invoice_id, SANDBOX_ORG_ID, scenario=scenario, is_previous_run=True)
             res["mode"] = "STORED_RESULT"
             res["is_previous_run"] = True
             return res
@@ -714,6 +744,15 @@ def run_sandbox_scenario(
     scenario = next((s for s in GENUINE_SCENARIOS if s["id"] == scenario_id or s["id"].split("-")[1] in scenario_id), None)
     if not scenario:
         raise HTTPException(status_code=404, detail=f"Scenario '{scenario_id}' not found.")
+
+    if current_user.org_id.startswith('org_demo_') and scenario.get('po_reference'):
+        set_tenant_context(db, current_user.org_id)
+        reference = db.scalar(select(WorkOrderSnapshot.id).where(
+            WorkOrderSnapshot.org_id == current_user.org_id,
+            WorkOrderSnapshot.po_number == scenario['po_reference']))
+        if not reference:
+            raise HTTPException(status_code=400, detail='This evaluation fixture requires purchase-order data not present in your demo workspace. Download a fresh demo invoice from the upload tab instead.')
+
 
     pdf_path = get_scenario_pdf_path(scenario["pdf_filename"])
     with open(pdf_path, "rb") as f:
@@ -935,7 +974,12 @@ async def upload_sandbox_invoice(
 
     # Demo workspace upload quota guard
     if current_user.org_id and current_user.org_id.startswith("org_demo_"):
-        existing_count = db.scalar(select(func.count(Document.id)).where(Document.org_id == current_user.org_id, Document.is_deleted == False)) or 0
+        if not db.scalar(select(Organisation).where(Organisation.id == current_user.org_id).with_for_update()):
+            raise HTTPException(status_code=403, detail="Workspace unavailable.")
+        existing_count = db.scalar(select(func.count(Document.id)).join(
+            Invoice, (Invoice.id == Document.invoice_id) & (Invoice.org_id == Document.org_id)
+        ).where(Document.org_id == current_user.org_id, Document.is_deleted == False,
+                Invoice.source_channel.in_(("MANUAL_UPLOAD", "SANDBOX_EXPERIENCE")))) or 0
         if existing_count >= 5:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,

@@ -24,7 +24,7 @@ from engine.pdf_safety import extract_pdf_pages
 
 from backend.core.config import settings
 from engine.duplicate_detector import DuplicateCheckResult, DuplicateDetector
-from engine.grounding import verify_extracted_evidence
+from engine.grounding import labeled_invoice_number, verify_extracted_evidence
 from engine.indian_tax_rules import IndianAPRuleEngine, TaxArithmeticResult, ThreeWayMatchResult
 from engine.mantle_client import BedrockMantleClient, MantleAuthError, MantleClientError
 from engine.ocr_engine import OCREngine, OCRDocumentResult
@@ -85,6 +85,7 @@ class HybridProcessingResult:
     estimated_cost_usd: float = 0.0
     extraction_requires_review: bool = False
     evidence: Dict[str, FieldEvidence] = field(default_factory=dict)
+    source_invoice_number: Optional[str] = None
 
 
 class HybridAPExtractor:
@@ -281,7 +282,7 @@ class HybridAPExtractor:
         elif not tripwire_passed:
             decision = "FLAGGED_HITL_REVIEW"
             prefix = "Scanned document text grounding tripwire" if is_scanned else "Grounding tripwire"
-            reasons.append(f"{prefix} failed for unverified fields: {unverified}")
+            reasons.append(f"{prefix} failed. Missing or unverified fields: {', '.join(unverified)}. Compare with the source document before proceeding.")
         elif not tax_res.is_valid:
             decision = "FLAGGED_HITL_REVIEW"
             reasons.extend(tax_res.notes)
@@ -486,7 +487,7 @@ class HybridAPExtractor:
         elif not tripwire_passed:
             decision = "FLAGGED_HITL_REVIEW"
             prefix = "Scanned document text grounding tripwire" if is_scanned else "Grounding tripwire"
-            reasons.append(f"{prefix} failed for unverified fields: {unverified}")
+            reasons.append(f"{prefix} failed. Missing or unverified fields: {', '.join(unverified)}. Compare with the source document before proceeding.")
         elif not tax_res.is_valid:
             decision = "FLAGGED_HITL_REVIEW"
             reasons.extend(tax_res.notes)
@@ -573,5 +574,6 @@ class HybridAPExtractor:
             latency_ms=latency,
             estimated_cost_usd=extraction.estimated_cost_usd + (vision_result.estimated_cost_usd if vision_result else 0.0),
             evidence=source_evidence,
+            source_invoice_number=labeled_invoice_number(pages),
             extraction_requires_review=bool(multimodal_reasons) or is_e_invoice or is_rcm or is_mixed_gst or is_foreign or (ocr_result and ocr_result.is_degraded),
         )

@@ -20,7 +20,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   extractedFields = [],
   lines = [],
   poSnapshot,
-  matchGates = [],
+  matchGates: _matchGates = [],
 }) => {
   const [showAllLines, setShowAllLines] = useState(false);
   const formatMoney = (val?: number | null) => formatCurrency(val, invoice.currency || "INR");
@@ -40,8 +40,8 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
     if (item && item.value !== null && item.value !== undefined && item.value !== "") {
       return {
         value: String(item.value),
-        page: item.source_page ?? 1,
-        verified: item.source_page !== null && item.value !== "UNKNOWN",
+        page: item.source_page ?? null,
+        verified: item.source_page != null && item.value !== "UNKNOWN",
         conflicting: false,
       };
     }
@@ -49,7 +49,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
       return {
         value: String(fallbackVal),
         page: null,
-        verified: fallbackVal !== "UNKNOWN" && fallbackVal !== "Unknown",
+        verified: false,
         conflicting: false,
       };
     }
@@ -76,16 +76,8 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
   const displayDate = isEpochOrInvalid ? "Not found" : rawDate;
   const dateVerified = !isEpochOrInvalid && Boolean(dateField?.verified);
 
-  // Grounding Tripwire sync with actual backend match gates
-  const extractionGate = matchGates?.find(
-    (g) => g.gate_number >= 8 || g.gate_name?.toLowerCase().includes("extraction evidence")
-  );
-  const groundingFailed =
-    extractionGate?.status === "FAIL" ||
-    Boolean(invoice.decision_reason?.toLowerCase().includes("grounding tripwire failed"));
-  const tripwireStatus = !extractionGate
-    ? "NOT EVALUATED"
-    : groundingFailed ? "FAILED" : "PASS";
+  // Overall tripwire state is not persisted in the invoice response; the
+  // extended gate can fail for several different reasons, so it is not a proxy.
 
   // Check if invoice total is genuinely unreadable / unextracted
   const isDegradedOrUnavailable =
@@ -123,7 +115,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
 
   const totalFieldsCount = extractedFields.length;
   const verifiedCount = extractedFields.filter(
-    (f) => f.source_page !== null && f.value && f.value !== "UNKNOWN"
+    (f) => f.source_page != null && f.value && f.value !== "UNKNOWN"
   ).length;
 
   const hasLineItems = lines && lines.length > 0;
@@ -142,7 +134,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
 
         <div className="flex items-center gap-1.5 shrink-0">
           <Badge tone={verifiedCount > 0 ? "success" : "neutral"} size="sm">
-            {verifiedCount > 0 ? `${verifiedCount}/${totalFieldsCount || 10} Grounded` : "Unverified"}
+            {verifiedCount > 0 ? `${verifiedCount}/${totalFieldsCount} fields with source evidence` : "Source evidence unavailable"}
           </Badge>
         </div>
       </div>
@@ -310,7 +302,7 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
           </div>
         ) : (
           <p className="text-[11px] text-slate-400 italic py-1">
-            Single-line document: Grand total was parsed directly from the summary invoice block.
+            No extracted line items are available yet. Check processing status and the source document.
           </p>
         )}
 
@@ -330,12 +322,10 @@ export const ExtractedDataCard: React.FC<ExtractedDataCardProps> = ({
 
           <span
             className={`font-mono text-[10px] font-bold shrink-0 ${
-              !extractionGate
-                ? "text-amber-600 dark:text-amber-400"
-                : groundingFailed ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
+              "text-amber-600 dark:text-amber-400"
             }`}
           >
-            Tripwire: {tripwireStatus}
+            Overall grounding status unavailable
           </span>
         </div>
       </div>

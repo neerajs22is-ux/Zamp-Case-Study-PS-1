@@ -52,14 +52,17 @@ def render_pdf(case):
         draw.text((120, 350), 'Sample ' + case['sample_id'], fill='#aaaaaa')
         pdf.drawImage(ImageReader(image), 0, 0, width=612, height=792)
     else:
-        lines = ['PREPARED SYNTHETIC DEMO - ' + case['title'],
+        lines = [('FRESH SYNTHETIC INVOICE - ' if case.get('fresh') else 'PREPARED SYNTHETIC DEMO - ') + case['title'],
                  'PAYMENT RECEIPT - NOT A TAX INVOICE' if case['number'] == 5 else 'TAX INVOICE',
-                 'Supplier: ' + case['vendor'], 'Reference: ' + case['invoice'],
+                 'Supplier: ' + case['vendor'], ('Invoice number: ' if case.get('fresh') else 'Reference: ') + case['invoice'],
                  'Date: ' + case['date']]
         if case['number'] <= 3:
             lines += ['GSTIN: ' + case['gstin'], 'PO: ' + case['po'],
                       f"{case['item']} | Qty {case['qty']} | Unit INR {case['rate']}",
-                      f"Subtotal INR {case['subtotal']:.2f}", f"GST 18% INR {case['tax']:.2f}"]
+                      f"Subtotal INR {case['subtotal']:.2f}"]
+            if case.get('fresh'):
+                lines += [f"CGST INR {case['tax'] / 2:.2f}", f"SGST INR {case['tax'] / 2:.2f}"]
+            lines += [f"GST 18% INR {case['tax']:.2f}"]
         lines += [f"Total INR {case['total']:.2f}"]
         if case['number'] == 5:
             lines += ['Payment already received. No amount is payable.']

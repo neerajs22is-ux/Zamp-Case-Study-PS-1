@@ -99,6 +99,7 @@ class BedrockMantleClient:
             "invoice_number, invoice_date (YYYY-MM-DD), po_reference, currency (default INR), "
             "taxable_value, cgst_amount, sgst_amount, igst_amount, total_tax_amount, grand_total, "
             "line_items (array of {item_description, quantity, unit_price, taxable_amount, total_amount}), explanation.\n"
+            "Copy identifiers exactly character by character, preserving letters, digits and separators; do not infer a missing value.\n"
             "You MUST respond ONLY with a raw valid JSON object."
         )
 

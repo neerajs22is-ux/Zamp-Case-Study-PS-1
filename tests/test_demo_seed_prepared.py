@@ -116,3 +116,63 @@ def test_failed_seed_rolls_back_and_cleans_storage(disposable_app_db, monkeypatc
         assert not storage._store
         assert not db.scalars(select(Invoice)).all()
         assert not db.scalars(select(Document)).all()
+
+
+def test_fresh_demo_downloads_match_only_the_current_workspace_and_do_not_mutate(disposable_app_db, monkeypatch):
+    from fastapi import HTTPException
+    import pytest
+    from backend.api.v1 import sandbox
+    from backend.api.v1.auth import provision_isolated_demo_tenant
+    from backend.core import demo_seed
+    from backend.core.auth import AuthenticatedUser, UserRole
+    from backend.core.config import settings
+    storage = TestInMemoryStorageAdapter()
+    monkeypatch.setattr(demo_seed, 'storage_adapter', storage)
+    monkeypatch.setattr(settings, 'SUPABASE_JWT_SECRET', 'test-secret-long-enough-for-this-test')
+    with disposable_app_db() as db:
+        info = provision_isolated_demo_tenant(db, 'fresh-example-test')['user']
+        user = AuthenticatedUser(id=info['id'], org_id=info['org_id'], email=info['email'], name=info['name'], role=UserRole.AP_ASSOCIATE, is_provisioned=True)
+        before = len(db.scalars(select(Invoice)).all())
+        cases = demo_seed.scenario_definitions(info['org_id'], datetime.datetime.utcnow())
+        first = sandbox.download_fresh_demo_invoice('clean', user).body
+        second = sandbox.download_fresh_demo_invoice('clean', user).body
+        variance = sandbox.download_fresh_demo_invoice('variance', user).body
+        assert first != second
+        text1 = PdfReader(BytesIO(first)).pages[0].extract_text()
+        text2 = PdfReader(BytesIO(second)).pages[0].extract_text()
+        text3 = PdfReader(BytesIO(variance)).pages[0].extract_text()
+        assert cases[0]['po'] in text1 and '11800.00' in text1 and 'FRESH SYNTHETIC' in text1
+        assert cases[1]['po'] in text3 and '14160.00' in text3
+        assert text1 != text2 and len(db.scalars(select(Invoice)).all()) == before
+        outsider = AuthenticatedUser(id='other', org_id='a', email='x@example.test', name='Test', role=UserRole.AP_ASSOCIATE, is_provisioned=True)
+        with pytest.raises(HTTPException) as denied:
+            sandbox.download_fresh_demo_invoice('clean', outsider)
+        assert denied.value.status_code == 403
+
+
+def test_sandbox_upload_quota_excludes_prepared_and_counts_other_uploads(disposable_app_db, monkeypatch):
+    import asyncio
+    import pytest
+    from fastapi import BackgroundTasks, HTTPException, UploadFile
+    from backend.api.v1 import sandbox
+    from backend.api.v1.auth import provision_isolated_demo_tenant
+    from backend.core import demo_seed
+    from backend.core.auth import AuthenticatedUser, UserRole
+    from backend.core.config import settings
+    storage = TestInMemoryStorageAdapter()
+    monkeypatch.setattr(demo_seed, 'storage_adapter', storage)
+    monkeypatch.setattr(sandbox, 'storage_adapter', storage)
+    monkeypatch.setattr(settings, 'SUPABASE_JWT_SECRET', 'disposable-test-only-secret-more-than-32-bytes')
+    with disposable_app_db() as db:
+        info = provision_isolated_demo_tenant(db, 'sandbox-quota-test')['user']
+        user = AuthenticatedUser(id=info['id'],org_id=info['org_id'],email=info['email'],name=info['name'],role=UserRole.AP_ASSOCIATE,is_provisioned=True)
+        for i in range(6):
+            payload=sandbox.download_fresh_demo_invoice('clean', user).body
+            upload=UploadFile(filename=f'synthetic-{i}.pdf',file=BytesIO(payload))
+            if i < 5:
+                result=asyncio.run(sandbox.upload_sandbox_invoice(upload, BackgroundTasks(), False, user, db))
+                assert result['status']=='QUEUED'
+            else:
+                with pytest.raises(HTTPException) as error:
+                    asyncio.run(sandbox.upload_sandbox_invoice(upload, BackgroundTasks(), False, user, db))
+                assert error.value.status_code==429

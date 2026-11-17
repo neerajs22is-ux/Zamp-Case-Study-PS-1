@@ -135,6 +135,7 @@ class MantleInvoiceExtraction(BaseModel):
     estimated_cost_usd: float = 0.0
     tripwire_passed: bool = True
     unverified_fields: List[str] = Field(default_factory=list)
+    missing_fields: List[str] = Field(default_factory=list, exclude=True)
     http_status: int = 200
     model_id: str = "qwen.qwen3-235b-a22b-2507-v1:0"
 
@@ -142,6 +143,40 @@ class MantleInvoiceExtraction(BaseModel):
     @classmethod
     def normalize_top_aliases(cls, data: Any) -> Any:
         if isinstance(data, dict):
+            data = dict(data)
+            # Omit incomplete lines rather than manufacture numeric values. Keep
+            # their missing fields so grounding forces a human-review outcome.
+            missing = []
+            if all(data.get(key) is None for key in ('taxable_value', 'taxable_amount', 'subtotal')):
+                missing.append('taxable_value')
+            if data.get('total_tax_amount') is None and all(data.get(key) is None for key in ('cgst_amount', 'sgst_amount', 'igst_amount')):
+                missing.append('total_tax_amount')
+            raw_lines = data.get('line_items')
+            if raw_lines is None:
+                data['line_items'] = []
+            elif isinstance(raw_lines, list):
+                retained = []
+                for index, line in enumerate(raw_lines):
+                    if not isinstance(line, dict):
+                        retained.append(line)
+                        continue
+                    aliases = {
+                        'item_description': ('item_description', 'description', 'item', 'line_item'),
+                        'quantity': ('quantity',),
+                        'unit_price': ('unit_price', 'unit_rate', 'rate', 'price'),
+                        'taxable_amount': ('taxable_amount', 'taxable_value', 'amount'),
+                    }
+                    absent = [name for name, keys in aliases.items()
+                              if not any(line.get(key) is not None and line.get(key) != '' for key in keys)]
+                    if absent:
+                        missing.extend(f'line_items.{index}.{name}' for name in absent)
+                    else:
+                        retained.append(line)
+                data['line_items'] = retained
+            data['missing_fields'] = missing
+            if not data.get('supplier_name'):
+                data['supplier_name'] = 'Unknown'
+                missing.append('supplier_name')
             # invoice_number
             if not data.get("invoice_number"):
                 inv = data.get("document_number") or data.get("receipt_number") or data.get("invoice_no") or data.get("inv_number")

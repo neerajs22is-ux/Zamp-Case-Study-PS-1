@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import datetime
 import logging
+import re
 import threading
 import time
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import delete, or_, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
 from backend.core.config import settings
@@ -141,7 +142,7 @@ def _checkpoint(job_id, token, org_id, stage, status, message, session=None, fai
                 if inv:
                     inv.stage = 'ACTION_REQUIRED'
                     inv.decision = 'FLAGGED_HITL_REVIEW'
-                    inv.decision_reason = 'Document processing failed after three attempts; evidence requires review.'
+                    inv.decision_reason = 'Document processing failed after three attempts; extracted evidence is unavailable. Retry if appropriate or contact an administrator with the job ID.'
         db.commit()
         return True
     finally:
@@ -430,7 +431,7 @@ def execute_document_pipeline(
         if not keeper.valid:
             return {'status': 'ABORTED', 'reason': 'Provider ownership unconfirmed; recovery required.'}
         if not _checkpoint(job_id, lock_token, org_id, current_stage, 'FAILED',
-            'Document read or extraction failed. Use the job ID for investigation.', checkpoint_session, failure=True):
+            'Document read or extraction failed. Retry if appropriate or contact an administrator with the job ID; extracted fields have not been verified.', checkpoint_session, failure=True):
             return {'status': 'ABORTED', 'reason': 'Provider ownership lost; recovery required.'}
         return {"status": "FAILED", "error": "Document processing failed; see job status."}
     finally:
@@ -478,18 +479,30 @@ def execute_document_pipeline(
         persist_db.add(extraction_run)
 
         # 2. Persist Extracted Fields
+        def recorded_amount(name, value):
+            ev = getattr(processing_result, 'evidence', {}).get(name)
+            # Schema defaults are computational placeholders, not evidence that
+            # a missing financial value was actually zero on the invoice.
+            if value is None or (value == 0 and (not ev or not ev.is_verified)):
+                return None
+            return value
+
+        recorded_invoice_number = (None if processing_result.invoice_number in (None, '', 'UNKNOWN', 'INV-UNKNOWN')
+                                   else processing_result.invoice_number)
+        recorded_invoice_date = (None if processing_result.invoice_date in (None, '', '1970-01-01', 'UNKNOWN')
+                                 else processing_result.invoice_date)
         fields_to_record = [
-            ("invoice_number", processing_result.invoice_number, 0.99),
-            ("invoice_date", processing_result.invoice_date, 0.99),
+            ("invoice_number", recorded_invoice_number, 0.99),
+            ("invoice_date", recorded_invoice_date, 0.99),
             ("supplier_name", processing_result.supplier_name, 0.99),
             ("supplier_gstin", processing_result.supplier_gstin, 0.99),
             ("po_reference", processing_result.po_reference, 0.95),
-            ("taxable_value", str(processing_result.taxable_value), 0.99),
-            ("cgst_amount", str(processing_result.cgst_amount), 0.99),
-            ("sgst_amount", str(processing_result.sgst_amount), 0.99),
-            ("igst_amount", str(processing_result.igst_amount), 0.99),
-            ("total_tax_amount", str(processing_result.total_tax_amount), 0.99),
-            ("grand_total", str(processing_result.grand_total), 0.99),
+            ("taxable_value", recorded_amount('taxable_value', processing_result.taxable_value), 0.99),
+            ("cgst_amount", recorded_amount('cgst_amount', processing_result.cgst_amount), 0.99),
+            ("sgst_amount", recorded_amount('sgst_amount', processing_result.sgst_amount), 0.99),
+            ("igst_amount", recorded_amount('igst_amount', processing_result.igst_amount), 0.99),
+            ("total_tax_amount", recorded_amount('total_tax_amount', processing_result.total_tax_amount), 0.99),
+            ("grand_total", recorded_amount('grand_total', processing_result.grand_total), 0.99),
         ]
         for fname, fval, fconf in fields_to_record:
             if fval is not None:
@@ -555,19 +568,41 @@ def execute_document_pipeline(
             raise ValueError("Invoice not found in processing workspace")
         inv.vendor_name = processing_result.supplier_name
         inv.vendor_gstin = processing_result.supplier_gstin
-        inv.invoice_number = processing_result.invoice_number
+        inv.invoice_number = recorded_invoice_number
         inv.po_reference = processing_result.po_reference
         inv.currency = processing_result.currency
-        inv.total_amount = processing_result.grand_total
-        inv.subtotal_amount = processing_result.taxable_value
-        inv.tax_amount = processing_result.total_tax_amount
-        inv.net_payable_amount = processing_result.grand_total
+        inv.total_amount = recorded_amount('grand_total', processing_result.grand_total)
+        inv.subtotal_amount = recorded_amount('taxable_value', processing_result.taxable_value)
+        inv.tax_amount = recorded_amount('total_tax_amount', processing_result.total_tax_amount)
+        inv.net_payable_amount = inv.total_amount
         try:
-            inv.invoice_date = datetime.datetime.fromisoformat(processing_result.invoice_date)
+            inv.invoice_date = datetime.datetime.fromisoformat(recorded_invoice_date) if recorded_invoice_date else None
         except ValueError:
             inv.invoice_date = None
         persist_db.flush()
         match_run = reevaluate_match_gates(persist_db, inv, org_id)
+        # Never report a duplicate check as clear when the model's commercial
+        # identity is unverified. A uniquely labelled source identifier may
+        # corroborate an exact same-tenant GSTIN/reference match, but does not
+        # repair or verify the model extraction.
+        if any(name in processing_result.unverified_fields for name in ('invoice_number', 'supplier_gstin')):
+            gate = persist_db.scalar(select(MatchGateCheck).where(
+                MatchGateCheck.match_run_id == match_run.id, MatchGateCheck.org_id == org_id,
+                MatchGateCheck.gate_number == 7))
+            if gate:
+                candidate = getattr(processing_result, 'source_invoice_number', None)
+                gst_evidence = getattr(processing_result, 'evidence', {}).get('supplier_gstin')
+                if candidate and inv.vendor_gstin and gst_evidence and gst_evidence.is_verified:
+                    normalized = re.sub(r'[^A-Z0-9]', '', candidate.upper())
+                    matches = persist_db.scalar(select(func.count(Invoice.id)).where(
+                        Invoice.org_id == org_id, Invoice.id != inv.id, Invoice.vendor_gstin == inv.vendor_gstin,
+                        func.replace(func.replace(func.replace(func.upper(Invoice.invoice_number), '-', ''), '/', ''), ' ', '') == normalized)) or 0
+                else:
+                    matches = 0
+                gate.status = 'FAIL' if matches else 'NOT_EVALUATED'
+                gate.evidence_notes = ('Possible duplicate: source-labeled invoice number and verified supplier GSTIN match a prior voucher; review both documents.'
+                                       if matches else 'Duplicate check incomplete: invoice identity is unverified; compare the source and voucher history.')
+                match_run.overall_result = 'FAIL'
         is_scanned_or_review = (
             processing_result.document_type == "SCANNED_IMAGE"
             or processing_result.extraction_status in ("NOT_EVALUATED", "DEGRADED_SCAN")
@@ -606,7 +641,7 @@ def execute_document_pipeline(
                 inv.vendor_name = processing_result.supplier_name or inv.vendor_name
                 inv.vendor_gstin = processing_result.supplier_gstin or inv.vendor_gstin
                 inv.po_reference = processing_result.po_reference or inv.po_reference
-                inv.invoice_number = processing_result.invoice_number or inv.invoice_number
+                inv.invoice_number = recorded_invoice_number or inv.invoice_number
                 inv.total_amount = processing_result.grand_total or inv.total_amount
                 inv.subtotal_amount = processing_result.taxable_value or inv.subtotal_amount
                 inv.tax_amount = processing_result.total_tax_amount or inv.tax_amount

@@ -37,6 +37,8 @@
 
 The five-example implementation creates a private demo workspace with prepared synthetic PDFs: clean match, price variance, QC hold, low-confidence scan, and a non-payable receipt. The procurement cases use the seven deterministic checks; the scan and receipt have prepared outcomes. These examples are not OCR or LLM runs. Five additional custom uploads use the actual processing path, subject to service availability. Internal approval does not send payment. The checked-in Render blueprint disables automatic deployment, so deployment must be verified separately.
 
+For a fresh synthetic run, sign in to an instant demo workspace, open the sandbox Upload tab, and download a clean or price-variance PDF. Each download has a new invoice reference and matches that workspace's prepared purchase-order data. Upload the PDF and follow its actual job status; extraction requires a configured, available provider and is not guaranteed to succeed. The evaluation fixture gallery uses different reference records and may be unavailable in an instant demo workspace. This flow does not send payment or outreach. Live SAP synchronization is not configured; Gmail is not needed for this PDF route.
+
 ### The Problem
 Traditional Accounts Payable processes are bogged down by high-friction bottlenecks:
 1. **Diverse Document Modalities:** Commercial tax invoices arrive as digital text PDFs, low-contrast raster scans, mobile photos, and non-payable payment receipts.
@@ -346,7 +348,7 @@ Access the three experiences in your browser:
 
 ## 9. Testing, Verification & Parity Scorecard
 
-Authoritative verification snapshot executed on 2026-11-10 against Windows (Python 3.12.10, pytest 9.0.3, Node.js v20.18.0) following application of test-isolation hygiene fixes:
+Historical candidate-reported verification snapshot dated 2026-11-10 (Windows, Python 3.12.10, pytest 9.0.3, Node.js v20.18.0). These counts and live-service claims have not been independently reproduced for the current changes; see the patch report for the actual current test scope and results:
 
 | Test Suite | Target Scope | Commands Executed | Result | Status |
 | :--- | :--- | :--- | :---: | :---: |

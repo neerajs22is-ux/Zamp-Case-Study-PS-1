@@ -275,7 +275,7 @@ def test_amount_grounding_rejects_integer_and_substring_collisions(total, text):
 def test_evidence_uses_real_page_and_resets_model_self_attestation():
     ext = MantleInvoiceExtraction(supplier_name='Acme', invoice_number='INV-100', grand_total=118,
         po_reference='PO-100', evidence={'po_reference': {'field_name': 'po_reference', 'extracted_value': 'PO-100', 'is_verified': True}})
-    passed, fields, evidence = verify_extracted_evidence(ext, [(4, 'Invoice INV-100 Acme total 118.00')])
+    passed, fields, evidence = verify_extracted_evidence(ext, [(4, 'Invoice INV-100 Acme invoice total 118.00')])
     assert not passed and 'po_reference' in fields
     assert not evidence['po_reference'].is_verified
     assert evidence['grand_total'].page_number == 4
@@ -414,3 +414,85 @@ def test_pipeline_preserves_rejection_and_ungrounded_state(db, monkeypatch, reco
     if recommendation == 'REJECTED':
         assert inv.decision == 'REJECTED'
     assert not db.scalar(select(MatchRun).where(MatchRun.invoice_id == 'inv')).overall_result == 'PASS'
+
+
+@pytest.mark.parametrize('failure', [TimeoutError('synthetic timeout'), ValueError('synthetic invalid response')])
+def test_provider_failure_stays_processing_failure_without_invented_fields(db, monkeypatch, failure):
+    inv = invoice(db, stage='RECEIVED', decision='NEEDS_REVIEW')
+    content = pdf_bytes()
+    db.add(Document(id='doc', org_id='a', invoice_id='inv', filename='invoice.pdf', mime_type='application/pdf',
+        file_size_bytes=len(content), sha256_hash=hashlib.sha256(content).hexdigest(), storage_provider='test', storage_key='test'))
+    db.add(IngestionJob(id='job', org_id='a', document_id='doc', idempotency_key='test', source_channel='MANUAL_UPLOAD',
+        status='PROCESSING', lock_token='token', lease_expires_at=dt.datetime.utcnow() + dt.timedelta(minutes=3)))
+    db.commit()
+    monkeypatch.setattr(pipeline, 'storage_adapter', SimpleNamespace(get_file=lambda key: content))
+    def fail(**kwargs):
+        raise failure
+    outcome = pipeline.execute_document_pipeline('job', 'token', db, SimpleNamespace(extract_hybrid=fail))
+    assert outcome['status'] == 'FAILED'
+    assert inv.decision != 'MATCH_CANDIDATE'
+    job = db.get(IngestionJob, 'job')
+    assert job.status == 'QUEUED' and job.retry_count == 1
+    assert 'Retry' in job.error_message and 'job ID' in job.error_message
+    assert str(failure) not in job.error_message
+    assert not db.scalar(select(MatchRun).where(MatchRun.invoice_id == 'inv'))
+
+
+@pytest.mark.parametrize('previous_org,previous_gstin,source,verified,expected', [
+    ('a','29ABCDE1234F1Z5','INV-REAL',True,'FAIL'),
+    ('b','29ABCDE1234F1Z5','INV-REAL',True,'NOT_EVALUATED'),
+    ('a','29OTHER1234F1Z5','INV-REAL',True,'NOT_EVALUATED'),
+    ('a','29ABCDE1234F1Z5',None,True,'NOT_EVALUATED'),
+    ('a','29ABCDE1234F1Z5','INV-REAL',False,'NOT_EVALUATED'),
+])
+def test_unverified_invoice_identity_never_clears_duplicate_check(db, monkeypatch, previous_org, previous_gstin, source, verified, expected):
+    from engine.schemas import FieldEvidence
+    inv = invoice(db, stage='RECEIVED', decision='NEEDS_REVIEW')
+    invoice(db, id='previous', org_id=previous_org, invoice_number='INV-REAL', vendor_gstin=previous_gstin)
+    reference_data(db)
+    content=pdf_bytes()
+    db.add(Document(id='doc',org_id='a',invoice_id='inv',filename='invoice.pdf',mime_type='application/pdf',
+        file_size_bytes=len(content),sha256_hash=hashlib.sha256(content).hexdigest(),storage_provider='test',storage_key='test'))
+    db.add(IngestionJob(id='job',org_id='a',document_id='doc',idempotency_key='test',source_channel='MANUAL_UPLOAD',
+        status='PROCESSING',lock_token='token',lease_expires_at=dt.datetime.utcnow()+dt.timedelta(minutes=3)))
+    db.commit()
+    result=HybridProcessingResult(document_id='doc',filename='invoice.pdf',sha256_hash=hashlib.sha256(content).hexdigest(),
+        document_type='INVOICE',is_payable_invoice=True,supplier_name='Acme',supplier_gstin='29ABCDE1234F1Z5',
+        invoice_number='INV-REA1',invoice_date='2026-10-01',po_reference='PO-100',currency='INR',taxable_value=100,
+        cgst_amount=9,sgst_amount=9,igst_amount=0,total_tax_amount=18,grand_total=118,
+        line_items=[dict(item_description='Widget',quantity=1,unit_price=100,taxable_amount=100,total_amount=118)],
+        grounding_tripwire_passed=False,unverified_fields=['invoice_number'],tax_arithmetic=TaxArithmeticResult(True,18,118,0,0,True),
+        three_way_match=ThreeWayMatchResult(True,True,True,True,True,True,match_status='MATCH_CANDIDATE'),
+        duplicate_check=DuplicateCheckResult(False),final_decision='FLAGGED_HITL_REVIEW',decision_reasons=['Unverified invoice number'],
+        audit_notes='test',pipeline_mode='hybrid',source_invoice_number=source,
+        evidence={'supplier_gstin': FieldEvidence(field_name='supplier_gstin',extracted_value='29ABCDE1234F1Z5',is_verified=verified)})
+    monkeypatch.setattr(pipeline,'storage_adapter',SimpleNamespace(get_file=lambda key:content))
+    outcome=pipeline.execute_document_pipeline('job','token',db,SimpleNamespace(extract_hybrid=lambda **kw:result))
+    assert outcome['status']=='COMPLETED' and inv.decision=='FLAGGED_HITL_REVIEW'
+    run=db.scalar(select(MatchRun).where(MatchRun.invoice_id=='inv'))
+    gate=db.scalar(select(MatchGateCheck).where(MatchGateCheck.match_run_id==run.id,MatchGateCheck.gate_number==7))
+    assert gate.status==expected
+
+
+def test_incomplete_extraction_persists_no_invented_amounts(db,monkeypatch):
+    from engine.hybrid_extractor import HybridAPExtractor
+    from backend.models.domain import ExtractedField, ExtractionRun
+    inv=invoice(db,stage='RECEIVED',decision='NEEDS_REVIEW',total_amount=None,subtotal_amount=None,tax_amount=None,net_payable_amount=None)
+    content=pdf_bytes()
+    db.add(Document(id='doc',org_id='a',invoice_id='inv',filename='missing.pdf',mime_type='application/pdf',
+        file_size_bytes=len(content),sha256_hash=hashlib.sha256(content).hexdigest(),storage_provider='test',storage_key='test'))
+    db.add(IngestionJob(id='job',org_id='a',document_id='doc',idempotency_key='test',source_channel='MANUAL_UPLOAD',
+        status='PROCESSING',lock_token='token',lease_expires_at=dt.datetime.utcnow()+dt.timedelta(minutes=3)))
+    db.commit()
+    monkeypatch.setattr(pipeline,'storage_adapter',SimpleNamespace(get_file=lambda key:content))
+    provider=SimpleNamespace(extract_document=lambda *a,**kw:MantleInvoiceExtraction(supplier_name='Acme',
+        line_items=[dict(item_description='Widget',quantity=1,unit_price=100,taxable_amount=None)]))
+    extractor=HybridAPExtractor(mantle_client=provider,rule_engine=IndianAPRuleEngine(load_reference_data=False))
+    outcome=pipeline.execute_document_pipeline('job','token',db,extractor)
+    assert outcome['status']=='COMPLETED' and inv.decision=='FLAGGED_HITL_REVIEW'
+    assert inv.total_amount is None and inv.subtotal_amount is None and inv.tax_amount is None and inv.net_payable_amount is None
+    assert inv.invoice_number is None and inv.invoice_date is None
+    assert not db.scalars(select(InvoiceLine).where(InvoiceLine.invoice_id=='inv')).all()
+    fields=db.scalars(select(ExtractedField).join(ExtractionRun,ExtractionRun.id==ExtractedField.extraction_run_id)
+        .where(ExtractionRun.document_id=='doc',ExtractedField.field_name.in_(['grand_total','taxable_value','total_tax_amount','invoice_number','invoice_date']))).all()
+    assert fields==[]

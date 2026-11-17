@@ -146,7 +146,7 @@ async def upload_document(
             existing_count = db.scalar(select(func.count(Document.id)).join(
                 Invoice, (Invoice.id == Document.invoice_id) & (Invoice.org_id == Document.org_id)
             ).where(Document.org_id == current_user.org_id, Document.is_deleted == False,
-                    Invoice.source_channel == "MANUAL_UPLOAD")) or 0
+                    Invoice.source_channel.in_(("MANUAL_UPLOAD", "SANDBOX_EXPERIENCE")))) or 0
             if existing_count >= 5:
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,

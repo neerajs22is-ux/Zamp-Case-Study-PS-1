@@ -9,6 +9,7 @@ Enforces:
 from __future__ import annotations
 
 import datetime
+import os
 from typing import Any, Dict
 from fastapi import APIRouter, Response, status
 
@@ -27,6 +28,7 @@ def liveness() -> Dict[str, Any]:
         "status": "ALIVE",
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
         "app_env": settings.APP_ENV.value,
+        "build_commit": os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("GIT_COMMIT"),
     }
 
 
@@ -61,6 +63,7 @@ def health(response: Response) -> Dict[str, Any]:
     return {
         "app_name": settings.APP_NAME,
         "app_env": settings.APP_ENV.value,
+        "build_commit": os.environ.get("RENDER_GIT_COMMIT") or os.environ.get("GIT_COMMIT"),
         "overall_status": "READY" if is_ready else ("SETUP_REQUIRED" if not is_production_like else "BLOCKED"),
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
         "subsystems": {

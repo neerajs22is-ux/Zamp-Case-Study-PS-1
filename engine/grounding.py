@@ -32,6 +32,14 @@ def normalize_numeric_string(s: str) -> str:
     return re.sub(r"[^\d.]", "", s).strip()
 
 
+def labeled_invoice_number(pages_text: List[Tuple[int, str]]) -> Optional[str]:
+    """Return a unique explicitly labelled source identifier, never a fuzzy match."""
+    pattern = re.compile(r'^\s*invoice\s+(?:number|no\.?)\s*:\s*([A-Za-z0-9][A-Za-z0-9/\-]{2,127})\s*$', re.I)
+    values = {match.group(1).upper() for _, text in pages_text for line in text.splitlines()
+              if (match := pattern.fullmatch(line))}
+    return next(iter(values)) if len(values) == 1 else None
+
+
 def verify_extracted_evidence(
     extraction: MantleInvoiceExtraction,
     pages_text: List[Tuple[int, str]],
@@ -42,7 +50,7 @@ def verify_extracted_evidence(
     layouts and unsupported formats fail to human review rather than inventing data.
     """
     from decimal import Decimal, InvalidOperation
-    unverified: List[str] = []
+    unverified: List[str] = list(extraction.missing_fields)
     evidence: Dict[str, FieldEvidence] = {}
 
     def locate(name, value, numeric=False, required=True):
@@ -69,7 +77,8 @@ def verify_extracted_evidence(
                 if found:
                     break
         if not found:
-            unverified.append(name)
+            if name not in unverified:
+                unverified.append(name)
         evidence[name] = FieldEvidence(field_name=name, extracted_value=rendered,
             page_number=found[0] if found else 1,
             raw_snippet=found[1] if found else None, is_verified=bool(found))
@@ -98,8 +107,44 @@ def verify_extracted_evidence(
                     evidence['total_tax_amount'].is_verified = True
                     evidence['total_tax_amount'].raw_snippet = f"Derived: CGST({cgst_v}) + SGST({sgst_v}) + IGST({igst_v})"
 
-    # Grand total is always required and must match a complete numeric token.
-    locate('grand_total', extraction.grand_total, numeric=True)
+    # A number elsewhere on the page (for example, a previous invoice's total)
+    # is not evidence for the current invoice total. Accept an unambiguous
+    # labelled amount only; unfamiliar layouts deliberately go to review.
+    amount = r'[+-]?\d+(?:,\d{3})*(?:\.\d+)?'
+    label = r'(?<![\w])(?:grand\s+total|invoice\s+total|amount\s+due|total\s+due|total)(?![\w])'
+    pattern = re.compile(label + r'[ \t:=-]*(?:(?:INR|Rs\.?|₹)[ \t]*)?(' + amount + r')(?![\w.,])', re.I)
+    candidates = []
+    for page, text in pages_text:
+        lines = text.splitlines()
+        for index, line in enumerate(lines):
+            # Some PDF extractors put a labelled amount on the following line.
+            joined = line
+            if index + 1 < len(lines) and re.fullmatch(r'\s*(?:(?:INR|Rs\.?|₹)\s*)?' + amount + r'\s*', lines[index + 1], re.I):
+                joined += ' ' + lines[index + 1].strip()
+            for match in pattern.finditer(joined):
+                prefix = joined[:match.start()].lower()
+                # A bare "total" embedded in a line may be a line-item total.
+                if re.match(r'total\b', match.group(), re.I) and prefix.strip():
+                    continue
+                if re.search(r'\b(?:previous|prior|earlier|last|old|sub|tax|line|paid)(?:\s+invoice)?\s*[:#-]?\s*$', prefix):
+                    continue
+                if not prefix.strip() and index and re.search(r'\b(?:previous|prior|earlier|last|old)\s+invoice\b', lines[index - 1], re.I):
+                    continue
+                try:
+                    candidates.append((Decimal(match.group(1).replace(',', '')), page, match.group()))
+                except InvalidOperation:
+                    continue
+    try:
+        requested_total = Decimal(str(extraction.grand_total))
+        unique_totals = {candidate[0] for candidate in candidates}
+        found_total = next((candidate for candidate in candidates if candidate[0] == requested_total), None) if unique_totals == {requested_total} else None
+    except InvalidOperation:
+        found_total = None
+    if not found_total:
+        unverified.append('grand_total')
+    evidence['grand_total'] = FieldEvidence(field_name='grand_total', extracted_value=str(extraction.grand_total or ''),
+        page_number=found_total[1] if found_total else 1,
+        raw_snippet=found_total[2] if found_total else None, is_verified=bool(found_total))
     if not extraction.line_items:
         unverified.append('line_items')
     for idx, line in enumerate(extraction.line_items):
