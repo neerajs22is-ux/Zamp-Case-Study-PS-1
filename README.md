@@ -25,20 +25,29 @@ The application ingests vendor invoices, extracts structured data with multimoda
 
 ---
 
-## Executive Summary: Business Value & AP Economics
+## Executive Summary: Operational Workflow & Machine Economics
 
-For mid-market and enterprise finance organizations, manual invoice processing is slow, error-prone, and operationally expensive. This system automates the manual triage burden while establishing auditable controls:
+Accounts payable automation requires balancing automated document processing with financial control:
 
-| Operational Metric | Manual Baseline | Autonomous AP Command Center | Business Impact |
+- **Machine Processing Latency:** ~25–28 seconds end-to-end (PDF ingestion $\rightarrow$ AWS Bedrock Mantle Qwen 235B multimodal extraction $\rightarrow$ deterministic 7-gate validation).
+- **Direct Model Inference Cost:** ~$0.0022 USD (~₹0.18) in Bedrock token usage per processed invoice (excluding cloud database hosting and human review labor).
+- **Workflow Role Shift:** Instead of manually re-keying invoice headers and line items into an ERP and performing manual math checks against POs and warehouse GRNs, the AP reviewer acts as an exception manager—inspecting pre-reconciled items with coordinate-anchored provenance and handling commercial discrepancies.
+
+---
+
+## Core Edge Cases & Decision Scenarios (Verified in Test Suite)
+
+In addition to standard happy-path processing, the engine evaluates realistic accounts payable edge cases (verified in `tests/test_engine.py` and `engine/rules.py`):
+
+| Edge Case | Scenario & Trigger Condition | System Behavior & Decision | Safety Invariant |
 | :--- | :--- | :--- | :--- |
-| **Cycle Time** | 8 – 12 minutes per invoice | **~25 seconds** intake-to-decision | **>95% time reduction** per document |
-| **Direct Processing Cost** | ~$4.50 – $6.00 USD (clerk time) | **~$0.0022 USD** (~₹0.18 in Bedrock tokens) | **>99% direct operational cost savings** |
-| **Match Candidate Rate** | 0% (100% manual entry) | **75% – 85%** straight-through candidates | Focuses staff strictly on commercial exceptions |
-| **Audit & Tax Risk** | Sample-based spot checks | **100% deterministic GST math & RLS audit** | Eliminates fraudulent ITC loss under Indian GST law |
-
-### Transforming the AP Associate's Workflow
-- **Before:** An AP clerk manually re-types invoice data into an ERP, opens a calculator to check CGST/SGST vs. IGST state rules, searches warehouse receipts (GRNs) across separate screens, and circulates paper or email threads for manager sign-off.
-- **After:** Multimodal AI extracts messy layout tokens with coordinate provenance; deterministic engines pre-screen the document against 7 policy gates; AP leads inspect pre-reconciled line items with click-to-verify evidence and 1-click clearance for valid matches.
+| **Split-PO Overrun** | Vendor invoice bills $6,500 against PO-1042 with $10,000 authorized, $8,000 previously billed, leaving $2,000 remaining balance. | Engine flags $4,500 budget overrun (`split_po_overrun`), halts voucher creation, routes to `FLAGGED_HITL_REVIEW`, and drafts vendor inquiry email. | Prevents cumulative over-billing across multi-invoice purchase orders. |
+| **Missing PO Reference** | Invoice omits purchase order reference; verified vendor has open PO-1042 in ERP. | Engine infers the open PO for line matching, but strictly suppresses auto-approval (`inferred_po`), routing to `FLAGGED_HITL_REVIEW`. | Never touchless-approves an invoice with an inferred procurement reference. |
+| **Missing Critical Fields** | Scanned PDF omits invoice number, date, or line amounts. | Pipeline halts downstream matching, records missing fields, and refuses to fabricate surrogate values. | Anti-hallucination guard against model guessing on missing data. |
+| **Reformatted Duplicate** | Vendor re-submits invoice with altered spacing or delimiters (`INV-2024-001` vs `INV2024001`) or re-exported PDF. | Tier 2 deduplication normalizes supplier GSTIN/name and invoice number, matching against active ledger. | Rejects commercial duplicate with zero second liability created. |
+| **Bank Account Mismatch** | Invoice remittance bank details differ from ERP vendor master bank records. | Halts processing and triggers a compliance security hold (`bank_details_mismatch`). | Guards against vendor email compromise and invoice redirection fraud. |
+| **Non-Payable Document** | Document classified as `PAYMENT_RECEIPT` acknowledging prior payment. | Autonomously routes document to `QUARANTINED` with zero AP liability registered. | Filters non-invoice commercial attachments from accounts payable ledger. |
+| **Degraded Low-Contrast Scan** | Low-resolution raster scan with poor image contrast ($\sigma < 10.0$). | Pre-screener diverts document to `FLAGGED_HITL_REVIEW` before LLM inference. | Prevents hallucinated extractions on illegible scans. |
 
 ---
 
