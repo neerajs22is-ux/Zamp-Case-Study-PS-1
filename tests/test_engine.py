@@ -440,3 +440,31 @@ def test_all_five_pdf_scenarios_deterministic(fresh_pipeline):
     audit_ec4 = fresh_pipeline.process(ec4_path)
     assert audit_ec4.decision == DecisionState.FLAGGED_HITL_REVIEW
     assert audit_ec4.document_type == DocumentType.SCANNED_IMAGE
+
+
+def test_near_tolerance_boundary_1_4_vs_1_6(fresh_pipeline):
+    """Near-tolerance boundary test: 1.4% price increase passes (AUTO_APPROVED); 1.6% increase flags PRICE_VARIANCE."""
+    # 1. 1.4% increase: $500 -> $507 (diff $7.00 <= $20, 1.4% <= 1.5%) -> Within tolerance
+    data_1_4 = load_fixture("HP-01-Happy-Path.json")
+    data_1_4["line_items"][0]["unit_price"] = 507.00
+    data_1_4["line_items"][0]["total"] = 5070.00
+    data_1_4["subtotal"] = 5070.00
+    data_1_4["tax_amount"] = 430.95
+    data_1_4["total_amount"] = 5500.95
+    audit_1_4 = fresh_pipeline.process(data_1_4)
+    assert audit_1_4.decision == DecisionState.AUTO_APPROVED
+    assert audit_1_4.line_results[0].status == LineMatchStatus.MATCHED
+
+    # 2. 1.6% increase: $500 -> $508 (diff $8.00 <= $20, but 1.6% > 1.5%) -> Exceeds policy tolerance
+    data_1_6 = load_fixture("HP-01-Happy-Path.json")
+    data_1_6["invoice_number"] = "INV-2026-102"
+    data_1_6["line_items"][0]["unit_price"] = 508.00
+    data_1_6["line_items"][0]["total"] = 5080.00
+    data_1_6["subtotal"] = 5080.00
+    data_1_6["tax_amount"] = 431.80
+    data_1_6["total_amount"] = 5511.80
+    audit_1_6 = fresh_pipeline.process(data_1_6)
+    assert audit_1_6.decision == DecisionState.FLAGGED_HITL_REVIEW
+    assert "price_variance" in audit_1_6.discrepancy_details
+    assert audit_1_6.line_results[0].price_variance_pct == 1.60
+

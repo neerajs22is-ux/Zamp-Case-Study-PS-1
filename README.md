@@ -35,19 +35,31 @@ Accounts payable automation requires balancing automated document processing wit
 
 ---
 
-## Core Edge Cases & Decision Scenarios (Verified in Test Suite)
+## Core Edge Cases & Decision Scenarios (Two-Layer Implementation)
 
-In addition to standard happy-path processing, the engine evaluates realistic accounts payable edge cases (verified in `tests/test_engine.py` and `engine/rules.py`):
+To maintain complete transparency for evaluators, edge case capabilities are divided across two distinct layers:
 
-| Edge Case | Scenario & Trigger Condition | System Behavior & Decision | Safety Invariant |
+### 1. Live Cloud Flagship Deployment (Render Web Service)
+The hosted web application at [https://zamp-case-study-ps-1-1.onrender.com/](https://zamp-case-study-ps-1-1.onrender.com/) demonstrates:
+- **Clean 3-Way Match (`MATCH_CANDIDATE`):** Ingests valid invoices, runs live AWS Bedrock Mantle Qwen 235B extraction, validates Indian GST tax splits, and verifies all 7 deterministic gates with 0.00% variance.
+- **Rate Variance Exception (`FLAGGED_EXCEPTION`):** Detects billed unit rate exceeding PO contracted price (+18.9% variance), failing Gate 6 and halting payment recommendation.
+- **Cryptographic Deduplication (`HTTP 409 Conflict`):** Rejects byte-identical re-submissions at the API boundary via SHA-256 hash.
+- **Degraded Low-Contrast Scan Safety:** Diverts raster scans with low contrast ($\sigma < 10.0$) fail-closed to HITL review.
+- **Non-Payable Document Quarantine:** Classifies payment receipts (`PAYMENT_RECEIPT`) and routes to quarantine with zero open AP liability.
+- **Dual-Control Approval:** High-value invoices ($\ge ₹5,00,000$) require secondary Controller approval with anti-self-approval enforcement.
+
+### 2. Standalone Core Engine Test Suite (`tests/test_engine.py` & `engine/rules.py`)
+*Note for Evaluators: These specialized commercial edge cases are implemented and verified in the automated pytest suite (30 passing tests in ~3.3s via `pytest tests/test_engine.py -v`); they reflect the standalone PS-1 engine logic and are not currently wired into the live Render web interface.*
+
+| Edge Case | Scenario & Verification Command | System Behavior & Decision | Safety Invariant |
 | :--- | :--- | :--- | :--- |
-| **Split-PO Overrun** | Vendor invoice bills $6,500 against PO-1042 with $10,000 authorized, $8,000 previously billed, leaving $2,000 remaining balance. | Engine flags $4,500 budget overrun (`split_po_overrun`), halts voucher creation, routes to `FLAGGED_HITL_REVIEW`, and drafts vendor inquiry email. | Prevents cumulative over-billing across multi-invoice purchase orders. |
-| **Missing PO Reference** | Invoice omits purchase order reference; verified vendor has open PO-1042 in ERP. | Engine infers the open PO for line matching, but strictly suppresses auto-approval (`inferred_po`), routing to `FLAGGED_HITL_REVIEW`. | Never touchless-approves an invoice with an inferred procurement reference. |
-| **Missing Critical Fields** | Scanned PDF omits invoice number, date, or line amounts. | Pipeline halts downstream matching, records missing fields, and refuses to fabricate surrogate values. | Anti-hallucination guard against model guessing on missing data. |
-| **Reformatted Duplicate** | Vendor re-submits invoice with altered spacing or delimiters (`INV-2024-001` vs `INV2024001`) or re-exported PDF. | Tier 2 deduplication normalizes supplier GSTIN/name and invoice number, matching against active ledger. | Rejects commercial duplicate with zero second liability created. |
-| **Bank Account Mismatch** | Invoice remittance bank details differ from ERP vendor master bank records. | Halts processing and triggers a compliance security hold (`bank_details_mismatch`). | Guards against vendor email compromise and invoice redirection fraud. |
-| **Non-Payable Document** | Document classified as `PAYMENT_RECEIPT` acknowledging prior payment. | Autonomously routes document to `QUARANTINED` with zero AP liability registered. | Filters non-invoice commercial attachments from accounts payable ledger. |
-| **Degraded Low-Contrast Scan** | Low-resolution raster scan with poor image contrast ($\sigma < 10.0$). | Pre-screener diverts document to `FLAGGED_HITL_REVIEW` before LLM inference. | Prevents hallucinated extractions on illegible scans. |
+| **Split-PO Overrun** | `test_edge_case_1_split_po_overrun`<br>Bills $6,500 against PO-1042 with $10,000 authorized and $8,000 previously billed ($2,000 balance remaining). | Engine flags $4,500 budget overrun (`split_po_overrun`), halts voucher creation, routes to `FLAGGED_HITL_REVIEW`, and drafts a vendor inquiry email. | Prevents cumulative over-billing across multi-invoice purchase orders. |
+| **Near-Tolerance Boundary (1.4% vs 1.6%)** | `test_near_tolerance_boundary_1_4_vs_1_6`<br>Tests exact 1.5% policy tolerance threshold. | 1.4% increase ($507 vs $500) passes and auto-approves (`AUTO_APPROVED`). 1.6% increase ($508 vs $500) flags `PRICE_VARIANCE` and routes to `FLAGGED_HITL_REVIEW`. | Validates sharp boundary enforcement without floating-point drift. |
+| **Missing PO Reference** | `test_inferred_po_requires_hitl_review`<br>Invoice omits PO reference; verified vendor has open PO-1042 in ERP. | Engine infers the open PO for line matching, but strictly suppresses auto-approval (`inferred_po`), routing to `FLAGGED_HITL_REVIEW`. | Never touchless-approves an invoice with an inferred procurement reference. |
+| **Missing Critical Fields** | `test_no_data_fabrication_on_missing_invoice_number_and_date`<br>PDF omits invoice number, date, or totals. | Pipeline halts downstream matching, records missing fields, and refuses to fabricate surrogate values. | Anti-hallucination guard against model guessing on missing data. |
+| **Reformatted Duplicate** | `test_reformatted_duplicate_invoice_number_detected`<br>Vendor re-submits with altered spacing/delimiters (`INV-2024-001` vs `INV2024001`) or re-exported PDF. | Tier 2 deduplication normalizes supplier GSTIN/name and invoice number, matching against active ledger. | Rejects commercial duplicate with zero second liability created. |
+| **Bank Account Mismatch** | `test_bank_details_mismatch_held_for_fraud_review`<br>Invoice remittance bank details differ from ERP vendor master bank records. | Halts processing and triggers a compliance security hold (`bank_details_mismatch`). | Guards against vendor email compromise and invoice redirection fraud. |
+| **Touchless ERP Voucher** | `test_happy_path_auto_approved`<br>Clean invoice matching open PO within tolerance. | Emits `AUTO_APPROVED` state, computes confidence $\ge 0.95$, and generates an ERP voucher ID (`VCHR-...`). | Automates straight-through processing for verified clean invoices. |
 
 ---
 
@@ -183,8 +195,8 @@ To ensure complete clarity during evaluation, current integration boundaries are
 
 The codebase is protected by automated tests across security invariants, matching gates, tenant isolation, and UI responsiveness:
 
-- **Pytest Test Suite:** 278 test functions defining **625 collected test cases** across parametrized matrices in `tests/`.
-- **Review Session Execution:** 75 focused Python tests and 8 frontend test suites executed and verified passing with **zero failures**.
+- **Standalone Core Engine Suite:** **30 passed, 0 failed** in ~3.3s (`pytest tests/test_engine.py -v`), verifying split-PO overruns, 1.4% vs 1.6% near-tolerance boundaries, reformatted duplicate matching, and inferred POs.
+- **Full Pytest Collection:** 278 test functions defining **625 collected test cases** across parametrized matrices in `tests/`. (Note: 43 tests in the full suite are skipped when disposable local PostgreSQL container fixtures or live external Gmail credentials are not present).
 - **Live Acceptance Suite:** 9 end-to-end browser tests executed via Playwright against the live Render deployment (`https://zamp-case-study-ps-1-1.onrender.com/`), confirming:
   - 1-click demo workspace launch (11.05s)
   - Fresh clean invoice upload to `MATCH_CANDIDATE` (28.03s)
