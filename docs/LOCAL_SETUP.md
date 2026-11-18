@@ -18,8 +18,8 @@ This guide details how to install, configure, run, and verify the Autonomous Acc
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-.git
-   cd Zamp-Case-Study-PS-1-
+   git clone https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1.git
+   cd Zamp-Case-Study-PS-1
    ```
 
 2. **Set up Python Virtual Environment:**

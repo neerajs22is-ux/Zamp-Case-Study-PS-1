@@ -11,7 +11,7 @@ This guide provides a 3-minute evaluation walkthrough for testing the live deplo
 
 - **Live Application:** [https://zamp-case-study-ps-1-1.onrender.com/](https://zamp-case-study-ps-1-1.onrender.com/)
 - **Decision Sandbox:** [https://zamp-case-study-ps-1-1.onrender.com/sandbox](https://zamp-case-study-ps-1-1.onrender.com/sandbox)
-- **GitHub Repository:** [https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-](https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-)
+- **GitHub Repository:** [https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1](https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1)
 - **Live Build & Liveness Probe:** [https://zamp-case-study-ps-1-1.onrender.com/api/v1/liveness](https://zamp-case-study-ps-1-1.onrender.com/api/v1/liveness)
 
 ---
