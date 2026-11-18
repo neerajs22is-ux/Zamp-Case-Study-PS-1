@@ -49,6 +49,10 @@ Follow this route to observe live document intelligence and deterministic matchi
 
 ## Important Evaluation Context & Boundaries
 
+- **Decision Architecture & Straight-Through Governance:**  
+  The engine deterministically computes a recommendation: `MATCH_CANDIDATE` (all 7 gates pass with 0.00% variance), `FLAGGED_EXCEPTION` (routes to human review with specific gate failure notes), or `QUARANTINED` (non-payable document rejected with zero liability). In enterprise AP under Indian GST, statutory liability for fraudulent vendor ITC requires human threshold clearance rather than unmonitored touchless disbursement. Clean matches enable 1-click clearance, cutting manual processing time from ~10 minutes to ~25 seconds.
+- **Dual-Tier Deduplication:**  
+  Deduplication operates across two tiers: Tier 1 checks SHA-256 binary hash collisions at the boundary (saving downstream LLM costs); Tier 2 checks commercial composite keys `(normalized_supplier, normalized_invoice_number)` matching across re-exported or reformatted PDFs.
 - **Prepared Records vs. Live Processing:**  
   The demo workspace includes five pre-seeded synthetic records (`SCN-01` through `SCN-05`) for immediate UI review. Custom PDF uploads in Option B trigger live, provider-backed execution (AWS Bedrock Mantle Qwen 235B and Supabase PostgreSQL).
 - **Cold-Start Delay:**  
