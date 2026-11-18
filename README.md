@@ -35,31 +35,24 @@ Accounts payable automation requires balancing automated document processing wit
 
 ---
 
-## Core Edge Cases & Decision Scenarios (Two-Layer Implementation)
+## Core Edge Cases & Decision Scenarios (The Six Sandbox Scenarios)
 
-To maintain complete transparency for evaluators, edge case capabilities are divided across two distinct layers:
+The application evaluates realistic accounts payable edge cases across six pre-seeded commercial scenarios in the Decision Sandbox:
 
-### 1. Live Cloud Flagship Deployment (Render Web Service)
-The hosted web application at [https://zamp-case-study-ps-1-1.onrender.com/](https://zamp-case-study-ps-1-1.onrender.com/) demonstrates:
-- **Clean 3-Way Match (`MATCH_CANDIDATE`):** Ingests valid invoices, runs live AWS Bedrock Mantle Qwen 235B extraction, validates Indian GST tax splits, and verifies all 7 deterministic gates with 0.00% variance.
-- **Rate Variance Exception (`FLAGGED_EXCEPTION`):** Detects billed unit rate exceeding PO contracted price (+18.9% variance), failing Gate 6 and halting payment recommendation.
-- **Cryptographic Deduplication (`HTTP 409 Conflict`):** Rejects byte-identical re-submissions at the API boundary via SHA-256 hash.
-- **Degraded Low-Contrast Scan Safety:** Diverts raster scans with low contrast ($\sigma < 10.0$) fail-closed to HITL review.
-- **Non-Payable Document Quarantine:** Classifies payment receipts (`PAYMENT_RECEIPT`) and routes to quarantine with zero open AP liability.
-- **Dual-Control Approval:** High-value invoices ($\ge ₹5,00,000$) require secondary Controller approval with anti-self-approval enforcement.
-
-### 2. Standalone Core Engine Test Suite (`tests/test_engine.py` & `engine/rules.py`)
-*Note for Evaluators: These specialized commercial edge cases are implemented and verified in the automated pytest suite (30 passing tests in ~3.3s via `pytest tests/test_engine.py -v`); they reflect the standalone PS-1 engine logic and are not currently wired into the live Render web interface.*
-
-| Edge Case | Scenario & Verification Command | System Behavior & Decision | Safety Invariant |
+| Scenario | Document Reference | Target Stage & Decision | Operational Failure & Invariant |
 | :--- | :--- | :--- | :--- |
-| **Split-PO Overrun** | `test_edge_case_1_split_po_overrun`<br>Bills $6,500 against PO-1042 with $10,000 authorized and $8,000 previously billed ($2,000 balance remaining). | Engine flags $4,500 budget overrun (`split_po_overrun`), halts voucher creation, routes to `FLAGGED_HITL_REVIEW`, and drafts a vendor inquiry email. | Prevents cumulative over-billing across multi-invoice purchase orders. |
-| **Near-Tolerance Boundary (1.4% vs 1.6%)** | `test_near_tolerance_boundary_1_4_vs_1_6`<br>Tests exact 1.5% policy tolerance threshold. | 1.4% increase ($507 vs $500) passes and auto-approves (`AUTO_APPROVED`). 1.6% increase ($508 vs $500) flags `PRICE_VARIANCE` and routes to `FLAGGED_HITL_REVIEW`. | Validates sharp boundary enforcement without floating-point drift. |
-| **Missing PO Reference** | `test_inferred_po_requires_hitl_review`<br>Invoice omits PO reference; verified vendor has open PO-1042 in ERP. | Engine infers the open PO for line matching, but strictly suppresses auto-approval (`inferred_po`), routing to `FLAGGED_HITL_REVIEW`. | Never touchless-approves an invoice with an inferred procurement reference. |
-| **Missing Critical Fields** | `test_no_data_fabrication_on_missing_invoice_number_and_date`<br>PDF omits invoice number, date, or totals. | Pipeline halts downstream matching, records missing fields, and refuses to fabricate surrogate values. | Anti-hallucination guard against model guessing on missing data. |
-| **Reformatted Duplicate** | `test_reformatted_duplicate_invoice_number_detected`<br>Vendor re-submits with altered spacing/delimiters (`INV-2024-001` vs `INV2024001`) or re-exported PDF. | Tier 2 deduplication normalizes supplier GSTIN/name and invoice number, matching against active ledger. | Rejects commercial duplicate with zero second liability created. |
-| **Bank Account Mismatch** | `test_bank_details_mismatch_held_for_fraud_review`<br>Invoice remittance bank details differ from ERP vendor master bank records. | Halts processing and triggers a compliance security hold (`bank_details_mismatch`). | Guards against vendor email compromise and invoice redirection fraud. |
-| **Touchless ERP Voucher** | `test_happy_path_auto_approved`<br>Clean invoice matching open PO within tolerance. | Emits `AUTO_APPROVED` state, computes confidence $\ge 0.95$, and generates an ERP voucher ID (`VCHR-...`). | Automates straight-through processing for verified clean invoices. |
+| **`SCN-01` Clean 3-Way Match** | `01_invoice_AP_26_001.pdf`<br>(₹26,196.00) | `MATCH_CANDIDATE`<br>(`PENDING_APPROVAL`) | **Happy Path:** Contracted rate ₹185.00 matched exactly across 120 units against PO-26-1001, GRN-26-501, and QC certificate #QC-GRN-26-501-01 with 0.00% variance. All 7 gates pass. |
+| **`SCN-02` Price & Qty Variance** | `30_invoice_AP_26_011.pdf`<br>(₹25,960.00) | `FLAGGED_EXCEPTION`<br>(`ACTION_REQUIRED`) | **Tolerance Breached:** Supplier bills unit price ₹220.00 vs PO rate ₹185.00 (+18.92% variance vs 1.5% limit) and bills 100 units vs 80 accepted on GRN-26-621. Fails Gate 6 and Gate 3. |
+| **`SCN-03` Low-Contrast Scan** | `36_invoice_POS_26_112.pdf` | `FLAGGED_EXCEPTION`<br>(`ACTION_REQUIRED`) | **Fail-Closed Safety:** Challenging raster scan with zero native text and poor contrast ($\sigma < 10.0$). Grounding tripwire halts processing to prevent ungrounded AI hallucinations. |
+| **`SCN-04` QC Inspection Hold** | `11_invoice_MC_26_090.pdf`<br>(₹1,92,576.00) | `FLAGGED_EXCEPTION`<br>(`ACTION_REQUIRED`) | **Defective Goods Guard:** Factory goods receipt GRN-26-603 has inspection status `HOLD`. Fails Gate 4 deterministically, blocking payment on defective materials. |
+| **`SCN-05` Non-Payable Receipt** | `38_payment_receipt_RCPT_26_088.pdf`<br>(₹2,500.00) | `QUARANTINED`<br>(`QUARANTINED`) | **Document Classification:** Multimodal AI classifies file as `PAYMENT_RECEIPT` acknowledging prior payment. Autonomously isolated with zero AP liability registered. |
+| **`SCN-06` Duplicate Resubmission** | `01_invoice_AP_26_001.pdf` | `REJECTED` / `409`<br>(`ACTION_REQUIRED`) | **Dual-Tier Deduplication:** Identical voucher number or SHA-256 hash collision with active ledger record. Fails Gate 7 deterministically, preventing duplicate disbursements. |
+
+### Decision Taxonomy & Resolution Actions
+Rather than an unranked binary pass/fail, the engine computes three distinct operational states:
+- **`MATCH_CANDIDATE` (Straight-Through Recommendation):** All 7 deterministic gates pass with 0.00% variance. Recommended for 1-click AP Lead approval.
+- **`FLAGGED_EXCEPTION` (Granular Policy Violation):** Records specific failure reason codes (e.g. Gate 6 Rate Spike $+18.92\%$, Gate 4 Defective Goods QC Hold, or Gate 2 PO Overrun) and routes to human reviewer with audit-tracked actions: `APPROVE_AP_REVIEW`, `HOLD_PENDING_EVIDENCE`, or `REJECT_INVOICE`.
+- **`QUARANTINED` (Non-Payable Commercial Document):** Autonomously isolates documents classified as payment receipts, account statements, or corrupt files with zero liability created in the accounts payable ledger.
 
 ---
 
@@ -94,7 +87,10 @@ Evaluators can test the end-to-end pipeline on the live deployment without confi
 > **Cold Start Notice:** The live demo is hosted on Render's web service tier. If the instance has been idle, the initial page load may take 20 to 40 seconds while the container initializes. Subsequent requests respond within normal operational latencies.
 
 > [!IMPORTANT]  
-> **Prepared Records vs. Live Provider Runs:** The demo workspace contains five pre-seeded synthetic records for immediate interface exploration. Custom PDF uploads in Option B invoke the live processing pipeline (AWS Bedrock Mantle Qwen 235B and Supabase PostgreSQL).
+> **Prepared Records vs. Live Provider Runs:** The demo workspace contains six pre-seeded synthetic records (`SCN-01` through `SCN-06`) for immediate interface exploration. Custom PDF uploads in Option B invoke the live processing pipeline (AWS Bedrock Mantle Qwen 235B and Supabase PostgreSQL).
+
+> [!NOTE]  
+> **Synthetic Test Invoices vs. Diverse Layouts:** Option B provides downloadable synthetic invoices to give evaluators a reproducible test flow without exposing confidential third-party corporate data. The model extraction and grounding pipeline was developed and evaluated against a 40-document Indian AP corpus with varied table layouts and degraded scans (`tests/evaluation_corpus_v2/`).
 
 ---
 
@@ -153,21 +149,18 @@ flowchart TD
 | **2** | **PO Authorization** | PO reference is valid, approved, unexpired, and has an open line balance. | Closed PO, missing authorization, or unapproved amendment. |
 | **3** | **GRN Match** | Billed item quantities do not exceed accepted warehouse Goods Receipt Notes. | Billed quantity > warehouse received quantity. |
 | **4** | **QC Acceptance** | Delivered goods have passed engineering quality inspection. | Inspection status is `HOLD` or `REJECTED`. |
-| **5** | **GST Arithmetic** | Billed math satisfies $\text{abs}(\text{Subtotal} + \text{Taxes} - \text{Total}) \le ₹20.00$ and confirms intrastate (CGST+SGST) vs interstate (IGST) split. | Tax calculation discrepancy or invalid state code mapping. |
-| **6** | **Tolerances** | Unit price variance $\le 1.50\%$; line total variance $\le ₹20.00$. | Billed unit rate exceeds contracted purchase order rate. |
+| **5** | **GST Arithmetic** | Billed math satisfies $\text{abs}(\text{Subtotal} + \text{Taxes} - \text{Total}) \le ₹20.00$ (statutory per-line rounding margin under Section 170 CGST Act) and line math $\text{qty} \times \text{rate} \approx \text{line\_total}$, validating intrastate vs interstate tax types. | Tax calculation discrepancy or invalid state code mapping. |
+| **6** | **Tolerances** | Unit price variance $\le 1.50\%$ (relative contracted rate tolerance); quantity within PO authorized balance and accepted warehouse GRN. | Billed unit rate exceeds contracted purchase order rate by >1.50%, or quantity exceeds authorized PO balance. |
 | **7** | **Deduplication** | Dual-tier check: Tier 1 SHA-256 binary hash collision + Tier 2 commercial composite key `(normalized_supplier, normalized_invoice_number)` matching across re-exported or altered PDFs. | Duplicate payment submission or identical re-transmission. |
 
 ---
 
 ## Core Engineering Decisions
 
-1. **Arbitrary-Precision Arithmetic:**  
-   All monetary calculations, percentages, and taxes use Python `Decimal` and PostgreSQL `numeric(15,2)` types. Binary floating-point representation (`float`) is barred from financial code paths to prevent rounding drift.
+1. **Arbitrary-Precision Balance Accounting:**  
+   Uses Python `Decimal` and PostgreSQL `numeric(15,2)` for ledger balances, total amounts, and cumulative PO drawdowns, eliminating floating-point rounding drift. Percentage calculations (e.g. rate variance $\le 1.50\%$) use floating-point arithmetic.
 2. **Indian Statutory GST Validation:**  
-   Validates 15-character alphanumeric GSTIN formats, extracts 2-digit state prefixes, and deterministically enforces tax classification:
-   - Same supplier and recipient state: mandatory 50/50 split between **CGST** and **SGST**.
-   - Differing supplier and recipient state: 100% allocation to **IGST**.
-   - Standard rounding tolerance allowed up to ₹20.00 to accommodate ERP truncation conventions.
+   Validates supplier GSTIN presence against ERP vendor master, cross-references Karnataka (`29`) intrastate transactions to prevent improper interstate IGST billing, and verifies that $\text{abs}(\text{Subtotal} + \text{Taxes} - \text{Total}) \le ₹20.00$ accommodating statutory per-line rounding under Section 170 of the CGST Act.
 3. **Database-Level Audit Immutability:**  
    Financial audit events are written to `audit_events`. Immutability is enforced at the database engine level via PostgreSQL trigger `trg_audit_events_immutable`, which aborts any `UPDATE` or `DELETE` statement. Corrections require new compensating ledger events.
 4. **Tenant Isolation via PostgreSQL RLS:**  
@@ -195,8 +188,10 @@ To ensure complete clarity during evaluation, current integration boundaries are
 
 The codebase is protected by automated tests across security invariants, matching gates, tenant isolation, and UI responsiveness:
 
-- **Standalone Core Engine Suite:** **30 passed, 0 failed** in ~3.3s (`pytest tests/test_engine.py -v`), verifying split-PO overruns, 1.4% vs 1.6% near-tolerance boundaries, reformatted duplicate matching, and inferred POs.
-- **Full Pytest Collection:** 278 test functions defining **625 collected test cases** across parametrized matrices in `tests/`. (Note: 43 tests in the full suite are skipped when disposable local PostgreSQL container fixtures or live external Gmail credentials are not present).
+- **40-Document Indian AP Corpus Evaluation:** Evaluated across 40 distinct commercial documents (`tests/evaluation_corpus_v2/` and `full_40_evaluation_report.json`), executing 38 live AWS Bedrock Mantle Qwen 235B calls ($0.045 total inference cost, ~3.0s median model latency), covering credit/debit notes, proforma invoices, e-invoices, reverse charge, foreign currency imports, delivery challans, and degraded low-contrast scans.
+- **Python Pytest Suite:** 278 test functions collecting **625 test cases** across unit, security (RLS, audit immutability), parity, and engine phases in `tests/`. (43 skipped tests correspond to disposable local PostgreSQL container runners and live external Gmail network probes).
+- **Frontend Test Suite:** 20 automated Node.js test suites in `frontend/` verifying authentication lifecycle (14 tests) and live run polling state machines (6 tests).
+- **Responsive Viewport Audit:** 44 automated viewport checks across 9 device widths (320px to 1920px), verifying responsive layout rendering.
 - **Live Acceptance Suite:** 9 end-to-end browser tests executed via Playwright against the live Render deployment (`https://zamp-case-study-ps-1-1.onrender.com/`), confirming:
   - 1-click demo workspace launch (11.05s)
   - Fresh clean invoice upload to `MATCH_CANDIDATE` (28.03s)

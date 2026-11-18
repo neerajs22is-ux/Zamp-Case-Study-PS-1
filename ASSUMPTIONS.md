@@ -1,5 +1,8 @@
 # Accounts Payable (AP) Digital Employee — Case Study Operating Assumptions
 
+> [!NOTE]  
+> **Evolution Note:** This document records the foundational operating assumptions from Phase 1 of the case study (initial USD prototype). In the production deployment, the application was localized to Indian GST statutory math, seven sequential deterministic policy gates, and INR currency as documented in [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+
 This document outlines the core business rules, operational constraints, and technical assumptions governing the Zamp Problem Statement 1 (PS-1) AP Digital Employee. These assumptions reflect realistic enterprise finance workflows while maintaining a deterministic evaluation framework.
 
 ---

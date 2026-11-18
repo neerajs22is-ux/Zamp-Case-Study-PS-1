@@ -54,7 +54,7 @@ Follow this route to observe live document intelligence and deterministic matchi
 - **Dual-Tier Deduplication:**  
   Deduplication operates across two tiers: Tier 1 checks SHA-256 binary hash collisions at the boundary (saving downstream LLM costs); Tier 2 checks commercial composite keys `(normalized_supplier, normalized_invoice_number)` matching across re-exported or reformatted PDFs.
 - **Prepared Records vs. Live Processing:**  
-  The demo workspace includes five pre-seeded synthetic records (`SCN-01` through `SCN-05`) for immediate UI review. Custom PDF uploads in Option B trigger live, provider-backed execution (AWS Bedrock Mantle Qwen 235B and Supabase PostgreSQL).
+  The demo workspace includes six pre-seeded synthetic records (`SCN-01` through `SCN-06`) for immediate UI review. Custom PDF uploads in Option B trigger live, provider-backed execution (AWS Bedrock Mantle Qwen 235B and Supabase PostgreSQL).
 - **Cold-Start Delay:**  
   The application is hosted on Render's web service tier. If the instance has been idle, the initial page load may take 20 to 40 seconds while the container boots. Subsequent requests operate at full speed.
 - **Demo Role & Payment Boundary:**  
