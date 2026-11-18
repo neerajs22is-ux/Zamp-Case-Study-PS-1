@@ -1,114 +1,80 @@
-# Zamp PS-1 — Evaluator Quick Start Guide
+# Evaluator Quick Start Guide
 
-Welcome to the **Autonomous Accounts Payable (AP) Command Center** (Zamp Problem Statement 1). This 1-page document provides evaluators with direct links to the live deployment, authentication instructions, a 5-minute recommended evaluation sequence, scenario guides, and video demonstration specifications.
+**Zamp AI Solutions Associate — Problem Statement 1 (Autonomous AP Processing & 3-Way Matching)**  
+**Candidate:** Neeraj Shivkumar
 
----
-
-## 1. Live Deployment & Links
-
-| Experience / Surface | Hosted URL / Target | Description |
-| :--- | :--- | :--- |
-| **Flagship AP Command Center** | **[zamp-case-study-ps-1-1.onrender.com](https://zamp-case-study-ps-1-1.onrender.com)** | Primary enterprise multi-tenant application with 2-column review workspace, operational metrics, and dual-control sign-offs. |
-| **Interactive Sandbox 2.0** | **[zamp-case-study-ps-1-1.onrender.com/sandbox](https://zamp-case-study-ps-1-1.onrender.com/sandbox)** | Guided 7-chapter walkthrough ("The Invoice Journey") featuring 6 pre-seeded authentic scenarios and custom PDF upload. |
-| **Liveness Health Check** | `GET /healthz` or `GET /` | Returns `{"status": "ok", "app": "zamp-ap-command-center"}`. |
-| **Dependency Readiness** | `GET /api/v1/system/status` or `GET /health/ready` | Verifies PostgreSQL connectivity, pooler health, migrations, and tenant status. |
-| **Interactive API Docs** | **[...onrender.com/docs](https://zamp-case-study-ps-1-1.onrender.com/docs)** | Interactive Swagger / OpenAPI documentation for all REST endpoints. |
-| **GitHub Repository** | `https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-.git` | Authoritative source repository on `master`. |
+This guide provides a 3-minute evaluation walkthrough for testing the live deployment, inspecting decisions, and observing edge case handling.
 
 ---
 
-## 2. Core Architecture: *"Models Read, Rules Decide"*
+## Key Submission Links
 
-The AP Command Center strictly decouples **probabilistic document interpretation** from **deterministic financial adjudication**:
-
-- **Multimodal AI Pipeline:** Combines local **RapidOCR (ONNX)** character detection, **AWS Bedrock Palmyra Vision 7B** visual analysis, and **AWS Bedrock Mantle (Qwen 235B)** structured extraction. Every extracted field retains token coordinates and page-level provenance.
-- **Grounding Tripwires:** An Ask4i-inspired verification gate checks every financial value against extracted OCR tokens and raw document bytes. If an LLM hallucinates an ungrounded total or rate, the tripwire trips fail-closed to human review.
-- **Deterministic 3-Way Match Engine:** Evaluates exact line-by-line procurement agreement against purchase orders (`PO`), goods receipt notes (`GRN`), and quality control (`QC`) inspection records using Decimal INR arithmetic.
-- **Seven Sequential Policy Gates:** Enforces vendor master registration, PO authorization, GRN quantity receipt, QC acceptance, Indian GST tax arithmetic, price variance limits ($\le 1.5\%$), and two-tier duplicate detection (SHA-256 byte collision + Gate 7 commercial invoice deduplication).
-- **Database-Level Audit Immutability:** Every decision, state transition, and human override writes an append-only event to PostgreSQL, protected against tampering by PL/pgSQL database triggers (`prevent_audit_events_mutation()`).
+- **Live Application:** [https://zamp-case-study-ps-1-1.onrender.com/](https://zamp-case-study-ps-1-1.onrender.com/)
+- **Decision Sandbox:** [https://zamp-case-study-ps-1-1.onrender.com/sandbox](https://zamp-case-study-ps-1-1.onrender.com/sandbox)
+- **GitHub Repository:** [https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-](https://github.com/neerajs22is-ux/Zamp-Case-Study-PS-1-)
+- **Live Build & Liveness Probe:** [https://zamp-case-study-ps-1-1.onrender.com/api/v1/liveness](https://zamp-case-study-ps-1-1.onrender.com/api/v1/liveness)
 
 ---
 
-## 3. Evaluator Authentication & Access
+## 3-Minute Live Evaluation Walkthrough
 
-### A. Live Hosted Environment (Render)
-1. Navigate to **[https://zamp-case-study-ps-1-1.onrender.com](https://zamp-case-study-ps-1-1.onrender.com)**.
-2. Choose **Launch Live Demo Workspace** for an isolated AP associate session without sign-up. The five-example implementation provides prepared clean match, price variance, QC hold, low-confidence scan and non-payable receipt examples. These are synthetic prepared records, not OCR or LLM runs. The first three use the deterministic policy evaluator; the remaining two have prepared outcomes.
-3. Open a record to inspect its PDF and checks. The demo role cannot approve; authorized internal sign-off does not send payment. Five additional custom uploads use the actual processing path, subject to service availability.
-4. The [guided Sandbox](https://zamp-case-study-ps-1-1.onrender.com/sandbox) has its own scenarios. Google sign-in and evaluator tokens require server-side authorization. The checked-in Render blueprint disables automatic deployment; verify the deployed version separately.
+Follow this route to observe live document intelligence and deterministic matching without setting up local tools or sharing personal credentials.
 
-### B. Local Development Environment (`http://127.0.0.1:8001`)
-1. Clone the repository and run `python run.py`.
-2. With `ENABLE_DEV_SESSION=true` in local `.env`, the login screen provides 1-click persona quick-logins:
-   - **Priya Sharma (AP Lead):** Full inbox triage, 2-column review, single approval ($< ₹5,00,000$), query holds, and rejections.
-   - **Rajesh Nair (Financial Controller):** Secondary sign-off on high-value invoices ($\ge ₹5,00,000$) and financial dashboards.
-   - **Vikram Malhotra (Auditor):** Read-only inspection of immutable audit ledgers (all mutations return HTTP 403).
-   - **Ananya Iyer (AP Associate):** Line-item discrepancy verification and initial document ingestion.
+### Step 1: Launch the Demo Workspace
+1. Navigate to the **[Live Deployment](https://zamp-case-study-ps-1-1.onrender.com/)**.
+2. Click **"Launch Live Demo Workspace"**. The system initializes an isolated demonstration session seeded with synthetic procurement records (PO, GRN, and QC certificates).
+3. Alternatively, open the **[Decision Sandbox](https://zamp-case-study-ps-1-1.onrender.com/sandbox)** directly.
 
----
+### Step 2: Run a Fresh Happy-Path Invoice (Clean 3-Way Match)
+1. In the Decision Sandbox, select **Option B: Custom PDF Upload**.
+2. Click the button to **Download clean invoice** (saves a synthetic valid invoice PDF).
+3. Upload the downloaded file into the upload zone.
+4. Observe the live processing stages:
+   - **Document Ingestion:** PDF header integrity and modality pre-screening.
+   - **AI Extraction:** Live inference via AWS Bedrock Mantle Qwen 235B (~15–25 seconds) extracting line items and tax amounts with bounding-box coordinates.
+   - **Grounding & Math:** Validates Indian GST statutory math against vendor and recipient state codes.
+   - **Seven Policy Gates:** Evaluates vendor status, PO balance, warehouse GRN, QC inspection, tax math, price tolerance, and deduplication.
+5. **Observed Outcome:** The run completes with decision **`MATCH_CANDIDATE`** and stage `PENDING_APPROVAL`. All seven gates pass with 0.00% variance.
 
-## 4. Recommended 5-Minute Evaluation Walkthrough
-
-The following legacy walkthrough refers to the separately authorized shared evaluator workspace and its Sandbox fixtures, not the instant demo. Availability and permissions depend on server configuration. For the instant demo, use the prepared examples described above.
-
-1. **Step 1: Inspect the Operations Dashboard & Inbox**
-   - Log into the Flagship app. Review the live metrics: Total Invoices Ingested, Exceptions Requiring Action, Blocked Exposure Value (INR), and Clean Match Candidates.
-2. **Step 2: Clean 3-Way Match & Single Approval (`SCN-01`)**
-   - Open invoice **`01_invoice_AP_26_001.pdf`** in the Inbox.
-   - Observe the 2-column review workspace: original PDF on the left, 7 deterministic gates on the right.
-   - All 7 gates pass with 0.00% variance. Pipeline status: `MATCH_CANDIDATE`.
-   - Click **Approve Invoice**. The invoice transitions to `INTERNAL_APPROVAL_COMPLETE` (`MANUALLY_APPROVED`), and an immutable audit event is committed to PostgreSQL.
-3. **Step 3: Price Variance & Operational Query Hold (`SCN-02`)**
-   - Open invoice **`30_invoice_AP_26_011.pdf`**.
-   - Gate 6 fails: Supplier billed unit price ₹220.00 vs contracted PO rate ₹185.00 (+18.92% variance vs 1.5% tolerance limit).
-   - Gate 3 fails: Billed 100 units vs 80 units accepted on GRN-26-621.
-   - Click **Place on Query Hold**. Enter reason *"Vendor rate discrepancy under commercial dispute with procurement"*. The status updates to `HOLD_PENDING_EVIDENCE`.
-4. **Step 4: Non-Payable Document Quarantine (`SCN-05`)**
-   - View document **`38_payment_receipt_RCPT_26_088.pdf`**.
-   - The multimodal classifier identified the document as `PAYMENT_RECEIPT`.
-   - The system autonomously routed it to `QUARANTINED` with zero AP liability registered.
-5. **Step 5: High-Value Dual Control ($\ge ₹5,00,000$) & Anti-Self-Approval**
-   - Ingest or open an invoice with net payable $\ge ₹5,00,000$ (e.g. ₹7,50,000).
-   - First approval by AP Lead transitions the stage to `ACTION_REQUIRED` (`PENDING_SECOND_APPROVAL`).
-   - Log in as Financial Controller (`Rajesh Nair`). Controller approves the secondary sign-off to complete approval.
-   - Attempting to approve both steps with the same user ID is blocked by the anti-self-approval rule (`actor_id != first_approver_id`).
+### Step 3: Run Edge Cases (Rate Variance & Duplicate Rejection)
+1. **Price Variance:**
+   - In Option B, click **Download price-variance invoice** and upload it.
+   - **Observed Outcome:** The pipeline identifies that the billed unit rate (₹220.00) exceeds the contracted PO rate (₹185.00) by +18.92% (violating the 1.5% tolerance limit).
+   - Gate 6 fails, and the invoice is routed to stage `ACTION_REQUIRED` with decision **`FLAGGED_EXCEPTION`**.
+2. **Cryptographic Deduplication:**
+   - Immediately re-upload the same price-variance PDF file.
+   - **Observed Outcome:** The system computes the SHA-256 digest at the boundary, detects an existing ledger entry, and rejects the upload with **`HTTP 409 Conflict`** (`DUPLICATE_DOCUMENT_DIGEST`).
 
 ---
 
-## 5. The Six Golden Evaluation Scenarios
+## Important Evaluation Context & Boundaries
 
-Pre-seeded and verified in tenant `org_sme_eval` and accessible via both Flagship and Sandbox:
-
-| # | Scenario ID | Document Reference | Expected Decision | Target Stage | Key Operational & Policy Mechanism |
-|---|---|---|---|---|---|
-| **1** | `SCN-01` | `01_invoice_AP_26_001.pdf` | `MATCH_CANDIDATE` | `PENDING_APPROVAL` | **Clean 3-Way Match:** Perfectly matches PO-26-1001, GRN-26-501, and accepted QC certificate with 0.00% variance. All 7 deterministic policy gates pass. Ready for AP Lead sign-off. |
-| **2** | `SCN-02` | `30_invoice_AP_26_011.pdf` | `FLAGGED_EXCEPTION` | `ACTION_REQUIRED` | **Price & Qty Variance:** Supplier bills unit price ₹220.00 vs contracted PO rate ₹185.00 (+18.92% variance vs 1.5% limit) and bills 100 units vs 80 accepted on GRN-26-621. Fails Gate 6 & Gate 3. |
-| **3** | `SCN-03` | `36_invoice_POS_26_112.pdf` | `FLAGGED_EXCEPTION` | `ACTION_REQUIRED` | **Degraded Scan Safety & Grounding Tripwire:** Scanned document testing optical character detection and evidence grounding tripwires, preventing ungrounded hallucinations from advancing to payment. |
-| **4** | `SCN-04` | `11_invoice_MC_26_090.pdf` | `FLAGGED_EXCEPTION` | `ACTION_REQUIRED` | **Quarantined Inspection:** Factory goods receipt GRN-26-603 has inspection status HOLD. Fails Gate 4 deterministically; blocks payment on defective materials. |
-| **5** | `SCN-05` | `38_payment_receipt_RCPT_26_088.pdf` | `REJECTED` | `QUARANTINED` | **Non-Payable Commercial Doc:** Document classified as `PAYMENT_RECEIPT`; `is_payable_invoice` evaluates to False. Autonomously rejected without generating an open liability. |
-| **6** | `SCN-06` | `01_invoice_AP_26_001.pdf` | `REJECTED` | `ACTION_REQUIRED` | **Duplicate Resubmission:** Identical voucher number or SHA-256 hash collision with active ledger record. Gate 7 fails deterministically; prevents duplicate payment disbursements. |
-
----
-
-## 6. 5-Minute Video Walkthrough Specification
-
-For evaluators reviewing candidate video submissions, the accompanying video should adhere to these standards:
-- **Format:** Continuous unedited screen capture with live narration (no slides, no marketing animations).
-- **Duration:** 4 to 6 minutes.
-- **Narrative Structure:**
-  1. *Minute 1 — Architecture:* Live system running on Render; brief explanation of *"Models Read, Rules Decide"* and the 7-gate deterministic pipeline.
-  2. *Minute 2 — Happy Path:* SCN-01 straight-through match, review workspace inspection, and single AP Lead approval.
-  3. *Minute 3 — Exceptions:* SCN-02 price variance failure and operational query hold; SCN-04 QC quarantine.
-  4. *Minute 4 — Safety & Grounding:* SCN-03 degraded scan grounding tripwire and SCN-05 non-payable receipt quarantine.
-  5. *Minute 5 — Dual Control & Audit Ledger:* $\ge ₹5,00,000$ dual approval workflow, anti-self-approval enforcement, and PostgreSQL immutable audit log verification.
+- **Prepared Records vs. Live Processing:**  
+  The demo workspace includes five pre-seeded synthetic records (`SCN-01` through `SCN-05`) for immediate UI review. Custom PDF uploads in Option B trigger live, provider-backed execution (AWS Bedrock Mantle Qwen 235B and Supabase PostgreSQL).
+- **Cold-Start Delay:**  
+  The application is hosted on Render's web service tier. If the instance has been idle, the initial page load may take 20 to 40 seconds while the container boots. Subsequent requests operate at full speed.
+- **Demo Role & Payment Boundary:**  
+  The evaluator session operates with operational review permissions. Internal approval marks the invoice `MANUALLY_APPROVED` for AP ledger tracking. The application is intentionally decoupled from banking rails; internal approval does not initiate financial disbursement.
+- **Gmail & Mailbox Integration:**  
+  The backend codebase implements full Gmail OAuth 2.0 and Pub/Sub webhook ingestion. To eliminate evaluator login friction and protect privacy, the public web demo provides direct PDF upload rather than requiring personal mailbox authorization.
+- **SAP S/4HANA ERP:**  
+  Matching operates against relational procurement records (`erp.py`). Direct bidirectional ERP mutation is an architectural roadmap item.
 
 ---
 
-## 7. Key Documentation Links
+## Core Architectural Principle: "Models Read, Rules Decide"
 
-- **[README.md](./README.md):** Repository overview, visual showcase, and installation guide.
-- **[PROJECT_STATUS.md](./PROJECT_STATUS.md):** Complete milestone scorecard, live verification ledger, and authoritative test counts (520 passed, 0 failed, 43 skipped; 20 frontend tests).
-- **[docs/AP_BUSINESS_RULES.md](./docs/AP_BUSINESS_RULES.md):** Complete specification of 7 match gates, Indian GST arithmetic, and state transitions.
-- **[docs/LOCAL_SETUP.md](./docs/LOCAL_SETUP.md):** Local installation instructions, migrations, and developer personas.
-- **[OPERATIONS_RUNBOOK.md](./OPERATIONS_RUNBOOK.md):** Production runbook, monitoring probes, and incident triage.
-- **[SECURITY_NOTES.md](./SECURITY_NOTES.md):** Database RLS, token security, and trigger immutability.
+- **Multimodal AI (`engine/mantle_client.py`):** Extracts unstructured text, tables, and tax identifiers with coordinate provenance.
+- **Deterministic Engines (`engine/indian_tax_rules.py`):** Calculates exact GST tax math using Decimal precision, checks 3-way tolerances, and enforces the 7 sequential policy gates.
+- **Database Immutability (`backend/models/audit.py`):** PostgreSQL trigger `trg_audit_events_immutable` bars `UPDATE` and `DELETE` on all audit logs.
+
+---
+
+## Deep Dive Documentation
+
+For architectural specifications, business rules, and local setup instructions:
+- **[System Architecture (ARCHITECTURE.md)](ARCHITECTURE.md)**
+- **[AP Business Rules & GST Specifications (docs/AP_BUSINESS_RULES.md)](docs/AP_BUSINESS_RULES.md)**
+- **[Local Development Setup (docs/LOCAL_SETUP.md)](docs/LOCAL_SETUP.md)**
+- **[Operations & Production Runbook (OPERATIONS_RUNBOOK.md)](OPERATIONS_RUNBOOK.md)**
+- **[Security Architecture & RLS (SECURITY_NOTES.md)](SECURITY_NOTES.md)**

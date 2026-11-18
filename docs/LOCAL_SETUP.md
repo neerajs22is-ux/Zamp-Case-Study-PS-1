@@ -128,7 +128,7 @@ FastAPI serves the compiled frontend production bundle directly from `frontend/d
 
 ## 5. Verification & Test Execution
 
-Run the complete automated test suite (authoritative baseline: 520 passed, 0 failed, 43 skipped across 563 collected Python tests; 20 frontend unit tests):
+Run the automated test suite (the test suite defines 278 test functions collecting 625 test cases across parametrized matrices in `tests/`; historical milestone baseline recorded 520 passed, 0 failed, 43 skipped across 563 collected items; 20 frontend unit tests):
 ```bash
 python -m pytest tests/ -q
 npm test --prefix frontend

@@ -79,7 +79,7 @@ All contributors must adhere to strict security policies:
 Before submitting changes or staging commits:
 
 1. **Run Full Test Suite:**
-   All automated tests must pass (authoritative baseline: 520 passed, 0 failed, 43 skipped across 563 collected Python tests; 20 frontend unit tests):
+   All automated tests must pass (the suite defines 278 test functions collecting 625 test cases across parametrized matrices; historical milestone recorded 520 passed, 0 failed, 43 skipped across 563 collected Python tests; 20 frontend unit tests):
    ```bash
    python -m pytest tests/ -q
    npm test --prefix frontend
